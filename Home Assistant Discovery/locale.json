@@ -1,0 +1,16 @@
+﻿{
+  "translations": {
+    "de": {
+      "Searching for Home Assistant instances via mDNS (wait 2s)...": "Suche nach Home Assistant Instanzen via mDNS (warte 2s)...",
+      "Name": "Name",
+      "IP Address": "IP-Adresse",
+      "Version": "Version",
+      "Base URL": "Basis-URL",
+      "Expert": "Experte",
+      "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
+      "unknown": "unbekannt",
+      "offline": "offline"
+    }
+  }
+}
+

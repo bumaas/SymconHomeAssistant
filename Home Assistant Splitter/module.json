@@ -1,0 +1,21 @@
+{
+  "id": "{0A4C4B31-2F59-4D21-8F62-3A12A0A0F3E1}",
+  "name": "Home Assistant Splitter",
+  "aliases": [
+    "Home Assistant Splitter"
+  ],
+  "type": 2,
+  "vendor": "Home Assistant",
+  "url": "",
+  "parentRequirements": [
+    "{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}"
+  ],
+  "childRequirements": [
+    "{F4A2B9F1-1D3B-44A9-9B6A-0D3A5A7D6E10}"
+  ],
+  "implemented": [
+    "{E62B0B4F-1B5C-4F2C-9B6B-2C86F5B7C1D1}",
+    "{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}"
+  ],
+  "prefix": "HA"
+}

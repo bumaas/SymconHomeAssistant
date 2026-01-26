@@ -1,0 +1,153 @@
+{
+  "elements": [
+    {
+      "type":    "ExpansionPanel",
+      "caption": "Device Information",
+      "items":   [
+        {
+          "type":     "ValidationTextBox",
+          "name":     "DeviceName",
+          "caption":  "Device Name (HA)",
+          "readOnly": true
+        },
+        {
+          "type":     "ValidationTextBox",
+          "name":     "DeviceArea",
+          "caption":  "Area",
+          "readOnly": true
+        },
+        {
+          "type":     "ValidationTextBox",
+          "name":     "DeviceID",
+          "caption":  "Device ID",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "type":     "List",
+      "name":     "DeviceConfig",
+      "caption":  "Mapped Entities",
+      "rowCount": 10,
+      "add":      true,
+      "delete":   true,
+      "columns":  [
+        {
+          "caption": "Domain",
+          "name":    "domain",
+          "width":   "150px",
+          "edit":    {
+            "type":    "Select",
+            "options": [
+              {"caption": "Light (light)", "value": "light"},
+              {"caption": "Switch (switch)", "value": "switch"},
+              {"caption": "Sensor (sensor)", "value": "sensor"},
+              {"caption": "Binary Sensor (binary_sensor)", "value": "binary_sensor"},
+              {"caption": "Climate (climate)", "value": "climate"},
+              {"caption": "Number (number)", "value": "number"},
+              {"caption": "Lock (lock)", "value": "lock"},
+              {"caption": "Cover (cover)", "value": "cover"},
+              {"caption": "Event (event)", "value": "event"},
+              {"caption": "Select (select)", "value": "select"},
+              {"caption": "Button (button)", "value": "button"}
+            ]
+          },
+          "add":     "light"
+        },
+        {
+          "caption": "Name",
+          "name":    "name",
+          "width":   "auto",
+          "edit":    {
+            "type": "ValidationTextBox"
+          },
+          "add":     ""
+        },
+        {
+          "caption": "Entity ID (e.g. light.floorlamp)",
+          "name":    "entity_id",
+          "width":   "250px",
+          "edit":    {
+            "type": "ValidationTextBox"
+          },
+          "add":     ""
+        },
+        {
+          "caption": "Active",
+          "name":    "create_var",
+          "width":   "70px",
+          "edit":    {
+            "type": "CheckBox"
+          },
+          "add":     true
+        },
+        {
+          "caption": "Attributes (JSON)",
+          "name":    "attributes",
+          "width":   "auto",
+          "visible": false,
+          "edit":    {
+            "type": "ValidationTextBox"
+          },
+          "add":     "{}"
+        }
+      ]
+    },
+    {
+      "type":  "Label",
+      "label": "Note: You can manually add entities here or use the 'Home Assistant Configurator' to populate them automatically."
+    },
+    {
+      "type":    "ExpansionPanel",
+      "caption": "Expert",
+      "items":   [
+        {
+          "type":    "CheckBox",
+          "name":    "EnableExpertDebug",
+          "caption": "Enable extended debug output"
+        }
+      ]
+    }
+  ],
+  "actions":  [
+    {
+      "type":    "Label",
+      "name":    "CURRENT_FILTER",
+      "caption": "Aktueller Filter (Regex):",
+      "visible": false
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Diagnostics",
+      "expanded": false,
+      "items": [
+        {
+          "type":    "Label",
+          "name":    "DiagLastMQTT",
+          "caption": "Letzte MQTT-Message: nie"
+        },
+        {
+          "type":    "Label",
+          "name":    "DiagLastREST",
+          "caption": "Letzter REST-Abruf: nie"
+        },
+        {
+          "type":    "Label",
+          "name":    "DiagEntityCount",
+          "caption": "Entitäten (aktiv): 0"
+        }
+      ]
+    },
+    {
+      "type": "TestCenter"
+    }
+  ],
+  "status":   [
+    {
+      "code":    201,
+      "icon":    "error",
+      "caption": "Kein Parent verbunden"
+    }
+  ]
+}
+

@@ -1,0 +1,35 @@
+{
+  "elements": [
+    {
+      "type": "ExpansionPanel",
+      "caption": "Expert Settings",
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "EnableExpertDebug",
+          "caption": "Enable extended debug output"
+        },
+        {
+          "type": "List",
+          "name": "IncludeDomains",
+          "caption": "Allowed Domains (Filter)",
+          "rowCount": 5,
+          "add": true,
+          "delete": true,
+          "columns": [
+            {
+              "caption": "Domain",
+              "name": "Domain",
+              "width": "auto",
+              "edit": {
+                "type": "ValidationTextBox"
+              },
+              "add": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": []
+}

@@ -1,0 +1,112 @@
+{
+  "elements": [
+    {
+      "type": "ExpansionPanel",
+      "caption": "Home Assistant Connection",
+      "expanded": true,
+      "items": [
+        {
+          "type": "ValidationTextBox",
+          "name": "MQTTBaseTopic",
+          "caption": "MQTT Base Topic"
+        },
+        {
+          "type": "Label",
+          "caption": "Hinweis: Home Assistant muss mqtt_statestream aktiv haben und base_topic muss mit MQTT Base Topic übereinstimmen."
+        },
+        {
+          "type": "ValidationTextBox",
+          "name": "HAUrl",
+          "caption": "HA URL"
+        },
+        {
+          "type": "ValidationTextBox",
+          "name": "HAToken",
+          "caption": "Long-Lived Access Token"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Expert",
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "UseRestForSetTopics",
+          "caption": "Use REST for */set topics"
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "RestAckTimeoutSec",
+          "caption": "REST-Ack Timeout (s)",
+          "minimum": 0,
+          "maximum": 60
+        },
+        {
+          "type": "CheckBox",
+          "name": "EnableExpertDebug",
+          "caption": "Enable extended debug output"
+        },
+        {
+          "type": "Select",
+          "name": "DebugResponseFormat",
+          "caption": "Debug response format",
+          "options": [
+            {
+              "caption": "JSON compact",
+              "value": "json_compact"
+            },
+            {
+              "caption": "JSON pretty",
+              "value": "json_pretty"
+            },
+            {
+              "caption": "Raw",
+              "value": "raw"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "ExpansionPanel",
+      "caption": "Diagnostics",
+      "expanded": false,
+      "items": [
+        {
+          "type": "Label",
+          "name": "LastMQTTMessage",
+          "caption": "Letzte MQTT-Message: nie"
+        },
+        {
+          "type": "Label",
+          "name": "DiagParent",
+          "caption": "MQTT Parent: -"
+        },
+        {
+          "type": "Label",
+          "name": "DiagBaseTopic",
+          "caption": "MQTT Base Topic: -"
+        },
+        {
+          "type": "Label",
+          "name": "DiagRest",
+          "caption": "Letzter REST-Fehler: keiner"
+        },
+        {
+          "type": "Label",
+          "name": "DiagRestResponse",
+          "caption": "Letzte REST-Antwort: keine"
+        },
+        {
+          "type": "Label",
+          "name": "DiagRestTimeout",
+          "caption": "Letzter REST-Timeout: keiner"
+        }
+      ]
+    }
+  ]
+}
+

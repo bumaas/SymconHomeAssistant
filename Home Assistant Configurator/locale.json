@@ -1,0 +1,16 @@
+﻿{
+  "translations": {
+    "de": {
+      "Home Assistant Connection": "Home Assistant Verbindung",
+      "REST API Settings": "REST-API Einstellungen",
+      "Found Devices": "Gefundene Geräte",
+      "Area": "Bereich",
+      "Device": "Gerät",
+      "Entities": "Entitäten",
+      "Expert Settings": "Experteneinstellungen",
+      "Allowed Domains (Filter)": "Erlaubte Domänen (Filter)",
+      "Domain": "Domäne"
+    }
+  }
+}
+

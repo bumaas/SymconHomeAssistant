@@ -1,0 +1,31 @@
+﻿{
+  "translations": {
+    "de": {
+      "Device Information": "Geräteinformationen",
+      "Device Name (HA)": "Gerätename (HA)",
+      "Area": "Bereich",
+      "Device ID": "Geräte ID",
+      "Mapped Entities": "Zugeordnete Entitäten",
+      "Domain": "Domäne",
+      "Name": "Name",
+      "Entity ID (e.g. light.floorlamp)": "Entitäts-ID (z.B. light.stehlampe)",
+      "Active": "Aktiv",
+      "Attributes (JSON)": "Attribute (JSON)",
+      "Expert": "Experte",
+      "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
+      "Note: You can manually add entities here or use the 'Home Assistant Configurator' to populate them automatically.": "Hinweis: Sie können hier Entitäten manuell hinzufügen oder den 'Home Assistant Konfigurator' nutzen, um diese automatisch zu befüllen.",
+      "Light (light)": "Licht (light)",
+      "Switch (switch)": "Schalter (switch)",
+      "Sensor (sensor)": "Sensor (sensor)",
+      "Binary Sensor (binary_sensor)": "Binär Sensor (binary_sensor)",
+      "Climate (climate)": "Klima (climate)",
+      "Number (number)": "Zahl (number)",
+      "Lock (lock)": "Schloss (lock)",
+      "Cover (cover)": "Abdeckung/Rollo (cover)",
+      "Event (event)": "Ereignis (event)",
+      "Select (select)": "Auswahl (select)",
+      "Button (button)": "Taste (button)"
+    }
+  }
+}
+

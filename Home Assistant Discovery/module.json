@@ -1,0 +1,12 @@
+{
+  "id":                 "{C36FEFA4-4732-CBD6-0216-A1DB30D036CF}",
+  "name":               "Home Assistant Discovery",
+  "type":               5,
+  "vendor":             "Home Assistant",
+  "aliases":            [],
+  "parentRequirements": [],
+  "childRequirements":  [],
+  "implemented":        [],
+  "prefix":             "HA",
+  "url":                "https://github.com/bumaas/SonyTV/blob/master/README.md"
+}

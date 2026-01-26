@@ -1,0 +1,18 @@
+{
+  "id": "{72D6A284-1870-4E11-92D8-0402C8233C29}",
+  "name": "Home Assistant Device",
+  "aliases": [
+    "Home Assistant Gerät"
+  ],
+  "type": 3,
+  "vendor": "Home Assistant",
+  "url": "",
+  "parentRequirements": [
+    "{E62B0B4F-1B5C-4F2C-9B6B-2C86F5B7C1D1}"
+  ],
+  "childRequirements": [],
+  "implemented": [
+    "{F4A2B9F1-1D3B-44A9-9B6A-0D3A5A7D6E10}"
+  ],
+  "prefix": "HA"
+}

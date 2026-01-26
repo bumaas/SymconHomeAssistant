@@ -1,0 +1,12 @@
+{
+  "id": "{A1622F76-A969-EF93-2CC7-17DAE1A91C0E}",
+  "author": "bumaas",
+  "name": "HA MQTT Discovery",
+  "url": "",
+  "compatibility": {
+    "version": "8.2"
+  },
+  "version": "0.8",
+  "build": 1,
+  "date": 1769438854
+}

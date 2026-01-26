@@ -1,0 +1,20 @@
+{
+  "id": "{B9830F89-98E6-106C-CD6C-A3AD76FD5AE9}",
+  "name": "Home Assistant Configurator",
+  "aliases": [
+    "Home Assistant Konfigurator"],
+  "type": 4,
+  "vendor": "Home Assistant",
+  "version": "1.0.0",
+  "build": 1,
+  "date": 0,
+  "url": "",
+  "parentRequirements": [
+    "{E62B0B4F-1B5C-4F2C-9B6B-2C86F5B7C1D1}"
+  ],
+  "childRequirements": [],
+  "implemented": [
+    "{F4A2B9F1-1D3B-44A9-9B6A-0D3A5A7D6E10}"
+  ],
+  "prefix": "HA"
+}

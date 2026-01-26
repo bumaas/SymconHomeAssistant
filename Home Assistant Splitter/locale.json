@@ -1,0 +1,19 @@
+﻿{
+  "translations": {
+    "de": {
+      "Home Assistant Connection": "Home Assistant Verbindung",
+      "MQTT Base Topic": "MQTT Basis-Topic",
+      "HA URL": "HA URL",
+      "Long-Lived Access Token": "Langzeit-Access-Token",
+      "Behavior": "Verhalten",
+      "Use REST for */set topics": "REST für */set Topics verwenden",
+      "Expert": "Experte",
+      "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
+      "Debug response format": "Debug Antwortformat",
+      "JSON compact": "JSON kompakt",
+      "JSON pretty": "JSON formatiert",
+      "Raw": "Roh"
+    }
+  }
+}
+
