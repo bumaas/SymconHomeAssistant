@@ -54,38 +54,55 @@ EOT;
 
     public function GetConfigurationForm(): string
     {
-        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
-        $this->UpdateCacheFromHA();
+        try {
+            $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
+            $this->UpdateCacheFromHA();
 
-        if (empty($this->entities)) {
-            try {
-                $this->entities = json_decode($this->ReadAttributeString('CachedEntities'), true, 512, JSON_THROW_ON_ERROR) ?? [];
-            } catch (JsonException) {
-                $this->entities = [];
+            if (empty($this->entities)) {
+                try {
+                    $this->entities = json_decode($this->ReadAttributeString('CachedEntities'), true, 512, JSON_THROW_ON_ERROR) ?? [];
+                } catch (JsonException) {
+                    $this->entities = [];
+                }
             }
+
+            $devices = $this->groupEntitiesToDevices($this->entities);
+            $values = $this->prepareConfiguratorValues($devices);
+
+            $form['actions'][] = [
+                'type'     => 'Configurator',
+                'name'     => 'HomeAssistantDevices',
+                'caption'  => 'Found Devices',
+                'rowCount' => 20,
+                'add'      => false,
+                'delete'   => true,
+                'sort'     => 'Area',
+                'columns'  => [
+                    ['caption' => 'Area', 'name' => 'Area', 'width' => '150px'],
+                    ['caption' => 'Device', 'name' => 'name', 'width' => '250px'],
+                    ['caption' => 'Entities', 'name' => 'Summary', 'width' => 'auto'],
+                    ['caption' => 'Device ID', 'name' => 'DeviceID', 'width' => '0px']
+                ],
+                'values'   => $values
+            ];
+
+            $json = json_encode($form, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
+            IPS_LogMessage('HomeAssistantConfigurator', $json);
+            file_put_contents(__DIR__ . '/form.last.json', $json);
+            return $json;
+        } catch (Throwable $e) {
+            $message = sprintf('GetConfigurationForm failed: %s at %s:%d', $e->getMessage(), $e->getFile(), $e->getLine());
+            IPS_LogMessage('HomeAssistantConfigurator', $message);
+            $fallback = [
+                'actions' => [
+                    [
+                        'type' => 'Label',
+                        'caption' => $message
+                    ]
+                ]
+            ];
+            return json_encode($fallback, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
         }
-
-        $devices = $this->groupEntitiesToDevices($this->entities);
-        $values = $this->prepareConfiguratorValues($devices);
-
-        $form['actions'][] = [
-            'type'     => 'Configurator',
-            'name'     => 'HomeAssistantDevices',
-            'caption'  => 'Found Devices',
-            'rowCount' => 20,
-            'add'      => false,
-            'delete'   => true,
-            'sort'     => 'Area',
-            'columns'  => [
-                ['caption' => 'Area', 'name' => 'Area', 'width' => '150px'],
-                ['caption' => 'Device', 'name' => 'name', 'width' => '250px'],
-                ['caption' => 'Entities', 'name' => 'Summary', 'width' => 'auto'],
-                ['caption' => 'Device ID', 'name' => 'DeviceID', 'width' => '0px']
-            ],
-            'values'   => $values
-        ];
-
-        return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
     private function groupEntitiesToDevices(array $entities): array
@@ -132,7 +149,7 @@ EOT;
 
         $values = [];
         foreach ($devices as $dev) {
-            $this->debugExpert(__FUNCTION__, json_encode($dev, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+            $this->debugExpert(__FUNCTION__, json_encode($dev, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
 
             $instanceID = 0;
 
@@ -163,7 +180,7 @@ EOT;
                 // Attribute zu String
                 if (isset($finalEntity['attributes']) && is_array($finalEntity['attributes'])) {
                     $finalEntity['attributes'] =
-                        json_encode($finalEntity['attributes'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                        json_encode($finalEntity['attributes'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
                 } else {
                     $finalEntity['attributes'] = '{}';
                 }
@@ -190,7 +207,7 @@ EOT;
                         'DeviceArea'   => $dev['area'],
                         'DeviceName'   => $dev['name'],
                         // Bereinigte Liste übergeben
-                        'DeviceConfig' => json_encode($entitiesForConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+                        'DeviceConfig' => json_encode($entitiesForConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
                     ],
                     'name'          => $dev['name']
                 ]

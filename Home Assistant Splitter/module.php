@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection AutoloadingIssuesInspection */
 
 declare(strict_types=1);
 
@@ -60,7 +60,21 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return;
         }
 
-        $this->SetStatus(102);
+        if (!$this->isMqttParentActive()) {
+            $this->SetStatus(201);
+            $this->debugExpert('Config', 'MQTT Parent ist nicht aktiv.');
+            return;
+        }
+
+        if ($this->ReadPropertyBoolean('UseRestForSetTopics') && !$this->isRestApiReachable()) {
+            $this->SetStatus(203);
+            $this->debugExpert('Config', 'REST API nicht erreichbar.', [
+                'Reason' => $this->ReadAttributeString('LastRestError')
+            ]);
+            return;
+        }
+
+        $this->SetStatus(IS_ACTIVE);
     }
 
     public function GetConfigurationForm(): string
@@ -146,6 +160,74 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->updateFormFieldSafe('LastMQTTMessage', 'caption', 'Letzte MQTT-Message: ' . $last);
     }
 
+    private function isMqttParentActive(): bool
+    {
+        $instance = IPS_GetInstance($this->InstanceID);
+        $parentId = (int)($instance['ConnectionID'] ?? 0);
+        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+            return false;
+        }
+
+        $parent = IPS_GetInstance($parentId);
+        $status = (int)($parent['InstanceStatus'] ?? 0);
+        return $status === IS_ACTIVE;
+    }
+
+    private function isRestApiReachable(): bool
+    {
+        $haUrl = trim($this->ReadPropertyString('HAUrl'));
+        $token = trim($this->ReadPropertyString('HAToken'));
+        if ($haUrl === '' || $token === '') {
+            $this->WriteAttributeString('LastRestError', 'Missing HAUrl/HAToken');
+            $this->WriteAttributeString('LastRestResponse', '');
+            $this->updateDiagnosticsLabels();
+            return false;
+        }
+
+        $url = rtrim($haUrl, '/') . '/api/';
+        $ch = curl_init($url);
+
+        $headers = [
+            'Authorization: Bearer ' . $token,
+            'Content-Type: application/json'
+        ];
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+
+        if ($error) {
+            $this->WriteAttributeString('LastRestError', 'cURL: ' . $error);
+            $this->WriteAttributeString('LastRestResponse', '');
+            $this->updateDiagnosticsLabels();
+            return false;
+        }
+        if ($response === false || $response === '') {
+            $this->WriteAttributeString('LastRestError', 'Empty response');
+            $this->WriteAttributeString('LastRestResponse', '');
+            $this->updateDiagnosticsLabels();
+            return false;
+        }
+        if ($httpCode < 200 || $httpCode >= 300) {
+            $this->WriteAttributeString('LastRestError', 'HTTP ' . $httpCode);
+            $this->WriteAttributeString('LastRestResponse', (string)$response);
+            $this->updateDiagnosticsLabels();
+            return false;
+        }
+
+        if ($this->ReadAttributeString('LastRestError') !== '') {
+            $this->WriteAttributeString('LastRestError', '');
+        }
+        $this->WriteAttributeString('LastRestResponse', '');
+        $this->updateDiagnosticsLabels();
+        return true;
+    }
+
     private function isSetTopic(string $topic, ?string &$domain, ?string &$entity): bool
     {
         $domain = null;
@@ -215,8 +297,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         }
 
         try {
-            $json = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
-            return $json;
+            return json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
             // Non-JSON payloads are handled below.
         }
@@ -390,8 +471,12 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $compactWhitespace = true;
 
         if ($format === 'json_compact' || $format === 'json_pretty') {
-            $decoded = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-            if (json_last_error() === JSON_ERROR_NONE) {
+            try {
+                $decoded = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException) {
+                $decoded = null;
+            }
+            if (is_array($decoded)) {
                 $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
                 if ($format === 'json_pretty') {
                     $text = json_encode($decoded, JSON_THROW_ON_ERROR | $flags | JSON_PRETTY_PRINT);

@@ -107,6 +107,23 @@
         }
       ]
     }
+  ],
+  "status": [
+    {
+      "code": 201,
+      "icon": "error",
+      "caption": "Kein aktiver MQTT-Parent verbunden."
+    },
+    {
+      "code": 202,
+      "icon": "error",
+      "caption": "MQTT BaseTopic ist leer."
+    },
+    {
+      "code": 203,
+      "icon": "error",
+      "caption": "REST API nicht erreichbar."
+    }
   ]
 }
 
