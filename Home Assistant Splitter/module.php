@@ -12,6 +12,10 @@ class HomeAssistantSplitter extends IPSModuleStrict
     {
         parent::Create();
 
+        $this->RegisterMessage(0, IPS_KERNELMESSAGE);
+        $this->RegisterMessage($this->InstanceID, FM_CONNECT);
+        $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+
         $this->RegisterPropertyString('MQTTBaseTopic', 'homeassistant');
         $this->RegisterPropertyString('HAUrl', 'http://homeassistant.local:8123');
         $this->RegisterPropertyString('HAToken', '');
@@ -27,6 +31,14 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterAttributeString('PendingRestAcks', '{}');
 
         $this->RegisterTimer('RestAckTimer', 0, 'HA_CheckRestAcks($_IPS["TARGET"]);');
+    }
+
+    public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
+    {
+        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT) {
+            $this->debugExpert('MessageSink', 'Verbindungsstatus geaendert. Aktualisiere...', [], true);
+            $this->ApplyChanges();
+        }
     }
 
     public function GetCompatibleParents(): string
@@ -165,11 +177,21 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $instance = IPS_GetInstance($this->InstanceID);
         $parentId = (int)($instance['ConnectionID'] ?? 0);
         if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+            $this->debugExpert('Config', 'MQTT Parent fehlt', ['ParentID' => $parentId], true);
             return false;
         }
 
         $parent = IPS_GetInstance($parentId);
         $status = (int)($parent['InstanceStatus'] ?? 0);
+        if ($status !== IS_ACTIVE) {
+            $this->debugExpert('Config', 'MQTT Parent Status', [
+                'ParentID' => $parentId,
+                'ParentName' => IPS_GetName($parentId),
+                'Status' => $status,
+                'ModuleID' => (string)($parent['ModuleInfo']['ModuleID'] ?? ''),
+                'ModuleName' => (string)($parent['ModuleInfo']['ModuleName'] ?? '')
+            ], true);
+        }
         return $status === IS_ACTIVE;
     }
 

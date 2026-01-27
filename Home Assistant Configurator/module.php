@@ -8,6 +8,7 @@ require_once __DIR__ . '/../lib/HADebug.php';
 class HomeAssistantConfigurator extends IPSModuleStrict
 {
     use HADebugTrait;
+
     // ... Caches ...
     private array $entities = [];
 
@@ -39,7 +40,7 @@ EOT;
 
         // Standard-Domänen im korrekten Listen-Format initialisieren (Array von Objekten)
         $defaultDomains = ['light', 'switch', 'sensor', 'binary_sensor', 'climate', 'number', 'lock', 'cover', 'event', 'select'];
-        $domainList = [];
+        $domainList     = [];
         foreach ($defaultDomains as $d) {
             $domainList[] = ['Domain' => $d];
         }
@@ -54,8 +55,9 @@ EOT;
 
     public function GetConfigurationForm(): string
     {
+        //return file_get_contents(__DIR__ . '/form.test.json');
+        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
         try {
-            $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
             $this->UpdateCacheFromHA();
 
             if (empty($this->entities)) {
@@ -66,8 +68,17 @@ EOT;
                 }
             }
 
+            try {
+                $domainsList = json_decode($this->ReadPropertyString('IncludeDomains'), true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException) {
+                $domainsList = [];
+            }
+            if (isset($form['elements'][0]['items'][1]) && is_array($form['elements'][0]['items'][1])) {
+                $form['elements'][0]['items'][1]['values'] = $domainsList;
+            }
+
             $devices = $this->groupEntitiesToDevices($this->entities);
-            $values = $this->prepareConfiguratorValues($devices);
+            $values  = $this->prepareConfiguratorValues($devices);
 
             $form['actions'][] = [
                 'type'     => 'Configurator',
@@ -76,12 +87,10 @@ EOT;
                 'rowCount' => 20,
                 'add'      => false,
                 'delete'   => true,
-                'sort'     => 'Area',
                 'columns'  => [
                     ['caption' => 'Area', 'name' => 'Area', 'width' => '150px'],
                     ['caption' => 'Device', 'name' => 'name', 'width' => '250px'],
-                    ['caption' => 'Entities', 'name' => 'Summary', 'width' => 'auto'],
-                    ['caption' => 'Device ID', 'name' => 'DeviceID', 'width' => '0px']
+                    ['caption' => 'Entities', 'name' => 'Summary', 'width' => 'auto']
                 ],
                 'values'   => $values
             ];
@@ -93,15 +102,7 @@ EOT;
         } catch (Throwable $e) {
             $message = sprintf('GetConfigurationForm failed: %s at %s:%d', $e->getMessage(), $e->getFile(), $e->getLine());
             IPS_LogMessage('HomeAssistantConfigurator', $message);
-            $fallback = [
-                'actions' => [
-                    [
-                        'type' => 'Label',
-                        'caption' => $message
-                    ]
-                ]
-            ];
-            return json_encode($fallback, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
+            return file_get_contents(__DIR__ . '/form.json');
         }
     }
 
@@ -109,10 +110,8 @@ EOT;
     {
         $devices = [];
         foreach ($entities as $entity) {
-            $isRealDevice = $entity['device_id'] !== 'none';
-            $uniqueDeviceKey = $isRealDevice
-                ? 'HA_DEV_' . $entity['device_id']
-                : 'HA_ENT_' . str_replace('.', '_', $entity['entity_id']);
+            $isRealDevice    = $entity['device_id'] !== 'none';
+            $uniqueDeviceKey = $isRealDevice ? 'HA_DEV_' . $entity['device_id'] : 'HA_ENT_' . str_replace('.', '_', $entity['entity_id']);
 
             if (!isset($devices[$uniqueDeviceKey])) {
                 $devices[$uniqueDeviceKey] = [
@@ -138,7 +137,7 @@ EOT;
     {
         // --- Matching Logic: Finde existierende Instanzen ---
         $existingInstances = IPS_GetInstanceListByModuleID(HAIds::MODULE_DEVICE);
-        $mappedInstances = [];
+        $mappedInstances   = [];
 
         foreach ($existingInstances as $id) {
             $devID = (string)@IPS_GetProperty($id, 'DeviceID');
@@ -179,8 +178,10 @@ EOT;
 
                 // Attribute zu String
                 if (isset($finalEntity['attributes']) && is_array($finalEntity['attributes'])) {
-                    $finalEntity['attributes'] =
-                        json_encode($finalEntity['attributes'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+                    $finalEntity['attributes'] = json_encode(
+                        $finalEntity['attributes'],
+                        JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+                    );
                 } else {
                     $finalEntity['attributes'] = '{}';
                 }
@@ -220,13 +221,14 @@ EOT;
      * Bereinigt die Entitäts-Namen eines Geräts, indem ein führender Bereichs-Präfix entfernt wird.
      *
      * @param array $dev Das gruppierte Gerät inklusive seiner Entitäten.
+     *
      * @return array Liste der bereinigten Entitäten.
      */
     private function getCleanedEntities(array $dev): array
     {
-        $cleaned = [];
+        $cleaned      = [];
         $devicePrefix = $dev['name'] . ' ';
-        $nameCounts = [];
+        $nameCounts   = [];
 
         foreach ($dev['entities'] as $entity) {
             $name = $entity['name'];
@@ -234,17 +236,17 @@ EOT;
                 $name = substr($name, strlen($devicePrefix));
             }
             $nameCounts[$name] = ($nameCounts[$name] ?? 0) + 1;
-            $cleaned[] = array_merge($entity, ['name' => $name]);
+            $cleaned[]         = array_merge($entity, ['name' => $name]);
         }
 
         foreach ($cleaned as &$entity) {
             if (($nameCounts[$entity['name']] ?? 0) > 1) {
                 $entityIdName = $entity['entity_id'];
-                $dotPos = strpos($entityIdName, '.');
+                $dotPos       = strpos($entityIdName, '.');
                 if ($dotPos !== false) {
                     $entityIdName = substr($entityIdName, $dotPos + 1);
                 }
-                $entityIdName = str_replace('_', ' ', $entityIdName);
+                $entityIdName      = str_replace('_', ' ', $entityIdName);
                 $devicePrefixLower = strtolower($dev['name']) . ' ';
                 $entityIdNameLower = strtolower($entityIdName);
                 if (str_starts_with($entityIdNameLower, $devicePrefixLower)) {
@@ -269,6 +271,7 @@ EOT;
      * wird lediglich die Gesamtzahl ausgegeben.
      *
      * @param array $entities Liste der (bereinigten) Entitäten.
+     *
      * @return string Zusammenfassender Text für die Spalte 'Entitäten'.
      */
     private function generateEntitySummary(array $entities): string
@@ -298,7 +301,7 @@ EOT;
             $domainsList = [];
         }
         $domainsSimple = array_column($domainsList, 'Domain');
-        $domainsJson = json_encode($domainsSimple, JSON_THROW_ON_ERROR);
+        $domainsJson   = json_encode($domainsSimple, JSON_THROW_ON_ERROR);
 
         if ($parentID <= 0) {
             return;
@@ -345,8 +348,9 @@ EOT;
      * Anzeigename für das Gerät generiert, falls die Entität keinem spezifischen
      * Gerät zugeordnet ist.
      *
-     * @param array $state Die Zustandsdaten der Entität aus der HA-API.
+     * @param array      $state      Die Zustandsdaten der Entität aus der HA-API.
      * @param array|null $deviceInfo Optionale Geräte-Metadaten (Name, ID, Bereich).
+     *
      * @return array Die gemappten Entitätsdaten für den Cache und den Konfigurator.
      */
 
@@ -364,7 +368,7 @@ EOT;
         uasort($debugList, static function ($a, $b) {
             $areaA = ($a['area'] === 'Kein Bereich' || empty($a['area'])) ? 'zzz' : $a['area'];
             $areaB = ($b['area'] === 'Kein Bereich' || empty($b['area'])) ? 'zzz' : $b['area'];
-            $res = strcasecmp($areaA, $areaB);
+            $res   = strcasecmp($areaA, $areaB);
             if (strcasecmp($a['device'], $b['device'])) {
                 return ($res !== 0) ? $res : (strcasecmp($a['device'], $b['device']));
             }
@@ -375,7 +379,10 @@ EOT;
         foreach ($debugList as $entity) {
             // Attribute für die Debug-Ausgabe als String formatieren
             $attributes = json_encode($entity['attributes'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            $this->debugExpert(__FUNCTION__, sprintf("Found: %s | %s | %s | Attr: %s", $entity['area'], $entity['device'], $entity['name'], $attributes));
+            $this->debugExpert(
+                __FUNCTION__,
+                sprintf("Found: %s | %s | %s | Attr: %s", $entity['area'], $entity['device'], $entity['name'], $attributes)
+            );
         }
     }
 
@@ -388,11 +395,12 @@ EOT;
     private function sendRestRequestToParent(string $endpoint, ?string $postData): ?array
     {
         $payload = json_encode([
-            'DataID' => HAIds::DATA_DEVICE_TO_SPLITTER,
-            'Endpoint' => $endpoint,
-            'Method' => $postData !== null ? 'POST' : 'GET',
-            'Body' => $postData
-        ], JSON_THROW_ON_ERROR);
+                                   'DataID'   => HAIds::DATA_DEVICE_TO_SPLITTER,
+                                   'Endpoint' => $endpoint,
+                                   'Method'   => $postData !== null ? 'POST' : 'GET',
+                                   'Body'     => $postData
+                               ],
+                               JSON_THROW_ON_ERROR);
 
         $responseJson = $this->SendDataToParent($payload);
         if ($responseJson === '') {

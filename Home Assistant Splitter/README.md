@@ -4,14 +4,15 @@ Verbindet den MQTT Client mit den Device/Configurator Instanzen und bietet optio
 
 ## Voraussetzungen
 
-- MQTT Client oder MQTT Server Instanz als Parent.
+- MQTT Client oder MQTT Server Instanz als Parent (direkt verbinden).
+  - Bei MQTT Client: mindestens `ClientID` setzen und eine Subscription konfigurieren (z.B. `#` oder `homeassistant/#`).
 - Home Assistant MQTT Integration aktiv.
 
 ## Konfiguration
 
 - `MQTTBaseTopic`: Basis-Topic für Discovery (typisch `homeassistant`).
-- `HAUrl`: Base URL von Home Assistant (z.B. `http://homeassistant.local:8123`).
-- `HAToken`: Long-Lived Access Token für REST.
+- `HAUrl`: Base URL von Home Assistant im Format `http(s)://<host>:<port>` (z.B. `http://homeassistant.local:8123`).
+- `HAToken`: Long-Lived Access Token aus Home Assistant (Profil -> Long-Lived Access Tokens) für REST.
 - `UseRestForSetTopics`: Leitet `*/set` Topics an REST weiter (optional).
 - `RestAckTimeoutSec`: Timeout in Sekunden für REST-ACKs (Fallback/Status).
 - Optional: `EnableExpertDebug`, `DebugResponseFormat`.
