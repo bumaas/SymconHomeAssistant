@@ -9,6 +9,21 @@ Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symc
 - [Home Assistant Splitter](Home%20Assistant%20Splitter/README.md)
 - [Home Assistant Device](Home%20Assistant%20Device/README.md)
 
+## Unterstützte Domains
+
+| Domain         | Status                | Hinweise |
+| -------------- | --------------------- | -------- |
+| `light`        | voll                  | Attribute + Schreibbar |
+| `switch`       | voll                  | Schaltbar |
+| `binary_sensor`| voll                  | device_class + Icons |
+| `number`       | voll                  | Slider/Min/Max/Step, REST `set_value` |
+| `sensor`       | voll                  | Units/Suffix, `enum` als Enumeration |
+| `select`       | voll                  | Enumeration |
+| `climate`      | teilweise             | REST `set_temperature` |
+| `lock`         | teilweise             | REST `lock`/`unlock` |
+| `cover`        | teilweise             | REST `open_cover`/`close_cover` |
+| `event`        | teilweise             | Basisvariablen |
+
 ## Voraussetzungen
 
 - Symcon ab Version 8.2
@@ -59,4 +74,3 @@ Die Kommunikation zwischen Device/Configurator und Splitter erfolgt über defini
 | Home Assistant Configurator  | Configurator | `{B9830F89-98E6-106C-CD6C-A3AD76FD5AE9}` |
 | Home Assistant Splitter      | Splitter     | `{0A4C4B31-2F59-4D21-8F62-3A12A0A0F3E1}` |
 | Home Assistant Device        | Device       | `{72D6A284-1870-4E11-92D8-0402C8233C29}` |
-

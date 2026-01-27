@@ -542,12 +542,22 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $instance = IPS_GetInstance($this->InstanceID);
         $parentId = (int)($instance['ConnectionID'] ?? 0);
         $parentStatus = 0;
+        $parentName = '';
         if ($parentId > 0 && IPS_InstanceExists($parentId)) {
-            $parentStatus = (int)IPS_GetInstance($parentId)['InstanceStatus'];
+            $parent = IPS_GetInstance($parentId);
+            $parentStatus = (int)($parent['InstanceStatus'] ?? 0);
+            $parentName = IPS_GetName($parentId);
         }
 
         $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
-        $this->updateFormFieldSafe('DiagParent', 'caption', 'MQTT Parent: ' . $parentId . ' (Status ' . $parentStatus . ')');
+        $statusName = $this->getInstanceStatusName($parentStatus);
+        $nameSuffix = $parentName !== '' ? ' (' . $parentName . ')' : '';
+        $statusSuffix = $statusName !== '' ? '(' . $statusName .')' : '';
+        $this->updateFormFieldSafe(
+            'DiagParent',
+            'caption',
+            'MQTT Parent: ' . $parentId . $nameSuffix . ' | Status ' . $parentStatus . $statusSuffix
+        );
         $this->updateFormFieldSafe('DiagBaseTopic', 'caption', 'MQTT Base Topic: ' . ($baseTopic !== '' ? $baseTopic : 'leer'));
 
         $lastRestError = $this->ReadAttributeString('LastRestError');
@@ -567,6 +577,18 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $lastRestTimeout = 'keiner';
         }
         $this->updateFormFieldSafe('DiagRestTimeout', 'caption', 'Letzter REST-Timeout: ' . $lastRestTimeout);
+    }
+
+    private function getInstanceStatusName(int $status): string
+    {
+        return match ($status) {
+            IS_CREATING => 'IS_CREATING',
+            IS_ACTIVE => 'IS_ACTIVE',
+            IS_DELETING => 'IS_DELETING',
+            IS_INACTIVE => 'IS_INACTIVE',
+            IS_NOTCREATED => 'IS_NOTCREATED',
+            default => ''
+        };
     }
 
     /** @noinspection PhpUnused */
