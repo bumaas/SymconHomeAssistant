@@ -1,4 +1,4 @@
-# Home Assistant MQTT Discovery
+# Home Assistant
 
 Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symcon einzubinden und zu steuern.
 
