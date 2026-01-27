@@ -4,11 +4,11 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../lib/HALightDefinitions.php';
-require_once __DIR__ . '/../lib/HAIds.php';
-require_once __DIR__ . '/../lib/HADebug.php';
-require_once __DIR__ . '/../lib/HANumberDefinitions.php';
-require_once __DIR__ . '/../lib/HASensorDefinitions.php';
+require_once __DIR__ . '/../libs/HALightDefinitions.php';
+require_once __DIR__ . '/../libs/HAIds.php';
+require_once __DIR__ . '/../libs/HADebug.php';
+require_once __DIR__ . '/../libs/HANumberDefinitions.php';
+require_once __DIR__ . '/../libs/HASensorDefinitions.php';
 
 class HomeAssistantDevice extends IPSModuleStrict
 {

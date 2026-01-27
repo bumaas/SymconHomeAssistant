@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../lib/HAIds.php';
-require_once __DIR__ . '/../lib/HADebug.php';
+require_once __DIR__ . '/../libs/HAIds.php';
+require_once __DIR__ . '/../libs/HADebug.php';
 
 class HomeAssistantSplitter extends IPSModuleStrict
 {
