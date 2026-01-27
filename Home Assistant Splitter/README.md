@@ -6,6 +6,7 @@ Verbindet den MQTT Client mit den Device/Configurator Instanzen und bietet optio
 
 - MQTT Client oder MQTT Server Instanz als Parent (direkt verbinden).
   - Bei MQTT Client: mindestens `ClientID` setzen und eine Subscription konfigurieren (z.B. `#` oder `homeassistant/#`).
+  - Hinweis zu Ports: MQTT nutzt i.d.R. `1883` (oder `8883` bei TLS). Der Home Assistant Web/REST-Port ist typischerweise `8123`.
 - Home Assistant MQTT Integration aktiv.
 
 ## Konfiguration
@@ -33,7 +34,6 @@ mqtt_statestream:
   publish_attributes: true
   publish_timestamps: true
 ```
-
 
 
 

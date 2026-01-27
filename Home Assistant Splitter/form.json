@@ -33,14 +33,16 @@
         {
           "type": "CheckBox",
           "name": "UseRestForSetTopics",
-          "caption": "Use REST for */set topics"
+          "caption": "Use REST for */set topics",
+          "visible": false
         },
         {
           "type": "NumberSpinner",
           "name": "RestAckTimeoutSec",
           "caption": "REST-Ack Timeout (s)",
           "minimum": 0,
-          "maximum": 60
+          "maximum": 60,
+          "visible": false
         },
         {
           "type": "CheckBox",
@@ -126,4 +128,3 @@
     }
   ]
 }
-

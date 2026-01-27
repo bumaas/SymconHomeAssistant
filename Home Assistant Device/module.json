@@ -6,7 +6,7 @@
   ],
   "type": 3,
   "vendor": "Home Assistant",
-  "url": "",
+  "url": "https://github.com/bumaas/SymconHomeAssistant/blob/master/Home%20Assistant%20Device/README.md",
   "parentRequirements": [
     "{E62B0B4F-1B5C-4F2C-9B6B-2C86F5B7C1D1}"
   ],

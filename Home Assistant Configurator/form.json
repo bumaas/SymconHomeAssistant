@@ -2,17 +2,13 @@
   "elements": [
     {
       "type": "ExpansionPanel",
-      "caption": "Expert Settings",
+      "caption": "Configuration",
       "items": [
-        {
-          "type": "CheckBox",
-          "name": "EnableExpertDebug",
-          "caption": "Enable extended debug output"
-        },
         {
           "type": "List",
           "name": "IncludeDomains",
           "caption": "Allowed Domains (Filter)",
+          "visible": false,
           "rowCount": 5,
           "add": true,
           "delete": true,
@@ -27,6 +23,17 @@
               "add": ""
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Expert Settings",
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "EnableExpertDebug",
+          "caption": "Enable extended debug output"
         }
       ]
     }

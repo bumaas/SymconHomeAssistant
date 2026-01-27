@@ -10,11 +10,12 @@ require_once __DIR__ . '/../lib/HADebug.php';
 class HomeAssistantDiscovery extends IPSModuleStrict
 {
     use HADebugTrait;
+
     // GUIDs ohne Typisierung für PHP 8.0
     private const string DISCOVERY_SEARCHTARGET = '_home-assistant._tcp';
     private const string BUFFER_SERVERS         = 'Servers';
-    private const string BUFFER_SEARCHACTIVE = 'SearchActive';
-    private const string TIMER_LOAD          = 'DiscoveryTimer';
+    private const string BUFFER_SEARCHACTIVE    = 'SearchActive';
+    private const string TIMER_LOAD             = 'DiscoveryTimer';
 
     public function Create(): void
     {
@@ -205,18 +206,20 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     {
         $formValues = [];
 
-        // Map: IP/Host => InstanzID
+        // Map: IP/Host => InstanzID (inkl. unvollstaendige Konfiguratoren)
         $hostToId = [];
         foreach ($existingInstanceIDs as $id) {
             $host = $this->getConfiguratorHost($id);
             if ($host !== '') {
                 $hostToId[$host] = $id;
+            } else {
+                $hostToId['__missing__' . $id] = $id;
             }
         }
 
         // 1. Gefundene Server hinzufügen
         foreach ($foundServers as $server) {
-            $host = $server['host'];
+            $host       = $server['host'];
             $instanceID = $hostToId[$host] ?? 0;
 
             if (isset($hostToId[$host])) {
@@ -234,6 +237,31 @@ class HomeAssistantDiscovery extends IPSModuleStrict
                         'moduleID'      => HAIds::MODULE_CONFIGURATOR,
                         'configuration' => new stdClass(),
                         'name'          => "Home Assistant Konfigurator"
+                    ],
+                    [
+                        'moduleID'      => HAIds::MODULE_SPLITTER,
+                        'configuration' => [
+                            'HAUrl' => $server['url']
+                        ],
+                        'name'          => "Home Assistant Splitter"
+                    ],
+                    [
+                        'moduleID'      => HAIds::MODULE_MQTT_CLIENT,
+                        'configuration' => [
+                            'ClientID'          => $this->buildMqttClientId(),
+                            'KeepAliveInterval' => 60,
+                            'Subscriptions'     => json_encode([['Topic' => 'homeassistant/#', 'QoS' => 1]], JSON_THROW_ON_ERROR),
+                        ],
+                        'name'          => "MQTT Client Home Assistant"
+                    ],
+                    [
+                        'moduleID'      => HAIds::MODULE_CLIENTSOCKET,
+                        'configuration' => [
+                            'Host' => $host,
+                            'Open' => true,
+                            'Port' => 1883
+                        ],
+                        'name'          => "Client Socket Home Assistant"
                     ]
                 ]
             ];
@@ -241,9 +269,13 @@ class HomeAssistantDiscovery extends IPSModuleStrict
 
         // 2. Offline Instanzen hinzufügen
         foreach ($hostToId as $host => $id) {
+            $displayHost = $host;
+            if (str_starts_with($host, '__missing__')) {
+                $displayHost = $this->Translate('unknown');
+            }
             $formValues[] = [
                 'name'       => IPS_GetName($id),
-                'host'       => $host,
+                'host'       => $displayHost,
                 'version'    => $this->Translate('unknown'),
                 'url'        => $this->Translate('offline'),
                 'instanceID' => $id,
@@ -281,6 +313,23 @@ class HomeAssistantDiscovery extends IPSModuleStrict
         return is_string($host) ? $host : '';
     }
 
+    private function buildMqttClientId(): string
+    {
+        $host = gethostname();
+        if (!is_string($host) || $host === '') {
+            $host = php_uname('n');
+        }
+        if (!is_string($host)) {
+            $host = '';
+        }
+        $clean = preg_replace('/[^a-zA-Z0-9-]/', '-', $host) ?? '';
+        $clean = trim($clean, '-');
+        if ($clean === '') {
+            $clean = 'symcon';
+        }
+        return 'symcon-ha-' . $clean;
+    }
+
     /**
      * Helper: mDNS Instanz ID holen oder erstellen
      */
@@ -294,7 +343,9 @@ class HomeAssistantDiscovery extends IPSModuleStrict
         // Fehlerbehandlung: Prüfen, ob die Erstellung erfolgreich war
         $id = IPS_CreateInstance(HAIds::MODULE_MDNS);
         if ($id === 0) {
-            throw new RuntimeException("Konnte DNS-SD Control Instanz nicht erstellen. Bitte prüfen Sie das Lizenz-Limit oder ob das Modul verfügbar ist.");
+            throw new RuntimeException(
+                "Konnte DNS-SD Control Instanz nicht erstellen. Bitte prüfen Sie das Lizenz-Limit oder ob das Modul verfügbar ist."
+            );
         }
 
         IPS_SetName($id, 'DNS-SD Control');
@@ -311,16 +362,15 @@ class HomeAssistantDiscovery extends IPSModuleStrict
             $this->SetTimerInterval(self::TIMER_LOAD, 200);
         }
 
-        $elements = [
-            [
-                'type'    => 'ExpansionPanel',
-                'caption' => 'Expert',
-                'items'   => [
-                    [
-                        'type'    => 'CheckBox',
-                        'name'    => 'EnableExpertDebug',
-                        'caption' => 'Enable extended debug output'
-                    ]
+        $elements = $this->formElements();
+        $elements[] = [
+            'type'    => 'ExpansionPanel',
+            'caption' => 'Expert',
+            'items'   => [
+                [
+                    'type'    => 'CheckBox',
+                    'name'    => 'EnableExpertDebug',
+                    'caption' => 'Enable extended debug output'
                 ]
             ]
         ];
@@ -328,6 +378,11 @@ class HomeAssistantDiscovery extends IPSModuleStrict
         $status   = [];
 
         return json_encode(compact('elements', 'actions', 'status'), JSON_THROW_ON_ERROR);
+    }
+
+    private function formElements(): array
+    {
+        return [];
     }
 
     private function formActions(): array

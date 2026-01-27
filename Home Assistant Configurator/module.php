@@ -55,55 +55,55 @@ EOT;
 
     public function GetConfigurationForm(): string
     {
-        //return file_get_contents(__DIR__ . '/form.test.json');
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
-        try {
-            $this->UpdateCacheFromHA();
+        $this->UpdateCacheFromHA();
 
-            if (empty($this->entities)) {
-                try {
-                    $this->entities = json_decode($this->ReadAttributeString('CachedEntities'), true, 512, JSON_THROW_ON_ERROR) ?? [];
-                } catch (JsonException) {
-                    $this->entities = [];
+        if (empty($this->entities)) {
+            try {
+                $this->entities = json_decode($this->ReadAttributeString('CachedEntities'), true, 512, JSON_THROW_ON_ERROR) ?? [];
+            } catch (JsonException) {
+                $this->entities = [];
+            }
+        }
+
+        try {
+            $domainsList = json_decode($this->ReadPropertyString('IncludeDomains'), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            $domainsList = [];
+        }
+        foreach ($form['elements'] as &$element) {
+            if (!isset($element['items']) || !is_array($element['items'])) {
+                continue;
+            }
+            foreach ($element['items'] as &$item) {
+                if (($item['name'] ?? '') === 'IncludeDomains') {
+                    $item['values'] = $domainsList;
+                    break 2;
                 }
             }
-
-            try {
-                $domainsList = json_decode($this->ReadPropertyString('IncludeDomains'), true, 512, JSON_THROW_ON_ERROR);
-            } catch (JsonException) {
-                $domainsList = [];
-            }
-            if (isset($form['elements'][0]['items'][1]) && is_array($form['elements'][0]['items'][1])) {
-                $form['elements'][0]['items'][1]['values'] = $domainsList;
-            }
-
-            $devices = $this->groupEntitiesToDevices($this->entities);
-            $values  = $this->prepareConfiguratorValues($devices);
-
-            $form['actions'][] = [
-                'type'     => 'Configurator',
-                'name'     => 'HomeAssistantDevices',
-                'caption'  => 'Found Devices',
-                'rowCount' => 20,
-                'add'      => false,
-                'delete'   => true,
-                'columns'  => [
-                    ['caption' => 'Area', 'name' => 'Area', 'width' => '150px'],
-                    ['caption' => 'Device', 'name' => 'name', 'width' => '250px'],
-                    ['caption' => 'Entities', 'name' => 'Summary', 'width' => 'auto']
-                ],
-                'values'   => $values
-            ];
-
-            $json = json_encode($form, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
-            IPS_LogMessage('HomeAssistantConfigurator', $json);
-            file_put_contents(__DIR__ . '/form.last.json', $json);
-            return $json;
-        } catch (Throwable $e) {
-            $message = sprintf('GetConfigurationForm failed: %s at %s:%d', $e->getMessage(), $e->getFile(), $e->getLine());
-            IPS_LogMessage('HomeAssistantConfigurator', $message);
-            return file_get_contents(__DIR__ . '/form.json');
+            unset($item);
         }
+        unset($element);
+
+        $devices = $this->groupEntitiesToDevices($this->entities);
+        $values  = $this->prepareConfiguratorValues($devices);
+
+        $form['actions'][] = [
+            'type'     => 'Configurator',
+            'name'     => 'HomeAssistantDevices',
+            'caption'  => 'Found Devices',
+            'rowCount' => 20,
+            'add'      => false,
+            'delete'   => true,
+            'columns'  => [
+                ['caption' => 'Area', 'name' => 'Area', 'width' => '150px'],
+                ['caption' => 'Device', 'name' => 'name', 'width' => '250px'],
+                ['caption' => 'Entities', 'name' => 'Summary', 'width' => 'auto']
+            ],
+            'values'   => $values
+        ];
+
+        return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
     private function groupEntitiesToDevices(array $entities): array
