@@ -232,8 +232,8 @@ class HomeAssistantDiscovery extends IPSModuleStrict
                 'create'     => [
                     [
                         'moduleID'      => HAIds::MODULE_CONFIGURATOR,
-                        'configuration' => [],
-                        'name'          => "Home Assistant Konfigurator ({$server['name']})"
+                        'configuration' => new stdClass(),
+                        'name'          => "Home Assistant Konfigurator"
                     ]
                 ]
             ];
