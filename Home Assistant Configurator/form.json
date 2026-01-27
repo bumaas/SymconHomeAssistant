@@ -3,6 +3,7 @@
     {
       "type": "ExpansionPanel",
       "caption": "Configuration",
+      "visible": false,
       "items": [
         {
           "type": "List",
