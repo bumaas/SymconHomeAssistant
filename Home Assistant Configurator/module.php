@@ -17,19 +17,21 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     private const string HA_FULL_DATA_TEMPLATE = <<<'EOT'
 [
     {# Rekursive JSON-Sanitizer: wandelt Sets/Iterables in JSON-kompatible Listen um #}
-    {% macro sanitize_json(value) -%}
-    {%- if value is mapping -%}
-    {%- set items = [] -%}
+    {% macro sanitize_json(value, depth=0) -%}
+    {%- if depth > 4 -%}
+    {{ 'null' }}
+    {%- elif value is mapping -%}
+    {%- set ns = namespace(items=[]) -%}
     {%- for k, v in value.items() -%}
-    {%- set _ = items.append((k | to_json) ~ ':' ~ sanitize_json(v)) -%}
+    {%- set ns.items = ns.items + [(k | to_json) ~ ':' ~ sanitize_json(v, depth + 1)] -%}
     {%- endfor -%}
-    {{ '{' ~ (items | join(',')) ~ '}' }}
+    {{ '{' ~ (ns.items | join(',')) ~ '}' }}
     {%- elif value is iterable and value is not string -%}
-    {%- set items = [] -%}
+    {%- set ns = namespace(items=[]) -%}
     {%- for v in value -%}
-    {%- set _ = items.append(sanitize_json(v)) -%}
+    {%- set ns.items = ns.items + [sanitize_json(v, depth + 1)] -%}
     {%- endfor -%}
-    {{ '[' ~ (items | join(',')) ~ ']' }}
+    {{ '[' ~ (ns.items | join(',')) ~ ']' }}
     {%- else -%}
     {{ value | to_json }}
     {%- endif -%}
