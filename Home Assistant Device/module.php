@@ -826,12 +826,14 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function getVacuumPresentation(): array
     {
         $options = [];
-        foreach (HAVacuumDefinitions::STATE_OPTIONS as $value => $caption) {
+        foreach (HAVacuumDefinitions::STATE_OPTIONS as $value => $meta) {
+            $caption = (string)($meta['caption'] ?? $value);
+            $icon = (string)($meta['icon'] ?? '');
             $options[] = [
                 'Value' => $value,
                 'Caption' => $caption,
-                'IconActive' => false,
-                'IconValue' => '',
+                'IconActive' => $icon !== '',
+                'IconValue' => $icon,
                 'ColorActive' => false,
                 'ColorValue' => -1
             ];

@@ -26,6 +26,51 @@ Stellt ein einzelnes Home Assistant Gerät in Symcon dar und mappt Entitäten au
 - `sensor`: `device_class: enum` mit `options` wird als Enumeration dargestellt.
 - Suffix wird aus `unit_of_measurement`/`native_unit_of_measurement` und `device_class` abgeleitet.
 
+## Icon Mapping
+
+### Binary Sensor
+
+| Quelle | Wert | Icon |
+| --- | --- | --- |
+| `device_class` | `battery` | `battery-exclamation` |
+| `device_class` | `battery_charging` | `battery-bolt` |
+| `device_class` | `cold` | `snowflake` |
+| `device_class` | `connectivity` | `wifi` |
+| `device_class` | `door` | `door-open` |
+| `device_class` | `garage_door` | `garage-open` |
+| `device_class` | `gas` | `cloud-bolt` |
+| `device_class` | `heat` | `fire` |
+| `device_class` | `light` | `lightbulb-on` |
+| `device_class` | `lock` | `lock-open` |
+| `device_class` | `moisture` | `droplet` |
+| `device_class` | `motion` | `person-running` |
+| `device_class` | `moving` | `person-running` |
+| `device_class` | `occupancy` | `house-person-return` |
+| `device_class` | `opening` | `up-right-from-square` |
+| `device_class` | `plug` | `plug` |
+| `device_class` | `power` | `bolt` |
+| `device_class` | `presence` | `user` |
+| `device_class` | `problem` | `triangle-exclamation` |
+| `device_class` | `running` | `play` |
+| `device_class` | `safety` | `shield-exclamation` |
+| `device_class` | `smoke` | `fire-smoke` |
+| `device_class` | `sound` | `volume-high` |
+| `device_class` | `tamper` | `hand` |
+| `device_class` | `update` | `arrows-rotate` |
+| `device_class` | `vibration` | `chart-fft` |
+| `device_class` | `window` | `window-frame-open` |
+
+### Vacuum
+
+| Quelle | Wert | Icon |
+| --- | --- | --- |
+| `state` | `cleaning` | `robot` |
+| `state` | `docked` | `house` |
+| `state` | `idle` | `robot` |
+| `state` | `paused` | `pause` |
+| `state` | `returning` | `arrow-rotate-left` |
+| `state` | `error` | `triangle-exclamation` |
+
 ## Diagnose
 
 - In der Konfiguration werden Statusinfos angezeigt (z. B. letzte MQTT-Message, letzter REST-Abruf, Entity-Count).
@@ -44,7 +89,4 @@ mqtt_statestream:
 Wenn ein Light die Attribute meldet, werden für diese Attribute Variablen angelegt. Schreibbar sind:
 `brightness`, `color_temp`, `color_temp_kelvin`, `effect`, `flash`, `hs_color`, `rgb_color`,
 `rgbw_color`, `rgbww_color`, `transition`, `xy_color`.
-
-
-
 
