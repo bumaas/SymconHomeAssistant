@@ -179,7 +179,7 @@ EOT;
             $values = array_slice($values, $offset, $pageSize);
             $form['actions'][] = [
                 'type' => 'Label',
-                'caption' => sprintf('Paging: %d-%d von %d', $offset + 1, $offset + count($values), $total)
+                'caption' => sprintf('%s: %d-%d von %d',  $this->translate('Paging'), $offset + 1, $offset + count($values), $total)
             ];
         } elseif ($total > self::FORM_MAX_DEVICES) {
             $this->debugExpert('Form', 'Device-Liste gekappt', [
@@ -219,13 +219,13 @@ EOT;
             $uniqueDeviceKey = $isRealDevice ? 'HA_DEV_' . $entity['device_id'] : 'HA_ENT_' . str_replace('.', '_', $entity['entity_id']);
 
             if (!isset($devices[$uniqueDeviceKey])) {
-                $devices[$uniqueDeviceKey] = [
-                    'ident'     => $uniqueDeviceKey,
-                    'name'      => $isRealDevice ? $entity['device'] : $entity['name'],
-                    'device_id' => $isRealDevice ? $entity['device_id'] : '-',
-                    'area'      => $isRealDevice ? $entity['area'] : 'Sonstiges',
-                    'entities'  => [],
-                ];
+            $devices[$uniqueDeviceKey] = [
+                'ident'     => $uniqueDeviceKey,
+                'name'      => $isRealDevice ? $entity['device'] : $entity['name'],
+                'device_id' => $isRealDevice ? $entity['device_id'] : $entity['entity_id'],
+                'area'      => $isRealDevice ? $entity['area'] : 'Sonstiges',
+                'entities'  => [],
+            ];
             }
             $devices[$uniqueDeviceKey]['entities'][] = [
                 'domain'    => $entity['domain'],
