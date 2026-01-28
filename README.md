@@ -20,7 +20,7 @@ Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symc
 | `sensor`       | voll                  | Units/Suffix, `enum` als Enumeration |
 | `select`       | voll                  | Enumeration |
 | `climate`      | teilweise             | REST `set_temperature` |
-| `lock`         | teilweise             | REST `lock`/`unlock` |
+| `lock`         | teilweise             | REST `lock`/`unlock`/`open`, Enumeration |
 | `cover`        | teilweise             | REST `open_cover`/`close_cover` |
 | `event`        | teilweise             | Basisvariablen |
 | `vacuum`       | teilweise             | REST `start`/`stop`/`pause`/`return_to_base` |

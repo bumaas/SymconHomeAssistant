@@ -384,9 +384,21 @@ class HomeAssistantSplitter extends IPSModuleStrict
             }
         }
 
+        if ($domain === 'lock') {
+            if (is_bool($value)) {
+                return [$value ? 'lock' : 'unlock', []];
+            }
+            $command = strtolower(trim((string)$value));
+            return match ($command) {
+                'lock', 'locked', 'lock_on' => ['lock', []],
+                'unlock', 'unlocked', 'unlock_off' => ['unlock', []],
+                'open', 'open_latch', 'unlatch' => ['open', []],
+                default => ['', []],
+            };
+        }
+
         return match ($domain) {
             'light', 'switch' => [$value ? 'turn_on' : 'turn_off', []],
-            'lock' => [$value ? 'lock' : 'unlock', []],
             'cover' => [$value ? 'open_cover' : 'close_cover', []],
             'number' => ['set_value', ['value' => (float)$value]],
             'climate' => ['set_temperature', ['temperature' => (float)$value]],

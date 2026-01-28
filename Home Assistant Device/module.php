@@ -10,6 +10,7 @@ require_once __DIR__ . '/../libs/HADebug.php';
 require_once __DIR__ . '/../libs/HANumberDefinitions.php';
 require_once __DIR__ . '/../libs/HASensorDefinitions.php';
 require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
+require_once __DIR__ . '/../libs/HALockDefinitions.php';
 
 class HomeAssistantDevice extends IPSModuleStrict
 {
@@ -166,6 +167,10 @@ class HomeAssistantDevice extends IPSModuleStrict
 
             // Payload formatieren (ON/OFF vs. Wert)
             $mqttPayload = $this->formatPayloadForMqtt($domain ?? '', $Value);
+            if ($mqttPayload === '') {
+                $this->debugExpert('RequestAction', 'Payload leer', ['Domain' => $domain, 'Value' => $Value], true);
+                return;
+            }
             $this->debugExpert('RequestAction', 'Payload formatiert', ['Payload' => $mqttPayload]);
 
             $topic = $this->getSetTopicForEntity($entityId);
@@ -747,7 +752,22 @@ class HomeAssistantDevice extends IPSModuleStrict
     {
         return match ($domain) {
             'light', 'switch' => $value ? 'ON' : 'OFF',
+            'lock' => $this->formatLockPayload($value),
             default => (string)$value,
+        };
+    }
+
+    private function formatLockPayload(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'lock' : 'unlock';
+        }
+        $text = strtolower(trim((string)$value));
+        return match ($text) {
+            'locked', 'lock', 'lock_on' => 'lock',
+            'unlocked', 'unlock', 'unlock_off' => 'unlock',
+            'open', 'open_latch', 'unlatch' => 'open',
+            default => ''
         };
     }
 
@@ -792,6 +812,10 @@ class HomeAssistantDevice extends IPSModuleStrict
                     ]);
                 }
             }
+        }
+
+        if ($domain === 'lock') {
+            return $this->getLockPresentation($attributes);
         }
 
         if ($domain === 'vacuum') {
@@ -839,6 +863,32 @@ class HomeAssistantDevice extends IPSModuleStrict
                 'Caption' => $caption,
                 'IconActive' => $icon !== '',
                 'IconValue' => $icon,
+                'ColorActive' => false,
+                'ColorValue' => -1
+            ];
+        }
+
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+        ]);
+    }
+
+    private function getLockPresentation(array $attributes): array
+    {
+        $supported = (int)($attributes['supported_features'] ?? 0);
+        $allowOpen = ($supported & HALockDefinitions::FEATURE_OPEN) === HALockDefinitions::FEATURE_OPEN;
+
+        $options = [];
+        foreach (HALockDefinitions::STATE_OPTIONS as $value => $meta) {
+            if ($value === 'open' && !$allowOpen) {
+                continue;
+            }
+            $options[] = [
+                'Value' => $value,
+                'Caption' => (string)($meta['caption'] ?? $value),
+                'IconActive' => false,
+                'IconValue' => '',
                 'ColorActive' => false,
                 'ColorValue' => -1
             ];

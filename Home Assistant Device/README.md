@@ -25,6 +25,7 @@ Stellt ein einzelnes Home Assistant Gerät in Symcon dar und mappt Entitäten au
 - `number`: Präsentation nutzt `min`, `max`, `step` (bzw. `native_*`) auch bei `mode: box`.
 - `sensor`: `device_class: enum` mit `options` wird als Enumeration dargestellt.
 - Suffix wird aus `unit_of_measurement`/`native_unit_of_measurement` und `device_class` abgeleitet.
+- `lock`: Darstellung als Enumeration (locked/unlocked/locking/...) und optional `open` wenn unterstützt.
 
 ## Icon Mapping
 
@@ -89,4 +90,3 @@ mqtt_statestream:
 Wenn ein Light die Attribute meldet, werden für diese Attribute Variablen angelegt. Schreibbar sind:
 `brightness`, `color_temp`, `color_temp_kelvin`, `effect`, `flash`, `hs_color`, `rgb_color`,
 `rgbw_color`, `rgbww_color`, `transition`, `xy_color`.
-
