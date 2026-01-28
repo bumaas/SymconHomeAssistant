@@ -23,6 +23,7 @@ Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symc
 | `lock`         | teilweise             | REST `lock`/`unlock` |
 | `cover`        | teilweise             | REST `open_cover`/`close_cover` |
 | `event`        | teilweise             | Basisvariablen |
+| `vacuum`       | teilweise             | REST `start`/`stop`/`pause`/`return_to_base` |
 
 ## Voraussetzungen
 

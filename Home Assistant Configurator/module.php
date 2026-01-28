@@ -16,13 +16,32 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     private const string HA_FULL_DATA_TEMPLATE = <<<'EOT'
 [
+    {# Rekursive JSON-Sanitizer: wandelt Sets/Iterables in JSON-kompatible Listen um #}
+    {% macro sanitize_json(value) -%}
+    {%- if value is mapping -%}
+    {%- set items = [] -%}
+    {%- for k, v in value.items() -%}
+    {%- set _ = items.append((k | to_json) ~ ':' ~ sanitize_json(v)) -%}
+    {%- endfor -%}
+    {{ '{' ~ (items | join(',')) ~ '}' }}
+    {%- elif value is iterable and value is not string -%}
+    {%- set items = [] -%}
+    {%- for v in value -%}
+    {%- set _ = items.append(sanitize_json(v)) -%}
+    {%- endfor -%}
+    {{ '[' ~ (items | join(',')) ~ ']' }}
+    {%- else -%}
+    {{ value | to_json }}
+    {%- endif -%}
+    {%- endmacro %}
+
     {% set domains = DOMAINS_PLACEHOLDER %}
     {% for state in states if state.domain in domains %}
     {
         "entity_id": "{{ state.entity_id }}",
         "domain": "{{ state.domain }}",
         "name": "{{ state.attributes.friendly_name | default(state.name) }}",
-        "attributes": {{ state.attributes | to_json }},
+        "attributes": {{ sanitize_json(state.attributes) }},
         "device": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }} ({{ area_name(state.entity_id) | default('Kein Bereich', true) }})",
         "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }}",
         "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
@@ -39,7 +58,7 @@ EOT;
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
 
         // Standard-Domänen im korrekten Listen-Format initialisieren (Array von Objekten)
-        $defaultDomains = ['light', 'switch', 'sensor', 'binary_sensor', 'climate', 'number', 'lock', 'cover', 'event', 'select'];
+        $defaultDomains = ['light', 'switch', 'sensor', 'binary_sensor', 'climate', 'number', 'lock', 'cover', 'event', 'select', 'vacuum'];
         $domainList     = [];
         foreach ($defaultDomains as $d) {
             $domainList[] = ['Domain' => $d];

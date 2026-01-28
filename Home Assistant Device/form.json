@@ -49,7 +49,8 @@
               {"caption": "Cover (cover)", "value": "cover"},
               {"caption": "Event (event)", "value": "event"},
               {"caption": "Select (select)", "value": "select"},
-              {"caption": "Button (button)", "value": "button"}
+              {"caption": "Button (button)", "value": "button"},
+              {"caption": "Vacuum (vacuum)", "value": "vacuum"}
             ]
           },
           "add":     "light"

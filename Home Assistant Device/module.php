@@ -9,6 +9,7 @@ require_once __DIR__ . '/../libs/HAIds.php';
 require_once __DIR__ . '/../libs/HADebug.php';
 require_once __DIR__ . '/../libs/HANumberDefinitions.php';
 require_once __DIR__ . '/../libs/HASensorDefinitions.php';
+require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
 
 class HomeAssistantDevice extends IPSModuleStrict
 {
@@ -788,6 +789,10 @@ class HomeAssistantDevice extends IPSModuleStrict
             }
         }
 
+        if ($domain === 'vacuum') {
+            return $this->getVacuumPresentation();
+        }
+
         if ($type === VARIABLETYPE_BOOLEAN) {
             return [
                 'PRESENTATION' => VARIABLE_PRESENTATION_SWITCH
@@ -815,6 +820,26 @@ class HomeAssistantDevice extends IPSModuleStrict
         return $this->filterPresentation([
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
             'SUFFIX'       => $this->formatPresentationSuffix($suffix)
+        ]);
+    }
+
+    private function getVacuumPresentation(): array
+    {
+        $options = [];
+        foreach (HAVacuumDefinitions::STATE_OPTIONS as $value => $caption) {
+            $options[] = [
+                'Value' => $value,
+                'Caption' => $caption,
+                'IconActive' => false,
+                'IconValue' => '',
+                'ColorActive' => false,
+                'ColorValue' => -1
+            ];
+        }
+
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
         ]);
     }
 
