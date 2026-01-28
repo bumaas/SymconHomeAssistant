@@ -33,7 +33,11 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     {%- endfor -%}
     {{ '[' ~ (ns.items | join(',')) ~ ']' }}
     {%- else -%}
+    {%- if value is string or value is number or value is boolean -%}
     {{ value | to_json }}
+    {%- else -%}
+    {{ value | string | to_json }}
+    {%- endif -%}
     {%- endif -%}
     {%- endmacro %}
 
