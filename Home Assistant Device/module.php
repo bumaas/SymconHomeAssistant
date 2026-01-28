@@ -11,14 +11,28 @@ require_once __DIR__ . '/../libs/HANumberDefinitions.php';
 require_once __DIR__ . '/../libs/HASensorDefinitions.php';
 require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
 require_once __DIR__ . '/../libs/HALockDefinitions.php';
+require_once __DIR__ . '/../libs/HASelectDefinitions.php';
 
-class HomeAssistantDevice extends IPSModuleStrict
+/**
+ * @phpstan-type EntityAttributes array<string, mixed>
+ * @phpstan-type Entity array{
+ *     entity_id: string,
+ *     domain?: string,
+ *     name?: string,
+ *     attributes?: EntityAttributes,
+ *     create_var?: bool,
+ *     position_base?: int
+ * }
+ * @phpstan-type ConfigRow Entity
+ * @phpstan-type StatePayload array{state?: string, attributes?: EntityAttributes}
+ * @phpstan-type StateMap array<string, StatePayload>
+ */class HomeAssistantDevice extends IPSModuleStrict
 {
     use HADebugTrait;
 
-    private const KEY_STATE = 'state';
-    private const KEY_ATTRIBUTES = 'attributes';
-    private const KEY_SUPPORTED_FEATURES = 'supported_features';
+    private const string KEY_STATE      = 'state';
+    private const string KEY_ATTRIBUTES = 'attributes';
+    private const string KEY_SUPPORTED_FEATURES = 'supported_features';
 
     private array $topicMapping    = [];
 
@@ -166,7 +180,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             $this->debugExpert('RequestAction', 'Entity aufgelöst', ['EntityID' => $entityId, 'Domain' => $domain]);
 
             // Payload formatieren (ON/OFF vs. Wert)
-            $mqttPayload = $this->formatPayloadForMqtt($domain ?? '', $Value);
+            $mqttPayload = $this->formatPayloadForMqtt($domain ?? '', $Value, $entity['attributes'] ?? []);
             if ($mqttPayload === '') {
                 $this->debugExpert('RequestAction', 'Payload leer', ['Domain' => $domain, 'Value' => $Value], true);
                 return;
@@ -748,11 +762,12 @@ class HomeAssistantDevice extends IPSModuleStrict
         return in_array($domain, ['light', 'switch', 'climate', 'number', 'lock', 'cover', 'select']);
     }
 
-    private function formatPayloadForMqtt(string $domain, mixed $value): string
+    private function formatPayloadForMqtt(string $domain, mixed $value, array $attributes = []): string
     {
         return match ($domain) {
             'light', 'switch' => $value ? 'ON' : 'OFF',
             'lock' => $this->formatLockPayload($value),
+            'select' => $this->formatSelectPayload($value, $attributes),
             default => (string)$value,
         };
     }
@@ -769,6 +784,23 @@ class HomeAssistantDevice extends IPSModuleStrict
             'open', 'open_latch', 'unlatch' => 'open',
             default => ''
         };
+    }
+
+    private function formatSelectPayload(mixed $value, array $attributes): string
+    {
+        $text = trim((string)$value);
+        if ($text === '') {
+            return '';
+        }
+        $options = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
+        if ($options === []) {
+            return $text;
+        }
+        if (in_array($text, $options, true)) {
+            return $text;
+        }
+        $this->debugExpert('Select', 'Ungültige Option', ['Value' => $text, 'Options' => $options], true);
+        return '';
     }
 
     private function getVariableType(string $domain, array $attributes = []): int
@@ -830,11 +862,11 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $suffix = $this->getPresentationSuffix($attributes);
         if ($domain === 'select') {
-            $options = $this->getPresentationOptions($attributes['options'] ?? null);
-            if ($options !== null) {
+            $options = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
+            if ($options !== []) {
                 return $this->filterPresentation([
                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                    'OPTIONS'      => $options
+                    'OPTIONS'      => $this->getPresentationOptions($options)
                 ]);
             }
         }
@@ -916,7 +948,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             'door' => ['offen', 'geschlossen', 'door-open'],
             'garage_door' => ['offen', 'geschlossen', 'garage-open'],
             'gas' => ['Gas erkannt', 'kein Gas', 'cloud-bolt'],
-            'heat' => ['heiss', 'normal', 'fire'],
+            'heat' => ['heiß', 'normal', 'fire'],
             'light' => ['Licht erkannt', 'kein Licht', 'lightbulb-on'],
             'lock' => ['entsperrt', 'gesperrt', 'lock-open'],
             'moisture' => ['nass', 'trocken', 'droplet'],
