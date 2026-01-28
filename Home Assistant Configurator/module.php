@@ -12,7 +12,10 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     // ... Caches ...
     private array $entities = [];
 
+    // Max. Anzahl an Entity-Namen in der Zusammenfassung (danach nur Anzahl).
     private const int ENTITY_SUMMARY_MAX_NAMES = 4;
+    // Anzahl Entities pro Template-Request, um die HA-Output-Grenze einzuhalten.
+    private const int ENTITY_CHUNK_SIZE = 50;
 
     private const string HA_FULL_DATA_TEMPLATE = <<<'EOT'
 [
@@ -43,6 +46,58 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     {% set domains = DOMAINS_PLACEHOLDER %}
     {% for state in states if state.domain in domains %}
+    {
+        "entity_id": "{{ state.entity_id }}",
+        "domain": "{{ state.domain }}",
+        "name": "{{ state.attributes.friendly_name | default(state.name) }}",
+        "attributes": {{ sanitize_json(state.attributes) }},
+        "device": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }} ({{ area_name(state.entity_id) | default('Kein Bereich', true) }})",
+        "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }}",
+        "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
+        "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+]
+EOT;
+
+    private const string HA_ENTITY_ID_TEMPLATE = <<<'EOT'
+[
+    {% set domains = DOMAINS_PLACEHOLDER %}
+    {% for state in states if state.domain in domains %}
+    {{ state.entity_id | to_json }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+]
+EOT;
+
+    private const string HA_FULL_DATA_TEMPLATE_BY_ENTITY = <<<'EOT'
+[
+    {# Rekursive JSON-Sanitizer: wandelt Sets/Iterables in JSON-kompatible Listen um #}
+    {% macro sanitize_json(value, depth=0) -%}
+    {%- if depth > 4 -%}
+    {{ 'null' }}
+    {%- elif value is mapping -%}
+    {%- set ns = namespace(items=[]) -%}
+    {%- for k, v in value.items() -%}
+    {%- set ns.items = ns.items + [(k | to_json) ~ ':' ~ sanitize_json(v, depth + 1)] -%}
+    {%- endfor -%}
+    {{ '{' ~ (ns.items | join(',')) ~ '}' }}
+    {%- elif value is iterable and value is not string -%}
+    {%- set ns = namespace(items=[]) -%}
+    {%- for v in value -%}
+    {%- set ns.items = ns.items + [sanitize_json(v, depth + 1)] -%}
+    {%- endfor -%}
+    {{ '[' ~ (ns.items | join(',')) ~ ']' }}
+    {%- else -%}
+    {%- if value is string or value is number or value is boolean -%}
+    {{ value | to_json }}
+    {%- else -%}
+    {{ value | string | to_json }}
+    {%- endif -%}
+    {%- endif -%}
+    {%- endmacro %}
+
+    {% set entities = ENTITIES_PLACEHOLDER %}
+    {% for state in states if state.entity_id in entities %}
     {
         "entity_id": "{{ state.entity_id }}",
         "domain": "{{ state.domain }}",
@@ -333,36 +388,41 @@ EOT;
         $domainsSimple = array_column($domainsList, 'Domain');
         $domainChunks = array_chunk($domainsSimple, 1);
         foreach ($domainChunks as $chunk) {
-            $domainsJson = json_encode($chunk, JSON_THROW_ON_ERROR);
-
             $this->debugExpert('UpdateCache', 'Request Domain', ['Domains' => $chunk]);
-
-            // Template vorbereiten (Domains injizieren)
-            // wir nutzen str_replace statt sprintf, um Konflikte mit Jinja2 Syntax ({% ... %}) zu vermeiden
-            $template = str_replace('DOMAINS_PLACEHOLDER', $domainsJson, self::HA_FULL_DATA_TEMPLATE);
-
-            // Request pro Domain-Chunk
-            $rawEntities = $this->RenderHATemplate(trim($template));
-            if ($rawEntities === null) {
-                $this->debugExpert('UpdateCache', 'API-Fehler', ['Domains' => $chunk]);
+            $entityIds = $this->fetchEntityIdsForDomains($chunk);
+            if ($entityIds === null) {
+                $this->debugExpert('UpdateCache', 'API-Fehler (IDs)', ['Domains' => $chunk]);
                 continue;
             }
-            if ($rawEntities === []) {
+            if ($entityIds === []) {
                 $this->debugExpert('UpdateCache', 'Keine Entities', ['Domains' => $chunk]);
                 continue;
             }
-            $this->debugExpert('UpdateCache', 'Entities geladen', ['Domains' => $chunk, 'Count' => count($rawEntities)]);
 
-            foreach ($rawEntities as $entity) {
-                // Fallback für den Anzeigenamen des Geräts, falls 'Unbekannt'
-                if ($entity['device_name'] === 'Unbekannt' || $entity['device_id'] === 'none') {
-                    $entity['device'] = ucfirst($entity['domain']) . ' (Ohne Gerät)';
-                } else {
-                    // Sauberer Gerätename ohne Bereich in Klammern für die Anzeige
-                    $entity['device'] = $entity['device_name'];
+            $idChunks = array_chunk($entityIds, self::ENTITY_CHUNK_SIZE);
+            foreach ($idChunks as $idChunk) {
+                $this->debugExpert('UpdateCache', 'Request Entities', ['Count' => count($idChunk)]);
+                $rawEntities = $this->fetchEntitiesByIds($idChunk);
+                if ($rawEntities === null) {
+                    $this->debugExpert('UpdateCache', 'API-Fehler (Entities)', ['Count' => count($idChunk)]);
+                    continue;
                 }
+                if ($rawEntities === []) {
+                    continue;
+                }
+                $this->debugExpert('UpdateCache', 'Entities geladen', ['Count' => count($rawEntities)]);
 
-                $newEntities[$entity['entity_id']] = $entity;
+                foreach ($rawEntities as $entity) {
+                    // Fallback für den Anzeigenamen des Geräts, falls 'Unbekannt'
+                    if ($entity['device_name'] === 'Unbekannt' || $entity['device_id'] === 'none') {
+                        $entity['device'] = ucfirst($entity['domain']) . ' (Ohne Gerät)';
+                    } else {
+                        // Sauberer Gerätename ohne Bereich in Klammern für die Anzeige
+                        $entity['device'] = $entity['device_name'];
+                    }
+
+                    $newEntities[$entity['entity_id']] = $entity;
+                }
             }
         }
 
@@ -377,6 +437,36 @@ EOT;
 
         // 5. Protokollieren
         $this->LogUpdatedEntities();
+    }
+
+    private function fetchEntityIdsForDomains(array $domains): ?array
+    {
+        if ($domains === []) {
+            return [];
+        }
+        $domainsJson = json_encode($domains, JSON_THROW_ON_ERROR);
+        $template = str_replace('DOMAINS_PLACEHOLDER', $domainsJson, self::HA_ENTITY_ID_TEMPLATE);
+        $result = $this->RenderHATemplate(trim($template));
+        if ($result === null) {
+            return null;
+        }
+        $ids = [];
+        foreach ($result as $item) {
+            if (is_string($item) && $item !== '') {
+                $ids[] = $item;
+            }
+        }
+        return $ids;
+    }
+
+    private function fetchEntitiesByIds(array $entityIds): ?array
+    {
+        if ($entityIds === []) {
+            return [];
+        }
+        $entitiesJson = json_encode($entityIds, JSON_THROW_ON_ERROR);
+        $template = str_replace('ENTITIES_PLACEHOLDER', $entitiesJson, self::HA_FULL_DATA_TEMPLATE_BY_ENTITY);
+        return $this->RenderHATemplate(trim($template));
     }
 
     /**
