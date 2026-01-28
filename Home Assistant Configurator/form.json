@@ -3,13 +3,13 @@
     {
       "type": "ExpansionPanel",
       "caption": "Configuration",
-      "visible": false,
+      "visible": true,
       "items": [
         {
           "type": "List",
           "name": "IncludeDomains",
           "caption": "Allowed Domains (Filter)",
-          "visible": false,
+          "visible": true,
           "rowCount": 5,
           "add": true,
           "delete": true,

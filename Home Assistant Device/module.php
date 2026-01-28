@@ -14,6 +14,11 @@ require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
 class HomeAssistantDevice extends IPSModuleStrict
 {
     use HADebugTrait;
+
+    private const KEY_STATE = 'state';
+    private const KEY_ATTRIBUTES = 'attributes';
+    private const KEY_SUPPORTED_FEATURES = 'supported_features';
+
     private array $topicMapping    = [];
 
     private array $entities        = [];
@@ -398,14 +403,14 @@ class HomeAssistantDevice extends IPSModuleStrict
             return;
         }
         $parsed     = $this->parseEntityPayload($payload);
-        $finalValue = $this->convertValueByDomain($domain, $parsed['state']);
+        $finalValue = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE]);
 
         $this->SetValue($ident, $finalValue);
-        $this->updateEntityCache($entityId, $parsed['state'], $parsed['attributes'] ?? null);
+        $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $parsed['attributes'] ?? null);
 
-        if (!empty($parsed['attributes'])) {
-            $this->storeEntityAttributes($entityId, $parsed['attributes']);
-            $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+        if (!empty($parsed[self::KEY_ATTRIBUTES])) {
+            $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
+            $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
             if ($domain === 'light') {
                 $this->updateLightAttributeValues($entityId, $parsed['attributes']);
             }
@@ -442,7 +447,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $parsed = $this->parseEntityPayload($payload);
 
-        $value = $this->convertValueByDomain($domain, $parsed['state']);
+        $value = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE]);
 
         $this->debugExpert(
             'StateTopic',
@@ -450,13 +455,13 @@ class HomeAssistantDevice extends IPSModuleStrict
             ['Ident' => $ident, 'Domain' => $domain, 'Entity' => $entity, 'Value' => $value]
         );
         $this->SetValue($ident, $value);
-        $this->updateEntityCache($domain . '.' . $entity, $parsed['state'], $parsed['attributes'] ?? null);
+        $this->updateEntityCache($domain . '.' . $entity, $parsed[self::KEY_STATE], $parsed[self::KEY_ATTRIBUTES] ?? null);
 
-        if ($domain === 'light' && !empty($parsed['attributes'])) {
-            $this->updateLightAttributeValues($domain . '.' . $entity, $parsed['attributes']);
+        if ($domain === 'light' && !empty($parsed[self::KEY_ATTRIBUTES])) {
+            $this->updateLightAttributeValues($domain . '.' . $entity, $parsed[self::KEY_ATTRIBUTES]);
         }
-        if (!empty($parsed['attributes'])) {
-            $this->updateEntityPresentation($domain . '.' . $entity, $this->entities[$domain . '.' . $entity]['attributes'] ?? []);
+        if (!empty($parsed[self::KEY_ATTRIBUTES])) {
+            $this->updateEntityPresentation($domain . '.' . $entity, $this->entities[$domain . '.' . $entity][self::KEY_ATTRIBUTES] ?? []);
         }
         return true;
     }
@@ -566,8 +571,8 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function parseEntityPayload(string $payload): array
     {
         $result = [
-            'state'      => $payload,
-            'attributes' => []
+            self::KEY_STATE      => $payload,
+            self::KEY_ATTRIBUTES => []
         ];
 
         // HA state payloads can be raw values or JSON objects with "state"/"attributes".
@@ -580,14 +585,14 @@ class HomeAssistantDevice extends IPSModuleStrict
                 return $result;
             }
             if (is_array($json)) {
-                if (array_key_exists('state', $json)) {
-                    $result['state'] = (string)$json['state'];
+                if (array_key_exists(self::KEY_STATE, $json)) {
+                    $result[self::KEY_STATE] = (string)$json[self::KEY_STATE];
                 }
-                if (isset($json['attributes']) && is_array($json['attributes'])) {
-                    $result['attributes'] = $json['attributes'];
+                if (isset($json[self::KEY_ATTRIBUTES]) && is_array($json[self::KEY_ATTRIBUTES])) {
+                    $result[self::KEY_ATTRIBUTES] = $json[self::KEY_ATTRIBUTES];
                 }
             } elseif ($json !== null) {
-                $result['state'] = (string)$json;
+                $result[self::KEY_STATE] = (string)$json;
             }
         }
 
@@ -1389,7 +1394,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function applyInitialState(string $entityId, array $state): void
     {
         $domain   = $this->getEntityDomain($entityId);
-        $rawState = (string)($state['state'] ?? '');
+        $rawState = (string)($state[self::KEY_STATE] ?? '');
         $value    = $this->convertValueByDomain($domain, $rawState);
 
         $ident = $this->sanitizeIdent($entityId);
@@ -1398,7 +1403,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             $this->SetValue($ident, $value);
         }
 
-        $attributes = $state['attributes'] ?? [];
+        $attributes = $state[self::KEY_ATTRIBUTES] ?? [];
         if (!is_array($attributes)) {
             return;
         }
@@ -1507,11 +1512,11 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $entry = $cache[$entityId] ?? [];
         if ($state !== null) {
-            $entry['state'] = $state;
+            $entry[self::KEY_STATE] = $state;
         }
         if (is_array($attributes)) {
-            $existing            = isset($entry['attributes']) && is_array($entry['attributes']) ? $entry['attributes'] : [];
-            $entry['attributes'] = array_merge($existing, $attributes);
+            $existing            = isset($entry[self::KEY_ATTRIBUTES]) && is_array($entry[self::KEY_ATTRIBUTES]) ? $entry[self::KEY_ATTRIBUTES] : [];
+            $entry[self::KEY_ATTRIBUTES] = array_merge($existing, $attributes);
         }
         $entry['ts']      = time();
         $cache[$entityId] = $entry;

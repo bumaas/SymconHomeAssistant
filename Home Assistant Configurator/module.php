@@ -325,37 +325,50 @@ EOT;
         } catch (JsonException) {
             $domainsList = [];
         }
-        $domainsSimple = array_column($domainsList, 'Domain');
-        $domainsJson   = json_encode($domainsSimple, JSON_THROW_ON_ERROR);
-
         if ($parentID <= 0) {
             return;
         }
 
-        // 1. Template vorbereiten (Domains injizieren)
-        // wir nutzen str_replace statt sprintf, um Konflikte mit Jinja2 Syntax ({% ... %}) zu vermeiden
-        $template = str_replace('DOMAINS_PLACEHOLDER', $domainsJson, self::HA_FULL_DATA_TEMPLATE);
+        $newEntities = [];
+        $domainsSimple = array_column($domainsList, 'Domain');
+        $domainChunks = array_chunk($domainsSimple, 1);
+        foreach ($domainChunks as $chunk) {
+            $domainsJson = json_encode($chunk, JSON_THROW_ON_ERROR);
 
-        // 2. Alles in einem Request abholen
-        $rawEntities = $this->RenderHATemplate(trim($template));
+            $this->debugExpert('UpdateCache', 'Request Domain', ['Domains' => $chunk]);
 
-        if (empty($rawEntities)) {
-            $this->debugExpert('UpdateCache', 'No entities found or API error');
-            return;
+            // Template vorbereiten (Domains injizieren)
+            // wir nutzen str_replace statt sprintf, um Konflikte mit Jinja2 Syntax ({% ... %}) zu vermeiden
+            $template = str_replace('DOMAINS_PLACEHOLDER', $domainsJson, self::HA_FULL_DATA_TEMPLATE);
+
+            // Request pro Domain-Chunk
+            $rawEntities = $this->RenderHATemplate(trim($template));
+            if ($rawEntities === null) {
+                $this->debugExpert('UpdateCache', 'API-Fehler', ['Domains' => $chunk]);
+                continue;
+            }
+            if ($rawEntities === []) {
+                $this->debugExpert('UpdateCache', 'Keine Entities', ['Domains' => $chunk]);
+                continue;
+            }
+            $this->debugExpert('UpdateCache', 'Entities geladen', ['Domains' => $chunk, 'Count' => count($rawEntities)]);
+
+            foreach ($rawEntities as $entity) {
+                // Fallback für den Anzeigenamen des Geräts, falls 'Unbekannt'
+                if ($entity['device_name'] === 'Unbekannt' || $entity['device_id'] === 'none') {
+                    $entity['device'] = ucfirst($entity['domain']) . ' (Ohne Gerät)';
+                } else {
+                    // Sauberer Gerätename ohne Bereich in Klammern für die Anzeige
+                    $entity['device'] = $entity['device_name'];
+                }
+
+                $newEntities[$entity['entity_id']] = $entity;
+            }
         }
 
-        // 3. Daten indizieren (Array Key = entity_id)
-        $newEntities = [];
-        foreach ($rawEntities as $entity) {
-            // Fallback für den Anzeigenamen des Geräts, falls 'Unbekannt'
-            if ($entity['device_name'] === 'Unbekannt' || $entity['device_id'] === 'none') {
-                $entity['device'] = ucfirst($entity['domain']) . ' (Ohne Gerät)';
-            } else {
-                // Sauberer Gerätename ohne Bereich in Klammern für die Anzeige
-                $entity['device'] = $entity['device_name'];
-            }
-
-            $newEntities[$entity['entity_id']] = $entity;
+        if ($newEntities === []) {
+            $this->debugExpert('UpdateCache', 'No entities found or API error');
+            return;
         }
 
         // 4. Persistieren
@@ -411,10 +424,10 @@ EOT;
         }
     }
 
-    private function RenderHATemplate(string $template): array
+    private function RenderHATemplate(string $template): ?array
     {
         $postData = json_encode(['template' => $template], JSON_THROW_ON_ERROR);
-        return $this->sendRestRequestToParent('/api/template', $postData) ?? [];
+        return $this->sendRestRequestToParent('/api/template', $postData);
     }
 
     private function sendRestRequestToParent(string $endpoint, ?string $postData): ?array

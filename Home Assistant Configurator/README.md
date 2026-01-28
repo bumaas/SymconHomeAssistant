@@ -9,7 +9,7 @@ Listet Home Assistant Geräte und Entitäten und legt daraus Device Instanzen in
 
 ## Konfiguration
 
-- `IncludeDomains`: Liste der erlaubten Domains (z.B. `light`, `switch`, `sensor`).
+- `IncludeDomains`: Liste der erlaubten Domains (z.B. `light`, `switch`, `sensor`). Damit lässt sich steuern, welche HA-Entities im Configurator berücksichtigt werden.
 - Optional: `EnableExpertDebug`.
 
 ## Ablauf
