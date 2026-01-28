@@ -16,6 +16,8 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     private const int ENTITY_SUMMARY_MAX_NAMES = 4;
     // Anzahl Entities pro Template-Request, um die HA-Output-Grenze einzuhalten.
     private const int ENTITY_CHUNK_SIZE = 50;
+    // Max. Anzahl an Geräten im Formular (Fallback, wenn Paging deaktiviert ist).
+    private const int FORM_MAX_DEVICES = 200;
 
     private const string HA_FULL_DATA_TEMPLATE = <<<'EOT'
 [
@@ -129,6 +131,8 @@ EOT;
             'IncludeDomains',
             json_encode($domainList, JSON_THROW_ON_ERROR)
         );
+        $this->RegisterPropertyInteger('PageIndex', 0);
+        $this->RegisterPropertyInteger('PageSize', self::FORM_MAX_DEVICES);
         $this->RegisterPropertyString('DeviceMapping', '[]');
         $this->RegisterAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
     }
@@ -166,7 +170,28 @@ EOT;
         unset($element);
 
         $devices = $this->groupEntitiesToDevices($this->entities);
-        $values  = $this->prepareConfiguratorValues($devices);
+        $values = $this->prepareConfiguratorValues($devices);
+        $total = count($values);
+        $pageSize = $this->ReadPropertyInteger('PageSize');
+        $pageIndex = $this->ReadPropertyInteger('PageIndex');
+        if ($pageSize > 0) {
+            $offset = max(0, $pageIndex) * $pageSize;
+            $values = array_slice($values, $offset, $pageSize);
+            $form['actions'][] = [
+                'type' => 'Label',
+                'caption' => sprintf('Paging: %d-%d von %d', $offset + 1, $offset + count($values), $total)
+            ];
+        } elseif ($total > self::FORM_MAX_DEVICES) {
+            $this->debugExpert('Form', 'Device-Liste gekappt', [
+                'Total' => $total,
+                'Max' => self::FORM_MAX_DEVICES
+            ]);
+            $values = array_slice($values, 0, self::FORM_MAX_DEVICES);
+            $form['actions'][] = [
+                'type' => 'Label',
+                'caption' => 'Hinweis: Zu viele Geräte für die Anzeige. Bitte Domains filtern (IncludeDomains).'
+            ];
+        }
 
         $form['actions'][] = [
             'type'     => 'Configurator',

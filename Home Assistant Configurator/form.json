@@ -29,6 +29,26 @@
     },
     {
       "type": "ExpansionPanel",
+      "caption": "Paging",
+      "items": [
+        {
+          "type": "NumberSpinner",
+          "name": "PageIndex",
+          "caption": "Page (0-based)",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "PageSize",
+          "caption": "Page Size",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
       "caption": "Expert Settings",
       "items": [
         {
