@@ -14,6 +14,10 @@
       "Expert": "Experte",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
       "Note: You can manually add entities here or use the 'Home Assistant Configurator' to populate them automatically.": "Hinweis: Sie können hier Entitäten manuell hinzufügen oder den 'Home Assistant Konfigurator' nutzen, um diese automatisch zu befüllen.",
+      "Event type: initial press": "Gedrückt",
+      "Event type: short release": "Nach Drücken losgelassen",
+      "Event type: long press": "Lange gedrückt",
+      "Event type: long release": "Nach langem Drücken losgelassen",
       "Light (light)": "Licht (light)",
       "Switch (switch)": "Schalter (switch)",
       "Sensor (sensor)": "Sensor (sensor)",
@@ -28,4 +32,3 @@
     }
   }
 }
-

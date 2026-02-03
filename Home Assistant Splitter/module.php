@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../libs/HAIds.php';
 require_once __DIR__ . '/../libs/HADebug.php';
+require_once __DIR__ . '/../libs/HALockDefinitions.php';
+require_once __DIR__ . '/../libs/HALightDefinitions.php';
+require_once __DIR__ . '/../libs/HASwitchDefinitions.php';
+require_once __DIR__ . '/../libs/HACoverDefinitions.php';
+require_once __DIR__ . '/../libs/HANumberDefinitions.php';
+require_once __DIR__ . '/../libs/HAClimateDefinitions.php';
+require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
 
 class HomeAssistantSplitter extends IPSModuleStrict
 {
@@ -329,7 +336,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function buildRestServicePayload(string $domain, mixed $value): array
     {
-        if (is_array($value) && $domain === 'light') {
+        if (is_array($value) && $domain === HALightDefinitions::DOMAIN) {
             $data = $value;
             $service = 'turn_on';
             if (array_key_exists('state', $data)) {
@@ -342,7 +349,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return [$service, $data];
         }
 
-        if ($domain === 'vacuum') {
+        if ($domain === HAVacuumDefinitions::DOMAIN) {
             if (is_array($value)) {
                 if (isset($value['fan_speed'])) {
                     return ['set_fan_speed', ['fan_speed' => (string)$value['fan_speed']]];
@@ -384,24 +391,19 @@ class HomeAssistantSplitter extends IPSModuleStrict
             }
         }
 
-        if ($domain === 'lock') {
-            if (is_bool($value)) {
-                return [$value ? 'lock' : 'unlock', []];
+        if ($domain === HALockDefinitions::DOMAIN) {
+            $command = HALockDefinitions::normalizeCommand($value);
+            if ($command === '') {
+                return ['', []];
             }
-            $command = strtolower(trim((string)$value));
-            return match ($command) {
-                'lock', 'locked', 'lock_on' => ['lock', []],
-                'unlock', 'unlocked', 'unlock_off' => ['unlock', []],
-                'open', 'open_latch', 'unlatch' => ['open', []],
-                default => ['', []],
-            };
+            return [$command, []];
         }
 
         return match ($domain) {
-            'light', 'switch' => [$value ? 'turn_on' : 'turn_off', []],
-            'cover' => [$value ? 'open_cover' : 'close_cover', []],
-            'number' => ['set_value', ['value' => (float)$value]],
-            'climate' => ['set_temperature', ['temperature' => (float)$value]],
+            HALightDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN => [$value ? 'turn_on' : 'turn_off', []],
+            HACoverDefinitions::DOMAIN => [$value ? 'open_cover' : 'close_cover', []],
+            HANumberDefinitions::DOMAIN => ['set_value', ['value' => (float)$value]],
+            HAClimateDefinitions::DOMAIN => ['set_temperature', ['temperature' => (float)$value]],
             default => ['', []],
         };
     }

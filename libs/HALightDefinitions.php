@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 final class HALightDefinitions
 {
+    public const string DOMAIN = 'light';
+    public const int VARIABLE_TYPE = VARIABLETYPE_BOOLEAN;
+    public const string PRESENTATION = VARIABLE_PRESENTATION_SWITCH;
+
     public const array ATTRIBUTE_ORDER = [
         'brightness',
         'color_temp',

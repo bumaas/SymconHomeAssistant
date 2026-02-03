@@ -4,6 +4,17 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../libs/HAIds.php';
 require_once __DIR__ . '/../libs/HADebug.php';
+require_once __DIR__ . '/../libs/HALightDefinitions.php';
+require_once __DIR__ . '/../libs/HASwitchDefinitions.php';
+require_once __DIR__ . '/../libs/HASensorDefinitions.php';
+require_once __DIR__ . '/../libs/HABinarySensorDefinitions.php';
+require_once __DIR__ . '/../libs/HAClimateDefinitions.php';
+require_once __DIR__ . '/../libs/HANumberDefinitions.php';
+require_once __DIR__ . '/../libs/HALockDefinitions.php';
+require_once __DIR__ . '/../libs/HACoverDefinitions.php';
+require_once __DIR__ . '/../libs/HAEventDefinitions.php';
+require_once __DIR__ . '/../libs/HASelectDefinitions.php';
+require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
 
 class HomeAssistantConfigurator extends IPSModuleStrict
 {
@@ -13,11 +24,9 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     private array $entities = [];
 
     // Max. Anzahl an Entity-Namen in der Zusammenfassung (danach nur Anzahl).
-    private const int ENTITY_SUMMARY_MAX_NAMES = 4;
+    private const int ENTITY_SUMMARY_MAX_NAMES = 10;
     // Anzahl Entities pro Template-Request, um die HA-Output-Grenze einzuhalten.
     private const int ENTITY_CHUNK_SIZE = 50;
-    // Max. Anzahl an Geräten im Formular (Fallback, wenn Paging deaktiviert ist).
-    private const int FORM_MAX_DEVICES = 200;
 
     private const string HA_FULL_DATA_TEMPLATE = <<<'EOT'
 [
@@ -121,7 +130,19 @@ EOT;
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
 
         // Standard-Domänen im korrekten Listen-Format initialisieren (Array von Objekten)
-        $defaultDomains = ['light', 'switch', 'sensor', 'binary_sensor', 'climate', 'number', 'lock', 'cover', 'event', 'select', 'vacuum'];
+        $defaultDomains = [
+            HALightDefinitions::DOMAIN,
+            HASwitchDefinitions::DOMAIN,
+            HASensorDefinitions::DOMAIN,
+            HABinarySensorDefinitions::DOMAIN,
+            HAClimateDefinitions::DOMAIN,
+            HANumberDefinitions::DOMAIN,
+            HALockDefinitions::DOMAIN,
+            HACoverDefinitions::DOMAIN,
+            HAEventDefinitions::DOMAIN,
+            HASelectDefinitions::DOMAIN,
+            HAVacuumDefinitions::DOMAIN
+        ];
         $domainList     = [];
         foreach ($defaultDomains as $d) {
             $domainList[] = ['Domain' => $d];
@@ -131,8 +152,7 @@ EOT;
             'IncludeDomains',
             json_encode($domainList, JSON_THROW_ON_ERROR)
         );
-        $this->RegisterPropertyInteger('PageIndex', 0);
-        $this->RegisterPropertyInteger('PageSize', self::FORM_MAX_DEVICES);
+        $this->RegisterPropertyInteger('OutputBufferSize', 10);
         $this->RegisterPropertyString('DeviceMapping', '[]');
         $this->RegisterAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
     }
@@ -141,6 +161,12 @@ EOT;
     {
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
         $this->UpdateCacheFromHA();
+
+        $bufferSizeMb = max(0, $this->ReadPropertyInteger('OutputBufferSize'));
+        if ($bufferSizeMb > 0) {
+            $bufferSizeBytes = $bufferSizeMb * 1024 * 1024;
+            ini_set('ips.output_buffer', (string) $bufferSizeBytes);
+        }
 
         if (empty($this->entities)) {
             try {
@@ -171,27 +197,6 @@ EOT;
 
         $devices = $this->groupEntitiesToDevices($this->entities);
         $values = $this->prepareConfiguratorValues($devices);
-        $total = count($values);
-        $pageSize = $this->ReadPropertyInteger('PageSize');
-        $pageIndex = $this->ReadPropertyInteger('PageIndex');
-        if ($pageSize > 0) {
-            $offset = max(0, $pageIndex) * $pageSize;
-            $values = array_slice($values, $offset, $pageSize);
-            $form['actions'][] = [
-                'type' => 'Label',
-                'caption' => sprintf('%s: %d-%d von %d',  $this->translate('Paging'), $offset + 1, $offset + count($values), $total)
-            ];
-        } elseif ($total > self::FORM_MAX_DEVICES) {
-            $this->debugExpert('Form', 'Device-Liste gekappt', [
-                'Total' => $total,
-                'Max' => self::FORM_MAX_DEVICES
-            ]);
-            $values = array_slice($values, 0, self::FORM_MAX_DEVICES);
-            $form['actions'][] = [
-                'type' => 'Label',
-                'caption' => 'Hinweis: Zu viele Geräte für die Anzeige. Bitte Domains filtern (IncludeDomains).'
-            ];
-        }
 
         $form['actions'][] = [
             'type'     => 'Configurator',
@@ -372,7 +377,7 @@ EOT;
     /**
      * Erstellt eine kompakte Zusammenfassung der Entitäten für die Anzeige im Konfigurator.
      *
-     * Bei bis zu drei Entitäten werden deren Namen aufgelistet, ab vier Entitäten
+     * Bei bis zu <ENTITY_SUMMARY_MAX_NAMES> Entitäten werden deren Namen aufgelistet, bei mehr Entitäten
      * wird lediglich die Gesamtzahl ausgegeben.
      *
      * @param array $entities Liste der (bereinigten) Entitäten.
@@ -536,6 +541,15 @@ EOT;
                 __FUNCTION__,
                 sprintf("Found: %s | %s | %s | Attr: %s", $entity['area'], $entity['device'], $entity['name'], $attributes)
             );
+            $this->debugExpert(
+                __FUNCTION__,
+                sprintf(
+                    "EntityID: %s | device_id: %s | device_name: %s",
+                    $entity['entity_id'],
+                    $entity['device_id'],
+                    $entity['device_name']
+                )
+            );
         }
     }
 
@@ -591,3 +605,4 @@ EOT;
     }
 
 }
+

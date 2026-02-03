@@ -12,6 +12,11 @@ require_once __DIR__ . '/../libs/HASensorDefinitions.php';
 require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
 require_once __DIR__ . '/../libs/HALockDefinitions.php';
 require_once __DIR__ . '/../libs/HASelectDefinitions.php';
+require_once __DIR__ . '/../libs/HABinarySensorDefinitions.php';
+require_once __DIR__ . '/../libs/HASwitchDefinitions.php';
+require_once __DIR__ . '/../libs/HAClimateDefinitions.php';
+require_once __DIR__ . '/../libs/HACoverDefinitions.php';
+require_once __DIR__ . '/../libs/HAEventDefinitions.php';
 
 /**
  * @phpstan-type EntityAttributes array<string, mixed>
@@ -405,7 +410,7 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
             $this->EnableAction($ident);
         }
 
-        if ($domain === 'light') {
+        if ($domain === HALightDefinitions::DOMAIN) {
             $this->maintainLightAttributeVariables($entity);
         }
     }
@@ -421,7 +426,16 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
             $this->debugExpert('updateEntityValue', 'Domain nicht ermittelbar', ['EntityID' => $entityId]);
             return;
         }
-        $parsed     = $this->parseEntityPayload($payload);
+        $parsed = $this->parseEntityPayload($payload);
+        if ($domain === HAEventDefinitions::DOMAIN) {
+            if (!empty($parsed[self::KEY_ATTRIBUTES])) {
+                $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
+                $this->updateEntityCache($entityId, null, $parsed[self::KEY_ATTRIBUTES]);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+            }
+            return;
+        }
+
         $finalValue = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE]);
 
         $this->SetValue($ident, $finalValue);
@@ -430,7 +444,7 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         if (!empty($parsed[self::KEY_ATTRIBUTES])) {
             $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
             $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-            if ($domain === 'light') {
+            if ($domain === HALightDefinitions::DOMAIN) {
                 $this->updateLightAttributeValues($entityId, $parsed['attributes']);
             }
         }
@@ -458,6 +472,10 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         $domain = $parts[count($parts) - 3];
 
         $ident = $this->sanitizeIdent($domain . '_' . $entity);
+        if ($domain === HAEventDefinitions::DOMAIN) {
+            $this->debugExpert('StateTopic', 'Event-State ignoriert', ['EntityID' => $domain . '.' . $entity]);
+            return true;
+        }
         $varId = @$this->GetIDForIdent($ident);
         if ($varId === false) {
             $this->debugExpert('StateTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
@@ -476,7 +494,7 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         $this->SetValue($ident, $value);
         $this->updateEntityCache($domain . '.' . $entity, $parsed[self::KEY_STATE], $parsed[self::KEY_ATTRIBUTES] ?? null);
 
-        if ($domain === 'light' && !empty($parsed[self::KEY_ATTRIBUTES])) {
+        if ($domain === HALightDefinitions::DOMAIN && !empty($parsed[self::KEY_ATTRIBUTES])) {
             $this->updateLightAttributeValues($domain . '.' . $entity, $parsed[self::KEY_ATTRIBUTES]);
         }
         if (!empty($parsed[self::KEY_ATTRIBUTES])) {
@@ -500,7 +518,9 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         $entityId  = $domain . '.' . $entity;
 
         $currentDomain = $this->entities[$entityId]['domain'] ?? $domain;
-        if ($currentDomain !== 'light' && $currentDomain !== 'select') {
+        if ($currentDomain !== HALightDefinitions::DOMAIN
+            && $currentDomain !== HASelectDefinitions::DOMAIN
+            && $currentDomain !== HAEventDefinitions::DOMAIN) {
             $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
@@ -514,7 +534,36 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
             $this->debugExpert('AttributeTopic', 'Entity aus Topic angelegt', ['EntityID' => $entityId]);
         }
 
-        if ($currentDomain === 'select') {
+        if ($currentDomain === HAEventDefinitions::DOMAIN) {
+            if ($attribute === HAEventDefinitions::ATTRIBUTE_EVENT_TYPES) {
+                $value = $this->parseAttributePayload($payload);
+                if ($value !== null) {
+                    $this->storeEntityAttribute($entityId, $attribute, $value);
+                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                }
+                return true;
+            }
+            if ($attribute !== HAEventDefinitions::ATTRIBUTE_EVENT_TYPE) {
+                return true;
+            }
+            $value = $this->parseAttributePayload($payload);
+            if ($value !== null) {
+                $this->storeEntityAttribute($entityId, $attribute, $value);
+                $this->updateEntityCache($entityId, (string)$value, [$attribute => $value]);
+                $ident = $this->sanitizeIdent($entityId);
+                $varId = @$this->GetIDForIdent($ident);
+                if ($varId === false) {
+                    $this->debugExpert('AttributeTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
+                    return false;
+                }
+                $this->SetValue($ident, (string)$value);
+                $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+            }
+            return true;
+        }
+
+        if ($currentDomain === HASelectDefinitions::DOMAIN) {
             $value = $this->parseAttributePayload($payload);
             if ($value !== null) {
                 $this->storeEntityAttribute($entityId, $attribute, $value);
@@ -622,8 +671,8 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
     {
         $normalized = strtoupper(trim($valueData));
         return match ($domain) {
-            'light', 'switch', 'binary_sensor' => $normalized === 'ON',
-            'sensor', 'climate', 'number' => (float)$valueData,
+            HALightDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HABinarySensorDefinitions::DOMAIN => $normalized === 'ON',
+            HASensorDefinitions::DOMAIN, HAClimateDefinitions::DOMAIN, HANumberDefinitions::DOMAIN => (float)$valueData,
             default => $valueData,
         };
     }
@@ -633,8 +682,8 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
     private function deriveStateTopic(string $base, string $entityId): string
     {
         [$domain, $name] = explode('.', $entityId, 2);
-        if ($domain === 'event') {
-            return "$base/$domain/$name/event_type";
+        if ($domain === HAEventDefinitions::DOMAIN) {
+            return HAEventDefinitions::buildStateTopic($base, $name);
         }
         return "$base/$domain/$name/state";
     }
@@ -759,61 +808,67 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
 
     private function isWriteable(string $domain): bool
     {
-        return in_array($domain, ['light', 'switch', 'climate', 'number', 'lock', 'cover', 'select']);
+        return in_array($domain, [
+            HALightDefinitions::DOMAIN,
+            HASwitchDefinitions::DOMAIN,
+            HAClimateDefinitions::DOMAIN,
+            HANumberDefinitions::DOMAIN,
+            HALockDefinitions::DOMAIN,
+            HACoverDefinitions::DOMAIN,
+            HASelectDefinitions::DOMAIN
+        ]);
     }
 
     private function formatPayloadForMqtt(string $domain, mixed $value, array $attributes = []): string
     {
         return match ($domain) {
-            'light', 'switch' => $value ? 'ON' : 'OFF',
-            'lock' => $this->formatLockPayload($value),
-            'select' => $this->formatSelectPayload($value, $attributes),
+            HALightDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
+            HASwitchDefinitions::DOMAIN => $value ? HASwitchDefinitions::STATE_ON : HASwitchDefinitions::STATE_OFF,
+            HALockDefinitions::DOMAIN => HALockDefinitions::normalizeCommand($value),
+            HASelectDefinitions::DOMAIN => $this->formatSelectPayload($value, $attributes),
             default => (string)$value,
-        };
-    }
-
-    private function formatLockPayload(mixed $value): string
-    {
-        if (is_bool($value)) {
-            return $value ? 'lock' : 'unlock';
-        }
-        $text = strtolower(trim((string)$value));
-        return match ($text) {
-            'locked', 'lock', 'lock_on' => 'lock',
-            'unlocked', 'unlock', 'unlock_off' => 'unlock',
-            'open', 'open_latch', 'unlatch' => 'open',
-            default => ''
         };
     }
 
     private function formatSelectPayload(mixed $value, array $attributes): string
     {
-        $text = trim((string)$value);
-        if ($text === '') {
-            return '';
+        $options = $attributes['options'] ?? null;
+        $normalized = HASelectDefinitions::normalizeSelection($value, $options);
+        if ($normalized !== null) {
+            return $normalized;
         }
-        $options = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
-        if ($options === []) {
-            return $text;
-        }
-        if (in_array($text, $options, true)) {
-            return $text;
-        }
-        $this->debugExpert('Select', 'Ungültige Option', ['Value' => $text, 'Options' => $options], true);
+        $this->debugExpert(
+            'Select',
+            'Ungültige Option',
+            [
+                'Value'   => trim((string)$value),
+                'Options' => HASelectDefinitions::normalizeOptions($options)
+            ],
+            true
+        );
         return '';
     }
 
     private function getVariableType(string $domain, array $attributes = []): int
     {
-        if ($domain === 'sensor') {
+        if ($domain === HASensorDefinitions::DOMAIN) {
             $deviceClass = $attributes['device_class'] ?? '';
             if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_ENUM) {
                 return VARIABLETYPE_STRING;
             }
         }
         return match ($domain) {
-            'light', 'switch', 'binary_sensor' => VARIABLETYPE_BOOLEAN,
-            'sensor', 'climate', 'number' => VARIABLETYPE_FLOAT,
+            HALightDefinitions::DOMAIN => HALightDefinitions::VARIABLE_TYPE,
+            HABinarySensorDefinitions::DOMAIN => HABinarySensorDefinitions::VARIABLE_TYPE,
+            HASwitchDefinitions::DOMAIN => HASwitchDefinitions::VARIABLE_TYPE,
+            HASensorDefinitions::DOMAIN => VARIABLETYPE_FLOAT,
+            HANumberDefinitions::DOMAIN => HANumberDefinitions::VARIABLE_TYPE,
+            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
+            HALockDefinitions::DOMAIN => HALockDefinitions::VARIABLE_TYPE,
+            HASelectDefinitions::DOMAIN => HASelectDefinitions::VARIABLE_TYPE,
+            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::VARIABLE_TYPE,
+            HACoverDefinitions::DOMAIN => HACoverDefinitions::VARIABLE_TYPE,
+            HAEventDefinitions::DOMAIN => HAEventDefinitions::VARIABLE_TYPE,
             default => VARIABLETYPE_STRING,
         };
     }
@@ -825,15 +880,27 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
             $attributes = [];
         }
 
-        if ($domain === 'binary_sensor') {
+        if ($domain === HABinarySensorDefinitions::DOMAIN) {
             return $this->getBinarySensorPresentation($attributes);
         }
 
-        if ($domain === 'number') {
+        if ($domain === HALightDefinitions::DOMAIN) {
+            return [
+                'PRESENTATION' => HALightDefinitions::PRESENTATION
+            ];
+        }
+
+        if ($domain === HASwitchDefinitions::DOMAIN) {
+            return [
+                'PRESENTATION' => HASwitchDefinitions::PRESENTATION
+            ];
+        }
+
+        if ($domain === HANumberDefinitions::DOMAIN) {
             return $this->getNumberPresentation($attributes);
         }
 
-        if ($domain === 'sensor') {
+        if ($domain === HASensorDefinitions::DOMAIN) {
             $deviceClass = $attributes['device_class'] ?? '';
             if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_ENUM) {
                 $options = $this->getPresentationOptions($attributes['options'] ?? null);
@@ -846,12 +913,16 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
             }
         }
 
-        if ($domain === 'lock') {
+        if ($domain === HALockDefinitions::DOMAIN) {
             return $this->getLockPresentation($attributes);
         }
 
-        if ($domain === 'vacuum') {
+        if ($domain === HAVacuumDefinitions::DOMAIN) {
             return $this->getVacuumPresentation();
+        }
+
+        if ($domain === HAEventDefinitions::DOMAIN) {
+            return $this->getEventPresentation($attributes);
         }
 
         if ($type === VARIABLETYPE_BOOLEAN) {
@@ -861,11 +932,11 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         }
 
         $suffix = $this->getPresentationSuffix($attributes);
-        if ($domain === 'select') {
+        if ($domain === HASelectDefinitions::DOMAIN) {
             $options = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
             if ($options !== []) {
                 return $this->filterPresentation([
-                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                    'PRESENTATION' => HASelectDefinitions::PRESENTATION,
                     'OPTIONS'      => $this->getPresentationOptions($options)
                 ]);
             }
@@ -901,7 +972,7 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         }
 
         return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'PRESENTATION' => HAVacuumDefinitions::PRESENTATION,
             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
         ]);
     }
@@ -927,7 +998,7 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         }
 
         return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'PRESENTATION' => HALockDefinitions::PRESENTATION,
             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
         ]);
     }
@@ -940,42 +1011,7 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         }
         $deviceClass = trim($deviceClass);
 
-        $map = [
-            'battery' => ['Batterie niedrig', 'Batterie ok', 'battery-exclamation'],
-            'battery_charging' => ['lädt', 'lädt nicht', 'battery-bolt'],
-            'cold' => ['kalt', 'normal', 'snowflake'],
-            'connectivity' => ['verbunden', 'getrennt', 'wifi'],
-            'door' => ['offen', 'geschlossen', 'door-open'],
-            'garage_door' => ['offen', 'geschlossen', 'garage-open'],
-            'gas' => ['Gas erkannt', 'kein Gas', 'cloud-bolt'],
-            'heat' => ['heiß', 'normal', 'fire'],
-            'light' => ['Licht erkannt', 'kein Licht', 'lightbulb-on'],
-            'lock' => ['entsperrt', 'gesperrt', 'lock-open'],
-            'moisture' => ['nass', 'trocken', 'droplet'],
-            'motion' => ['Bewegung', 'keine Bewegung', 'person-running'],
-            'moving' => ['in Bewegung', 'still', 'person-running'],
-            'occupancy' => ['belegt', 'frei', 'house-person-return'],
-            'opening' => ['offen', 'geschlossen', 'up-right-from-square'],
-            'plug' => ['eingesteckt', 'ausgesteckt', 'plug'],
-            'power' => ['Strom erkannt', 'kein Strom', 'bolt'],
-            'presence' => ['anwesend', 'abwesend', 'user'],
-            'problem' => ['Problem', 'kein Problem', 'triangle-exclamation'],
-            'running' => ['läuft', 'gestoppt', 'play'],
-            'safety' => ['gefährlich', 'sicher', 'shield-exclamation'],
-            'smoke' => ['Rauch', 'kein Rauch', 'fire-smoke'],
-            'sound' => ['Geräusch', 'kein Geräusch', 'volume-high'],
-            'tamper' => ['Manipulation', 'keine Manipulation', 'hand'],
-            'update' => ['Update verfügbar', 'aktuell', 'arrows-rotate'],
-            'vibration' => ['Vibration', 'keine Vibration', 'chart-fft'],
-            'window' => ['offen', 'geschlossen', 'window-frame-open']
-        ];
-
-        $trueCaption = 'an';
-        $falseCaption = 'aus';
-        $icon = '';
-        if ($deviceClass !== '' && isset($map[$deviceClass])) {
-            [$trueCaption, $falseCaption, $icon] = $map[$deviceClass];
-        }
+        [$trueCaption, $falseCaption, $icon] = HABinarySensorDefinitions::getPresentationMeta($deviceClass);
 
         $options = [
             [
@@ -997,9 +1033,43 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         ];
 
         return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'PRESENTATION' => HABinarySensorDefinitions::PRESENTATION,
             'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR),
             'ICON' => $icon !== '' ? $icon : null
+        ]);
+    }
+
+    private function getEventPresentation(array $attributes): array
+    {
+        $eventTypes = $attributes[HAEventDefinitions::ATTRIBUTE_EVENT_TYPES] ?? null;
+        if (!is_array($eventTypes)) {
+            $eventTypes = [];
+        }
+
+        $options = [];
+        foreach ($eventTypes as $eventType) {
+            if (!is_scalar($eventType)) {
+                continue;
+            }
+            $eventType = (string)$eventType;
+            $captionKey = HAEventDefinitions::EVENT_TYPE_TRANSLATION_KEYS[$eventType] ?? $eventType;
+            $options[] = [
+                'Value' => $eventType,
+                'Caption' => $this->Translate($captionKey),
+                'IconActive' => false,
+                'IconValue' => '',
+                'ColorActive' => false,
+                'ColorValue' => -1,
+                'ContentColorActive' => false,
+                'ContentColorValue' => -1,
+                'ColorDisplay' => -1,
+                'ContentColorDisplay' => -1
+            ];
+        }
+
+        return $this->filterPresentation([
+            'PRESENTATION' => HAEventDefinitions::PRESENTATION,
+            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
         ]);
     }
 
@@ -1481,7 +1551,7 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
 
         $ident = $this->sanitizeIdent($entityId);
         $varId = @$this->GetIDForIdent($ident);
-        if ($varId !== false) {
+        if ($varId !== false && $domain !== HAEventDefinitions::DOMAIN) {
             $this->SetValue($ident, $value);
         }
 
@@ -1493,7 +1563,7 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
         $this->storeEntityAttributes($entityId, $attributes);
         $this->updateEntityCache($entityId, $rawState, $attributes);
         $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-        if ($domain === 'light') {
+        if ($domain === HALightDefinitions::DOMAIN) {
             $this->updateLightAttributeValues($entityId, $attributes);
         }
     }
@@ -1726,7 +1796,7 @@ require_once __DIR__ . '/../libs/HASelectDefinitions.php';
             }
 
             $domain = $entity['domain'] ?? $this->getEntityDomain($entityId);
-            if ($domain !== 'light' || !$this->isWritableLightAttribute($attribute, $attributes)) {
+            if ($domain !== HALightDefinitions::DOMAIN || !$this->isWritableLightAttribute($attribute, $attributes)) {
                 return null;
             }
 

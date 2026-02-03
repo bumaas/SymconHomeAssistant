@@ -9,9 +9,6 @@
       "Allowed Domains (Filter)": "Erlaubte Domänen (Filter)",
       "Domain": "Domäne",
       "Configuration": "Konfiguration",
-      "Paging": "Paginierung",
-      "Page (0-based)": "Seite (0-basiert)",
-      "Page Size": "Seitengröße",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren"
     }
   }
