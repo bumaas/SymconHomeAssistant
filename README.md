@@ -11,19 +11,19 @@ Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symc
 
 ## Unterstützte Domains
 
-| Domain         | Status                | Hinweise |
-| -------------- | --------------------- | -------- |
-| `light`        | voll                  | Attribute + Schreibbar |
-| `switch`       | voll                  | Schaltbar |
-| `binary_sensor`| voll                  | device_class + Icons |
-| `number`       | voll                  | Slider/Min/Max/Step, REST `set_value` |
-| `sensor`       | voll                  | Units/Suffix, `enum` als Enumeration |
-| `select`       | voll                  | Enumeration |
-| `climate`      | teilweise             | Solltemp (Slider), REST `set_temperature`, Modi/Attribute read-only |
-| `lock`         | teilweise             | REST `lock`/`unlock`/`open`, Enumeration |
-| `cover`        | teilweise             | Position/Tilt, REST `open/close/stop` + `set_position` |
-| `event`        | teilweise             | Enumeration aus `event_type` |
-| `vacuum`       | teilweise             | REST `start`/`stop`/`pause`/`return_to_base`, `fan_speed` |
+| Domain         | Status                | Hinweise | Offen |
+| -------------- | --------------------- | -------- | ----- |
+| `light`        | voll                  | Attribute + Schreibbar | - |
+| `switch`       | voll                  | Schaltbar | - |
+| `binary_sensor`| voll                  | device_class + Icons | - |
+| `number`       | voll                  | Slider/Min/Max/Step, REST `set_value` | - |
+| `sensor`       | voll                  | Units/Suffix, `enum` als Enumeration | - |
+| `select`       | voll                  | Enumeration | - |
+| `climate`      | teilweise             | Solltemp (Slider), REST `set_temperature`, Modi/Attribute read-only | Preset/Fan/Swing write, Target-Range/Target-Humidity write |
+| `lock`         | voll                  | REST `lock`/`unlock`/`open`, Hauptvariable Wertanzeige, Aktion als Enumeration | Code-Handling bei `open` (falls erforderlich) |
+| `cover`        | teilweise             | Position/Tilt, REST `open/close/stop` + `set_position` | Device-Class-Spezifika/weitere Attribute |
+| `event`        | teilweise             | Enumeration aus `event_type` | Weitere Event-Attribute |
+| `vacuum`       | teilweise             | REST `start`/`stop`/`pause`/`return_to_base`, `fan_speed` | Weitere Dienste/Features je Modell |
 
 ## Voraussetzungen
 

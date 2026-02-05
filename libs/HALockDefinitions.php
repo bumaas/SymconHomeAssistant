@@ -10,6 +10,10 @@ final class HALockDefinitions
 
     public const int FEATURE_OPEN = 1;
 
+    public const int ACTION_LOCK = 0;
+    public const int ACTION_UNLOCK = 1;
+    public const int ACTION_OPEN = 2;
+
     public const array STATE_OPTIONS = [
         'locked' => ['caption' => 'locked', 'command' => 'lock'],
         'unlocking' => ['caption' => 'unlocking', 'command' => null],

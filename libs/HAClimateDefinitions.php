@@ -57,4 +57,31 @@ final class HAClimateDefinitions
         self::ATTRIBUTE_SWING_MODE => ['caption' => 'Swing Mode', 'type' => VARIABLETYPE_STRING, 'suffix' => '', 'writable' => false],
         self::ATTRIBUTE_SWING_HORIZONTAL_MODE => ['caption' => 'Swing Horizontal Mode', 'type' => VARIABLETYPE_STRING, 'suffix' => '', 'writable' => false]
     ];
+
+    public const array ALLOWED_ATTRIBUTES = [
+        self::ATTRIBUTE_CURRENT_TEMPERATURE,
+        self::ATTRIBUTE_TARGET_TEMPERATURE,
+        self::ATTRIBUTE_TARGET_TEMPERATURE_LOW,
+        self::ATTRIBUTE_TARGET_TEMPERATURE_HIGH,
+        self::ATTRIBUTE_TARGET_TEMPERATURE_STEP,
+        self::ATTRIBUTE_TEMPERATURE_UNIT,
+        self::ATTRIBUTE_MIN_TEMP,
+        self::ATTRIBUTE_MAX_TEMP,
+        self::ATTRIBUTE_CURRENT_HUMIDITY,
+        self::ATTRIBUTE_TARGET_HUMIDITY,
+        self::ATTRIBUTE_MIN_HUMIDITY,
+        self::ATTRIBUTE_MAX_HUMIDITY,
+        self::ATTRIBUTE_HVAC_MODE,
+        self::ATTRIBUTE_HVAC_MODES,
+        self::ATTRIBUTE_HVAC_ACTION,
+        self::ATTRIBUTE_PRESET_MODE,
+        self::ATTRIBUTE_PRESET_MODES,
+        self::ATTRIBUTE_FAN_MODE,
+        self::ATTRIBUTE_FAN_MODES,
+        self::ATTRIBUTE_SWING_MODE,
+        self::ATTRIBUTE_SWING_MODES,
+        self::ATTRIBUTE_SWING_HORIZONTAL_MODE,
+        self::ATTRIBUTE_SWING_HORIZONTAL_MODES,
+        self::ATTRIBUTE_SUPPORTED_FEATURES
+    ];
 }

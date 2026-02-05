@@ -111,4 +111,20 @@ final class HALightDefinitions
             'requires_color_modes' => ['xy']
         ],
     ];
+
+    public const array ALLOWED_ATTRIBUTES = [
+        'brightness',
+        'color_mode',
+        'color_temp',
+        'color_temp_kelvin',
+        'effect',
+        'flash',
+        'hs_color',
+        'rgb_color',
+        'rgbw_color',
+        'rgbww_color',
+        'transition',
+        'xy_color',
+        'supported_features'
+    ];
 }

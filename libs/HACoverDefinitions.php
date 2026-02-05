@@ -99,6 +99,15 @@ final class HACoverDefinitions
         ]
     ];
 
+    public const array ALLOWED_ATTRIBUTES = [
+        self::ATTRIBUTE_POSITION,
+        self::ATTRIBUTE_TILT_POSITION,
+        self::ATTRIBUTE_POSITION_ALT,
+        self::ATTRIBUTE_TILT_POSITION_ALT,
+        'device_class',
+        'supported_features'
+    ];
+
     public static function normalizeCommand(mixed $value): string
     {
         if (is_bool($value)) {
