@@ -24,6 +24,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
  *     entity_id: string,
  *     domain?: string,
  *     name?: string,
+ *     device_class?: string,
  *     attributes?: EntityAttributes,
  *     create_var?: bool,
  *     position_base?: int
@@ -45,6 +46,12 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
 
     private array $entityPositions = [];
 
+    private const string PROP_DEVICE_CONFIG = 'DeviceConfig';
+    private const string PROP_DEVICE_AREA = 'DeviceArea';
+    private const string PROP_DEVICE_NAME = 'DeviceName';
+    private const string PROP_DEVICE_ID = 'DeviceID';
+    private const string PROP_ENABLE_EXPERT_DEBUG = 'EnableExpertDebug';
+
     public function Create(): void
     {
         parent::Create();
@@ -61,11 +68,11 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $this->RegisterAttributeString('EntityStateCache', '{}');
 
         // Properties
-        $this->RegisterPropertyString('DeviceID', '');
-        $this->RegisterPropertyString('DeviceArea', '');
-        $this->RegisterPropertyString('DeviceName', '');
-        $this->RegisterPropertyString('DeviceConfig', '[]');
-        $this->RegisterPropertyBoolean('EnableExpertDebug', false);
+        $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
+        $this->RegisterPropertyString(self::PROP_DEVICE_AREA, '');
+        $this->RegisterPropertyString(self::PROP_DEVICE_NAME, '');
+        $this->RegisterPropertyString(self::PROP_DEVICE_CONFIG, '[]');
+        $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
 
     }
 
@@ -104,7 +111,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $this->debugExpert('ApplyChanges', 'Konfiguration geladen', ['BaseTopic' => $baseTopic]);
 
         // 2. Konfiguration laden
-        $configData = $this->decodeJsonArray($this->ReadPropertyString('DeviceConfig'), 'ApplyChanges');
+        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), 'ApplyChanges');
         if ($configData === null) {
             return;
         }
@@ -120,7 +127,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         } else {
             $this->SetStatus(IS_ACTIVE);
         }
-        $this->SetSummary($this->ReadPropertyString('DeviceID'));
+        $this->SetSummary($this->ReadPropertyString(self::PROP_DEVICE_ID));
 
         // 3. Entitäten verarbeiten und Topics sammeln
         $filterTopics = $this->processEntities($configData, $baseTopic);
@@ -184,6 +191,11 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
             }
             $this->debugExpert('RequestAction', 'Entity aufgelöst', ['EntityID' => $entityId, 'Domain' => $domain]);
 
+            if (!$this->isEntityWritable($domain ?? '', $entity['attributes'] ?? [])) {
+                $this->debugExpert('RequestAction', 'Variable ist nicht schreibbar', ['EntityID' => $entityId], true);
+                return;
+            }
+
             // Payload formatieren (ON/OFF vs. Wert)
             $mqttPayload = $this->formatPayloadForMqtt($domain ?? '', $Value, $entity['attributes'] ?? []);
             if ($mqttPayload === '') {
@@ -211,7 +223,14 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $entityId  = $attributeInfo['entity_id'];
         $attribute = $attributeInfo['attribute'];
 
-        $payload = $this->buildLightAttributePayload($attribute, $Value);
+        if ($attributeInfo['domain'] === HALightDefinitions::DOMAIN) {
+            $payload = $this->buildLightAttributePayload($attribute, $Value);
+        } elseif ($attributeInfo['domain'] === HACoverDefinitions::DOMAIN) {
+            $payload = $this->buildCoverAttributePayload($attribute, $Value);
+        } else {
+            $this->debugExpert(__FUNCTION__, 'Attribut-Domain nicht unterstützt', ['Attribute' => $attribute, 'Domain' => $attributeInfo['domain']], true);
+            return;
+        }
         if ($payload === '') {
             $this->debugExpert(__FUNCTION__, 'Attribut Payload leer', ['Attribute' => $attribute], true);
             return;
@@ -228,33 +247,66 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
 
     public function GetConfigurationForm(): string
     {
+        $resultPath = __DIR__ . '/form_result.jsonx';
+        if (is_file($resultPath)) {
+            $resultContent = file_get_contents($resultPath);
+            if ($resultContent !== false) {
+                return $resultContent;
+            }
+        }
+
         $form   = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
-        $config = $this->decodeJsonArray($this->ReadPropertyString('DeviceConfig'), __FUNCTION__);
+        $config = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), __FUNCTION__);
+        $this->debugExpert(__FUNCTION__, 'config:', $config);
+
         $values = [];
 
         if (is_array($config)) {
             foreach ($config as $row) {
+                $row = $this->normalizeEntity($row, __FUNCTION__);
+                if ($row === null) {
+                    continue;
+                }
                 // Defaults setzen
                 if (!isset($row['create_var'])) {
                     $row['create_var'] = true;
                 }
 
+                $attributes = $row['attributes'] ?? null;
+                if (is_string($attributes)) {
+                    $decoded = $this->decodeJsonArray($attributes, __FUNCTION__);
+                    if ($decoded !== null) {
+                        $attributes = $decoded;
+                    }
+                }
+
                 // Attribute als JSON-String für die Tabelle formatieren
-                if (isset($row['attributes']) && is_array($row['attributes'])) {
-                    $row['attributes'] = json_encode($row['attributes'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                if (is_array($attributes)) {
+                    $row['attributes'] = json_encode($attributes, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 } else {
                     $row['attributes'] = '{}';
                 }
+                $this->debugExpert(__FUNCTION__, 'row:', $row);
+
                 $values[] = $row;
             }
         }
-        $form['elements'][0]['values'] = $values;
+        foreach ($form['elements'] as &$element) {
+            if (($element['name'] ?? '') === self::PROP_DEVICE_CONFIG) {
+                $element['values'] = $values;
+                break;
+            }
+        }
+        unset($element);
+
         foreach ($form['actions'] as &$action) {
             if (($action['name'] ?? '') === 'CURRENT_FILTER') {
                 $action['caption'] = 'Aktueller Filter (Regex): ' . $this->ReadAttributeString('CurrentFilter');
             }
         }
         unset($action);
+        $this->debugExpert(__FUNCTION__, 'Form:', $form);
+
         return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
@@ -325,6 +377,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
      */
     private function processEntities(array $configData, string $baseTopic): array
     {
+        $previousEntities      = $this->entities;
         $this->entities        = [];
         $this->topicMapping    = [];
         $this->entityPositions = [];
@@ -345,6 +398,15 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
             $basePosition                                = $positionIndex * 10;
             $entity['position_base']                     = $basePosition;
             $this->entityPositions[$entity['entity_id']] = $basePosition;
+            if (isset($previousEntities[$entity['entity_id']]['attributes'])
+                && is_array($previousEntities[$entity['entity_id']]['attributes'])) {
+                $existingAttributes = $previousEntities[$entity['entity_id']]['attributes'];
+                if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
+                    $entity['attributes'] = $existingAttributes;
+                } else {
+                    $entity['attributes'] = array_merge($existingAttributes, $entity['attributes']);
+                }
+            }
             $this->entities[$entity['entity_id']]        = $entity;
             $this->debugExpert('processEntities', 'Entity registriert', ['EntityID' => $entity['entity_id'], 'Domain' => $entity['domain'] ?? null]);
 
@@ -406,12 +468,19 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
 
         // Aktionsskript aktivieren, wenn schreibbar
-        if ($this->isWriteable($domain)) {
+        if ($domain === HAClimateDefinitions::DOMAIN) {
+            if ($this->isClimateTargetWritable($entity['attributes'] ?? [])) {
+                $this->EnableAction($ident);
+            }
+        } elseif ($this->isWriteable($domain)) {
             $this->EnableAction($ident);
         }
 
         if ($domain === HALightDefinitions::DOMAIN) {
             $this->maintainLightAttributeVariables($entity);
+        }
+        if ($domain === HAClimateDefinitions::DOMAIN) {
+            $this->maintainClimateAttributeVariables($entity);
         }
     }
 
@@ -432,6 +501,60 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
                 $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
                 $this->updateEntityCache($entityId, null, $parsed[self::KEY_ATTRIBUTES]);
                 $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+            }
+            return;
+        }
+
+        if ($domain === HAClimateDefinitions::DOMAIN) {
+            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
+            if (is_array($attributes) && $attributes !== []) {
+                $attributes = $this->normalizeClimateAttributes($attributes);
+                $mainValue = $this->extractClimateMainValue($attributes);
+                if ($mainValue !== null) {
+                    $this->SetValue($ident, $mainValue);
+                }
+                $this->storeEntityAttributes($entityId, $attributes);
+                $this->updateEntityCache($entityId, $mainValue, $attributes);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+                $this->updateClimateAttributeValues($entityId, $attributes);
+                return;
+            }
+
+            if (is_numeric($parsed[self::KEY_STATE])) {
+                $value = (float)$parsed[self::KEY_STATE];
+                $this->SetValue($ident, $value);
+                $this->updateEntityCache($entityId, $value, null);
+            } elseif (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
+                $this->storeEntityAttribute($entityId, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $parsed[self::KEY_STATE]);
+                $this->updateEntityCache($entityId, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $parsed[self::KEY_STATE]]);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+            }
+            return;
+        }
+
+        if ($domain === HACoverDefinitions::DOMAIN) {
+            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
+            if (is_array($attributes)) {
+                $position = $this->extractCoverPosition($attributes);
+                if ($position !== null) {
+                    $this->SetValue($ident, $position);
+                    $this->storeEntityAttributes($entityId, $attributes);
+                    $this->updateEntityCache($entityId, $position, $attributes);
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+                    $this->updateCoverAttributeValues($entityId, $attributes);
+                    return;
+                }
+            }
+
+            $level = $this->normalizeCoverStateToLevel((string)$parsed[self::KEY_STATE]);
+            if ($level !== null) {
+                $this->SetValue($ident, $level);
+                $this->updateEntityCache($entityId, $level, is_array($attributes ?? null) ? $attributes : null);
+            }
+            if (!empty($parsed[self::KEY_ATTRIBUTES])) {
+                $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+                $this->updateCoverAttributeValues($entityId, $parsed[self::KEY_ATTRIBUTES]);
             }
             return;
         }
@@ -474,6 +597,36 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $ident = $this->sanitizeIdent($domain . '_' . $entity);
         if ($domain === HAEventDefinitions::DOMAIN) {
             $this->debugExpert('StateTopic', 'Event-State ignoriert', ['EntityID' => $domain . '.' . $entity]);
+            return true;
+        }
+        if ($domain === HACoverDefinitions::DOMAIN) {
+            $level = $this->normalizeCoverStateToLevel($payload);
+            if ($level === null) {
+                return true;
+            }
+            $varId = @$this->GetIDForIdent($ident);
+            if ($varId === false) {
+                $this->debugExpert('StateTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
+                return false;
+            }
+            $this->SetValue($ident, $level);
+            $this->updateEntityCache($domain . '.' . $entity, $level, null);
+            return true;
+        }
+        if ($domain === HAClimateDefinitions::DOMAIN) {
+            if (is_numeric($payload)) {
+                $varId = @$this->GetIDForIdent($ident);
+                if ($varId === false) {
+                    $this->debugExpert('StateTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
+                    return false;
+                }
+                $this->SetValue($ident, (float)$payload);
+                $this->updateEntityCache($domain . '.' . $entity, (float)$payload, null);
+            } elseif ($payload !== '') {
+                $this->storeEntityAttribute($domain . '.' . $entity, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $payload);
+                $this->updateEntityCache($domain . '.' . $entity, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $payload]);
+                $this->updateEntityPresentation($domain . '.' . $entity, $this->entities[$domain . '.' . $entity][self::KEY_ATTRIBUTES] ?? []);
+            }
             return true;
         }
         $varId = @$this->GetIDForIdent($ident);
@@ -520,7 +673,9 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $currentDomain = $this->entities[$entityId]['domain'] ?? $domain;
         if ($currentDomain !== HALightDefinitions::DOMAIN
             && $currentDomain !== HASelectDefinitions::DOMAIN
-            && $currentDomain !== HAEventDefinitions::DOMAIN) {
+            && $currentDomain !== HAEventDefinitions::DOMAIN
+            && $currentDomain !== HACoverDefinitions::DOMAIN
+            && $currentDomain !== HAClimateDefinitions::DOMAIN) {
             $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
@@ -563,6 +718,85 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
             return true;
         }
 
+        if ($currentDomain === HACoverDefinitions::DOMAIN) {
+            if (!array_key_exists($attribute, HACoverDefinitions::ATTRIBUTE_DEFINITIONS)) {
+                $value = $this->parseAttributePayload($payload);
+                if ($value !== null) {
+                    $this->storeEntityAttribute($entityId, $attribute, $value);
+                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                }
+                return true;
+            }
+
+            if (!$this->ensureCoverAttributeVariable($entityId, $attribute)) {
+                $this->debugExpert('AttributeTopic', 'Keine Variable fÃ¼r Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->parseAttributePayload($payload);
+            if ($value === null) {
+                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return true;
+            }
+
+            $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+            if ($meta === null) {
+                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->castVariableValue($value, $meta['type']);
+            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+            $this->SetValue($ident, $value);
+            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+            $this->storeEntityAttribute($entityId, $attribute, $value);
+            $this->updateEntityCache($entityId, null, [$attribute => $value]);
+            $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+            if ($attribute === HACoverDefinitions::ATTRIBUTE_POSITION || $attribute === HACoverDefinitions::ATTRIBUTE_POSITION_ALT) {
+                $mainIdent = $this->sanitizeIdent($entityId);
+                if (@$this->GetIDForIdent($mainIdent) !== false) {
+                    $this->SetValue($mainIdent, (float)$value);
+                }
+            }
+            return true;
+        }
+
+        if ($currentDomain === HAClimateDefinitions::DOMAIN) {
+            if (!array_key_exists($attribute, HAClimateDefinitions::ATTRIBUTE_DEFINITIONS)) {
+                $value = $this->parseAttributePayload($payload);
+                if ($value !== null) {
+                    $this->storeEntityAttribute($entityId, $attribute, $value);
+                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                }
+                return true;
+            }
+
+            if (!$this->ensureClimateAttributeVariable($entityId, $attribute)) {
+                $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->parseAttributePayload($payload);
+            if ($value === null) {
+                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return true;
+            }
+
+            $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+            if ($meta === null) {
+                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->castVariableValue($value, $meta['type']);
+            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+            $this->SetValue($ident, $value);
+            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+            $this->updateEntityCache($entityId, null, [$attribute => $value]);
+            return true;
+        }
         if ($currentDomain === HASelectDefinitions::DOMAIN) {
             $value = $this->parseAttributePayload($payload);
             if ($value !== null) {
@@ -610,9 +844,6 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
         $this->updateEntityCache($entityId, null, [$attribute => $value]);
 
-        if ($attribute === 'supported_features') {
-            $this->updateLightSupportedFeaturesText($entityId, (int)$value);
-        }
         return true;
     }
 
@@ -744,6 +975,35 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
                 $row['attributes'] = $decoded;
             }
         }
+        if (isset($row['attributes']['device_class'])
+            && (!isset($row['device_class'])
+                || trim((string)$row['device_class']) === '')
+            && is_array($row['attributes'])
+            && is_string($row['attributes']['device_class'])) {
+            $row['device_class'] = trim($row['attributes']['device_class']);
+        }
+        if (isset($row['device_class'])) {
+            $deviceClass = $row['device_class'];
+            if (!is_string($deviceClass)) {
+                $deviceClass = '';
+            }
+            $deviceClass = trim($deviceClass);
+            if ($deviceClass !== '') {
+                if (!isset($row['attributes']) || !is_array($row['attributes'])) {
+                    $row['attributes'] = [];
+                }
+                if (($row['attributes']['device_class'] ?? '') === '') {
+                    $row['attributes']['device_class'] = $deviceClass;
+                }
+            }
+        }
+
+        if (($row['domain'] ?? '') === HAClimateDefinitions::DOMAIN && isset($row['attributes']) && is_array($row['attributes'])) {
+            $row['attributes'] = $this->normalizeClimateAttributes($row['attributes']);
+        }
+
+        $this->enrichSupportedFeaturesList($row);
+
 
         $entityId = (string)$row['entity_id'];
         if (str_ends_with($entityId, '_ein_level') || str_ends_with($entityId, '.ein_level')) {
@@ -756,6 +1016,102 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         }
 
         return $row;
+    }
+
+    private function normalizeClimateAttributes(array $attributes): array
+    {
+        $normalized = $attributes;
+
+        if (isset($normalized['temperature']) && !isset($normalized[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE])) {
+            $normalized[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE] = $normalized['temperature'];
+        }
+        if (isset($normalized['target_temp_low'])
+            && !isset($normalized[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_LOW])) {
+            $normalized[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_LOW] = $normalized['target_temp_low'];
+        }
+        if (isset($normalized['target_temp_high'])
+            && !isset($normalized[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_HIGH])) {
+            $normalized[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_HIGH] = $normalized['target_temp_high'];
+        }
+        if (isset($normalized['target_temp_step'])
+            && !isset($normalized[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP])) {
+            $normalized[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP] = $normalized['target_temp_step'];
+        }
+
+        foreach ([
+            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP,
+            'target_temp_step',
+            'precision',
+            HAClimateDefinitions::ATTRIBUTE_MIN_TEMP,
+            HAClimateDefinitions::ATTRIBUTE_MAX_TEMP,
+            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+            HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE,
+            'temperature'
+        ] as $key) {
+            if (array_key_exists($key, $normalized)) {
+                $normalized[$key] = $this->normalizeNumericValue($normalized[$key]);
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeNumericValue(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            $value = str_replace(',', '.', $value);
+        }
+        if (is_numeric($value)) {
+            return (float)$value;
+        }
+        return $value;
+    }
+
+    private function enrichSupportedFeaturesList(array &$row): void
+    {
+        if (!isset($row['attributes']) || !is_array($row['attributes'])) {
+            return;
+        }
+        if (isset($row['attributes']['supported_features_list'])) {
+            return;
+        }
+        if (!isset($row['attributes']['supported_features']) || !is_numeric($row['attributes']['supported_features'])) {
+            return;
+        }
+
+        $domain = (string)($row['domain'] ?? '');
+        if ($domain === '' && isset($row['entity_id']) && str_contains($row['entity_id'], '.')) {
+            [$domain] = explode('.', (string)$row['entity_id'], 2);
+        }
+
+        $list = $this->mapSupportedFeaturesByDomain($domain, (int)$row['attributes']['supported_features']);
+        if ($list !== []) {
+            $row['attributes']['supported_features_list'] = $list;
+        }
+    }
+
+    private function mapSupportedFeaturesByDomain(string $domain, int $mask): array
+    {
+        $map = match ($domain) {
+            HALightDefinitions::DOMAIN => HALightDefinitions::SUPPORTED_FEATURES,
+            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::SUPPORTED_FEATURES,
+            HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
+            HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
+            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
+            default => []
+        };
+
+        if ($map === []) {
+            return [];
+        }
+
+        $list = [];
+        foreach ($map as $bit => $label) {
+            if (($mask & (int)$bit) === (int)$bit) {
+                $list[] = $label;
+            }
+        }
+        return $list;
     }
 
     private function getEntityDomain(string $entityId): string
@@ -786,7 +1142,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
             return $entity;
         }
 
-        $configData = $this->decodeJsonArray($this->ReadPropertyString('DeviceConfig'), 'findEntityByIdent');
+        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), 'findEntityByIdent');
         if ($configData === null) {
             return null;
         }
@@ -816,7 +1172,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
             HALockDefinitions::DOMAIN,
             HACoverDefinitions::DOMAIN,
             HASelectDefinitions::DOMAIN
-        ]);
+        ],              true);
     }
 
     private function formatPayloadForMqtt(string $domain, mixed $value, array $attributes = []): string
@@ -824,6 +1180,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         return match ($domain) {
             HALightDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
             HASwitchDefinitions::DOMAIN => $value ? HASwitchDefinitions::STATE_ON : HASwitchDefinitions::STATE_OFF,
+            HACoverDefinitions::DOMAIN => HACoverDefinitions::normalizeCommand($value),
             HALockDefinitions::DOMAIN => HALockDefinitions::normalizeCommand($value),
             HASelectDefinitions::DOMAIN => $this->formatSelectPayload($value, $attributes),
             default => (string)$value,
@@ -873,7 +1230,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         };
     }
 
-     private function getEntityPresentation(string $domain, array $entity, int $type): array
+    private function getEntityPresentation(string $domain, array $entity, int $type): array
     {
         $attributes = $entity['attributes'] ?? [];
         if (!is_array($attributes)) {
@@ -900,6 +1257,10 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
             return $this->getNumberPresentation($attributes);
         }
 
+        if ($domain === HAClimateDefinitions::DOMAIN) {
+            return $this->getClimatePresentation($attributes);
+        }
+
         if ($domain === HASensorDefinitions::DOMAIN) {
             $deviceClass = $attributes['device_class'] ?? '';
             if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_ENUM) {
@@ -919,6 +1280,10 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
 
         if ($domain === HAVacuumDefinitions::DOMAIN) {
             return $this->getVacuumPresentation();
+        }
+
+        if ($domain === HACoverDefinitions::DOMAIN) {
+            return $this->getCoverPresentation($attributes);
         }
 
         if ($domain === HAEventDefinitions::DOMAIN) {
@@ -943,16 +1308,44 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         }
 
         if ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT) {
-            $slider = $this->getNumericSliderPresentation($attributes);
-            if ($slider !== null) {
-                return $slider;
+            if ($this->isWriteable($domain)) {
+                $slider = $this->getNumericSliderPresentation($attributes);
+                if ($slider !== null) {
+                    return $slider;
+                }
             }
         }
 
         return $this->filterPresentation([
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'DIGITS'       => ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT)
+                ? $this->getNumericDigits($attributes)
+                : null,
             'SUFFIX'       => $this->formatPresentationSuffix($suffix)
         ]);
+    }
+
+    private function isClimateTargetWritable(mixed $attributes): bool
+    {
+        if (!is_array($attributes)) {
+            return false;
+        }
+        $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
+        $hasTargetFeature = ($supported & 1) === 1;
+        $hasTargetAttribute = array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)
+            || array_key_exists('temperature', $attributes);
+        return $hasTargetFeature || $hasTargetAttribute;
+    }
+
+    private function isEntityWritable(string $domain, mixed $attributes): bool
+    {
+        if (!$this->isWriteable($domain)) {
+            return false;
+        }
+        if ($domain === HAClimateDefinitions::DOMAIN) {
+            return $this->isClimateTargetWritable($attributes);
+        }
+        return true;
     }
 
     private function getVacuumPresentation(): array
@@ -1039,6 +1432,79 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         ]);
     }
 
+    private function getCoverPresentation(array $attributes): array
+    {
+        $deviceClass = $attributes['device_class'] ?? '';
+        if (!is_string($deviceClass)) {
+            $deviceClass = '';
+        }
+        $deviceClass = trim($deviceClass);
+
+        $hasPosition = $this->extractCoverPosition($attributes) !== null;
+        if ($hasPosition && HACoverDefinitions::usesShutterPresentation($deviceClass)) {
+            return $this->filterPresentation([
+                'CLOSE_INSIDE_VALUE' => 0,
+                'USAGE_TYPE' => 0,
+                'OPEN_OUTSIDE_VALUE' => 100,
+                'PRESENTATION' => VARIABLE_PRESENTATION_SHUTTER
+            ]);
+        }
+
+        if ($hasPosition) {
+            return $this->filterPresentation([
+                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                'MIN'          => 0,
+                'MAX'          => 100,
+                'STEP_SIZE'    => 1,
+                'PERCENTAGE'   => true,
+                'DIGITS'       => 1,
+                'SUFFIX'       => $this->formatPresentationSuffix('%')
+            ]);
+        }
+
+        $options = [];
+        foreach (HACoverDefinitions::STATE_OPTIONS as $value => $captionKey) {
+            $options[] = [
+                'Value' => $value,
+                'Caption' => $this->Translate($captionKey),
+                'IconActive' => false,
+                'IconValue' => '',
+                'ColorActive' => false,
+                'ColorValue' => -1,
+                'ContentColorActive' => false,
+                'ContentColorValue' => -1,
+                'ColorDisplay' => -1,
+                'ContentColorDisplay' => -1
+            ];
+        }
+
+        return $this->filterPresentation([
+            'PRESENTATION' => HACoverDefinitions::PRESENTATION,
+            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
+        ]);
+    }
+
+    private function getClimatePresentation(array $attributes): array
+    {
+        $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
+        $supportsTarget = ($supported & 1) === 1;
+        $hasTargetAttribute = array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)
+            || array_key_exists('temperature', $attributes);
+        if ($supportsTarget || $hasTargetAttribute) {
+            $slider = $this->getClimateSliderPresentation($attributes);
+            if ($slider !== null) {
+                return $slider;
+            }
+        }
+
+        $suffix = $this->getClimateTemperatureSuffix($attributes);
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'USAGE_TYPE'   => 1,
+            'SUFFIX'       => $this->formatPresentationSuffix($suffix)
+        ]);
+    }
+
     private function getEventPresentation(array $attributes): array
     {
         $eventTypes = $attributes[HAEventDefinitions::ATTRIBUTE_EVENT_TYPES] ?? null;
@@ -1082,6 +1548,14 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $suffix = trim($suffix);
         $isPercent = $suffix === '%';
         $presentationSuffix = $this->formatPresentationSuffix($suffix);
+        $digitsOverride = $this->getMetaDigitsOverride($meta);
+
+        if (!$this->isWritableLightAttribute($attribute, $attributes)) {
+            return $this->filterPresentation([
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                'SUFFIX'       => $presentationSuffix
+            ]);
+        }
 
         if ($attribute === 'brightness') {
             return $this->filterPresentation([
@@ -1090,7 +1564,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
                 'MAX'          => 255,
                 'STEP_SIZE'    => 1,
                 'PERCENTAGE'   => $isPercent,
-                'DIGITS'       => 0,
+                'DIGITS'       => $digitsOverride ?? 0,
                 'SUFFIX'       => $presentationSuffix
             ]);
         }
@@ -1104,7 +1578,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
                     'MAX'          => (float)$max,
                     'STEP_SIZE'    => 1,
                     'PERCENTAGE'   => $isPercent,
-                    'DIGITS'       => 0,
+                    'DIGITS'       => $digitsOverride ?? 0,
                     'SUFFIX'       => $presentationSuffix
                 ]);
             }
@@ -1119,7 +1593,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
                     'MAX'          => (float)$max,
                     'STEP_SIZE'    => 1,
                     'PERCENTAGE'   => $isPercent,
-                    'DIGITS'       => 0,
+                    'DIGITS'       => $digitsOverride ?? 0,
                     'SUFFIX'       => $presentationSuffix
                 ]);
             }
@@ -1140,7 +1614,6 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         }
 
         $step   = $attributes['step'] ?? $attributes['native_step'] ?? 1;
-        $digits = (str_contains((string)$step, '.')) ? 2 : 0;
         $suffix = $this->getPresentationSuffix($attributes);
         $presentationSuffix = $this->formatPresentationSuffix($suffix);
 
@@ -1150,7 +1623,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
             'MAX'          => (float)$max,
             'STEP_SIZE'    => (float)$step,
             'PERCENTAGE'   => $suffix === '%',
-            'DIGITS'       => $digits,
+            'DIGITS'       => $this->getNumericDigits($attributes, $step),
             'SUFFIX'       => $presentationSuffix
         ]);
     }
@@ -1245,6 +1718,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $suffix = $this->getPresentationSuffix($attributes);
         return $this->filterPresentation([
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'DIGITS'       => $this->getNumericDigits($attributes),
             'SUFFIX'       => $this->formatPresentationSuffix($suffix)
         ]);
     }
@@ -1283,6 +1757,22 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $type = $this->getVariableType($domain, $entity['attributes'] ?? []);
         if ($type === VARIABLETYPE_BOOLEAN) {
             return 'Status';
+        }
+        if ($domain === HAClimateDefinitions::DOMAIN) {
+            $attributes = $entity['attributes'] ?? [];
+            if (is_array($attributes)) {
+                $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
+                $hasTargetFeature = ($supported & 1) === 1;
+                if ($hasTargetFeature) {
+                    return $this->Translate('Target Temperature');
+                }
+                if (array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)) {
+                    return $this->Translate('Target Temperature');
+                }
+                if (array_key_exists(HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE, $attributes)) {
+                    return $this->Translate('Current Temperature');
+                }
+            }
         }
         return $entity['name'] ?? $entity['entity_id'];
     }
@@ -1368,9 +1858,447 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
             $this->SetValue($ident, $value);
         }
 
-        if (array_key_exists('supported_features', $attributes)) {
-            $this->updateLightSupportedFeaturesText($entityId, (int)$attributes['supported_features']);
+    }
+
+    private function maintainClimateAttributeVariables(array $entity): void
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $this->debugExpert('ClimateVars', 'Attributes kein Array', ['EntityID' => $entity['entity_id'] ?? null]);
+            return;
         }
+
+        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
+
+        foreach (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
+            if (!array_key_exists($key, $attributes)) {
+                continue;
+            }
+
+            $ident        = $baseIdent . '_' . $key;
+            $name         = $meta['caption'];
+            $basePosition = $this->getEntityPosition($entity['entity_id']);
+            $position     = $this->getClimateAttributePosition($key, $basePosition);
+            $presentation = $this->getClimateAttributePresentation($key, $attributes);
+            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+            $this->debugExpert('ClimateVars', 'Variable angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
+        }
+    }
+
+    private function ensureClimateAttributeVariable(string $entityId, string $attribute): bool
+    {
+        $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if ($meta === null) {
+            return false;
+        }
+
+        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        if (@$this->GetIDForIdent($ident) !== false) {
+            return true;
+        }
+
+        $entity = $this->entities[$entityId] ?? [
+            'entity_id' => $entityId,
+            'name'      => $entityId
+        ];
+
+        $attributes   = $entity['attributes'] ?? [];
+        $name         = $meta['caption'];
+        $basePosition = $this->getEntityPosition($entityId);
+        $position     = $this->getClimateAttributePosition($attribute, $basePosition);
+        $presentation = $this->getClimateAttributePresentation($attribute, is_array($attributes) ? $attributes : []);
+        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+        $this->debugExpert('ClimateVars', 'Variable nachträglich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
+        return true;
+    }
+
+    private function updateClimateAttributeValues(string $entityId, array $attributes): void
+    {
+        foreach (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
+            if (!array_key_exists($key, $attributes)) {
+                continue;
+            }
+
+            $ident = $this->sanitizeIdent($entityId . '_' . $key);
+            $varId = @$this->GetIDForIdent($ident);
+            if ($varId === false) {
+                continue;
+            }
+
+            $value = $this->castVariableValue($attributes[$key], $meta['type']);
+            $this->SetValue($ident, $value);
+        }
+
+    }
+
+    private function getClimateAttributePosition(string $attribute, int $basePosition): int
+    {
+        $ordered = array_keys(HAClimateDefinitions::ATTRIBUTE_DEFINITIONS);
+        $index   = array_search($attribute, $ordered, true);
+        if ($index === false) {
+            return $basePosition + 200;
+        }
+        return $basePosition + 10 + $index;
+    }
+
+    private function getClimateAttributePresentation(string $attribute, array $attributes): array
+    {
+        $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if ($meta === null) {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION
+            ];
+        }
+        $isWritable = (bool)($meta['writable'] ?? false);
+        $digitsOverride = $this->getMetaDigitsOverride($meta);
+
+        if (in_array($attribute, [
+            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_LOW,
+            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_HIGH,
+            HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE
+        ], true)) {
+            if ($isWritable) {
+                $slider = $this->getClimateSliderPresentation($attributes);
+                if ($slider !== null) {
+                    if ($digitsOverride !== null) {
+                        $slider['DIGITS'] = $digitsOverride;
+                    }
+                    return $slider;
+                }
+            }
+            return $this->filterPresentation([
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                'USAGE_TYPE'   => 1,
+                'DIGITS'       => $digitsOverride ?? $this->getNumericDigits(
+                    $attributes,
+                    $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP] ?? $attributes['target_temp_step'] ?? null,
+                    $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE]
+                        ?? $attributes[HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE]
+                        ?? $attributes['temperature']
+                        ?? null
+                ),
+                'SUFFIX'       => $this->formatPresentationSuffix($this->getClimateTemperatureSuffix($attributes))
+            ]);
+        }
+
+        if (in_array($attribute, [HAClimateDefinitions::ATTRIBUTE_CURRENT_HUMIDITY, HAClimateDefinitions::ATTRIBUTE_TARGET_HUMIDITY], true)) {
+            if ($isWritable) {
+                $min = $attributes[HAClimateDefinitions::ATTRIBUTE_MIN_HUMIDITY] ?? 0;
+                $max = $attributes[HAClimateDefinitions::ATTRIBUTE_MAX_HUMIDITY] ?? 100;
+                if (is_numeric($min) && is_numeric($max)) {
+                    return $this->filterPresentation([
+                        'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                        'MIN'          => (float)$min,
+                        'MAX'          => (float)$max,
+                        'STEP_SIZE'    => 1,
+                        'PERCENTAGE'   => true,
+                        'DIGITS'       => 0,
+                        'SUFFIX'       => $this->formatPresentationSuffix('%')
+                    ]);
+                }
+            }
+            return $this->filterPresentation([
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                'PERCENTAGE'   => true,
+                'DIGITS'       => $digitsOverride ?? $this->getNumericDigits($attributes, null, $attributes[$attribute] ?? null),
+                'SUFFIX'       => $this->formatPresentationSuffix('%')
+            ]);
+        }
+
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
+            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_HVAC_MODES] ?? null);
+            if ($options !== null) {
+                return $this->filterPresentation([
+                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                    'OPTIONS'      => $options
+                ]);
+            }
+        }
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_PRESET_MODE) {
+            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_PRESET_MODES] ?? null);
+            if ($options !== null) {
+                return $this->filterPresentation([
+                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                    'OPTIONS'      => $options
+                ]);
+            }
+        }
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_FAN_MODE) {
+            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_FAN_MODES] ?? null);
+            if ($options !== null) {
+                return $this->filterPresentation([
+                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                    'OPTIONS'      => $options
+                ]);
+            }
+        }
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_MODE) {
+            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_SWING_MODES] ?? null);
+            if ($options !== null) {
+                return $this->filterPresentation([
+                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                    'OPTIONS'      => $options
+                ]);
+            }
+        }
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE) {
+            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES] ?? null);
+            if ($options !== null) {
+                return $this->filterPresentation([
+                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                    'OPTIONS'      => $options
+                ]);
+            }
+        }
+
+        $suffix = $meta['suffix'] ?? '';
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'SUFFIX'       => $this->formatPresentationSuffix((string)$suffix)
+        ]);
+    }
+
+    private function getClimateSliderPresentation(array $attributes): ?array
+    {
+        $min = $attributes[HAClimateDefinitions::ATTRIBUTE_MIN_TEMP] ?? null;
+        $max = $attributes[HAClimateDefinitions::ATTRIBUTE_MAX_TEMP] ?? null;
+        if (!is_numeric($min) || !is_numeric($max)) {
+            return null;
+        }
+        $step = $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP]
+            ?? $attributes['target_temp_step']
+            ?? 1;
+        $suffix = $this->getClimateTemperatureSuffix($attributes);
+
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+            'MIN'          => (float)$min,
+            'MAX'          => (float)$max,
+            'STEP_SIZE'    => (float)$step,
+            'PERCENTAGE'   => false,
+            'DIGITS'       => $this->getNumericDigits(
+                $attributes,
+                $step,
+                $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE]
+                    ?? $attributes[HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE]
+                    ?? $attributes['temperature']
+                    ?? null
+            ),
+            'USAGE_TYPE'   => 1,
+            'SUFFIX'       => $this->formatPresentationSuffix($suffix)
+        ]);
+    }
+
+    private function getClimateTemperatureSuffix(array $attributes): string
+    {
+        $unit = $attributes[HAClimateDefinitions::ATTRIBUTE_TEMPERATURE_UNIT] ?? null;
+        if (is_string($unit) && trim($unit) !== '') {
+            return trim($unit);
+        }
+        $fallback = $this->getPresentationSuffix($attributes);
+        return $fallback !== '' ? $fallback : '°C';
+    }
+
+
+    private function getNumericDigits(array $attributes, mixed $step = null, mixed $value = null): int
+    {
+        $this->debugExpert('getNumericDigits', 'Attribute', ['Attributes' => $attributes, 'Step' => $step, 'Value' => $value]);
+        $digits = null;
+
+        $stepValue = $step;
+        if (is_string($stepValue)) {
+            $stepValue = str_replace(',', '.', $stepValue);
+        }
+        if (is_numeric($stepValue)) {
+            $digits = $this->getDigitsFromNumber((float)$stepValue);
+        }
+        $this->debugExpert('getNumericDigits1', 'Digits', ['Digits' => $digits]);
+
+        if ($digits === null && isset($attributes['step']) && is_numeric($attributes['step'])) {
+            $digits = $this->getDigitsFromNumber((float)$attributes['step']);
+        }
+        $this->debugExpert('getNumericDigits2', 'Digits', ['Digits' => $digits]);
+
+        if ($digits === null && isset($attributes['native_step']) && is_numeric($attributes['native_step'])) {
+            $digits = $this->getDigitsFromNumber((float)$attributes['native_step']);
+        }
+        $this->debugExpert('getNumericDigits3', 'Digits', ['Digits' => $digits]);
+
+        if ($digits === null && isset($attributes['precision']) && is_numeric($attributes['precision'])) {
+            $digits = $this->getDigitsFromNumber((float)$attributes['precision']);
+        }
+        $this->debugExpert('getNumericDigits4', 'Digits', ['Digits' => $digits]);
+
+        if ($digits === null && isset($attributes['suggested_display_precision'])
+            && is_numeric($attributes['suggested_display_precision'])) {
+            $digits = (int)$attributes['suggested_display_precision'];
+        }
+        $this->debugExpert('getNumericDigits5', 'Digits', ['Digits' => $digits]);
+
+        $valueValue = $value;
+        if (is_string($valueValue)) {
+            $valueValue = str_replace(',', '.', $valueValue);
+        }
+        if ($digits === null && is_numeric($valueValue)) {
+            $digits = $this->getDigitsFromNumber((float)$valueValue);
+        }
+        $this->debugExpert('getNumericDigits6', 'Digits', ['Digits' => $digits]);
+
+        if ($digits === null) {
+            $digits = 0;
+        }
+
+        if ($digits === 0 && is_numeric($stepValue)) {
+            $stepFloat = (float)$stepValue;
+            if ($stepFloat > 0 && $stepFloat < 1) {
+                $digits = 1;
+            }
+        }
+
+        $this->debugExpert('getNumericDigits', 'Digits', ['Digits' => $digits]);
+        return min(3, max(0, $digits));
+    }
+
+    private function getMetaDigitsOverride(array $meta): ?int
+    {
+        if (!array_key_exists('digits', $meta) || !is_numeric($meta['digits'])) {
+            return null;
+        }
+        return min(3, max(0, (int)$meta['digits']));
+    }
+
+    private function getDigitsFromNumber(float $value): int
+    {
+        $string = rtrim(rtrim(sprintf('%.4f', $value), '0'), '.');
+        $pos = strpos($string, '.');
+        if ($pos === false) {
+            return 0;
+        }
+        $digits = strlen($string) - $pos - 1;
+        return max($digits, 0);
+    }
+
+    private function extractClimateMainValue(array $attributes): ?float
+    {
+        $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
+        $preferTarget = ($supported & 1) === 1;
+
+        $candidates = $preferTarget
+            ? [
+                HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+                HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE
+            ]
+            : [
+                HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE,
+                HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE
+            ];
+        foreach ($candidates as $key) {
+            $value = $attributes[$key] ?? null;
+            if (is_numeric($value)) {
+                return (float)$value;
+            }
+        }
+        return null;
+    }
+
+    private function ensureCoverAttributeVariable(string $entityId, string $attribute): bool
+    {
+        $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if ($meta === null) {
+            return false;
+        }
+
+        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        if (@$this->GetIDForIdent($ident) !== false) {
+            return true;
+        }
+
+        $name         = $meta['caption'];
+        $basePosition = $this->getEntityPosition($entityId);
+        $position     = $this->getCoverAttributePosition($attribute, $basePosition);
+        $presentation = $this->getCoverAttributePresentation($attribute, $meta);
+        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+        $this->debugExpert('CoverVars', 'Variable nachtrÃ¤glich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
+        if (($meta['writable'] ?? false) === true) {
+            $this->EnableAction($ident);
+        }
+        return true;
+    }
+
+    private function updateCoverAttributeValues(string $entityId, array $attributes): void
+    {
+        $position = $this->extractCoverPosition($attributes);
+        if ($position === null) {
+            return;
+        }
+        $ident = $this->sanitizeIdent($entityId);
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+        $this->SetValue($ident, $position);
+    }
+
+    private function getCoverAttributePosition(string $attribute, int $basePosition): int
+    {
+        $ordered = array_keys(HACoverDefinitions::ATTRIBUTE_DEFINITIONS);
+        $index   = array_search($attribute, $ordered, true);
+        if ($index === false) {
+            return $basePosition + 200;
+        }
+        return $basePosition + 10 + $index;
+    }
+
+    private function getCoverAttributePresentation(string $attribute, array $meta): array
+    {
+        $suffix = $meta['suffix'] ?? '';
+        if (!is_string($suffix)) {
+            $suffix = '';
+        }
+        $suffix = trim($suffix);
+        $isPercent = $suffix === '%';
+        $presentationSuffix = $this->formatPresentationSuffix($suffix);
+
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+            'MIN'          => 0,
+            'MAX'          => 100,
+            'STEP_SIZE'    => 1,
+            'PERCENTAGE'   => $isPercent,
+            'DIGITS'       => 1,
+            'SUFFIX'       => $presentationSuffix
+        ]);
+    }
+
+    private function extractCoverPosition(array $attributes): ?float
+    {
+        $candidates = [
+            HACoverDefinitions::ATTRIBUTE_POSITION,
+            HACoverDefinitions::ATTRIBUTE_POSITION_ALT
+        ];
+        foreach ($candidates as $key) {
+            $value = $attributes[$key] ?? null;
+            if (is_numeric($value)) {
+                return (float)$value;
+            }
+        }
+        return null;
+    }
+
+    private function normalizeCoverStateToLevel(string $state): ?float
+    {
+        $text = strtolower(trim($state));
+        if ($text === '') {
+            return null;
+        }
+        if (is_numeric($text)) {
+            return (float)$text;
+        }
+        return match ($text) {
+            'open', 'opened' => 100.0,
+            'closed' => 0.0,
+            default => null
+        };
     }
 
     private function getLightAttributePosition(string $attribute, int $basePosition): int
@@ -1404,6 +2332,10 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
                 'domain'    => $this->getEntityDomain($entityId),
                 'name'      => $entityId
             ];
+        }
+
+        if ($this->getEntityDomain($entityId) === HAClimateDefinitions::DOMAIN) {
+            $attributes = $this->normalizeClimateAttributes($attributes);
         }
 
         $existing = $this->entities[$entityId]['attributes'] ?? [];
@@ -1547,15 +2479,37 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
     {
         $domain   = $this->getEntityDomain($entityId);
         $rawState = (string)($state[self::KEY_STATE] ?? '');
-        $value    = $this->convertValueByDomain($domain, $rawState);
+        $attributes = $state[self::KEY_ATTRIBUTES] ?? null;
+        $coverAttributes = is_array($attributes) ? $attributes : [];
+        if ($domain === HAClimateDefinitions::DOMAIN && is_array($attributes)) {
+            $attributes = $this->normalizeClimateAttributes($attributes);
+        }
 
         $ident = $this->sanitizeIdent($entityId);
         $varId = @$this->GetIDForIdent($ident);
         if ($varId !== false && $domain !== HAEventDefinitions::DOMAIN) {
-            $this->SetValue($ident, $value);
+            if ($domain === HAClimateDefinitions::DOMAIN) {
+                $climateAttributes = is_array($attributes) ? $attributes : [];
+                $mainValue = $this->extractClimateMainValue($climateAttributes);
+                if ($mainValue !== null) {
+                    $this->SetValue($ident, $mainValue);
+                } elseif (is_numeric($rawState)) {
+                    $this->SetValue($ident, (float)$rawState);
+                }
+            } elseif ($domain === HACoverDefinitions::DOMAIN) {
+                $value = $this->extractCoverPosition($coverAttributes);
+                if ($value === null) {
+                    $value = $this->normalizeCoverStateToLevel($rawState);
+                }
+                if ($value !== null) {
+                    $this->SetValue($ident, $value);
+                }
+            } else {
+                $value = $this->convertValueByDomain($domain, $rawState);
+                $this->SetValue($ident, $value);
+            }
         }
 
-        $attributes = $state[self::KEY_ATTRIBUTES] ?? [];
         if (!is_array($attributes)) {
             return;
         }
@@ -1565,6 +2519,12 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
         if ($domain === HALightDefinitions::DOMAIN) {
             $this->updateLightAttributeValues($entityId, $attributes);
+        }
+        if ($domain === HACoverDefinitions::DOMAIN) {
+            $this->updateCoverAttributeValues($entityId, $attributes);
+        }
+        if ($domain === HAClimateDefinitions::DOMAIN) {
+            $this->updateClimateAttributeValues($entityId, $attributes);
         }
     }
 
@@ -1629,32 +2589,6 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         };
     }
 
-    private function updateLightSupportedFeaturesText(string $entityId, int $mask): void
-    {
-        if (!$this->ensureLightAttributeVariable($entityId, 'supported_features_text')) {
-            return;
-        }
-
-        $text  = $this->formatLightSupportedFeatures($mask);
-        $ident = $this->sanitizeIdent($entityId . '_supported_features_text');
-        $this->SetValue($ident, $text);
-    }
-
-    private function formatLightSupportedFeatures(int $mask): string
-    {
-        $features = [];
-        foreach (HALightDefinitions::SUPPORTED_FEATURES as $bit => $label) {
-            if (($mask & $bit) === $bit) {
-                $features[] = $label;
-            }
-        }
-
-        if (empty($features)) {
-            return 'None';
-        }
-        return implode(', ', $features);
-    }
-
     private function updateEntityCache(string $entityId, mixed $state, ?array $attributes): void
     {
         $cache = json_decode($this->ReadAttributeString('EntityStateCache'), true, 512, JSON_THROW_ON_ERROR);
@@ -1693,8 +2627,14 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
             return;
         }
 
+        $existing = $this->entities[$entityId]['attributes'] ?? [];
+        if (!is_array($existing)) {
+            $existing = [];
+        }
+        $mergedAttributes = array_merge($existing, $attributes);
+        $this->entities[$entityId]['attributes'] = $mergedAttributes;
         $entity = $this->entities[$entityId];
-        $entity['attributes'] = $attributes;
+        $entity['attributes'] = $mergedAttributes;
         $type = $this->getVariableType($domain, $entity['attributes']);
         $presentation = $this->getEntityPresentation($domain, $entity, $type);
         $position = $this->getEntityPosition($entityId);
@@ -1806,6 +2746,48 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
                 'domain'    => $domain
             ];
         }
+
+        foreach (HACoverDefinitions::ATTRIBUTE_DEFINITIONS as $attribute => $meta) {
+            if (!($meta['writable'] ?? false)) {
+                continue;
+            }
+            $suffix = '_' . $attribute;
+            if (!str_ends_with($ident, $suffix)) {
+                continue;
+            }
+
+            $baseIdent = substr($ident, 0, -strlen($suffix));
+            if ($baseIdent === '') {
+                continue;
+            }
+
+            $entityId = $this->getEntityIdByIdent($baseIdent);
+            $entity   = null;
+            if ($entityId !== null && isset($this->entities[$entityId])) {
+                $entity = $this->entities[$entityId];
+            } else {
+                $fromConfig = $this->findEntityByBaseIdentInConfig($baseIdent);
+                if ($fromConfig !== null) {
+                    $entityId = $fromConfig['entity_id'];
+                    $entity   = $fromConfig;
+                }
+            }
+
+            if ($entityId === null || $entity === null) {
+                return null;
+            }
+
+            $domain = $entity['domain'] ?? $this->getEntityDomain($entityId);
+            if ($domain !== HACoverDefinitions::DOMAIN) {
+                return null;
+            }
+
+            return [
+                'entity_id' => $entityId,
+                'attribute' => $attribute,
+                'domain'    => $domain
+            ];
+        }
         return null;
     }
 
@@ -1817,6 +2799,32 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
         }
         $payloadValue = $this->parseLightAttributeValue($attribute, $value);
         return json_encode([$attribute => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function buildCoverAttributePayload(string $attribute, mixed $value): string
+    {
+        $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return '';
+        }
+        $payloadKey = $meta['payload_key'] ?? '';
+        if (!is_string($payloadKey) || $payloadKey === '') {
+            return '';
+        }
+        $payloadValue = $this->parseCoverAttributeValue($value);
+        return json_encode([$payloadKey => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function parseCoverAttributeValue(mixed $value): float
+    {
+        $numeric = (float)$value;
+        if ($numeric < 0) {
+            return 0.0;
+        }
+        if ($numeric > 100) {
+            return 100.0;
+        }
+        return $numeric;
     }
 
     private function parseLightAttributeValue(string $attribute, mixed $value): string|array|int|float
@@ -1869,7 +2877,7 @@ require_once __DIR__ . '/../libs/HAEventDefinitions.php';
 
     private function findEntityByBaseIdentInConfig(string $baseIdent): ?array
     {
-        $configData = $this->decodeJsonArray($this->ReadPropertyString('DeviceConfig'), 'findEntityByBaseIdentInConfig');
+        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), 'findEntityByBaseIdentInConfig');
         if ($configData === null) {
             return null;
         }

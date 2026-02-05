@@ -319,9 +319,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
         if (!is_string($host) || $host === '') {
             $host = php_uname('n');
         }
-        if (!is_string($host)) {
-            $host = '';
-        }
+
         $clean = preg_replace('/[^a-zA-Z0-9-]/', '-', $host) ?? '';
         $clean = trim($clean, '-');
         if ($clean === '') {

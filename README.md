@@ -1,4 +1,4 @@
-# Home Assistant
+﻿# Home Assistant
 
 Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symcon einzubinden und zu steuern.
 
@@ -19,11 +19,11 @@ Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symc
 | `number`       | voll                  | Slider/Min/Max/Step, REST `set_value` |
 | `sensor`       | voll                  | Units/Suffix, `enum` als Enumeration |
 | `select`       | voll                  | Enumeration |
-| `climate`      | teilweise             | REST `set_temperature` |
+| `climate`      | teilweise             | Solltemp (Slider), REST `set_temperature`, Modi/Attribute read-only |
 | `lock`         | teilweise             | REST `lock`/`unlock`/`open`, Enumeration |
-| `cover`        | teilweise             | REST `open_cover`/`close_cover` |
-| `event`        | teilweise             | Basisvariablen |
-| `vacuum`       | teilweise             | REST `start`/`stop`/`pause`/`return_to_base` |
+| `cover`        | teilweise             | Position/Tilt, REST `open/close/stop` + `set_position` |
+| `event`        | teilweise             | Enumeration aus `event_type` |
+| `vacuum`       | teilweise             | REST `start`/`stop`/`pause`/`return_to_base`, `fan_speed` |
 
 ## Voraussetzungen
 
@@ -57,6 +57,17 @@ mqtt_statestream:
   publish_attributes: true
   publish_timestamps: true
 ```
+
+## FAQ
+
+### MQTT Verbindung / Instanzanlage schlägt fehl (Code -32603)
+
+Wenn die Instanzanlage mit "Verbindungsaufbau abgelehnt" fehlschlägt:
+
+- In Home Assistant die MQTT-Integration möglichst über das offizielle Mosquitto Broker Add-on einrichten.
+  Manuelle Broker-Konfigurationen liefern häufig abweichende Host/Port-Daten.
+- Im Splitter eine interne HA-URL verwenden (lokale IP/Host, Port 8123), nicht die externe Zugriff-URL.
+  Externe URLs können vom Symcon-Server aus nicht erreichbar oder anders aufgelöst sein.
 
 ## Datenfluss
 

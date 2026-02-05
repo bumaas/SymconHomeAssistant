@@ -65,7 +65,8 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         "device": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }} ({{ area_name(state.entity_id) | default('Kein Bereich', true) }})",
         "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }}",
         "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
-        "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}"
+        "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}",
+        "supported_features": {{ state.attributes.supported_features | default(0) | int }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ]
@@ -117,7 +118,8 @@ EOT;
         "device": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }} ({{ area_name(state.entity_id) | default('Kein Bereich', true) }})",
         "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }}",
         "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
-        "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}"
+        "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}",
+        "supported_features": {{ state.attributes.supported_features | default(0) | int }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ]
@@ -286,6 +288,16 @@ EOT;
                     ]);
                 }
 
+                if (isset($finalEntity['attributes']['device_class'])
+                    && (!isset($finalEntity['device_class'])
+                        || trim((string)$finalEntity['device_class']) === '')
+                    && is_array($finalEntity['attributes'])
+                    && is_string($finalEntity['attributes']['device_class'])) {
+                    $finalEntity['device_class'] = trim($finalEntity['attributes']['device_class']);
+                }
+
+                $this->enrichSupportedFeaturesList($finalEntity);
+
                 // Attribute zu String
                 if (isset($finalEntity['attributes']) && is_array($finalEntity['attributes'])) {
                     $finalEntity['attributes'] = json_encode(
@@ -325,6 +337,53 @@ EOT;
             ];
         }
         return $values;
+    }
+
+    private function enrichSupportedFeaturesList(array &$entity): void
+    {
+        if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
+            return;
+        }
+        if (isset($entity['attributes']['supported_features_list'])) {
+            return;
+        }
+        if (!isset($entity['attributes']['supported_features']) || !is_numeric($entity['attributes']['supported_features'])) {
+            return;
+        }
+
+        $domain = (string)($entity['domain'] ?? '');
+        if ($domain === '' && isset($entity['entity_id']) && str_contains($entity['entity_id'], '.')) {
+            [$domain] = explode('.', (string)$entity['entity_id'], 2);
+        }
+
+        $list = $this->mapSupportedFeaturesByDomain($domain, (int)$entity['attributes']['supported_features']);
+        if ($list !== []) {
+            $entity['attributes']['supported_features_list'] = $list;
+        }
+    }
+
+    private function mapSupportedFeaturesByDomain(string $domain, int $mask): array
+    {
+        $map = match ($domain) {
+            HALightDefinitions::DOMAIN => HALightDefinitions::SUPPORTED_FEATURES,
+            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::SUPPORTED_FEATURES,
+            HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
+            HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
+            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
+            default => []
+        };
+
+        if ($map === []) {
+            return [];
+        }
+
+        $list = [];
+        foreach ($map as $bit => $label) {
+            if (($mask & (int)$bit) === (int)$bit) {
+                $list[] = $label;
+            }
+        }
+        return $list;
     }
 
     /**
@@ -395,7 +454,7 @@ EOT;
     /**
      * Aktualisiert den internen Cache der Home Assistant Entitäten.
      *
-     * Neu: Führt nur noch EINEN Request aus, der gefilterte Entitäten inkl.
+     * Neu: Führt nur noch EINEN Request aus, der gefilterte Entitäten inklusive
      * aller Geräte-Metadaten zurückliefert.
      */
     private function UpdateCacheFromHA(): void
@@ -443,6 +502,15 @@ EOT;
                 $this->debugExpert('UpdateCache', 'Entities geladen', ['Count' => count($rawEntities)]);
 
                 foreach ($rawEntities as $entity) {
+                    if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
+                        $entity['attributes'] = [];
+                    }
+                    if (!isset($entity['attributes']['supported_features']) || !is_numeric($entity['attributes']['supported_features'])) {
+                        if (isset($entity['supported_features']) && is_numeric($entity['supported_features'])) {
+                            $entity['attributes']['supported_features'] = (int)$entity['supported_features'];
+                        }
+                    }
+                    unset($entity['supported_features']);
                     // Fallback für den Anzeigenamen des Geräts, falls 'Unbekannt'
                     if ($entity['device_name'] === 'Unbekannt' || $entity['device_id'] === 'none') {
                         $entity['device'] = ucfirst($entity['domain']) . ' (Ohne Gerät)';

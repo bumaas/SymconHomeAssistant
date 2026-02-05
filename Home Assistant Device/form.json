@@ -74,6 +74,15 @@
           "add":     ""
         },
         {
+          "caption": "Device class",
+          "name":    "device_class",
+          "width":   "140px",
+          "edit":    {
+            "type": "ValidationTextBox"
+          },
+          "add":     ""
+        },
+        {
           "caption": "Active",
           "name":    "create_var",
           "width":   "70px",

@@ -43,7 +43,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT) {
-            $this->debugExpert('MessageSink', 'Verbindungsstatus geaendert. Aktualisiere...', [], true);
+            $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...', [], true);
             $this->ApplyChanges();
         }
     }
@@ -94,12 +94,6 @@ class HomeAssistantSplitter extends IPSModuleStrict
         }
 
         $this->SetStatus(IS_ACTIVE);
-    }
-
-    public function GetConfigurationForm(): string
-    {
-        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
-        return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
     public function ForwardData(string $JSONString): string
@@ -399,6 +393,30 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return [$command, []];
         }
 
+        if ($domain === HACoverDefinitions::DOMAIN && is_array($value)) {
+            if (isset($value[HACoverDefinitions::PAYLOAD_POSITION]) && is_numeric($value[HACoverDefinitions::PAYLOAD_POSITION])) {
+                return ['set_cover_position', ['position' => (float)$value[HACoverDefinitions::PAYLOAD_POSITION]]];
+            }
+            if (isset($value[HACoverDefinitions::PAYLOAD_TILT_POSITION]) && is_numeric($value[HACoverDefinitions::PAYLOAD_TILT_POSITION])) {
+                return ['set_cover_tilt_position', ['tilt_position' => (float)$value[HACoverDefinitions::PAYLOAD_TILT_POSITION]]];
+            }
+        }
+        if ($domain === HACoverDefinitions::DOMAIN && is_numeric($value)) {
+            return ['set_cover_position', ['position' => (float)$value]];
+        }
+        if ($domain === HACoverDefinitions::DOMAIN && is_string($value)) {
+            $command = strtolower(trim($value));
+            return match ($command) {
+                'open' => ['open_cover', []],
+                'close' => ['close_cover', []],
+                'stop' => ['stop_cover', []],
+                'open_tilt' => ['open_cover_tilt', []],
+                'close_tilt' => ['close_cover_tilt', []],
+                'stop_tilt' => ['stop_cover_tilt', []],
+                default => ['', []],
+            };
+        }
+
         return match ($domain) {
             HALightDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN => [$value ? 'turn_on' : 'turn_off', []],
             HACoverDefinitions::DOMAIN => [$value ? 'open_cover' : 'close_cover', []],
@@ -471,6 +489,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
         $this->debugExpert('REST', 'Handle request', ['Endpoint' => $endpoint, 'Method' => $method]);
         $result = $this->sendHaRequestRaw($url, $token, is_string($body) ? $body : null, $method);
+        if (!isset($result['Error']) && isset($result['Response'])) {
+            $result['Response'] = $this->mapSupportedFeaturesResponse((string)$result['Response']);
+        }
         $this->storeRestDiagnostics($result);
         if ($this->ReadPropertyBoolean('EnableExpertDebug')) {
             $httpCode = $result['HttpCode'] ?? 'n/a';
@@ -515,6 +536,98 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return ['HttpCode' => $httpCode, 'Response' => $response];
     }
 
+    private function mapSupportedFeaturesResponse(string $response): string
+    {
+        $trimmed = trim($response);
+        if ($trimmed === '' || ($trimmed[0] !== '{' && $trimmed[0] !== '[')) {
+            return $response;
+        }
+
+        try {
+            $decoded = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return $response;
+        }
+
+        $changed = $this->applySupportedFeaturesMapping($decoded);
+        if (!$changed) {
+            return $response;
+        }
+
+        return json_encode($decoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function applySupportedFeaturesMapping(mixed &$data): bool
+    {
+        if (!is_array($data)) {
+            return false;
+        }
+
+        $changed = false;
+
+        $isList = array_is_list($data);
+        if ($isList) {
+            foreach ($data as &$item) {
+                if ($this->applySupportedFeaturesMapping($item)) {
+                    $changed = true;
+                }
+            }
+            unset($item);
+            return $changed;
+        }
+
+        if (isset($data['attributes']) && is_array($data['attributes'])) {
+            $entityId = (string)($data['entity_id'] ?? '');
+            $domain = (string)($data['domain'] ?? '');
+            if ($domain === '' && $entityId !== '' && str_contains($entityId, '.')) {
+                [$domain] = explode('.', $entityId, 2);
+            }
+
+            if (isset($data['attributes']['supported_features']) && is_numeric($data['attributes']['supported_features'])) {
+                $mask = (int)$data['attributes']['supported_features'];
+                $list = $this->mapSupportedFeaturesByDomain($domain, $mask);
+                if ($list !== []) {
+                    $data['attributes']['supported_features_list'] = $list;
+                    $changed = true;
+                }
+            }
+        }
+
+        foreach ($data as &$value) {
+            if ($this->applySupportedFeaturesMapping($value)) {
+                $changed = true;
+            }
+        }
+        unset($value);
+
+        return $changed;
+    }
+
+    private function mapSupportedFeaturesByDomain(string $domain, int $mask): array
+    {
+        $map = match ($domain) {
+            HALightDefinitions::DOMAIN => HALightDefinitions::SUPPORTED_FEATURES,
+            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::SUPPORTED_FEATURES,
+            HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
+            HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
+            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
+            default => []
+        };
+
+        if ($map === []) {
+            return [];
+        }
+
+        $list = [];
+        foreach ($map as $bit => $label) {
+            if (($mask & (int)$bit) === (int)$bit) {
+                $list[] = $label;
+            }
+        }
+
+        return $list;
+    }
+
     private function storeRestDiagnostics(array $result): void
     {
         $error = $result['Error'] ?? '';
@@ -526,7 +639,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         } elseif (is_numeric($httpCode) && ((int)$httpCode < 200 || (int)$httpCode >= 300)) {
             $message = 'HTTP ' . $httpCode;
             if ($response !== '') {
-                $message .= ' | ' . $this->truncateResponse($response, 200, true);
+                $message .= ' | ' . $this->truncateResponse($response);
             }
         }
         $this->WriteAttributeString('LastRestError', $message);
@@ -567,10 +680,10 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $compactWhitespace = false;
         }
 
-        return $this->truncateResponse($text, 400, $compactWhitespace);
+        return $this->truncateResponse($text, 1000, $compactWhitespace);
     }
 
-    private function truncateResponse(string $response, int $maxLength = 400, bool $compactWhitespace = true): string
+    private function truncateResponse(string $response, int $maxLength = 1000, bool $compactWhitespace = true): string
     {
         if ($compactWhitespace) {
             $response = preg_replace('/\s+/', ' ', $response) ?? $response;
@@ -588,7 +701,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     {
         $text = $response;
         if ($text !== '') {
-            $text = $this->truncateResponse($text, 200, true);
+            $text = $this->truncateResponse($text);
         }
         return 'HTTP ' . $httpCode . ($text !== '' ? ' | ' . $text : '');
     }

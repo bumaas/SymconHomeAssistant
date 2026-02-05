@@ -20,6 +20,10 @@ final class HALockDefinitions
         'open' => ['caption' => 'open', 'command' => 'open']
     ];
 
+    public const array SUPPORTED_FEATURES = [
+        1 => 'Lock feature: Open'
+    ];
+
     public static function normalizeCommand(mixed $value): string
     {
         if (is_bool($value)) {
