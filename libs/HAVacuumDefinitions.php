@@ -8,6 +8,13 @@ final class HAVacuumDefinitions
     public const int VARIABLE_TYPE = VARIABLETYPE_STRING;
     public const string PRESENTATION = VARIABLE_PRESENTATION_ENUMERATION;
 
+    public const int ACTION_START = 0;
+    public const int ACTION_STOP = 1;
+    public const int ACTION_PAUSE = 2;
+    public const int ACTION_RETURN_HOME = 3;
+    public const int ACTION_CLEAN_SPOT = 4;
+    public const int ACTION_LOCATE = 5;
+
     public const array STATE_OPTIONS = [
         'cleaning' => ['caption' => 'cleaning', 'icon' => 'robot'],
         'docked' => ['caption' => 'docked', 'icon' => 'house'],

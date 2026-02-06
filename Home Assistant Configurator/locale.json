@@ -9,7 +9,9 @@
       "Allowed Domains (Filter)": "Erlaubte Domänen (Filter)",
       "Domain": "Domäne",
       "Configuration": "Konfiguration",
-      "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren"
+      "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
+      "Create status variables automatically": "Statusvariablen automatisch anlegen"
     }
   }
 }
+

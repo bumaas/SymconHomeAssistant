@@ -18,6 +18,10 @@ require_once __DIR__ . '/../libs/HAClimateDefinitions.php';
 require_once __DIR__ . '/../libs/HACoverDefinitions.php';
 require_once __DIR__ . '/../libs/HAEventDefinitions.php';
 require_once __DIR__ . '/../libs/HAAttributeFilter.php';
+require_once __DIR__ . '/../libs/Device/HADomainStateHandlers.php';
+require_once __DIR__ . '/../libs/Device/HAAttributeHandlers.php';
+require_once __DIR__ . '/../libs/Device/HAPresentation.php';
+require_once __DIR__ . '/../libs/Device/HAEntityStore.php';
 
 /**
  * @phpstan-type EntityAttributes array<string, mixed>
@@ -33,14 +37,21 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
  * @phpstan-type ConfigRow Entity
  * @phpstan-type StatePayload array{state?: string, attributes?: EntityAttributes}
  * @phpstan-type StateMap array<string, StatePayload>
- */class HomeAssistantDevice extends IPSModuleStrict
+ */
+class HomeAssistantDevice extends IPSModuleStrict
 {
     use HADebugTrait;
+    use HADomainStateHandlersTrait;
+    use HAAttributeHandlersTrait;
+    use HAPresentationTrait;
+    use HAEntityStoreTrait;
 
     private const string KEY_STATE      = 'state';
     private const string KEY_ATTRIBUTES = 'attributes';
     private const string KEY_SUPPORTED_FEATURES = 'supported_features';
     private const string LOCK_ACTION_SUFFIX = '_lock_action';
+    private const string VACUUM_ACTION_SUFFIX = '_vacuum_action';
+    private const string VACUUM_FAN_SPEED_SUFFIX = '_vacuum_fan_speed';
 
     private array $topicMapping    = [];
 
@@ -185,6 +196,12 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
 
         if ($this->handleLockAction($Ident, $Value)) {
+            return;
+        }
+        if ($this->handleVacuumAction($Ident, $Value)) {
+            return;
+        }
+        if ($this->handleVacuumFanSpeedAction($Ident, $Value)) {
             return;
         }
 
@@ -493,6 +510,10 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         if ($domain === HALockDefinitions::DOMAIN) {
             $this->maintainLockActionVariable($entity);
         }
+        if ($domain === HAVacuumDefinitions::DOMAIN) {
+            $this->maintainVacuumActionVariable($entity);
+            $this->maintainVacuumFanSpeedVariable($entity);
+        }
     }
 
     /**
@@ -593,6 +614,24 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
             return;
         }
 
+        if ($domain === HAVacuumDefinitions::DOMAIN) {
+            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
+            if (is_array($attributes) && $attributes !== []) {
+                $attributes = $this->storeEntityAttributes($entityId, $attributes);
+            }
+            if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
+                $this->SetValue($ident, $parsed[self::KEY_STATE]);
+            }
+            $this->updateVacuumFanSpeedValue($entityId, $attributes);
+            if (is_array($attributes) && $attributes !== []) {
+                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+            } else {
+                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
+            }
+            return;
+        }
+
         $finalValue = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE]);
 
         $this->SetValue($ident, $finalValue);
@@ -605,300 +644,6 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
                 $this->updateLightAttributeValues($entityId, $storedAttributes);
             }
         }
-    }
-
-    private function tryHandleStateFromTopic(string $topic, string $payload): bool
-    {
-        if ($topic === '') {
-            $this->debugExpert('StateTopic', 'Leeres Topic, ignoriert.');
-            return false;
-        }
-
-        $parts = explode('/', trim($topic, '/'));
-        if (count($parts) < 3) {
-            $this->debugExpert('StateTopic', 'Topic zu kurz', ['Topic' => $topic]);
-            return false;
-        }
-
-        $suffix = $parts[count($parts) - 1];
-        if ($suffix !== 'state' && $suffix !== 'set') {
-            return $this->tryHandleAttributeFromTopic($topic, $payload);
-        }
-
-        $entity = $parts[count($parts) - 2];
-        $domain = $parts[count($parts) - 3];
-
-        $ident = $this->sanitizeIdent($domain . '_' . $entity);
-        if ($domain === HAEventDefinitions::DOMAIN) {
-            $this->debugExpert('StateTopic', 'Event-State ignoriert', ['EntityID' => $domain . '.' . $entity]);
-            return true;
-        }
-        if ($domain === HACoverDefinitions::DOMAIN) {
-            $level = $this->normalizeCoverStateToLevel($payload);
-            if ($level === null) {
-                return true;
-            }
-            $varId = @$this->GetIDForIdent($ident);
-            if ($varId === false) {
-                $this->debugExpert('StateTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
-                return false;
-            }
-            $this->SetValue($ident, $level);
-            $this->updateEntityCache($domain . '.' . $entity, $level, null);
-            return true;
-        }
-        if ($domain === HALockDefinitions::DOMAIN) {
-            $parsed = $this->parseEntityPayload($payload);
-            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
-            if (is_array($attributes) && $attributes !== []) {
-                $attributes = $this->storeEntityAttributes($domain . '.' . $entity, $attributes);
-            }
-            $displayState = $this->resolveLockDisplayState((string)$parsed[self::KEY_STATE], is_array($attributes) ? $attributes : null);
-            if ($displayState !== null) {
-                $varId = @$this->GetIDForIdent($ident);
-                if ($varId === false) {
-                    $this->debugExpert('StateTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
-                    return false;
-                }
-                $this->SetValue($ident, $displayState);
-            }
-            $this->updateLockActionValue($domain . '.' . $entity, (string)$parsed[self::KEY_STATE], is_array($attributes) ? $attributes : null);
-            $this->updateEntityCache($domain . '.' . $entity, $parsed[self::KEY_STATE], is_array($attributes) ? $attributes : null);
-            $this->updateEntityPresentation($domain . '.' . $entity, $this->entities[$domain . '.' . $entity][self::KEY_ATTRIBUTES] ?? []);
-            return true;
-        }
-        if ($domain === HAClimateDefinitions::DOMAIN) {
-            if (is_numeric($payload)) {
-                $varId = @$this->GetIDForIdent($ident);
-                if ($varId === false) {
-                    $this->debugExpert('StateTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
-                    return false;
-                }
-                $this->SetValue($ident, (float)$payload);
-                $this->updateEntityCache($domain . '.' . $entity, (float)$payload, null);
-            } elseif ($payload !== '') {
-                $this->storeEntityAttribute($domain . '.' . $entity, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $payload);
-                $this->updateEntityCache($domain . '.' . $entity, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $payload]);
-                $this->updateEntityPresentation($domain . '.' . $entity, $this->entities[$domain . '.' . $entity][self::KEY_ATTRIBUTES] ?? []);
-            }
-            return true;
-        }
-        $varId = @$this->GetIDForIdent($ident);
-        if ($varId === false) {
-            $this->debugExpert('StateTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
-            return false;
-        }
-
-        $parsed = $this->parseEntityPayload($payload);
-
-        $value = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE]);
-
-        $this->debugExpert(
-            'StateTopic',
-            'SetValue',
-            ['Ident' => $ident, 'Domain' => $domain, 'Entity' => $entity, 'Value' => $value]
-        );
-        $this->SetValue($ident, $value);
-        $this->updateEntityCache($domain . '.' . $entity, $parsed[self::KEY_STATE], $parsed[self::KEY_ATTRIBUTES] ?? null);
-
-        if ($domain === HALightDefinitions::DOMAIN && !empty($parsed[self::KEY_ATTRIBUTES])) {
-            $this->updateLightAttributeValues($domain . '.' . $entity, $parsed[self::KEY_ATTRIBUTES]);
-        }
-        if (!empty($parsed[self::KEY_ATTRIBUTES])) {
-            $this->updateEntityPresentation($domain . '.' . $entity, $this->entities[$domain . '.' . $entity][self::KEY_ATTRIBUTES] ?? []);
-        }
-        return true;
-    }
-
-    private function tryHandleAttributeFromTopic(string $topic, string $payload): bool
-    {
-        // Attribute topics come as .../<domain>/<entity>/<attribute>
-        $parts = explode('/', trim($topic, '/'));
-        if (count($parts) < 3) {
-            $this->debugExpert('AttributeTopic', 'Topic zu kurz', ['Topic' => $topic]);
-            return false;
-        }
-
-        $attribute = $parts[count($parts) - 1];
-        $entity    = $parts[count($parts) - 2];
-        $domain    = $parts[count($parts) - 3];
-        $entityId  = $domain . '.' . $entity;
-
-        $currentDomain = $this->entities[$entityId]['domain'] ?? $domain;
-        if ($currentDomain !== HALightDefinitions::DOMAIN
-            && $currentDomain !== HASelectDefinitions::DOMAIN
-            && $currentDomain !== HAEventDefinitions::DOMAIN
-            && $currentDomain !== HACoverDefinitions::DOMAIN
-            && $currentDomain !== HAClimateDefinitions::DOMAIN) {
-            $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
-            return false;
-        }
-        if (!isset($this->entities[$entityId])) {
-            // Ensure the entity exists even if it wasn't part of the initial config list.
-            $this->entities[$entityId] = [
-                'entity_id' => $entityId,
-                'domain'    => $domain,
-                'name'      => $entity
-            ];
-            $this->debugExpert('AttributeTopic', 'Entity aus Topic angelegt', ['EntityID' => $entityId]);
-        }
-
-        if ($currentDomain === HAEventDefinitions::DOMAIN) {
-            if ($attribute === HAEventDefinitions::ATTRIBUTE_EVENT_TYPES) {
-                $value = $this->parseAttributePayload($payload);
-                if ($value !== null) {
-                    $this->storeEntityAttribute($entityId, $attribute, $value);
-                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                }
-                return true;
-            }
-            if ($attribute !== HAEventDefinitions::ATTRIBUTE_EVENT_TYPE) {
-                return true;
-            }
-            $value = $this->parseAttributePayload($payload);
-            if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, (string)$value, [$attribute => $value]);
-                $ident = $this->sanitizeIdent($entityId);
-                $varId = @$this->GetIDForIdent($ident);
-                if ($varId === false) {
-                    $this->debugExpert('AttributeTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
-                    return false;
-                }
-                $this->SetValue($ident, (string)$value);
-                $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-            }
-            return true;
-        }
-
-        if ($currentDomain === HACoverDefinitions::DOMAIN) {
-            if (!array_key_exists($attribute, HACoverDefinitions::ATTRIBUTE_DEFINITIONS)) {
-                $value = $this->parseAttributePayload($payload);
-                if ($value !== null) {
-                    $this->storeEntityAttribute($entityId, $attribute, $value);
-                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                }
-                return true;
-            }
-
-            if (!$this->ensureCoverAttributeVariable($entityId, $attribute)) {
-                $this->debugExpert('AttributeTopic', 'Keine Variable fÃ¼r Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->parseAttributePayload($payload);
-            if ($value === null) {
-                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return true;
-            }
-
-            $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-            if ($meta === null) {
-                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->castVariableValue($value, $meta['type']);
-            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-            $this->SetValue($ident, $value);
-            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-            $this->storeEntityAttribute($entityId, $attribute, $value);
-            $this->updateEntityCache($entityId, null, [$attribute => $value]);
-            $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-            if ($attribute === HACoverDefinitions::ATTRIBUTE_POSITION || $attribute === HACoverDefinitions::ATTRIBUTE_POSITION_ALT) {
-                $mainIdent = $this->sanitizeIdent($entityId);
-                if (@$this->GetIDForIdent($mainIdent) !== false) {
-                    $this->SetValue($mainIdent, (float)$value);
-                }
-            }
-            return true;
-        }
-
-        if ($currentDomain === HAClimateDefinitions::DOMAIN) {
-            if (!array_key_exists($attribute, HAClimateDefinitions::ATTRIBUTE_DEFINITIONS)) {
-                $value = $this->parseAttributePayload($payload);
-                if ($value !== null) {
-                    $this->storeEntityAttribute($entityId, $attribute, $value);
-                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                }
-                return true;
-            }
-
-            if (!$this->ensureClimateAttributeVariable($entityId, $attribute)) {
-                $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->parseAttributePayload($payload);
-            if ($value === null) {
-                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return true;
-            }
-
-            $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-            if ($meta === null) {
-                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->castVariableValue($value, $meta['type']);
-            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-            $this->SetValue($ident, $value);
-            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-            $this->updateEntityCache($entityId, null, [$attribute => $value]);
-            return true;
-        }
-        if ($currentDomain === HASelectDefinitions::DOMAIN) {
-            $value = $this->parseAttributePayload($payload);
-            if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-            }
-            return true;
-        }
-
-        if (!array_key_exists($attribute, HALightDefinitions::ATTRIBUTE_DEFINITIONS)) {
-            $value = $this->parseAttributePayload($payload);
-            if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-            }
-            return true;
-        }
-
-        if (!$this->ensureLightAttributeVariable($entityId, $attribute)) {
-            $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-            return false;
-        }
-
-        $value = $this->parseAttributePayload($payload);
-        if ($value === null) {
-            $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-            return true;
-        }
-
-        $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if ($meta === null) {
-            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
-            return false;
-        }
-
-        if (is_array($value)) {
-            $value = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        }
-
-        $value = $this->castVariableValue($value, $meta['type']);
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        $this->SetValue($ident, $value);
-        $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-        $this->updateEntityCache($entityId, null, [$attribute => $value]);
-
-        return true;
     }
 
     private function parseAttributePayload(string $payload): mixed
@@ -1212,53 +957,13 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         return $list;
     }
 
-    private function getEntityDomain(string $entityId): string
-    {
-        $domain = $this->entities[$entityId]['domain'] ?? null;
-        if ($domain === null && str_contains($entityId, '.')) {
-            [$domain] = explode('.', $entityId, 2);
-        }
-        return $domain ?? '';
-    }
 
     private function sanitizeIdent(string $id): string
     {
         return str_replace(['.', ' ', '-'], '_', $id);
     }
 
-    private function getEntityIdByIdent(string $ident): ?string
-    {
-        return array_find_key($this->entities, fn($_data, $id) => $this->sanitizeIdent($id) === $ident);
-    }
 
-    private function findEntityByIdent(string $ident): ?array
-    {
-        $entityId = $this->getEntityIdByIdent($ident);
-        if ($entityId !== null && isset($this->entities[$entityId])) {
-            $entity              = $this->entities[$entityId];
-            $entity['entity_id'] ??= $entityId;
-            return $entity;
-        }
-
-        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), 'findEntityByIdent');
-        if ($configData === null) {
-            return null;
-        }
-        foreach ($configData as $row) {
-            $row = $this->normalizeEntity($row, 'findEntityByIdent');
-            if ($row === null) {
-                continue;
-            }
-            if (($row['create_var'] ?? true) === false) {
-                continue;
-            }
-            if ($this->sanitizeIdent($row['entity_id']) !== $ident) {
-                continue;
-            }
-            return $row;
-        }
-        return null;
-    }
 
     private function isWriteable(string $domain): bool
     {
@@ -1328,100 +1033,6 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         };
     }
 
-    private function getEntityPresentation(string $domain, array $entity, int $type): array
-    {
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        if ($domain === HABinarySensorDefinitions::DOMAIN) {
-            return $this->getBinarySensorPresentation($attributes);
-        }
-
-        if ($domain === HALightDefinitions::DOMAIN) {
-            return [
-                'PRESENTATION' => HALightDefinitions::PRESENTATION
-            ];
-        }
-
-        if ($domain === HASwitchDefinitions::DOMAIN) {
-            return [
-                'PRESENTATION' => HASwitchDefinitions::PRESENTATION
-            ];
-        }
-
-        if ($domain === HANumberDefinitions::DOMAIN) {
-            return $this->getNumberPresentation($attributes);
-        }
-
-        if ($domain === HAClimateDefinitions::DOMAIN) {
-            return $this->getClimatePresentation($attributes);
-        }
-
-        if ($domain === HASensorDefinitions::DOMAIN) {
-            $deviceClass = $attributes['device_class'] ?? '';
-            if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_ENUM) {
-                $options = $this->getPresentationOptions($attributes['options'] ?? null);
-                if ($options !== null) {
-                    return $this->filterPresentation([
-                        'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                        'OPTIONS'      => $options
-                    ]);
-                }
-            }
-        }
-
-        if ($domain === HALockDefinitions::DOMAIN) {
-            return $this->getLockPresentation($attributes);
-        }
-
-        if ($domain === HAVacuumDefinitions::DOMAIN) {
-            return $this->getVacuumPresentation();
-        }
-
-        if ($domain === HACoverDefinitions::DOMAIN) {
-            return $this->getCoverPresentation($attributes);
-        }
-
-        if ($domain === HAEventDefinitions::DOMAIN) {
-            return $this->getEventPresentation($attributes);
-        }
-
-        if ($type === VARIABLETYPE_BOOLEAN) {
-            return [
-                'PRESENTATION' => VARIABLE_PRESENTATION_SWITCH
-            ];
-        }
-
-        $suffix = $this->getPresentationSuffix($attributes);
-        if ($domain === HASelectDefinitions::DOMAIN) {
-            $options = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
-            if ($options !== []) {
-                return $this->filterPresentation([
-                    'PRESENTATION' => HASelectDefinitions::PRESENTATION,
-                    'OPTIONS'      => $this->getPresentationOptions($options)
-                ]);
-            }
-        }
-
-        if ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT) {
-            if ($this->isWriteable($domain)) {
-                $slider = $this->getNumericSliderPresentation($attributes);
-                if ($slider !== null) {
-                    return $slider;
-                }
-            }
-        }
-
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'DIGITS'       => ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT)
-                ? $this->getNumericDigits($attributes)
-                : null,
-            'SUFFIX'       => $this->formatPresentationSuffix($suffix)
-        ]);
-    }
 
     private function isClimateTargetWritable(mixed $attributes): bool
     {
@@ -1446,46 +1057,7 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         return true;
     }
 
-    private function getVacuumPresentation(): array
-    {
-        $options = [];
-        foreach (HAVacuumDefinitions::STATE_OPTIONS as $value => $meta) {
-            $caption = (string)($meta['caption'] ?? $value);
-            $icon = (string)($meta['icon'] ?? '');
-            $options[] = [
-                'Value' => $value,
-                'Caption' => $caption,
-                'IconActive' => $icon !== '',
-                'IconValue' => $icon,
-                'ColorActive' => false,
-                'ColorValue' => -1
-            ];
-        }
 
-        return $this->filterPresentation([
-            'PRESENTATION' => HAVacuumDefinitions::PRESENTATION,
-            'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
-        ]);
-    }
-
-    private function getLockPresentation(array $attributes): array
-    {
-        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
-        $allowOpen = ($supported & HALockDefinitions::FEATURE_OPEN) === HALockDefinitions::FEATURE_OPEN;
-
-        $values = [];
-        foreach (HALockDefinitions::STATE_OPTIONS as $value => $_meta) {
-            if ($value === 'open' && !$allowOpen) {
-                continue;
-            }
-            $values[] = $value;
-        }
-
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'OPTIONS'      => $this->getPresentationOptions($values)
-        ]);
-    }
 
     private function resolveLockDisplayState(string $state, ?array $attributes): ?string
     {
@@ -1526,6 +1098,16 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         return $this->sanitizeIdent($entityId) . self::LOCK_ACTION_SUFFIX;
     }
 
+    private function getVacuumActionIdent(string $entityId): string
+    {
+        return $this->sanitizeIdent($entityId) . self::VACUUM_ACTION_SUFFIX;
+    }
+
+    private function getVacuumFanSpeedIdent(string $entityId): string
+    {
+        return $this->sanitizeIdent($entityId) . self::VACUUM_FAN_SPEED_SUFFIX;
+    }
+
     private function maintainLockActionVariable(array $entity): void
     {
         $entityId = $entity['entity_id'] ?? '';
@@ -1547,6 +1129,62 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         ];
 
         $this->MaintainVariable($ident, 'Aktion', VARIABLETYPE_INTEGER, $presentation, $position, true);
+        $this->EnableAction($ident);
+    }
+
+    private function maintainVacuumActionVariable(array $entity): void
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $options = $this->getVacuumActionOptions($attributes);
+        if ($options === []) {
+            return;
+        }
+
+        $ident = $this->getVacuumActionIdent($entityId);
+        $position = $this->getEntityPosition($entityId) + 5;
+        $presentation = [
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+        ];
+
+        $this->MaintainVariable($ident, $this->Translate('Aktion'), VARIABLETYPE_INTEGER, $presentation, $position, true);
+        $this->EnableAction($ident);
+    }
+
+    private function maintainVacuumFanSpeedVariable(array $entity): void
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            return;
+        }
+
+        $fanSpeedList = $attributes['fan_speed_list'] ?? null;
+        if (!is_array($fanSpeedList) || $fanSpeedList === []) {
+            return;
+        }
+
+        $ident = $this->getVacuumFanSpeedIdent($entityId);
+        $position = $this->getEntityPosition($entityId) + 6;
+        $presentation = [
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'OPTIONS'      => $this->getPresentationOptions($fanSpeedList)
+        ];
+
+        $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, $presentation, $position, true);
         $this->EnableAction($ident);
     }
 
@@ -1591,7 +1229,7 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
             return false;
         }
 
-        $entity = $this->findLockEntityByIdentSuffix($ident, self::LOCK_ACTION_SUFFIX);
+        $entity = $this->findEntityByIdentSuffix($ident, self::LOCK_ACTION_SUFFIX, HALockDefinitions::DOMAIN);
         if ($entity === null) {
             return false;
         }
@@ -1623,6 +1261,128 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         $this->debugExpert('RequestAction', 'Lock action', ['EntityID' => $entityId, 'Command' => $command]);
         $this->sendMqttMessage($topic, $command);
         return true;
+    }
+
+    private function handleVacuumAction(string $ident, mixed $value): bool
+    {
+        if (!str_ends_with($ident, self::VACUUM_ACTION_SUFFIX)) {
+            return false;
+        }
+
+        $entity = $this->findEntityByIdentSuffix($ident, self::VACUUM_ACTION_SUFFIX, HAVacuumDefinitions::DOMAIN);
+        if ($entity === null) {
+            return false;
+        }
+
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return true;
+        }
+
+        $action = is_numeric($value) ? (int)$value : null;
+        $command = match ($action) {
+            HAVacuumDefinitions::ACTION_START => 'start',
+            HAVacuumDefinitions::ACTION_STOP => 'stop',
+            HAVacuumDefinitions::ACTION_PAUSE => 'pause',
+            HAVacuumDefinitions::ACTION_RETURN_HOME => 'return_to_base',
+            HAVacuumDefinitions::ACTION_CLEAN_SPOT => 'clean_spot',
+            HAVacuumDefinitions::ACTION_LOCATE => 'locate',
+            default => ''
+        };
+        if ($command === '') {
+            return true;
+        }
+
+        $topic = $this->getSetTopicForEntity($entityId);
+        if ($topic === '') {
+            return true;
+        }
+
+        $this->debugExpert('RequestAction', 'Vacuum action', ['EntityID' => $entityId, 'Command' => $command]);
+        $this->sendMqttMessage($topic, $command);
+        return true;
+    }
+
+    private function handleVacuumFanSpeedAction(string $ident, mixed $value): bool
+    {
+        if (!str_ends_with($ident, self::VACUUM_FAN_SPEED_SUFFIX)) {
+            return false;
+        }
+
+        $entity = $this->findEntityByIdentSuffix($ident, self::VACUUM_FAN_SPEED_SUFFIX, HAVacuumDefinitions::DOMAIN);
+        if ($entity === null) {
+            return false;
+        }
+
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return true;
+        }
+
+        $fanSpeed = trim((string)$value);
+        if ($fanSpeed === '') {
+            return true;
+        }
+
+        $payload = json_encode(['fan_speed' => $fanSpeed], JSON_THROW_ON_ERROR);
+        $topic = $this->getSetTopicForEntity($entityId);
+        if ($topic === '') {
+            return true;
+        }
+
+        $this->debugExpert('RequestAction', 'Vacuum fan_speed', ['EntityID' => $entityId, 'fan_speed' => $fanSpeed]);
+        $this->sendMqttMessage($topic, $payload);
+        return true;
+    }
+
+    private function updateVacuumFanSpeedValue(string $entityId, ?array $attributes): void
+    {
+        if (!is_array($attributes)) {
+            return;
+        }
+        $fanSpeed = $attributes['fan_speed'] ?? null;
+        if (!is_string($fanSpeed) || trim($fanSpeed) === '') {
+            return;
+        }
+        $ident = $this->getVacuumFanSpeedIdent($entityId);
+        if (@$this->GetIDForIdent($ident) !== false) {
+            $this->SetValue($ident, $fanSpeed);
+        }
+    }
+
+    private function getVacuumActionOptions(array $attributes): array
+    {
+        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
+        $options = [];
+
+        if (($supported & 128) === 128) {
+            $options[] = ['Value' => HAVacuumDefinitions::ACTION_START, 'Caption' => $this->Translate('Start')];
+        }
+        if (($supported & 512) === 512) {
+            $options[] = ['Value' => HAVacuumDefinitions::ACTION_STOP, 'Caption' => $this->Translate('Stop')];
+        }
+        if (($supported & 16) === 16) {
+            $options[] = ['Value' => HAVacuumDefinitions::ACTION_PAUSE, 'Caption' => $this->Translate('Pause')];
+        }
+        if (($supported & 32) === 32) {
+            $options[] = ['Value' => HAVacuumDefinitions::ACTION_RETURN_HOME, 'Caption' => $this->Translate('Zur Basis')];
+        }
+        if (($supported & 1) === 1) {
+            $options[] = ['Value' => HAVacuumDefinitions::ACTION_CLEAN_SPOT, 'Caption' => $this->Translate('Punktreinigung')];
+        }
+        if (($supported & 4) === 4) {
+            $options[] = ['Value' => HAVacuumDefinitions::ACTION_LOCATE, 'Caption' => $this->Translate('Lokalisieren')];
+        }
+
+        foreach ($options as &$option) {
+            $option['IconActive'] = false;
+            $option['IconValue'] = '';
+            $option['ColorActive'] = false;
+            $option['ColorValue'] = -1;
+        }
+        unset($option);
+
+        return $options;
     }
 
     private function updateLockActionValue(string $entityId, string $state, ?array $attributes): void
@@ -1659,417 +1419,18 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         return null;
     }
 
-    private function findLockEntityByIdentSuffix(string $ident, string $suffix): ?array
-    {
-        foreach ($this->entities as $entityId => $entity) {
-            if (($entity['domain'] ?? '') !== HALockDefinitions::DOMAIN) {
-                continue;
-            }
-            if ($this->sanitizeIdent($entityId) . $suffix === $ident) {
-                $entity['entity_id'] ??= $entityId;
-                return $entity;
-            }
-        }
 
-        if (!str_ends_with($ident, $suffix)) {
-            return null;
-        }
-        $baseIdent = substr($ident, 0, -strlen($suffix));
-        if ($baseIdent === '') {
-            return null;
-        }
 
-        $entity = $this->findEntityByIdent($baseIdent);
-        if ($entity !== null && ($entity['domain'] ?? '') === HALockDefinitions::DOMAIN) {
-            return $entity;
-        }
 
-        return null;
-    }
 
-    private function getBinarySensorPresentation(array $attributes): array
-    {
-        $deviceClass = $attributes['device_class'] ?? '';
-        if (!is_string($deviceClass)) {
-            $deviceClass = '';
-        }
-        $deviceClass = trim($deviceClass);
 
-        [$trueCaption, $falseCaption, $icon] = HABinarySensorDefinitions::getPresentationMeta($deviceClass);
 
-        $options = [
-            [
-                'Value' => false,
-                'Caption' => $falseCaption,
-                'IconActive' => false,
-                'IconValue' => '',
-                'ColorActive' => false,
-                'ColorValue' => -1
-            ],
-            [
-                'Value' => true,
-                'Caption' => $trueCaption,
-                'IconActive' => false,
-                'IconValue' => '',
-                'ColorActive' => false,
-                'ColorValue' => -1
-            ]
-        ];
 
-        return $this->filterPresentation([
-            'PRESENTATION' => HABinarySensorDefinitions::PRESENTATION,
-            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR),
-            'ICON' => $icon !== '' ? $icon : null
-        ]);
-    }
 
-    private function getCoverPresentation(array $attributes): array
-    {
-        $deviceClass = $attributes['device_class'] ?? '';
-        if (!is_string($deviceClass)) {
-            $deviceClass = '';
-        }
-        $deviceClass = trim($deviceClass);
 
-        $hasPosition = $this->extractCoverPosition($attributes) !== null;
-        if ($hasPosition && HACoverDefinitions::usesShutterPresentation($deviceClass)) {
-            return $this->filterPresentation([
-                'CLOSE_INSIDE_VALUE' => 0,
-                'USAGE_TYPE' => 0,
-                'OPEN_OUTSIDE_VALUE' => 100,
-                'PRESENTATION' => VARIABLE_PRESENTATION_SHUTTER
-            ]);
-        }
 
-        if ($hasPosition) {
-            return $this->filterPresentation([
-                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                'MIN'          => 0,
-                'MAX'          => 100,
-                'STEP_SIZE'    => 1,
-                'PERCENTAGE'   => true,
-                'DIGITS'       => 1,
-                'SUFFIX'       => $this->formatPresentationSuffix('%')
-            ]);
-        }
 
-        $options = [];
-        foreach (HACoverDefinitions::STATE_OPTIONS as $value => $captionKey) {
-            $options[] = [
-                'Value' => $value,
-                'Caption' => $this->Translate($captionKey),
-                'IconActive' => false,
-                'IconValue' => '',
-                'ColorActive' => false,
-                'ColorValue' => -1,
-                'ContentColorActive' => false,
-                'ContentColorValue' => -1,
-                'ColorDisplay' => -1,
-                'ContentColorDisplay' => -1
-            ];
-        }
 
-        return $this->filterPresentation([
-            'PRESENTATION' => HACoverDefinitions::PRESENTATION,
-            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
-        ]);
-    }
-
-    private function getClimatePresentation(array $attributes): array
-    {
-        $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
-        $supportsTarget = ($supported & 1) === 1;
-        $hasTargetAttribute = array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)
-            || array_key_exists('temperature', $attributes);
-        if ($supportsTarget || $hasTargetAttribute) {
-            $slider = $this->getClimateSliderPresentation($attributes);
-            if ($slider !== null) {
-                return $slider;
-            }
-        }
-
-        $suffix = $this->getClimateTemperatureSuffix($attributes);
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'USAGE_TYPE'   => 1,
-            'SUFFIX'       => $this->formatPresentationSuffix($suffix)
-        ]);
-    }
-
-    private function getEventPresentation(array $attributes): array
-    {
-        $eventTypes = $attributes[HAEventDefinitions::ATTRIBUTE_EVENT_TYPES] ?? null;
-        if (!is_array($eventTypes)) {
-            $eventTypes = [];
-        }
-
-        $options = [];
-        foreach ($eventTypes as $eventType) {
-            if (!is_scalar($eventType)) {
-                continue;
-            }
-            $eventType = (string)$eventType;
-            $captionKey = HAEventDefinitions::EVENT_TYPE_TRANSLATION_KEYS[$eventType] ?? $eventType;
-            $options[] = [
-                'Value' => $eventType,
-                'Caption' => $this->Translate($captionKey),
-                'IconActive' => false,
-                'IconValue' => '',
-                'ColorActive' => false,
-                'ColorValue' => -1,
-                'ContentColorActive' => false,
-                'ContentColorValue' => -1,
-                'ColorDisplay' => -1,
-                'ContentColorDisplay' => -1
-            ];
-        }
-
-        return $this->filterPresentation([
-            'PRESENTATION' => HAEventDefinitions::PRESENTATION,
-            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
-        ]);
-    }
-
-    private function getLightAttributePresentation(string $attribute, array $attributes, array $meta): array
-    {
-        $suffix = $meta['suffix'] ?? '';
-        if (!is_string($suffix)) {
-            $suffix = '';
-        }
-        $suffix = trim($suffix);
-        $isPercent = $suffix === '%';
-        $presentationSuffix = $this->formatPresentationSuffix($suffix);
-        $digitsOverride = $this->getMetaDigitsOverride($meta);
-
-        if (!$this->isWritableLightAttribute($attribute, $attributes)) {
-            return $this->filterPresentation([
-                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-                'SUFFIX'       => $presentationSuffix
-            ]);
-        }
-
-        if ($attribute === 'brightness') {
-            return $this->filterPresentation([
-                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                'MIN'          => 0,
-                'MAX'          => 255,
-                'STEP_SIZE'    => 1,
-                'PERCENTAGE'   => $isPercent,
-                'DIGITS'       => $digitsOverride ?? 0,
-                'SUFFIX'       => $presentationSuffix
-            ]);
-        }
-        if ($attribute === 'color_temp') {
-            $min = $attributes['min_mireds'] ?? null;
-            $max = $attributes['max_mireds'] ?? null;
-            if (is_numeric($min) && is_numeric($max)) {
-                return $this->filterPresentation([
-                    'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                    'MIN'          => (float)$min,
-                    'MAX'          => (float)$max,
-                    'STEP_SIZE'    => 1,
-                    'PERCENTAGE'   => $isPercent,
-                    'DIGITS'       => $digitsOverride ?? 0,
-                    'SUFFIX'       => $presentationSuffix
-                ]);
-            }
-        }
-        if ($attribute === 'color_temp_kelvin') {
-            $min = $attributes['min_color_temp_kelvin'] ?? null;
-            $max = $attributes['max_color_temp_kelvin'] ?? null;
-            if (is_numeric($min) && is_numeric($max)) {
-                return $this->filterPresentation([
-                    'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                    'MIN'          => (float)$min,
-                    'MAX'          => (float)$max,
-                    'STEP_SIZE'    => 1,
-                    'PERCENTAGE'   => $isPercent,
-                    'DIGITS'       => $digitsOverride ?? 0,
-                    'SUFFIX'       => $presentationSuffix
-                ]);
-            }
-        }
-
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'SUFFIX'       => $presentationSuffix
-        ]);
-    }
-
-    private function getNumericSliderPresentation(array $attributes): ?array
-    {
-        $min = $attributes['min'] ?? $attributes['native_min_value'] ?? null;
-        $max = $attributes['max'] ?? $attributes['native_max_value'] ?? null;
-        if (!is_numeric($min) || !is_numeric($max)) {
-            return null;
-        }
-
-        $step   = $attributes['step'] ?? $attributes['native_step'] ?? 1;
-        $suffix = $this->getPresentationSuffix($attributes);
-        $presentationSuffix = $this->formatPresentationSuffix($suffix);
-
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-            'MIN'          => (float)$min,
-            'MAX'          => (float)$max,
-            'STEP_SIZE'    => (float)$step,
-            'PERCENTAGE'   => $suffix === '%',
-            'DIGITS'       => $this->getNumericDigits($attributes, $step),
-            'SUFFIX'       => $presentationSuffix
-        ]);
-    }
-
-    private function getPresentationSuffix(array $attributes): string
-    {
-        $rawUnit = $attributes['unit_of_measurement'] ?? '';
-        if (!is_string($rawUnit)) {
-            $rawUnit = '';
-        }
-
-        $unit = trim($rawUnit);
-        if ($unit === '') {
-            $fallback = '';
-            $altUnit = $attributes['unit'] ?? '';
-            if (is_string($altUnit)) {
-                $fallback = trim($altUnit);
-            }
-            if ($fallback === '') {
-                $altUnit = $attributes['display_unit'] ?? '';
-                if (is_string($altUnit)) {
-                    $fallback = trim($altUnit);
-                }
-            }
-            if ($fallback === '') {
-                $altUnit = $attributes['native_unit_of_measurement'] ?? '';
-                if (is_string($altUnit)) {
-                    $fallback = trim($altUnit);
-                }
-            }
-            $unit = $fallback;
-        }
-
-        if ($unit === '') {
-            $deviceClass = $attributes['device_class'] ?? '';
-            if (is_string($deviceClass)) {
-                $deviceClass = trim($deviceClass);
-            } else {
-                $deviceClass = '';
-            }
-            if ($deviceClass !== '' && isset(HANumberDefinitions::DEVICE_CLASS_SUFFIX[$deviceClass])) {
-                $unit = HANumberDefinitions::DEVICE_CLASS_SUFFIX[$deviceClass];
-            } elseif ($deviceClass !== '' && isset(HASensorDefinitions::DEVICE_CLASS_SUFFIX[$deviceClass])) {
-                $unit = HASensorDefinitions::DEVICE_CLASS_SUFFIX[$deviceClass];
-            }
-        }
-
-        $suffix = '';
-        $suffixSource = '';
-        if ($unit !== '') {
-            $suffix = $unit;
-            if ($rawUnit !== '') {
-                $suffixSource = 'unit_of_measurement';
-            } elseif (isset($attributes['unit']) && is_string($attributes['unit']) && trim($attributes['unit']) !== '') {
-                $suffixSource = 'unit';
-            } elseif (isset($attributes['display_unit']) && is_string($attributes['display_unit']) && trim($attributes['display_unit']) !== '') {
-                $suffixSource = 'display_unit';
-            } elseif (isset($attributes['native_unit_of_measurement']) && is_string($attributes['native_unit_of_measurement']) && trim($attributes['native_unit_of_measurement']) !== '') {
-                $suffixSource = 'native_unit_of_measurement';
-            } elseif (isset($attributes['device_class'])) {
-                $suffixSource = 'device_class';
-            }
-        }
-
-        $this->debugExpert('Presentation', 'Suffix berechnet', [
-            'unit_of_measurement' => $rawUnit,
-            'unit' => $attributes['unit'] ?? null,
-            'display_unit' => $attributes['display_unit'] ?? null,
-            'suffix' => $suffix,
-            'suffix_source' => $suffixSource
-        ]);
-
-        return $suffix;
-    }
-
-    private function formatPresentationSuffix(string $suffix): ?string
-    {
-        $suffix = trim($suffix);
-        if ($suffix === '') {
-            return null;
-        }
-        return ' ' . $suffix;
-    }
-
-    private function getNumberPresentation(array $attributes): array
-    {
-        $slider = $this->getNumericSliderPresentation($attributes);
-        if ($slider !== null) {
-            return $slider;
-        }
-
-        $suffix = $this->getPresentationSuffix($attributes);
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'DIGITS'       => $this->getNumericDigits($attributes),
-            'SUFFIX'       => $this->formatPresentationSuffix($suffix)
-        ]);
-    }
-
-    private function filterPresentation(array $presentation): array
-    {
-        return array_filter(
-            $presentation,
-            static fn($value) => $value !== null
-        );
-    }
-
-    private function getPresentationOptions(?array $options): ?string
-    {
-        if (!is_array($options) || count($options) === 0) {
-            return null;
-        }
-
-        $formatted = [];
-        foreach ($options as $value) {
-            $formatted[] = [
-                'Value'       => $value,
-                'Caption'     => $this->translate((string)$value),
-                'IconActive'  => false,
-                'IconValue'   => '',
-                'ColorActive' => false,
-                'ColorValue'  => -1
-            ];
-        }
-
-        return json_encode($formatted, JSON_THROW_ON_ERROR);
-    }
-
-    private function getEntityVariableName(string $domain, array $entity): string
-    {
-        $type = $this->getVariableType($domain, $entity['attributes'] ?? []);
-        if ($domain === HALockDefinitions::DOMAIN) {
-            return $this->Translate('Lock');
-        }
-        if ($type === VARIABLETYPE_BOOLEAN) {
-            return 'Status';
-        }
-        if ($domain === HAClimateDefinitions::DOMAIN) {
-            $attributes = $entity['attributes'] ?? [];
-            if (is_array($attributes)) {
-                $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
-                $hasTargetFeature = ($supported & 1) === 1;
-                if ($hasTargetFeature) {
-                    return $this->Translate('Target Temperature');
-                }
-                if (array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)) {
-                    return $this->Translate('Target Temperature');
-                }
-                if (array_key_exists(HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE, $attributes)) {
-                    return $this->Translate('Current Temperature');
-                }
-            }
-        }
-        return $entity['name'] ?? $entity['entity_id'];
-    }
 
     private function maintainLightAttributeVariables(array $entity): void
     {
@@ -2235,243 +1596,11 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         return $basePosition + 10 + $index;
     }
 
-    private function getClimateAttributePresentation(string $attribute, array $attributes): array
-    {
-        $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if ($meta === null) {
-            return [
-                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION
-            ];
-        }
-        $isWritable = (bool)($meta['writable'] ?? false);
-        $digitsOverride = $this->getMetaDigitsOverride($meta);
-
-        if (in_array($attribute, [
-            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
-            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_LOW,
-            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_HIGH,
-            HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE
-        ], true)) {
-            if ($isWritable) {
-                $slider = $this->getClimateSliderPresentation($attributes);
-                if ($slider !== null) {
-                    if ($digitsOverride !== null) {
-                        $slider['DIGITS'] = $digitsOverride;
-                    }
-                    return $slider;
-                }
-            }
-            return $this->filterPresentation([
-                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-                'USAGE_TYPE'   => 1,
-                'DIGITS'       => $digitsOverride ?? $this->getNumericDigits(
-                    $attributes,
-                    $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP] ?? $attributes['target_temp_step'] ?? null,
-                    $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE]
-                        ?? $attributes[HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE]
-                        ?? $attributes['temperature']
-                        ?? null
-                ),
-                'SUFFIX'       => $this->formatPresentationSuffix($this->getClimateTemperatureSuffix($attributes))
-            ]);
-        }
-
-        if (in_array($attribute, [HAClimateDefinitions::ATTRIBUTE_CURRENT_HUMIDITY, HAClimateDefinitions::ATTRIBUTE_TARGET_HUMIDITY], true)) {
-            if ($isWritable) {
-                $min = $attributes[HAClimateDefinitions::ATTRIBUTE_MIN_HUMIDITY] ?? 0;
-                $max = $attributes[HAClimateDefinitions::ATTRIBUTE_MAX_HUMIDITY] ?? 100;
-                if (is_numeric($min) && is_numeric($max)) {
-                    return $this->filterPresentation([
-                        'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                        'MIN'          => (float)$min,
-                        'MAX'          => (float)$max,
-                        'STEP_SIZE'    => 1,
-                        'PERCENTAGE'   => true,
-                        'DIGITS'       => 0,
-                        'SUFFIX'       => $this->formatPresentationSuffix('%')
-                    ]);
-                }
-            }
-            return $this->filterPresentation([
-                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-                'PERCENTAGE'   => true,
-                'DIGITS'       => $digitsOverride ?? $this->getNumericDigits($attributes, null, $attributes[$attribute] ?? null),
-                'SUFFIX'       => $this->formatPresentationSuffix('%')
-            ]);
-        }
-
-        if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_HVAC_MODES] ?? null);
-            if ($options !== null) {
-                return $this->filterPresentation([
-                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                    'OPTIONS'      => $options
-                ]);
-            }
-        }
-        if ($attribute === HAClimateDefinitions::ATTRIBUTE_PRESET_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_PRESET_MODES] ?? null);
-            if ($options !== null) {
-                return $this->filterPresentation([
-                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                    'OPTIONS'      => $options
-                ]);
-            }
-        }
-        if ($attribute === HAClimateDefinitions::ATTRIBUTE_FAN_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_FAN_MODES] ?? null);
-            if ($options !== null) {
-                return $this->filterPresentation([
-                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                    'OPTIONS'      => $options
-                ]);
-            }
-        }
-        if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_SWING_MODES] ?? null);
-            if ($options !== null) {
-                return $this->filterPresentation([
-                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                    'OPTIONS'      => $options
-                ]);
-            }
-        }
-        if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES] ?? null);
-            if ($options !== null) {
-                return $this->filterPresentation([
-                    'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                    'OPTIONS'      => $options
-                ]);
-            }
-        }
-
-        $suffix = $meta['suffix'] ?? '';
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'SUFFIX'       => $this->formatPresentationSuffix((string)$suffix)
-        ]);
-    }
-
-    private function getClimateSliderPresentation(array $attributes): ?array
-    {
-        $min = $attributes[HAClimateDefinitions::ATTRIBUTE_MIN_TEMP] ?? null;
-        $max = $attributes[HAClimateDefinitions::ATTRIBUTE_MAX_TEMP] ?? null;
-        if (!is_numeric($min) || !is_numeric($max)) {
-            return null;
-        }
-        $step = $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP]
-            ?? $attributes['target_temp_step']
-            ?? 1;
-        $suffix = $this->getClimateTemperatureSuffix($attributes);
-
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-            'MIN'          => (float)$min,
-            'MAX'          => (float)$max,
-            'STEP_SIZE'    => (float)$step,
-            'PERCENTAGE'   => false,
-            'DIGITS'       => $this->getNumericDigits(
-                $attributes,
-                $step,
-                $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE]
-                    ?? $attributes[HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE]
-                    ?? $attributes['temperature']
-                    ?? null
-            ),
-            'USAGE_TYPE'   => 1,
-            'SUFFIX'       => $this->formatPresentationSuffix($suffix)
-        ]);
-    }
-
-    private function getClimateTemperatureSuffix(array $attributes): string
-    {
-        $unit = $attributes[HAClimateDefinitions::ATTRIBUTE_TEMPERATURE_UNIT] ?? null;
-        if (is_string($unit) && trim($unit) !== '') {
-            return trim($unit);
-        }
-        $fallback = $this->getPresentationSuffix($attributes);
-        return $fallback !== '' ? $fallback : '°C';
-    }
 
 
-    private function getNumericDigits(array $attributes, mixed $step = null, mixed $value = null): int
-    {
-        $this->debugExpert('getNumericDigits', 'Attribute', ['Attributes' => $attributes, 'Step' => $step, 'Value' => $value]);
-        $digits = null;
 
-        $stepValue = $step;
-        if (is_string($stepValue)) {
-            $stepValue = str_replace(',', '.', $stepValue);
-        }
-        if (is_numeric($stepValue)) {
-            $digits = $this->getDigitsFromNumber((float)$stepValue);
-        }
-        $this->debugExpert('getNumericDigits1', 'Digits', ['Digits' => $digits]);
 
-        if ($digits === null && isset($attributes['step']) && is_numeric($attributes['step'])) {
-            $digits = $this->getDigitsFromNumber((float)$attributes['step']);
-        }
-        $this->debugExpert('getNumericDigits2', 'Digits', ['Digits' => $digits]);
 
-        if ($digits === null && isset($attributes['native_step']) && is_numeric($attributes['native_step'])) {
-            $digits = $this->getDigitsFromNumber((float)$attributes['native_step']);
-        }
-        $this->debugExpert('getNumericDigits3', 'Digits', ['Digits' => $digits]);
-
-        if ($digits === null && isset($attributes['precision']) && is_numeric($attributes['precision'])) {
-            $digits = $this->getDigitsFromNumber((float)$attributes['precision']);
-        }
-        $this->debugExpert('getNumericDigits4', 'Digits', ['Digits' => $digits]);
-
-        if ($digits === null && isset($attributes['suggested_display_precision'])
-            && is_numeric($attributes['suggested_display_precision'])) {
-            $digits = (int)$attributes['suggested_display_precision'];
-        }
-        $this->debugExpert('getNumericDigits5', 'Digits', ['Digits' => $digits]);
-
-        $valueValue = $value;
-        if (is_string($valueValue)) {
-            $valueValue = str_replace(',', '.', $valueValue);
-        }
-        if ($digits === null && is_numeric($valueValue)) {
-            $digits = $this->getDigitsFromNumber((float)$valueValue);
-        }
-        $this->debugExpert('getNumericDigits6', 'Digits', ['Digits' => $digits]);
-
-        if ($digits === null) {
-            $digits = 0;
-        }
-
-        if ($digits === 0 && is_numeric($stepValue)) {
-            $stepFloat = (float)$stepValue;
-            if ($stepFloat > 0 && $stepFloat < 1) {
-                $digits = 1;
-            }
-        }
-
-        $this->debugExpert('getNumericDigits', 'Digits', ['Digits' => $digits]);
-        return min(3, max(0, $digits));
-    }
-
-    private function getMetaDigitsOverride(array $meta): ?int
-    {
-        if (!array_key_exists('digits', $meta) || !is_numeric($meta['digits'])) {
-            return null;
-        }
-        return min(3, max(0, (int)$meta['digits']));
-    }
-
-    private function getDigitsFromNumber(float $value): int
-    {
-        $string = rtrim(rtrim(sprintf('%.4f', $value), '0'), '.');
-        $pos = strpos($string, '.');
-        if ($pos === false) {
-            return 0;
-        }
-        $digits = strlen($string) - $pos - 1;
-        return max($digits, 0);
-    }
 
     private function extractClimateMainValue(array $attributes): ?float
     {
@@ -2543,26 +1672,6 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         return $basePosition + 10 + $index;
     }
 
-    private function getCoverAttributePresentation(array $meta): array
-    {
-        $suffix = $meta['suffix'] ?? '';
-        if (!is_string($suffix)) {
-            $suffix = '';
-        }
-        $suffix = trim($suffix);
-        $isPercent = $suffix === '%';
-        $presentationSuffix = $this->formatPresentationSuffix($suffix);
-
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-            'MIN'          => 0,
-            'MAX'          => 100,
-            'STEP_SIZE'    => 1,
-            'PERCENTAGE'   => $isPercent,
-            'DIGITS'       => 1,
-            'SUFFIX'       => $presentationSuffix
-        ]);
-    }
 
     private function extractCoverPosition(array $attributes): ?float
     {
@@ -2618,34 +1727,7 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         return (int)($this->entityPositions[$entityId] ?? 10);
     }
 
-    private function storeEntityAttributes(string $entityId, array $attributes): array
-    {
-        if (!isset($this->entities[$entityId])) {
-            $this->entities[$entityId] = [
-                'entity_id' => $entityId,
-                'domain'    => $this->getEntityDomain($entityId),
-                'name'      => $entityId
-            ];
-        }
 
-        $domain = $this->getEntityDomain($entityId);
-        if ($domain !== '') {
-            $attributes = $this->filterAttributesByDomain($domain, $attributes, __FUNCTION__);
-        }
-
-        $existing = $this->entities[$entityId]['attributes'] ?? [];
-        if (!is_array($existing)) {
-            $existing = [];
-        }
-
-        $this->entities[$entityId]['attributes'] = array_merge($existing, $attributes);
-        return $attributes;
-    }
-
-    private function storeEntityAttribute(string $entityId, string $attribute, mixed $value): void
-    {
-        $this->storeEntityAttributes($entityId, [$attribute => $value]);
-    }
 
     private function getSetTopicForEntity(string $entityId): string
     {
@@ -2797,6 +1879,11 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
                     $this->SetValue($ident, $displayState);
                 }
                 $this->updateLockActionValue($entityId, $rawState, is_array($attributes) ? $attributes : null);
+            } elseif ($domain === HAVacuumDefinitions::DOMAIN) {
+                if ($rawState !== '') {
+                    $this->SetValue($ident, $rawState);
+                }
+                $this->updateVacuumFanSpeedValue($entityId, is_array($attributes) ? $attributes : null);
             } elseif ($domain === HACoverDefinitions::DOMAIN) {
                 $value = $this->extractCoverPosition($coverAttributes);
                 if ($value === null) {
@@ -2889,82 +1976,8 @@ require_once __DIR__ . '/../libs/HAAttributeFilter.php';
         };
     }
 
-    private function updateEntityCache(string $entityId, mixed $state, ?array $attributes): void
-    {
-        $cache = json_decode($this->ReadAttributeString('EntityStateCache'), true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($cache)) {
-            $cache = [];
-        }
 
-        $entry = $cache[$entityId] ?? [];
-        if ($state !== null) {
-            $entry[self::KEY_STATE] = $state;
-        }
-        if (is_array($attributes)) {
-            $existing            = isset($entry[self::KEY_ATTRIBUTES]) && is_array($entry[self::KEY_ATTRIBUTES]) ? $entry[self::KEY_ATTRIBUTES] : [];
-            $entry[self::KEY_ATTRIBUTES] = array_merge($existing, $attributes);
-        }
-        $entry['ts']      = time();
-        $cache[$entityId] = $entry;
 
-        $this->WriteAttributeString('EntityStateCache', json_encode($cache, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $this->updateDiagnosticsLabels();
-    }
-
-    private function updateEntityPresentation(string $entityId, array $attributes): void
-    {
-        if (!isset($this->entities[$entityId])) {
-            return;
-        }
-
-        $domain = $this->entities[$entityId]['domain'] ?? $this->getEntityDomain($entityId);
-        if ($domain === '') {
-            return;
-        }
-
-        $ident = $this->sanitizeIdent($entityId);
-        if (@$this->GetIDForIdent($ident) === false) {
-            return;
-        }
-
-        $existing = $this->entities[$entityId]['attributes'] ?? [];
-        if (!is_array($existing)) {
-            $existing = [];
-        }
-        $mergedAttributes = array_merge($existing, $attributes);
-        $this->entities[$entityId]['attributes'] = $mergedAttributes;
-        $entity = $this->entities[$entityId];
-        $entity['attributes'] = $mergedAttributes;
-        $type = $this->getVariableType($domain, $entity['attributes']);
-        $presentation = $this->getEntityPresentation($domain, $entity, $type);
-        $position = $this->getEntityPosition($entityId);
-        $name = $this->getEntityVariableName($domain, $entity);
-
-        $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
-
-        if ($domain === HALockDefinitions::DOMAIN) {
-            $this->DisableAction($ident);
-            $this->maintainLockActionVariable($entity);
-        }
-    }
-
-    private function updateDiagnosticsLabels(): void
-    {
-        $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
-        if ($lastMqtt === '') {
-            $lastMqtt = 'nie';
-        }
-        $this->updateFormFieldSafe('DiagLastMQTT', 'caption', 'Letzte MQTT-Message: ' . $lastMqtt);
-
-        $lastRest = $this->ReadAttributeString('LastRESTFetch');
-        if ($lastRest === '') {
-            $lastRest = 'nie';
-        }
-        $this->updateFormFieldSafe('DiagLastREST', 'caption', 'Letzter REST-Abruf: ' . $lastRest);
-
-        $count = count($this->entities);
-        $this->updateFormFieldSafe('DiagEntityCount', 'caption', 'Entitäten (aktiv): ' . $count);
-    }
 
     private function hasCompatibleParent(): bool
     {

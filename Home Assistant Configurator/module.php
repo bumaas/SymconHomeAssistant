@@ -130,6 +130,7 @@ EOT;
         parent::Create();
 
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
+        $this->RegisterPropertyBoolean('AutoCreateVariables', true);
 
         // Standard-Domänen im korrekten Listen-Format initialisieren (Array von Objekten)
         $defaultDomains = [
@@ -250,6 +251,7 @@ EOT;
         // --- Matching Logic: Finde existierende Instanzen ---
         $existingInstances = IPS_GetInstanceListByModuleID(HAIds::MODULE_DEVICE);
         $mappedInstances   = [];
+        $autoCreateVariables = $this->ReadPropertyBoolean('AutoCreateVariables');
 
         foreach ($existingInstances as $id) {
             $devID = (string)@IPS_GetProperty($id, 'DeviceID');
@@ -295,6 +297,7 @@ EOT;
                     && is_string($finalEntity['attributes']['device_class'])) {
                     $finalEntity['device_class'] = trim($finalEntity['attributes']['device_class']);
                 }
+                $finalEntity['create_var'] = $autoCreateVariables;
 
                 $this->enrichSupportedFeaturesList($finalEntity);
 

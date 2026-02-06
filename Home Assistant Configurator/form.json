@@ -24,6 +24,11 @@
               "add": ""
             }
           ]
+        },
+        {
+          "type": "CheckBox",
+          "name": "AutoCreateVariables",
+          "caption": "Create status variables automatically"
         }
       ]
     },
