@@ -50,7 +50,8 @@
               {"caption": "Event (event)", "value": "event"},
               {"caption": "Select (select)", "value": "select"},
               {"caption": "Button (button)", "value": "button"},
-              {"caption": "Vacuum (vacuum)", "value": "vacuum"}
+              {"caption": "Vacuum (vacuum)", "value": "vacuum"},
+              {"caption": "Media Player (media_player)", "value": "media_player"}
             ]
           },
           "add":     "light"

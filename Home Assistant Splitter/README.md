@@ -1,13 +1,13 @@
 ﻿# Home Assistant Splitter
 
-Verbindet den MQTT Client mit den Device/Configurator Instanzen und bietet optional REST-basierte Steuerung für `*/set` Topics.
+Verbindet den MQTT Client oder Server mit den Device/Configurator Instanzen und bietet optional REST-basierte Steuerung für `*/set` Topics.
 
 ## Voraussetzungen
 
+- Home Assistant MQTT Integration aktiv.
 - MQTT Client oder MQTT Server Instanz als Parent (direkt verbinden).
   - Bei MQTT Client: mindestens `ClientID` setzen und eine Subscription konfigurieren (z.B. `#` oder `homeassistant/#`).
   - Hinweis zu Ports: MQTT nutzt i.d.R. `1883` (oder `8883` bei TLS). Der Home Assistant Web/REST-Port ist typischerweise `8123`.
-- Home Assistant MQTT Integration aktiv.
 
 ## Konfiguration
 
@@ -27,6 +27,8 @@ Verbindet den MQTT Client mit den Device/Configurator Instanzen und bietet optio
 ## Home Assistant mqtt_statestream
 
 Damit Zustandsänderungen per MQTT ankommen, muss `mqtt_statestream` aktiv sein und das `base_topic` mit `MQTTBaseTopic` übereinstimmen:
+Siehe Home Assistant Doku: https://www.home-assistant.io/integrations/mqtt_statestream/
+Mit den Optionen `include` und `exclude` kannst du gezielt Domains/Entitäten ein- oder ausschließen und damit beeinflussen, welche Integrationen hier ankommen.
 
 ```yaml
 mqtt_statestream:
@@ -34,7 +36,6 @@ mqtt_statestream:
   publish_attributes: true
   publish_timestamps: true
 ```
-
 
 
 

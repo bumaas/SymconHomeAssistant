@@ -78,6 +78,9 @@ Stellt ein einzelnes Home Assistant Gerät in Symcon dar und mappt Entitäten au
 
 ## Home Assistant mqtt_statestream
 
+Siehe Home Assistant Doku: https://www.home-assistant.io/integrations/mqtt_statestream/
+Mit den Optionen `include` und `exclude` kannst du gezielt Domains/Entitäten ein- oder ausschließen und damit beeinflussen, welche Integrationen hier ankommen.
+
 ```yaml
 mqtt_statestream:
   base_topic: homeassistant

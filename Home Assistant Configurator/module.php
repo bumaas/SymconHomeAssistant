@@ -15,6 +15,7 @@ require_once __DIR__ . '/../libs/HACoverDefinitions.php';
 require_once __DIR__ . '/../libs/HAEventDefinitions.php';
 require_once __DIR__ . '/../libs/HASelectDefinitions.php';
 require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
+require_once __DIR__ . '/../libs/HAMediaPlayerDefinitions.php';
 
 class HomeAssistantConfigurator extends IPSModuleStrict
 {
@@ -64,6 +65,8 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         "attributes": {{ sanitize_json(state.attributes) }},
         "device": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }} ({{ area_name(state.entity_id) | default('Kein Bereich', true) }})",
         "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }}",
+        "device_manufacturer": "{{ device_attr(state.entity_id, 'manufacturer') | default('', true) }}",
+        "device_model": "{{ device_attr(state.entity_id, 'model') | default('', true) }}",
         "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
         "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}",
         "supported_features": {{ state.attributes.supported_features | default(0) | int }}
@@ -117,6 +120,8 @@ EOT;
         "attributes": {{ sanitize_json(state.attributes) }},
         "device": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }} ({{ area_name(state.entity_id) | default('Kein Bereich', true) }})",
         "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }}",
+        "device_manufacturer": "{{ device_attr(state.entity_id, 'manufacturer') | default('', true) }}",
+        "device_model": "{{ device_attr(state.entity_id, 'model') | default('', true) }}",
         "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
         "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}",
         "supported_features": {{ state.attributes.supported_features | default(0) | int }}
@@ -144,7 +149,8 @@ EOT;
             HACoverDefinitions::DOMAIN,
             HAEventDefinitions::DOMAIN,
             HASelectDefinitions::DOMAIN,
-            HAVacuumDefinitions::DOMAIN
+            HAVacuumDefinitions::DOMAIN,
+            HAMediaPlayerDefinitions::DOMAIN
         ];
         $domainList     = [];
         foreach ($defaultDomains as $d) {
@@ -211,6 +217,8 @@ EOT;
             'columns'  => [
                 ['caption' => 'Area', 'name' => 'Area', 'width' => '150px'],
                 ['caption' => 'Device', 'name' => 'name', 'width' => '250px'],
+                ['caption' => 'Manufacturer', 'name' => 'Manufacturer', 'width' => '200px'],
+                ['caption' => 'Model', 'name' => 'Model', 'width' => '200px'],
                 ['caption' => 'Entities', 'name' => 'Summary', 'width' => 'auto']
             ],
             'values'   => $values
@@ -230,6 +238,8 @@ EOT;
             $devices[$uniqueDeviceKey] = [
                 'ident'     => $uniqueDeviceKey,
                 'name'      => $isRealDevice ? $entity['device'] : $entity['name'],
+                'manufacturer' => $isRealDevice ? ($entity['device_manufacturer'] ?? '') : '',
+                'model'     => $isRealDevice ? ($entity['device_model'] ?? '') : '',
                 'device_id' => $isRealDevice ? $entity['device_id'] : $entity['entity_id'],
                 'area'      => $isRealDevice ? $entity['area'] : 'Sonstiges',
                 'entities'  => [],
@@ -322,6 +332,8 @@ EOT;
                 'instanceID' => $instanceID,
                 'name'       => $dev['name'],
                 'Area'       => $dev['area'],
+                'Manufacturer' => $dev['manufacturer'] ?? '',
+                'Model'      => $dev['model'] ?? '',
                 'DeviceID'   => $dev['device_id'],
                 'Summary'    => $this->generateEntitySummary($cleanedEntities),
                 'group'      => $dev['area'],
@@ -373,6 +385,7 @@ EOT;
             HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
             HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
+            HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
             default => []
         };
 

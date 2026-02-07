@@ -24,6 +24,7 @@ Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symc
 | `cover`        | teilweise             | Position/Tilt, REST `open/close/stop` + `set_position` | Device-Class-Spezifika/weitere Attribute |
 | `event`        | teilweise             | Enumeration aus `event_type` | Weitere Event-Attribute |
 | `vacuum`       | teilweise             | REST `start`/`stop`/`pause`/`return_to_base`, `fan_speed` | Weitere Dienste/Features je Modell |
+| `media_player` | teilweise             | Basis-Status, Wiedergabe-Aktionen, Attribute (Volume/Mute/Position/Medieninfos), Cover als Medienobjekt | Weitere Dienste/Features je Modell |
 
 ## Voraussetzungen
 
@@ -50,6 +51,7 @@ Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symc
 ## Home Assistant mqtt_statestream
 
 Damit Zustandsänderungen per MQTT ankommen, muss `mqtt_statestream` aktiv sein und das `base_topic` mit `MQTTBaseTopic` übereinstimmen:
+Siehe Home Assistant Doku: https://www.home-assistant.io/integrations/mqtt_statestream/
 
 ```yaml
 mqtt_statestream:

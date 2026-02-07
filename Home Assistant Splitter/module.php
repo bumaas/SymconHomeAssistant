@@ -11,6 +11,7 @@ require_once __DIR__ . '/../libs/HACoverDefinitions.php';
 require_once __DIR__ . '/../libs/HANumberDefinitions.php';
 require_once __DIR__ . '/../libs/HAClimateDefinitions.php';
 require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
+require_once __DIR__ . '/../libs/HAMediaPlayerDefinitions.php';
 
 class HomeAssistantSplitter extends IPSModuleStrict
 {
@@ -109,6 +110,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
         if ($dataId === HAIds::DATA_DEVICE_TO_SPLITTER) {
             if (array_key_exists('Endpoint', $data)) {
                 return $this->handleRestRequest($data);
+            }
+            if (array_key_exists('ImageUrl', $data)) {
+                return $this->handleImageRequest($data);
             }
             $data['DataID'] = HAIds::DATA_MQTT_TX;
             $JSONString = json_encode($data, JSON_THROW_ON_ERROR);
@@ -417,6 +421,37 @@ class HomeAssistantSplitter extends IPSModuleStrict
             };
         }
 
+        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
+            if (is_array($value)) {
+                if (isset($value['volume_level']) && is_numeric($value['volume_level'])) {
+                    return ['volume_set', ['volume_level' => (float)$value['volume_level']]];
+                }
+                if (array_key_exists('is_volume_muted', $value)) {
+                    return ['volume_mute', ['is_volume_muted' => (bool)$value['is_volume_muted']]];
+                }
+                if (isset($value['media_position']) && is_numeric($value['media_position'])) {
+                    return ['media_seek', ['seek_position' => (float)$value['media_position']]];
+                }
+                if (isset($value['repeat'])) {
+                    return ['repeat_set', ['repeat' => (string)$value['repeat']]];
+                }
+                if (array_key_exists('shuffle', $value)) {
+                    return ['shuffle_set', ['shuffle' => (bool)$value['shuffle']]];
+                }
+            }
+
+            $command = strtolower(trim((string)$value));
+            return match ($command) {
+                'play' => ['media_play', []],
+                'pause' => ['media_pause', []],
+                'stop' => ['media_stop', []],
+                'next', 'next_track', 'nexttrack' => ['media_next_track', []],
+                'previous', 'prev', 'previous_track', 'previoustrack' => ['media_previous_track', []],
+                'play_pause', 'playpause' => ['media_play_pause', []],
+                default => ['', []],
+            };
+        }
+
         return match ($domain) {
             HALightDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN => [$value ? 'turn_on' : 'turn_off', []],
             HACoverDefinitions::DOMAIN => [$value ? 'open_cover' : 'close_cover', []],
@@ -499,6 +534,65 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $this->debugExpert('REST', 'Response | HttpCode=' . $httpCode . ' | ' . $response);
         }
         return json_encode($result, JSON_THROW_ON_ERROR);
+    }
+
+    private function handleImageRequest(array $data): string
+    {
+        $url = trim((string)($data['ImageUrl'] ?? ''));
+        if ($url === '') {
+            return json_encode(['Error' => 'Missing ImageUrl'], JSON_THROW_ON_ERROR);
+        }
+
+        $haUrl = trim($this->ReadPropertyString('HAUrl'));
+        $token = trim($this->ReadPropertyString('HAToken'));
+        if ($haUrl === '' || $token === '') {
+            return json_encode(['Error' => 'Missing HAUrl/HAToken'], JSON_THROW_ON_ERROR);
+        }
+
+        if (!preg_match('#^https?://#i', $url)) {
+            $url = rtrim($haUrl, '/') . '/' . ltrim($url, '/');
+        }
+
+        $result = $this->sendHaImageRequest($url, $token);
+        return json_encode($result, JSON_THROW_ON_ERROR);
+    }
+
+    private function sendHaImageRequest(string $url, string $token): array
+    {
+        $ch = curl_init($url);
+
+        $headers = [
+            'Authorization: Bearer ' . $token,
+            'Accept: image/*',
+            'User-Agent: IPS-HomeAssistant'
+        ];
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        $error = curl_error($ch);
+
+        if ($error) {
+            $this->debugExpert('REST', 'Image cURL error', ['Error' => $error, 'HttpCode' => $httpCode]);
+            return ['Error' => $error, 'HttpCode' => $httpCode];
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            $this->debugExpert('REST', 'Image HTTP error', ['HttpCode' => $httpCode]);
+            return ['Error' => 'HTTP Error', 'HttpCode' => $httpCode];
+        }
+
+        return [
+            'HttpCode' => $httpCode,
+            'ContentType' => $contentType,
+            'Base64' => base64_encode((string)$response)
+        ];
     }
 
     private function sendHaRequestRaw(string $url, string $token, ?string $postData, string $method): array
@@ -611,6 +705,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
             HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
+            HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
             default => []
         };
 

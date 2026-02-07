@@ -23,7 +23,8 @@ trait HAAttributeHandlersTrait
             && $currentDomain !== HASelectDefinitions::DOMAIN
             && $currentDomain !== HAEventDefinitions::DOMAIN
             && $currentDomain !== HACoverDefinitions::DOMAIN
-            && $currentDomain !== HAClimateDefinitions::DOMAIN) {
+            && $currentDomain !== HAClimateDefinitions::DOMAIN
+            && $currentDomain !== HAMediaPlayerDefinitions::DOMAIN) {
             $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
@@ -60,7 +61,7 @@ trait HAAttributeHandlersTrait
                     $this->debugExpert('AttributeTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
                     return false;
                 }
-                $this->SetValue($ident, (string)$value);
+                $this->setValueWithDebug($ident, (string)$value);
                 $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
             }
             return true;
@@ -96,7 +97,7 @@ trait HAAttributeHandlersTrait
 
             $value = $this->castVariableValue($value, $meta['type']);
             $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-            $this->SetValue($ident, $value);
+            $this->setValueWithDebug($ident, $value);
             $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
             $this->storeEntityAttribute($entityId, $attribute, $value);
             $this->updateEntityCache($entityId, null, [$attribute => $value]);
@@ -104,7 +105,7 @@ trait HAAttributeHandlersTrait
             if ($attribute === HACoverDefinitions::ATTRIBUTE_POSITION || $attribute === HACoverDefinitions::ATTRIBUTE_POSITION_ALT) {
                 $mainIdent = $this->sanitizeIdent($entityId);
                 if (@$this->GetIDForIdent($mainIdent) !== false) {
-                    $this->SetValue($mainIdent, (float)$value);
+                    $this->setValueWithDebug($mainIdent, (float)$value);
                 }
             }
             return true;
@@ -140,7 +141,74 @@ trait HAAttributeHandlersTrait
 
             $value = $this->castVariableValue($value, $meta['type']);
             $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-            $this->SetValue($ident, $value);
+            $this->setValueWithDebug($ident, $value);
+            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+            $this->updateEntityCache($entityId, null, [$attribute => $value]);
+            return true;
+        }
+        if ($currentDomain === HAMediaPlayerDefinitions::DOMAIN) {
+            if ($attribute === 'entity_picture') {
+                $attribute = 'media_image_url';
+            }
+            if (!array_key_exists($attribute, HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS)) {
+                $value = $this->parseAttributePayload($payload);
+                if ($value !== null) {
+                    $this->storeEntityAttribute($entityId, $attribute, $value);
+                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                }
+                return true;
+            }
+
+            if ($attribute === 'media_image_url') {
+                $value = $this->parseAttributePayload($payload);
+                if ($value === null) {
+                    $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                    return true;
+                }
+                $original = (string)$value;
+                $absolute = $this->makeMediaImageUrlAbsolute($original);
+                if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
+                    $this->debugExpert('AttributeTopic', 'Keine Variable fÃ¼r Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                    return false;
+                }
+                $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+                if ($meta === null) {
+                    $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+                    return false;
+                }
+                $casted = $this->castVariableValue($original, $meta['type']);
+                $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+                $this->setValueWithDebug($ident, $casted);
+                $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $casted]);
+                $this->storeEntityAttribute($entityId, $attribute, $casted);
+                $this->updateEntityCache($entityId, null, [$attribute => $casted]);
+                if ($absolute !== '') {
+                    $this->updateMediaPlayerCoverMedia($entityId, $absolute);
+                }
+                return true;
+            }
+
+            if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
+                $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->parseAttributePayload($payload);
+            if ($value === null) {
+                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return true;
+            }
+
+            $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+            if ($meta === null) {
+                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->castVariableValue($value, $meta['type']);
+            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+            $this->setValueWithDebug($ident, $value);
             $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
             $this->updateEntityCache($entityId, null, [$attribute => $value]);
             return true;
@@ -188,7 +256,7 @@ trait HAAttributeHandlersTrait
 
         $value = $this->castVariableValue($value, $meta['type']);
         $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        $this->SetValue($ident, $value);
+        $this->setValueWithDebug($ident, $value);
         $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
         $this->updateEntityCache($entityId, null, [$attribute => $value]);
 
@@ -196,3 +264,11 @@ trait HAAttributeHandlersTrait
     }
 
 }
+
+
+
+
+
+
+
+

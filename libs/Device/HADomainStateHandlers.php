@@ -55,7 +55,7 @@ trait HADomainStateHandlersTrait
             'SetValue',
             ['Ident' => $ident, 'Domain' => $domain, 'Entity' => $entity, 'Value' => $value]
         );
-        $this->SetValue($ident, $value);
+        $this->setValueWithDebug($ident, $value);
         $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $parsed[self::KEY_ATTRIBUTES] ?? null);
 
         if (!empty($parsed[self::KEY_ATTRIBUTES])) {
@@ -73,7 +73,7 @@ trait HADomainStateHandlersTrait
         if (!$this->ensureStateVariable($ident)) {
             return false;
         }
-        $this->SetValue($ident, $level);
+        $this->setValueWithDebug($ident, $level);
         $this->updateEntityCache($entityId, $level, null);
         return true;
     }
@@ -87,7 +87,7 @@ trait HADomainStateHandlersTrait
         $parsed = $this->parseStatePayloadForEntity($entityId, $payload);
         $value = $this->convertValueByDomain(HALightDefinitions::DOMAIN, $parsed['state']);
 
-        $this->SetValue($ident, $value);
+        $this->setValueWithDebug($ident, $value);
         $this->updateEntityCache($entityId, $parsed['state'], $parsed['raw_attributes']);
 
         if (!empty($parsed['raw_attributes'])) {
@@ -108,7 +108,7 @@ trait HADomainStateHandlersTrait
             if (!$this->ensureStateVariable($ident)) {
                 return false;
             }
-            $this->SetValue($ident, $displayState);
+            $this->setValueWithDebug($ident, $displayState);
         }
         $this->updateLockActionValue($entityId, $parsed['state'], $attributes);
         $this->updateEntityCache($entityId, $parsed['state'], $parsed['raw_attributes']);
@@ -125,7 +125,7 @@ trait HADomainStateHandlersTrait
             if (!$this->ensureStateVariable($ident)) {
                 return false;
             }
-            $this->SetValue($ident, $stateValue);
+            $this->setValueWithDebug($ident, $stateValue);
         }
         $this->updateVacuumFanSpeedValue($entityId, $attributes);
         $this->updateEntityCache($entityId, $parsed['state'], $parsed['raw_attributes']);
@@ -139,7 +139,7 @@ trait HADomainStateHandlersTrait
             if (!$this->ensureStateVariable($ident)) {
                 return false;
             }
-            $this->SetValue($ident, (float)$payload);
+            $this->setValueWithDebug($ident, (float)$payload);
             $this->updateEntityCache($entityId, (float)$payload, null);
         } elseif ($payload !== '') {
             $this->storeEntityAttribute($entityId, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $payload);

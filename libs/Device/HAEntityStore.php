@@ -166,6 +166,10 @@ trait HAEntityStoreTrait
             $this->maintainVacuumActionVariable($entity);
             $this->maintainVacuumFanSpeedVariable($entity);
         }
+        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
+            $this->maintainMediaPlayerActionVariable($entity);
+            $this->maintainMediaPlayerAttributeVariables($entity);
+        }
     }
 
     private function updateDiagnosticsLabels(): void
