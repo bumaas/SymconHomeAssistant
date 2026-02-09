@@ -181,6 +181,18 @@ final class HAMediaPlayerDefinitions
             'icon_true' => 'shuffle',
             'requires_features' => [self::FEATURE_SHUFFLE_SET]
         ],
+        'source' => [
+            'caption' => 'Source',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => true,
+            'requires_features' => [self::FEATURE_SELECT_SOURCE]
+        ],
+        'sound_mode' => [
+            'caption' => 'Sound Mode',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => true,
+            'requires_features' => [self::FEATURE_SELECT_SOUND_MODE]
+        ],
         'media_image_url' => [
             'caption' => 'Media URL',
             'type' => VARIABLETYPE_STRING,
@@ -238,12 +250,15 @@ final class HAMediaPlayerDefinitions
     public const array ATTRIBUTE_ORDER = [
         'status',
         'action',
+        'power',
         'media_position',
         'media_duration',
         'volume_level',
         'is_volume_muted',
         'repeat',
         'shuffle',
+        'source',
+        'sound_mode',
         'media_image_url',
         'media_cover',
         'media_artist',

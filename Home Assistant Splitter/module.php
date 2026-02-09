@@ -429,10 +429,18 @@ class HomeAssistantSplitter extends IPSModuleStrict
                 if (array_key_exists('shuffle', $value)) {
                     return ['shuffle_set', ['shuffle' => (bool)$value['shuffle']]];
                 }
+                if (isset($value['source'])) {
+                    return ['select_source', ['source' => (string)$value['source']]];
+                }
+                if (isset($value['sound_mode'])) {
+                    return ['select_sound_mode', ['sound_mode' => (string)$value['sound_mode']]];
+                }
             }
 
             $command = strtolower(trim((string)$value));
             return match ($command) {
+                'on', 'turn_on' => ['turn_on', []],
+                'off', 'turn_off' => ['turn_off', []],
                 'play' => ['media_play', []],
                 'pause' => ['media_pause', []],
                 'stop' => ['media_stop', []],

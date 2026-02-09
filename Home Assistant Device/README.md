@@ -26,6 +26,7 @@ Stellt ein einzelnes Home Assistant Gerät in Symcon dar und mappt Entitäten au
 - `sensor`: `device_class: enum` mit `options` wird als Enumeration dargestellt.
 - Suffix wird aus `unit_of_measurement`/`native_unit_of_measurement` und `device_class` abgeleitet.
 - `lock`: Darstellung als Enumeration (locked/unlocked/locking/...) und optional `open` wenn unterstützt.
+- `media_player`: Status-Variable ist read-only; Read-only-Attribute (z. B. `media_title`, `media_artist`) werden immer angelegt, schreibbare Attribute (z. B. `volume_level`, `is_volume_muted`, `shuffle`, `source`, `sound_mode`) nur wenn `supported_features` sie ausweist; Aktionen sind aktuell auf Play/Pause/Stop/Previous/Next begrenzt (kein Turn On/Off in der Action-Variable); wenn `supported_features` Turn On/Off meldet, wird eine zusätzliche boolesche `Power`-Variable angelegt, `device_class` wie `speaker`/`receiver` wird nicht speziell ausgewertet.
 
 ## Icon Mapping
 

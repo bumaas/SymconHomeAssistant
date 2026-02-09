@@ -213,6 +213,30 @@ trait HAPresentationTrait
                                              ]);
         }
 
+        if ($attribute === 'source') {
+            $options = $this->getPresentationOptions(
+                is_array($attributes['source_list'] ?? null) ? $attributes['source_list'] : null
+            );
+            if ($options !== null) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                     'OPTIONS'      => $options
+                                                 ]);
+            }
+        }
+
+        if ($attribute === 'sound_mode') {
+            $options = $this->getPresentationOptions(
+                is_array($attributes['sound_mode_list'] ?? null) ? $attributes['sound_mode_list'] : null
+            );
+            if ($options !== null) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                     'OPTIONS'      => $options
+                                                 ]);
+            }
+        }
+
         if ($attribute === 'shuffle' || $attribute === 'is_volume_muted' || $attribute === 'cross_fade') {
             $usageType    = (int)($meta['usage_type'] ?? 0);
             $iconFalse    = (string)($meta['icon_false'] ?? null);

@@ -168,6 +168,7 @@ trait HAEntityStoreTrait
         }
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
             $this->maintainMediaPlayerActionVariable($entity);
+            $this->maintainMediaPlayerPowerVariable($entity);
             $this->maintainMediaPlayerAttributeVariables($entity);
         }
     }
