@@ -206,7 +206,11 @@ trait HAAttributeHandlersTrait
                 return false;
             }
 
-            $value = $this->castVariableValue($value, $meta['type']);
+            if ($attribute === 'repeat') {
+                $value = $this->mapMediaPlayerRepeatToValue($value);
+            } else {
+                $value = $this->castVariableValue($value, $meta['type']);
+            }
             $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
             $this->setValueWithDebug($ident, $value);
             $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);

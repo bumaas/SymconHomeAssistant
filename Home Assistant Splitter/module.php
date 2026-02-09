@@ -2,16 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../libs/HAIds.php';
-require_once __DIR__ . '/../libs/HADebug.php';
-require_once __DIR__ . '/../libs/HALockDefinitions.php';
-require_once __DIR__ . '/../libs/HALightDefinitions.php';
-require_once __DIR__ . '/../libs/HASwitchDefinitions.php';
-require_once __DIR__ . '/../libs/HACoverDefinitions.php';
-require_once __DIR__ . '/../libs/HANumberDefinitions.php';
-require_once __DIR__ . '/../libs/HAClimateDefinitions.php';
-require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
-require_once __DIR__ . '/../libs/HAMediaPlayerDefinitions.php';
+require_once __DIR__ . '/../libs/HACommonIncludes.php';
 
 class HomeAssistantSplitter extends IPSModuleStrict
 {

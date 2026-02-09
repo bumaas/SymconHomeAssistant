@@ -4,20 +4,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../libs/HALightDefinitions.php';
-require_once __DIR__ . '/../libs/HAIds.php';
-require_once __DIR__ . '/../libs/HADebug.php';
-require_once __DIR__ . '/../libs/HANumberDefinitions.php';
-require_once __DIR__ . '/../libs/HASensorDefinitions.php';
-require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
-require_once __DIR__ . '/../libs/HALockDefinitions.php';
-require_once __DIR__ . '/../libs/HASelectDefinitions.php';
-require_once __DIR__ . '/../libs/HABinarySensorDefinitions.php';
-require_once __DIR__ . '/../libs/HASwitchDefinitions.php';
-require_once __DIR__ . '/../libs/HAClimateDefinitions.php';
-require_once __DIR__ . '/../libs/HACoverDefinitions.php';
-require_once __DIR__ . '/../libs/HAEventDefinitions.php';
-require_once __DIR__ . '/../libs/HAMediaPlayerDefinitions.php';
+require_once __DIR__ . '/../libs/HACommonIncludes.php';
 require_once __DIR__ . '/../libs/HAAttributeFilter.php';
 require_once __DIR__ . '/../libs/Device/HADomainStateHandlers.php';
 require_once __DIR__ . '/../libs/Device/HAAttributeHandlers.php';
@@ -56,6 +43,9 @@ class HomeAssistantDevice extends IPSModuleStrict
     private const string MEDIA_PLAYER_ACTION_SUFFIX = '_media_player_action';
     private const string MEDIA_PLAYER_COVER_SUFFIX = '_media_cover';
     private const int MEDIA_TYPE_IMAGE = 1;
+    private const string TIMER_MEDIA_PLAYER_PROGRESS = 'MediaPlayerProgressTimer';
+    private const string BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG = 'MediaPlayerProgressDebug';
+    private const int MEDIA_PLAYER_PROGRESS_DEBUG_INTERVAL = 10;
 
     private array $topicMapping    = [];
 
@@ -91,6 +81,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->RegisterPropertyString(self::PROP_DEVICE_CONFIG, '[]');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
 
+        $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HA_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
     }
 
 
@@ -109,6 +100,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 0);
 
         $instance = IPS_GetInstance($this->InstanceID);
         $parentID = $instance['ConnectionID'];
@@ -159,6 +151,102 @@ class HomeAssistantDevice extends IPSModuleStrict
         } else {
             $this->applyInitialStatesFromMap($configData, $stateMap);
         }
+
+        if ($baseTopic !== '' && $this->hasMediaPlayerEntities()) {
+            $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 1000);
+        }
+    }
+
+    private function hasMediaPlayerEntities(): bool
+    {
+        foreach ($this->entities as $entityId => $entity) {
+            $domain = $entity['domain'] ?? $this->getEntityDomain($entityId);
+            if ($domain !== HAMediaPlayerDefinitions::DOMAIN) {
+                continue;
+            }
+            if (($entity['create_var'] ?? true) === false) {
+                continue;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /** @noinspection PhpUnused */
+    public function UpdateMediaPlayerProgress(): void
+    {
+        $cache = $this->decodeJsonArray($this->ReadAttributeString('EntityStateCache'), __FUNCTION__);
+        if ($cache === null || $cache === []) {
+            return;
+        }
+
+        $now = time();
+        foreach ($cache as $entityId => $entry) {
+            if ($this->getEntityDomain($entityId) !== HAMediaPlayerDefinitions::DOMAIN) {
+                continue;
+            }
+
+            $state = strtolower((string)($entry[self::KEY_STATE] ?? ''));
+            if ($state !== 'playing') {
+                continue;
+            }
+
+            $attributes = [];
+            $stored = $this->entities[$entityId]['attributes'] ?? null;
+            if (is_array($stored)) {
+                $attributes = $stored;
+            }
+            if (isset($entry[self::KEY_ATTRIBUTES]) && is_array($entry[self::KEY_ATTRIBUTES])) {
+                $attributes = array_merge($attributes, $entry[self::KEY_ATTRIBUTES]);
+            }
+
+            $basePosition = $attributes['media_position'] ?? null;
+            if (!is_numeric($basePosition)) {
+                continue;
+            }
+
+            $updatedAt = $attributes['media_position_updated_at'] ?? null;
+            $updatedAtTs = $this->parseMediaPositionUpdatedAt($updatedAt);
+            if ($updatedAtTs === null) {
+                $updatedAtTs = is_numeric($entry['ts'] ?? null) ? (int)$entry['ts'] : null;
+            }
+            if ($updatedAtTs === null) {
+                continue;
+            }
+
+            $elapsed = max(0, $now - $updatedAtTs);
+            $position = (int)max(0, (float)$basePosition + $elapsed);
+            $duration = $attributes['media_duration'] ?? null;
+            if (is_numeric($duration)) {
+                $position = min($position, (int)$duration);
+            }
+
+            $ident = $this->sanitizeIdent($entityId . '_media_position');
+            if (@$this->GetIDForIdent($ident) === false) {
+                continue;
+            }
+
+            $current = $this->GetValue($ident);
+            if (is_int($current) && $current === $position) {
+                continue;
+            }
+            $this->setValueWithDebug($ident, $position);
+        }
+    }
+
+    private function parseMediaPositionUpdatedAt(mixed $value): ?int
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            $dt = new DateTimeImmutable($value);
+        } catch (Exception) {
+            return null;
+        }
+
+        return $dt->getTimestamp();
     }
 
     /**
@@ -495,6 +583,14 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $type         = $this->getVariableType($domain, $entity['attributes'] ?? []);
         $position     = $this->getEntityPosition($entity['entity_id']);
+        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
+            $position = $this->getMediaPlayerOrderPosition(0, 'status');
+        } else {
+            $linkedPosition = $this->getMediaPlayerLinkedPosition($entity['entity_id'], $domain);
+            if ($linkedPosition !== null) {
+                $position = $linkedPosition;
+            }
+        }
         $presentation = $this->getEntityPresentation($domain, $entity, $type);
 
         $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
@@ -651,7 +747,8 @@ class HomeAssistantDevice extends IPSModuleStrict
                 $attributes = $this->storeEntityAttributes($entityId, $attributes);
             }
             if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                $this->setValueWithDebug($ident, $parsed[self::KEY_STATE]);
+                $state = $parsed[self::KEY_STATE];
+                $this->setValueWithDebug($ident, $state);
             }
             $this->updateMediaPlayerAttributeValues($entityId, is_array($attributes) ? $attributes : []);
             if (is_array($attributes) && $attributes !== []) {
@@ -761,10 +858,10 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function sendMqttMessage(string $topic, string $payload): void
     {
         if (!$this->hasActiveParent()) {
-            $this->debugExpert('MQTT', 'No active parent');
+            $this->debugExpert(__FUNCTION__, 'No active parent', [],true);
             return;
         }
-        $this->debugExpert('MQTT', 'SendDataToParent', ['Topic' => $topic, 'Payload' => $payload]);
+        $this->debugExpert(__FUNCTION__, 'SendDataToParent', ['Topic' => $topic, 'Payload' => $payload], true);
 
         $json = json_encode([
                                 'DataID'           => HAIds::DATA_DEVICE_TO_SPLITTER,
@@ -989,16 +1086,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         return rtrim($haUrl, '/');
     }
 
-    private function getHaToken(): string
-    {
-        $instance = IPS_GetInstance($this->InstanceID);
-        $parentId = (int)($instance['ConnectionID'] ?? 0);
-        if ($parentId <= 0) {
-            return '';
-        }
-        return trim((string)@IPS_GetProperty($parentId, 'HAToken'));
-    }
-
     private function enrichSupportedFeaturesList(array &$row): void
     {
         if (!isset($row['attributes']) || !is_array($row['attributes'])) {
@@ -1044,14 +1131,13 @@ class HomeAssistantDevice extends IPSModuleStrict
                 $list[] = $label;
             }
         }
-        $list = array_map(
+        return array_map(
             static function (string $label): string {
                 $parts = explode(':', $label, 2);
                 return isset($parts[1]) ? ltrim($parts[1]) : $label;
             },
             $list
         );
-        return $list;
     }
 
 
@@ -1506,13 +1592,14 @@ class HomeAssistantDevice extends IPSModuleStrict
             return;
         }
 
-        $this->debugExpert(__FUNCTION__, 'Options', ['Options' => $options], true);
+        $this->debugExpert(__FUNCTION__, 'Options', ['Options' => $options]);
 
         $ident = $this->getMediaPlayerActionIdent($entityId);
-        $position = $this->getEntityPosition($entityId) + 5;
+        $position = $this->getMediaPlayerOrderPosition(0, 'action');
+
         $presentation = [
-            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-            'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+            'PRESENTATION' => VARIABLE_PRESENTATION_LEGACY,
+            'PROFILE'      => '~PlaybackPreviousNext'
         ];
 
         $this->MaintainVariable($ident, $this->Translate('Playback'), VARIABLETYPE_INTEGER, $presentation, $position, true);
@@ -1540,6 +1627,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         $options = [];
 
         $addAll = $supported === 0;
+        if ($addAll || ($supported & HAMediaPlayerDefinitions::FEATURE_PREVIOUS_TRACK) === HAMediaPlayerDefinitions::FEATURE_PREVIOUS_TRACK) {
+            $options[] = ['Value' => HAMediaPlayerDefinitions::ACTION_PREVIOUS, 'Caption' => $this->Translate('Previous Track')];
+        }
         if ($addAll || ($supported & HAMediaPlayerDefinitions::FEATURE_PLAY) === HAMediaPlayerDefinitions::FEATURE_PLAY) {
             $options[] = ['Value' => HAMediaPlayerDefinitions::ACTION_PLAY, 'Caption' => $this->Translate('Play')];
         }
@@ -1551,9 +1641,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($addAll || ($supported & HAMediaPlayerDefinitions::FEATURE_NEXT_TRACK) === HAMediaPlayerDefinitions::FEATURE_NEXT_TRACK) {
             $options[] = ['Value' => HAMediaPlayerDefinitions::ACTION_NEXT, 'Caption' => $this->Translate('Next Track')];
-        }
-        if ($addAll || ($supported & HAMediaPlayerDefinitions::FEATURE_PREVIOUS_TRACK) === HAMediaPlayerDefinitions::FEATURE_PREVIOUS_TRACK) {
-            $options[] = ['Value' => HAMediaPlayerDefinitions::ACTION_PREVIOUS, 'Caption' => $this->Translate('Previous Track')];
         }
 
         foreach ($options as &$option) {
@@ -1578,14 +1665,18 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $baseIdent = $this->sanitizeIdent($entity['entity_id']);
         foreach (HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
+            if ($this->isMediaPlayerAttributeShadowed($key)) {
+                continue;
+            }
             $ident        = $baseIdent . '_' . $key;
-            $name         = $meta['caption'];
-            $basePosition = $this->getEntityPosition($entity['entity_id']);
+            $name         = $this->Translate((string)$meta['caption']);
+            $basePosition = 0;
             $position     = $this->getMediaPlayerAttributePosition($key, $basePosition);
             $presentation = $this->getMediaPlayerAttributePresentation($key, $attributes, $meta);
+            $exists = @$this->GetIDForIdent($ident) !== false;
             $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-            if ($this->isWritableMediaPlayerAttribute($key, $attributes)) {
-                $this->EnableAction($ident);
+            if (!$exists) {
+                $this->applyMediaPlayerAttributeActionState($key, $attributes, $presentation, $ident);
             }
             if ($key === 'media_image_url') {
                 $this->maintainMediaPlayerCoverMedia($entity['entity_id'], $basePosition);
@@ -1599,6 +1690,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         if ($meta === null) {
             return false;
         }
+        if ($this->isMediaPlayerAttributeShadowed($attribute)) {
+            return false;
+        }
         $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
         if (@$this->GetIDForIdent($ident) !== false) {
             return true;
@@ -1610,14 +1704,12 @@ class HomeAssistantDevice extends IPSModuleStrict
         ];
 
         $attributes   = $entity['attributes'] ?? [];
-        $name         = $meta['caption'];
-        $basePosition = $this->getEntityPosition($entityId);
+        $name         = $this->Translate((string)$meta['caption']);
+        $basePosition = 0;
         $position     = $this->getMediaPlayerAttributePosition($attribute, $basePosition);
         $presentation = $this->getMediaPlayerAttributePresentation($attribute, is_array($attributes) ? $attributes : [], $meta);
         $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        if ($this->isWritableMediaPlayerAttribute($attribute, is_array($attributes) ? $attributes : [])) {
-            $this->EnableAction($ident);
-        }
+        $this->applyMediaPlayerAttributeActionState($attribute, is_array($attributes) ? $attributes : [], $presentation, $ident);
         if ($attribute === 'media_image_url') {
             $this->maintainMediaPlayerCoverMedia($entityId, $basePosition);
         }
@@ -1637,13 +1729,38 @@ class HomeAssistantDevice extends IPSModuleStrict
                 continue;
             }
 
-            $value = $this->castVariableValue($attributes[$key], $meta['type']);
+            $value = $attributes[$key];
+            if ($key === 'repeat') {
+                $value = $this->mapMediaPlayerRepeatToValue($value);
+            } else {
+                $value = $this->castVariableValue($value, $meta['type']);
+            }
             $this->setValueWithDebug($ident, $value);
             if ($key === 'media_image_url' && is_string($value)) {
                 $this->updateMediaPlayerCoverMedia($entityId, $value);
             }
         }
     }
+
+    private function applyMediaPlayerAttributeActionState(
+        string $attribute,
+        array $attributes,
+        array $presentation,
+        string $ident
+    ): void {
+        $presentationId = $presentation['PRESENTATION'] ?? '';
+        if ($attribute === 'media_position') {
+            $useAction = $presentationId === VARIABLE_PRESENTATION_SLIDER;
+        } else {
+            $useAction = $this->isWritableMediaPlayerAttribute($attribute, $attributes);
+        }
+        if ($useAction) {
+            $this->EnableAction($ident);
+        } else {
+            $this->DisableAction($ident);
+        }
+    }
+
 
     private function maintainMediaPlayerCoverMedia(string $entityId, int $basePosition): void
     {
@@ -1675,9 +1792,13 @@ class HomeAssistantDevice extends IPSModuleStrict
     {
         $name = 'Cover';
         IPS_SetName($mediaId, $name);
-        $position = $this->getMediaPlayerAttributePosition('media_image_url', $basePosition);
+        $position = $this->getMediaPlayerCoverPosition($basePosition);
         IPS_SetPosition($mediaId, $position);
         IPS_SetParent($mediaId, $this->InstanceID);
+        $ident = IPS_GetObject($mediaId)['ObjectIdent'] ?? '';
+        if (is_string($ident) && $ident !== '') {
+            $this->ensureMediaPlayerCoverMediaFileDefault($mediaId, $ident);
+        }
     }
 
     private function updateMediaPlayerCoverMedia(string $entityId, string $url): void
@@ -1694,7 +1815,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         $ident = $this->sanitizeIdent($entityId) . self::MEDIA_PLAYER_COVER_SUFFIX;
         $mediaId = @$this->GetIDForIdent($ident);
         if ($mediaId === false) {
-            $basePosition = $this->getEntityPosition($entityId);
+            $basePosition = 0;
             if (!$this->ensureMediaPlayerCoverMedia($entityId, $basePosition)) {
                 return;
             }
@@ -1704,11 +1825,11 @@ class HomeAssistantDevice extends IPSModuleStrict
             }
         }
 
-        $this->ensureMediaPlayerCoverMediaFile($mediaId, $ident, $absoluteUrl);
         $content = $this->fetchMediaImageContent($absoluteUrl);
         if ($content === null) {
             return;
         }
+        $this->ensureMediaPlayerCoverMediaFile($mediaId, $ident, $absoluteUrl);
         IPS_SetMediaContent($mediaId, base64_encode($content));
         $this->debugExpert('MediaCover', 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
     }
@@ -1718,10 +1839,28 @@ class HomeAssistantDevice extends IPSModuleStrict
         $media = IPS_GetMedia($mediaId);
         $current = (string)($media['MediaFile'] ?? '');
         $extension = $this->detectMediaImageExtension($url);
-        $safeIdent = preg_replace('/[^A-Za-z0-9_]/', '_', $ident);
+        $safeIdent = preg_replace('/\\W/', '_', $ident);
         $file = 'media/ha_media_cover_' . $safeIdent . '.' . $extension;
         if ($file !== '' && $current !== $file) {
             IPS_SetMediaFile($mediaId, $file, false);
+        }
+    }
+
+    private function ensureMediaPlayerCoverMediaFileDefault(int $mediaId, string $ident): void
+    {
+        $media = IPS_GetMedia($mediaId);
+        $current = (string)($media['MediaFile'] ?? '');
+        if ($current !== '' && $current !== '#') {
+            return;
+        }
+        $safeIdent = preg_replace('/\\W/', '_', $ident);
+        $file = 'media/ha_media_cover_' . $safeIdent . '.png';
+        IPS_SetMediaFile($mediaId, $file, false);
+        $size = (int)($media['MediaSize'] ?? 0);
+        if ($size === 0) {
+            // Minimal 1x1 transparent PNG placeholder to avoid "file missing" errors.
+            $placeholder = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBA0b9XQAAAABJRU5ErkJggg==';
+            IPS_SetMediaContent($mediaId, $placeholder);
         }
     }
 
@@ -1733,7 +1872,6 @@ class HomeAssistantDevice extends IPSModuleStrict
             $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
         }
         return match ($extension) {
-            'jpeg' => 'jpg',
             'jpg', 'png', 'gif', 'webp', 'bmp' => $extension,
             default => 'jpg'
         };
@@ -1770,7 +1908,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         ], JSON_THROW_ON_ERROR);
 
         $responseJson = $this->SendDataToParent($payload);
-        $decoded = $this->decodeJsonArray((string)$responseJson, __FUNCTION__);
+        $decoded = $this->decodeJsonArray($responseJson, __FUNCTION__);
         if ($decoded === null) {
             return null;
         }
@@ -1783,12 +1921,137 @@ class HomeAssistantDevice extends IPSModuleStrict
 
     private function getMediaPlayerAttributePosition(string $attribute, int $basePosition): int
     {
-        $ordered = array_keys(HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS);
-        $index   = array_search($attribute, $ordered, true);
+        return $this->getMediaPlayerOrderPosition($basePosition, $attribute);
+    }
+
+    private function getMediaPlayerCoverPosition(int $basePosition): int
+    {
+        return $this->getMediaPlayerOrderPosition($basePosition, 'media_cover');
+    }
+
+    private function getMediaPlayerOrderPosition(int $basePosition, string $key): int
+    {
+        $ordered = HAMediaPlayerDefinitions::ATTRIBUTE_ORDER;
+        $index = array_search($key, $ordered, true);
         if ($index === false) {
             return $basePosition + 200;
         }
-        return $basePosition + 10 + $index;
+        return $basePosition + (($index + 1) * 10);
+    }
+
+    private function getMediaPlayerLinkedPosition(string $entityId, string $domain): ?int
+    {
+        if ($domain === HASwitchDefinitions::DOMAIN) {
+            $suffixMap = [
+                'cross_fade' => ['cross_fade', 'crossfade'],
+                'loudness' => ['loudness']
+            ];
+        } elseif ($domain === HANumberDefinitions::DOMAIN) {
+            $suffixMap = [
+                'balance' => ['balance'],
+                'bass' => ['bass'],
+                'treble' => ['treble']
+            ];
+        } else {
+            return null;
+        }
+
+        foreach ($suffixMap as $attribute => $suffixes) {
+            foreach ($suffixes as $suffix) {
+                if (!str_ends_with($entityId, '_' . $suffix)) {
+                    continue;
+                }
+                $baseEntity = $entityId;
+                if (str_contains($entityId, '.')) {
+                    [, $baseEntity] = explode('.', $entityId, 2);
+                }
+                $base = substr($baseEntity, 0, -strlen('_' . $suffix));
+                $expectedMediaPlayer = HAMediaPlayerDefinitions::DOMAIN . '.' . $base;
+                if (!isset($this->entities[$expectedMediaPlayer])) {
+                    $expectedIdent = $this->sanitizeIdent($expectedMediaPlayer);
+                    if ($this->findEntityByBaseIdentInConfig($expectedIdent) === null) {
+                        return null;
+                    }
+                }
+                return $this->getMediaPlayerOrderPosition(0, $attribute);
+            }
+        }
+
+        return null;
+    }
+
+    private function isMediaPlayerAttributeShadowed(string $attribute): bool
+    {
+        $shadowMap = [
+            'cross_fade' => [
+                'domain' => HASwitchDefinitions::DOMAIN,
+                'suffixes' => ['cross_fade', 'crossfade']
+            ],
+            'loudness' => [
+                'domain' => HASwitchDefinitions::DOMAIN,
+                'suffixes' => ['loudness']
+            ],
+            'balance' => [
+                'domain' => HANumberDefinitions::DOMAIN,
+                'suffixes' => ['balance']
+            ],
+            'bass' => [
+                'domain' => HANumberDefinitions::DOMAIN,
+                'suffixes' => ['bass']
+            ],
+            'treble' => [
+                'domain' => HANumberDefinitions::DOMAIN,
+                'suffixes' => ['treble']
+            ]
+        ];
+
+        $config = $shadowMap[$attribute] ?? null;
+        if ($config === null) {
+            return false;
+        }
+
+        $matchesSuffix = static function (string $entityId, string $suffix): bool {
+            if (str_contains($entityId, '.')) {
+                [, $entityId] = explode('.', $entityId, 2);
+            }
+            return str_ends_with($entityId, '_' . $suffix);
+        };
+
+        foreach ($this->entities as $entityId => $entity) {
+            $domain = $entity['domain'] ?? $this->getEntityDomain($entityId);
+            if ($domain !== $config['domain']) {
+                continue;
+            }
+            foreach ($config['suffixes'] as $suffix) {
+                if ($matchesSuffix($entityId, $suffix)) {
+                    return true;
+                }
+            }
+        }
+
+        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), __FUNCTION__);
+        if (is_array($configData)) {
+            foreach ($configData as $row) {
+                $row = $this->normalizeEntity($row, __FUNCTION__);
+                if ($row === null) {
+                    continue;
+                }
+                if (($row['create_var'] ?? true) === false) {
+                    continue;
+                }
+                $domain = $row['domain'] ?? $this->getEntityDomain($row['entity_id']);
+                if ($domain !== $config['domain']) {
+                    continue;
+                }
+                foreach ($config['suffixes'] as $suffix) {
+                    if ($matchesSuffix($row['entity_id'], $suffix)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private function getVacuumActionOptions(array $attributes): array
@@ -1921,7 +2184,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $attributes   = $entity['attributes'] ?? null;
         $name         = $meta['caption'];
-        $basePosition = $this->getEntityPosition($entityId);
+        $basePosition = 0;
         $position     = $this->getLightAttributePosition($attribute, $basePosition);
         $presentation = $this->getLightAttributePresentation($attribute, is_array($attributes) ? $attributes : [], $meta);
         $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
@@ -2427,8 +2690,32 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function setValueWithDebug(string $ident, mixed $value): void
     {
         $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] ?? '';
-        $this->debugExpert('SetValue', $caller, ['Ident' => $ident, 'Value' => $value], true);
+        if ($caller !== 'UpdateMediaPlayerProgress' || $this->shouldLogMediaPlayerProgress($ident)) {
+            $this->debugExpert('SetValue', $caller, ['Ident' => $ident, 'Value' => $value], true);
+        }
         $this->SetValue($ident, $value);
+    }
+
+    private function shouldLogMediaPlayerProgress(string $ident): bool
+    {
+        $buffer = $this->GetBuffer(self::BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG);
+        $map = [];
+        if ($buffer !== '') {
+            $decoded = json_decode($buffer, true);
+            if (is_array($decoded)) {
+                $map = $decoded;
+            }
+        }
+
+        $now = time();
+        $last = isset($map[$ident]) && is_int($map[$ident]) ? $map[$ident] : 0;
+        if ($now - $last < self::MEDIA_PLAYER_PROGRESS_DEBUG_INTERVAL) {
+            return false;
+        }
+
+        $map[$ident] = $now;
+        $this->SetBuffer(self::BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG, json_encode($map, JSON_THROW_ON_ERROR));
+        return true;
     }
 
 
@@ -2482,8 +2769,12 @@ class HomeAssistantDevice extends IPSModuleStrict
         if (!($meta['writable'] ?? false)) {
             return false;
         }
-        if (!empty($entityAttributes)) {
-            if (!$this->checkSupportedFeatures($meta, $entityAttributes)) {
+        if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
+            return false;
+        }
+        if ($attribute === 'media_position') {
+            $duration = $entityAttributes['media_duration'] ?? null;
+            if (!is_numeric($duration) || (float)$duration <= 0.0) {
                 return false;
             }
         }
@@ -2677,9 +2968,27 @@ class HomeAssistantDevice extends IPSModuleStrict
             'volume_level' => $this->clampFloat((float)$value, 0.0, 1.0),
             'is_volume_muted', 'shuffle' => (bool)$value,
             'media_position' => max(0, (int)$value),
-            'repeat' => (string)$value,
+            'repeat' => $this->mapMediaPlayerRepeatToPayload($value),
             default => (string)$value,
         };
+    }
+
+    private function mapMediaPlayerRepeatToValue(mixed $value): int
+    {
+        if (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
+            return (int)$value;
+        }
+        $normalized = strtolower(trim((string)$value));
+        if ($normalized === '') {
+            return 0;
+        }
+        return HAMediaPlayerDefinitions::REPEAT_VALUE_MAP[$normalized] ?? 0;
+    }
+
+    private function mapMediaPlayerRepeatToPayload(mixed $value): string
+    {
+        $intValue = $this->mapMediaPlayerRepeatToValue($value);
+        return HAMediaPlayerDefinitions::REPEAT_PAYLOAD_MAP[$intValue] ?? 'off';
     }
 
     private function clampFloat(float $value, float $min, float $max): float
@@ -2802,4 +3111,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         return array_any($required, static fn($mode) => in_array($mode, $modes, true));
     }
 }
+
+
+
 

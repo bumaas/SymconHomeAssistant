@@ -206,7 +206,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     {
         $formValues = [];
 
-        // Map: IP/Host => InstanzID (inkl. unvollstaendige Konfiguratoren)
+        // Map: IP/Host => InstanzID (inkl. unvollständige Konfiguratoren)
         $hostToId = [];
         foreach ($existingInstanceIDs as $id) {
             $host = $this->getConfiguratorHost($id);

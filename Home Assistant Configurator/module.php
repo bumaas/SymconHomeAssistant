@@ -2,20 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../libs/HAIds.php';
-require_once __DIR__ . '/../libs/HADebug.php';
-require_once __DIR__ . '/../libs/HALightDefinitions.php';
-require_once __DIR__ . '/../libs/HASwitchDefinitions.php';
-require_once __DIR__ . '/../libs/HASensorDefinitions.php';
-require_once __DIR__ . '/../libs/HABinarySensorDefinitions.php';
-require_once __DIR__ . '/../libs/HAClimateDefinitions.php';
-require_once __DIR__ . '/../libs/HANumberDefinitions.php';
-require_once __DIR__ . '/../libs/HALockDefinitions.php';
-require_once __DIR__ . '/../libs/HACoverDefinitions.php';
-require_once __DIR__ . '/../libs/HAEventDefinitions.php';
-require_once __DIR__ . '/../libs/HASelectDefinitions.php';
-require_once __DIR__ . '/../libs/HAVacuumDefinitions.php';
-require_once __DIR__ . '/../libs/HAMediaPlayerDefinitions.php';
+require_once __DIR__ . '/../libs/HACommonIncludes.php';
 
 class HomeAssistantConfigurator extends IPSModuleStrict
 {
@@ -403,7 +390,7 @@ EOT;
     }
 
     /**
-     * Bereinigt die Entitäts-Namen eines Geräts, indem ein führender Bereichs-Präfix entfernt wird.
+     * Bereinigt die Entitäts-Namen eines Geräts, indem ein führendes Bereichs-Präfix entfernt wird.
      *
      * @param array $dev Das gruppierte Gerät inklusive seiner Entitäten.
      *

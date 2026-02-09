@@ -37,7 +37,8 @@ trait HADomainStateHandlersTrait
             HALightDefinitions::DOMAIN => fn() => $this->handleStateTopicLight($ident, $entityId, $payload),
             HALockDefinitions::DOMAIN => fn() => $this->handleStateTopicLock($ident, $entityId, $payload),
             HAVacuumDefinitions::DOMAIN => fn() => $this->handleStateTopicVacuum($ident, $entityId, $payload),
-            HAClimateDefinitions::DOMAIN => fn() => $this->handleStateTopicClimate($ident, $entityId, $payload)
+            HAClimateDefinitions::DOMAIN => fn() => $this->handleStateTopicClimate($ident, $entityId, $payload),
+            HAMediaPlayerDefinitions::DOMAIN => fn() => $this->handleStateTopicMediaPlayer($ident, $entityId, $payload)
         ];
         if (isset($handlers[$domain])) {
             return $handlers[$domain]();
@@ -146,6 +147,31 @@ trait HADomainStateHandlersTrait
             $this->updateEntityCache($entityId, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $payload]);
             $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
         }
+        return true;
+    }
+
+    private function handleStateTopicMediaPlayer(string $ident, string $entityId, string $payload): bool
+    {
+        $parsed = $this->parseStatePayloadForEntity($entityId, $payload);
+        $stateValue = $parsed['state'];
+        if ($stateValue !== '') {
+            if (!$this->ensureStateVariable($ident)) {
+                return false;
+            }
+            $this->setValueWithDebug($ident, $stateValue);
+        }
+
+        $attributes = [];
+
+        if (is_array($parsed['attributes'])) {
+            $attributes = $parsed['attributes'];
+        } elseif (is_array($parsed['raw_attributes'])) {
+            $attributes = $parsed['raw_attributes'];
+        }
+
+        $this->updateMediaPlayerAttributeValues($entityId, $attributes);
+        $this->updateEntityCache($entityId, $parsed['state'], $parsed['raw_attributes']);
+        $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
         return true;
     }
 

@@ -99,16 +99,26 @@
       "Stop": "Stop",
       "Next Track": "Nächster Titel",
       "Previous Track": "Vorheriger Titel",
+      "Repeat Off": "Aus",
+      "Repeat All": "Alle",
+      "Repeat Song": "Lied",
       "Volume": "Lautstärke",
-      "Mute": "Stumm schalten",
-      "Position": "Fortschritt",
+      "Mute": "Stumm",
+      "Position": "Position",
       "Duration": "Dauer",
       "Repeat": "Wiederholung",
-      "Shuffle": "Zufall",
+      "Shuffle": "Zufällige Wiedergabe",
       "Cover": "Cover",
+      "Crossfade": "Überblenden",
+      "Loudness": "Loudness",
+      "Balance": "Balance",
+      "Bass": "Bass",
+      "Treble": "Höhen",
       "Artist": "Interpret",
       "Title": "Titel",
+      "Media URL": "Media URL",
       "Playlist": "Wiedergabeliste",
+      "Status": "Status",
       "one": "Einzeln",
       "all": "Alle",
       "Cover state: open": "Offen",
@@ -130,3 +140,5 @@
     }
   }
 }
+
+

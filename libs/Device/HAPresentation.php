@@ -148,36 +148,40 @@ trait HAPresentationTrait
     private function getMediaPlayerAttributePresentation(string $attribute, array $attributes, array $meta): array
     {
         if ($attribute === 'volume_level') {
-            $min  = (float)($meta['min'] ?? null);
-            $max  = (float)($meta['max'] ?? null);
-            $step = (float)($meta['step'] ?? null);
-            $percentage = (boolean) ($meta['percentage'] ?? null);
-            $usageType = (int) ($meta['usage_type'] ?? null);
+            $min          = (float)($meta['min'] ?? null);
+            $max          = (float)($meta['max'] ?? null);
+            $step         = (float)($meta['step'] ?? null);
+            $percentage   = (boolean)($meta['percentage'] ?? null);
+            $usageType    = (int)($meta['usage_type'] ?? null);
+            $intervals    = $meta['intervals'] ?? null;
+            $presentation = [
+                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                'MIN'          => $min,
+                'MAX'          => $max,
+                'STEP_SIZE'    => $step,
+                'USAGE_TYPE'   => $usageType,
+                'PERCENTAGE'   => $percentage
+            ];
+            if (is_array($intervals) && $intervals !== []) {
+                $presentation['INTERVALS']        = json_encode($intervals, JSON_THROW_ON_ERROR);
+                $presentation['INTERVALS_ACTIVE'] = true;
+            }
+            return $this->filterPresentation($presentation);
+        }
+
+        if ($attribute === 'media_position') {
+            $min       = (float)($meta['min'] ?? 0);
+            $maxValue  = $attributes['media_duration'] ?? null;
+            $max       = (is_numeric($maxValue) && ($maxValue > 0)) ? (float)$maxValue : 100;
+            $stepSize  = (int)($meta['step_size'] ?? null);
+            $usageType = (int)($meta['usage_type'] ?? null);
             return $this->filterPresentation([
                                                  'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
                                                  'MIN'          => $min,
                                                  'MAX'          => $max,
-                                                 'STEP_SIZE'    => $step,
+                                                 'STEP_SIZE'    => $stepSize,
                                                  'USAGE_TYPE'   => $usageType,
-                                                 'PERCENTAGE'   => $percentage
-                                             ]);
-        }
-
-        if ($attribute === 'media_position') {
-            $max = $attributes['media_duration'] ?? null;
-            if (is_numeric($max)) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                                                     'MIN'          => 0,
-                                                     'MAX'          => (float)$max,
-                                                     'STEP_SIZE'    => 1,
-                                                     'PERCENTAGE'   => false,
-                                                     'DIGITS'       => 0,
-                                                     'SUFFIX'       => $this->formatPresentationSuffix('s')
-                                                 ]);
-            }
-            return $this->filterPresentation([
-                                                 'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                                 'PERCENTAGE'   => false,
                                                  'DIGITS'       => 0,
                                                  'SUFFIX'       => $this->formatPresentationSuffix('s')
                                              ]);
@@ -192,18 +196,34 @@ trait HAPresentationTrait
         }
 
         if ($attribute === 'repeat') {
-            $options = $this->getPresentationOptions(HAMediaPlayerDefinitions::REPEAT_OPTIONS);
-            if ($options !== null) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                                     'OPTIONS'      => $options
-                                                 ]);
+            $options = [];
+            foreach (HAMediaPlayerDefinitions::REPEAT_OPTIONS as $value => $captionKey) {
+                $options[] = [
+                    'Value'       => (int)$value,
+                    'Caption'     => $this->Translate((string)$captionKey),
+                    'IconActive'  => false,
+                    'IconValue'   => '',
+                    'ColorActive' => false,
+                    'ColorValue'  => -1
+                ];
             }
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                 'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+                                             ]);
         }
 
-        if ($attribute === 'shuffle' || $attribute === 'is_volume_muted') {
+        if ($attribute === 'shuffle' || $attribute === 'is_volume_muted' || $attribute === 'cross_fade') {
+            $usageType    = (int)($meta['usage_type'] ?? 0);
+            $iconFalse    = (string)($meta['icon_false'] ?? null);
+            $iconTrue     = (string)($meta['icon_true'] ?? null);
+            $useIconFalse = (bool)($meta['use_icon_false'] ?? null);
             return $this->filterPresentation([
-                                                 'PRESENTATION' => VARIABLE_PRESENTATION_SWITCH
+                                                 'PRESENTATION'   => VARIABLE_PRESENTATION_SWITCH,
+                                                 'USAGE_TYPE'     => $usageType,
+                                                 'ICON_FALSE'     => $iconFalse,
+                                                 'ICON_TRUE'      => $iconTrue,
+                                                 'USE_ICON_FALSE' => $useIconFalse
                                              ]);
         }
 
