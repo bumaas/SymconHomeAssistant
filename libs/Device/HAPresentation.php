@@ -43,9 +43,24 @@ trait HAPresentationTrait
                 if ($options !== null) {
                     return $this->filterPresentation([
                                                          'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                                         'OPTIONS'      => $options
-                                                     ]);
+                                                     'OPTIONS'      => $options
+                                                 ]);
                 }
+            }
+            if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION'   => VARIABLE_PRESENTATION_DATE_TIME,
+                                                     'DATE'           => 2,
+                                                     'DAY_OF_THE_WEEK' => false,
+                                                     'MONTH_TEXT'     => false,
+                                                     'TIME'           => 1
+                                                 ]);
+            }
+            if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_DURATION) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION'   => VARIABLE_PRESENTATION_DURATION,
+                                                     'FORMAT'         => 3
+                                                 ]);
             }
         }
 
@@ -55,6 +70,10 @@ trait HAPresentationTrait
 
         if ($domain === HAVacuumDefinitions::DOMAIN) {
             return $this->getVacuumPresentation();
+        }
+
+        if ($domain === HAButtonDefinitions::DOMAIN) {
+            return $this->getButtonPresentation($entity);
         }
 
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
@@ -120,7 +139,24 @@ trait HAPresentationTrait
         }
 
         return $this->filterPresentation([
-                                             'PRESENTATION' => HAVacuumDefinitions::PRESENTATION,
+                                             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+                                         ]);
+    }
+
+    private function getButtonPresentation(array $entity): array
+    {
+        $caption = $entity['name'] ?? $entity['entity_id'] ?? 'Press';
+        $options = [[
+            'Value'      => HAButtonDefinitions::ACTION_PRESS,
+            'Caption'    => $this->Translate((string)$caption),
+            'IconActive' => false,
+            'IconValue'  => '',
+            'Color'      => -1
+        ]];
+
+        return $this->filterPresentation([
+                                             'PRESENTATION' => HAButtonDefinitions::PRESENTATION,
                                              'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
                                          ]);
     }
@@ -130,12 +166,12 @@ trait HAPresentationTrait
         $options = [];
         foreach (HAMediaPlayerDefinitions::STATE_OPTIONS as $value => $caption) {
             $options[] = [
-                'Value'       => $value,
-                'Caption'     => $this->Translate((string)$caption),
-                'IconActive'  => false,
-                'IconValue'   => '',
-                'ColorActive' => false,
-                'ColorValue'  => -1
+                'Value'      => $value,
+                'Caption'    => $this->Translate((string)$caption),
+                'IconActive' => false,
+                'IconValue'  => '',
+                'ColorActive'      => false,
+                'ColorValue'      => -1
             ];
         }
 
@@ -203,8 +239,7 @@ trait HAPresentationTrait
                     'Caption'     => $this->Translate((string)$captionKey),
                     'IconActive'  => false,
                     'IconValue'   => '',
-                    'ColorActive' => false,
-                    'ColorValue'  => -1
+                    'Color'  => -1
                 ];
             }
             return $this->filterPresentation([
@@ -273,7 +308,7 @@ trait HAPresentationTrait
 
         return $this->filterPresentation([
                                              'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-                                             'OPTIONS'      => $this->getPresentationOptions($values)
+                                             'OPTIONS'      => $this->getValuePresentationOptions($values)
                                          ]);
     }
 
@@ -350,8 +385,7 @@ trait HAPresentationTrait
                 'Caption'             => $this->Translate($captionKey),
                 'IconActive'          => false,
                 'IconValue'           => '',
-                'ColorActive'         => false,
-                'ColorValue'          => -1,
+                'Color'               => -1,
                 'ContentColorActive'  => false,
                 'ContentColorValue'   => -1,
                 'ColorDisplay'        => -1,
@@ -628,6 +662,26 @@ trait HAPresentationTrait
                 'Caption'     => $this->translate((string)$value),
                 'IconActive'  => false,
                 'IconValue'   => '',
+                'Color'  => -1
+            ];
+        }
+
+        return json_encode($formatted, JSON_THROW_ON_ERROR);
+    }
+
+    private function getValuePresentationOptions(?array $options): ?string
+    {
+        if (!is_array($options) || count($options) === 0) {
+            return null;
+        }
+
+        $formatted = [];
+        foreach ($options as $value) {
+            $formatted[] = [
+                'Value'       => $value,
+                'Caption'     => $this->translate((string)$value),
+                'IconActive'  => false,
+                'IconValue'   => '',
                 'ColorActive' => false,
                 'ColorValue'  => -1
             ];
@@ -657,7 +711,7 @@ trait HAPresentationTrait
                 }
             }
         }
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
+        if ($domain === HAMediaPlayerDefinitions::DOMAIN || $domain === HAVacuumDefinitions::DOMAIN) {
             return $this->Translate('Status');
         }
         return $entity['name'] ?? $entity['entity_id'];

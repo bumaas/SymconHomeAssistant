@@ -338,6 +338,10 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return [$service, $data];
         }
 
+        if ($domain === HAButtonDefinitions::DOMAIN) {
+            return ['press', []];
+        }
+
         if ($domain === HAVacuumDefinitions::DOMAIN) {
             if (is_array($value)) {
                 if (isset($value['fan_speed'])) {

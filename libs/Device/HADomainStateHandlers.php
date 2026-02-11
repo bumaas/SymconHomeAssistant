@@ -49,14 +49,23 @@ trait HADomainStateHandlersTrait
         }
 
         $parsed = $this->parseEntityPayload($payload);
-        $value = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE]);
+        $attributes = [];
+        if (!empty($parsed[self::KEY_ATTRIBUTES]) && is_array($parsed[self::KEY_ATTRIBUTES])) {
+            $attributes = $parsed[self::KEY_ATTRIBUTES];
+        } elseif (!empty($this->entities[$entityId][self::KEY_ATTRIBUTES])
+                  && is_array($this->entities[$entityId][self::KEY_ATTRIBUTES])) {
+            $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES];
+        }
+        $value = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], $attributes);
 
         $this->debugExpert(
             'StateTopic',
             'SetValue',
             ['Ident' => $ident, 'Domain' => $domain, 'Entity' => $entity, 'Value' => $value]
         );
-        $this->setValueWithDebug($ident, $value);
+        if ($value !== null) {
+            $this->setValueWithDebug($ident, $value);
+        }
         $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $parsed[self::KEY_ATTRIBUTES] ?? null);
 
         if (!empty($parsed[self::KEY_ATTRIBUTES])) {
@@ -86,7 +95,7 @@ trait HADomainStateHandlersTrait
         }
 
         $parsed = $this->parseStatePayloadForEntity($entityId, $payload);
-        $value = $this->convertValueByDomain(HALightDefinitions::DOMAIN, $parsed['state']);
+        $value = $this->convertValueByDomain(HALightDefinitions::DOMAIN, $parsed['state'], $parsed['attributes'] ?? []);
 
         $this->setValueWithDebug($ident, $value);
         $this->updateEntityCache($entityId, $parsed['state'], $parsed['raw_attributes']);

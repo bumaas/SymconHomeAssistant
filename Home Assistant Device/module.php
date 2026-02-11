@@ -434,6 +434,25 @@ class HomeAssistantDevice extends IPSModuleStrict
         return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
+    public function GetEntityState(string $entityId): array
+    {
+        $entityId = trim($entityId);
+        if ($entityId === '') {
+            $this->debugExpert(__FUNCTION__, 'EntityID leer', [], true);
+            return [];
+        }
+
+        $state = $this->requestHaState($entityId);
+        if ($state === null) {
+            $this->debugExpert(__FUNCTION__, 'Keine Daten von HA', ['EntityID' => $entityId], true);
+            return [];
+        }
+
+        $this->applyInitialState($entityId, $state);
+
+        return $state;
+    }
+
     // --- Private Hilfsmethoden (Business Logic) ---
 
     /**
@@ -766,9 +785,17 @@ class HomeAssistantDevice extends IPSModuleStrict
             return;
         }
 
-        $finalValue = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE]);
-
-        $this->setValueWithDebug($ident, $finalValue);
+        $attributes = [];
+        if (!empty($parsed[self::KEY_ATTRIBUTES]) && is_array($parsed[self::KEY_ATTRIBUTES])) {
+            $attributes = $parsed[self::KEY_ATTRIBUTES];
+        } elseif (!empty($this->entities[$entityId][self::KEY_ATTRIBUTES])
+                  && is_array($this->entities[$entityId][self::KEY_ATTRIBUTES])) {
+            $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES];
+        }
+        $finalValue = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], $attributes);
+        if ($finalValue !== null) {
+            $this->setValueWithDebug($ident, $finalValue);
+        }
         $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $parsed['attributes'] ?? null);
 
         if (!empty($parsed[self::KEY_ATTRIBUTES])) {
@@ -834,14 +861,69 @@ class HomeAssistantDevice extends IPSModuleStrict
         return $result;
     }
 
-    private function convertValueByDomain(string $domain, string $valueData): string|bool|float
+    private function convertValueByDomain(string $domain, string $valueData, array $attributes = []): string|bool|float|int|null
     {
         $normalized = strtoupper(trim($valueData));
+        if ($normalized === 'UNAVAILABLE' || $normalized === 'UNKNOWN') {
+            if ($domain === HASelectDefinitions::DOMAIN || $domain === HAButtonDefinitions::DOMAIN) {
+                return null;
+            }
+        }
+        if ($domain === HASensorDefinitions::DOMAIN) {
+            $deviceClass = $attributes['device_class'] ?? '';
+            if (is_string($deviceClass)) {
+                $deviceClass = trim($deviceClass);
+            } else {
+                $deviceClass = '';
+            }
+            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
+                $parsed = $this->parseTimestampValue($valueData);
+                if ($parsed === null) {
+                    if (!in_array(strtolower(trim($valueData)), ['unknown', 'unavailable'], true)) {
+                        $this->debugExpert('Timestamp', 'Zeitstempel konnte nicht geparst werden', ['Value' => $valueData], true);
+                    }
+                    return null;
+                }
+                return $parsed;
+            }
+            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_DURATION) {
+                return (int)$valueData;
+            }
+            return (float)$valueData;
+        }
+
         return match ($domain) {
+            HAButtonDefinitions::DOMAIN => 0,
             HALightDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HABinarySensorDefinitions::DOMAIN => $normalized === 'ON',
-            HASensorDefinitions::DOMAIN, HAClimateDefinitions::DOMAIN, HANumberDefinitions::DOMAIN => (float)$valueData,
+            HAClimateDefinitions::DOMAIN, HANumberDefinitions::DOMAIN => (float)$valueData,
             default => $valueData,
         };
+    }
+
+    private function parseTimestampValue(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_float($value)) {
+            return (int)$value;
+        }
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return null;
+            }
+            if (is_numeric($trimmed)) {
+                return (int)$trimmed;
+            }
+            try {
+                $dt = new DateTimeImmutable($trimmed);
+            } catch (Exception) {
+                return null;
+            }
+            return $dt->getTimestamp();
+        }
+        return null;
     }
 
     // --- Technische Helper ---
@@ -1163,7 +1245,8 @@ class HomeAssistantDevice extends IPSModuleStrict
             HANumberDefinitions::DOMAIN,
             HALockDefinitions::DOMAIN,
             HACoverDefinitions::DOMAIN,
-            HASelectDefinitions::DOMAIN
+            HASelectDefinitions::DOMAIN,
+            HAButtonDefinitions::DOMAIN
         ],              true);
     }
 
@@ -1175,6 +1258,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             HACoverDefinitions::DOMAIN => HACoverDefinitions::normalizeCommand($value),
             HALockDefinitions::DOMAIN => HALockDefinitions::normalizeCommand($value),
             HASelectDefinitions::DOMAIN => $this->formatSelectPayload($value, $attributes),
+            HAButtonDefinitions::DOMAIN => 'press',
             default => (string)$value,
         };
     }
@@ -1202,8 +1286,19 @@ class HomeAssistantDevice extends IPSModuleStrict
     {
         if ($domain === HASensorDefinitions::DOMAIN) {
             $deviceClass = $attributes['device_class'] ?? '';
-            if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_ENUM) {
+            if (is_string($deviceClass)) {
+                $deviceClass = trim($deviceClass);
+            } else {
+                $deviceClass = '';
+            }
+            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_ENUM) {
                 return VARIABLETYPE_STRING;
+            }
+            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
+                return VARIABLETYPE_INTEGER;
+            }
+            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_DURATION) {
+                return VARIABLETYPE_INTEGER;
             }
         }
         return match ($domain) {
@@ -1219,6 +1314,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             HACoverDefinitions::DOMAIN => HACoverDefinitions::VARIABLE_TYPE,
             HAEventDefinitions::DOMAIN => HAEventDefinitions::VARIABLE_TYPE,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::VARIABLE_TYPE,
+            HAButtonDefinitions::DOMAIN => HAButtonDefinitions::VARIABLE_TYPE,
             default => VARIABLETYPE_STRING,
         };
     }
@@ -1386,16 +1482,14 @@ class HomeAssistantDevice extends IPSModuleStrict
                 'Caption' => $this->Translate('Abgeschlossen'),
                 'IconActive' => false,
                 'IconValue' => '',
-                'ColorActive' => false,
-                'ColorValue' => -1
+                'Color' => -1
             ],
             [
                 'Value' => HALockDefinitions::ACTION_UNLOCK,
                 'Caption' => $this->Translate('Aufgeschlossen'),
                 'IconActive' => false,
                 'IconValue' => '',
-                'ColorActive' => false,
-                'ColorValue' => -1
+                'Color' => -1
             ]
         ];
 
@@ -1405,8 +1499,7 @@ class HomeAssistantDevice extends IPSModuleStrict
                 'Caption' => $this->Translate('Öffnen'),
                 'IconActive' => false,
                 'IconValue' => '',
-                'ColorActive' => false,
-                'ColorValue' => -1
+                'Color' => -1
             ];
         }
 
@@ -1736,8 +1829,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             $option['Value'] = (int)($option['Value'] ?? 0);
             $option['IconActive'] = false;
             $option['IconValue'] = '';
-            $option['ColorActive'] = false;
-            $option['ColorValue'] = -1;
+            $option['Color'] = -1;
         }
         unset($option);
 
@@ -1890,6 +1982,16 @@ class HomeAssistantDevice extends IPSModuleStrict
                 $value = $this->castVariableValue($value, $meta['type']);
             }
             $this->setValueWithDebug($ident, $value);
+            if ($key === 'source' || $key === 'sound_mode') {
+                $listKey = ($key === 'source') ? 'source_list' : 'sound_mode_list';
+                $list = $attributes[$listKey] ?? null;
+                if (is_array($list) && $list !== []) {
+                    $presentation = $this->getMediaPlayerAttributePresentation($key, $attributes, $meta);
+                    $position = $this->getMediaPlayerAttributePosition($key, 0);
+                    $name = $this->Translate((string)$meta['caption']);
+                    $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+                }
+            }
             if ($key === 'media_image_url' && is_string($value)) {
                 $this->updateMediaPlayerCoverMedia($entityId, $value);
             }
@@ -2235,8 +2337,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         foreach ($options as &$option) {
             $option['IconActive'] = false;
             $option['IconValue'] = '';
-            $option['ColorActive'] = false;
-            $option['ColorValue'] = -1;
+            $option['Color'] = -1;
         }
         unset($option);
 
@@ -2756,8 +2857,10 @@ class HomeAssistantDevice extends IPSModuleStrict
                     $this->setValueWithDebug($ident, $value);
                 }
             } else {
-                $value = $this->convertValueByDomain($domain, $rawState);
-                $this->setValueWithDebug($ident, $value);
+                $value = $this->convertValueByDomain($domain, $rawState, is_array($attributes) ? $attributes : []);
+                if ($value !== null) {
+                    $this->setValueWithDebug($ident, $value);
+                }
             }
         }
 

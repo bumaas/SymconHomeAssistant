@@ -16,3 +16,4 @@ require_once __DIR__ . '/HAEventDefinitions.php';
 require_once __DIR__ . '/HASelectDefinitions.php';
 require_once __DIR__ . '/HAVacuumDefinitions.php';
 require_once __DIR__ . '/HAMediaPlayerDefinitions.php';
+require_once __DIR__ . '/HAButtonDefinitions.php';
