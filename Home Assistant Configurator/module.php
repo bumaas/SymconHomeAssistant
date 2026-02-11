@@ -137,7 +137,8 @@ EOT;
             HAEventDefinitions::DOMAIN,
             HASelectDefinitions::DOMAIN,
             HAVacuumDefinitions::DOMAIN,
-            HAMediaPlayerDefinitions::DOMAIN
+            HAMediaPlayerDefinitions::DOMAIN,
+            HAButtonDefinitions::DOMAIN
         ];
         $domainList     = [];
         foreach ($defaultDomains as $d) {

@@ -25,7 +25,7 @@ Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symc
 | `event`        | teilweise             | Enumeration aus `event_type` | Weitere Event-Attribute |
 | `vacuum`       | teilweise             | REST `start`/`stop`/`pause`/`return_to_base`, `fan_speed` | Weitere Dienste/Features je Modell |
 | `media_player` | teilweise             | Basis-Status, Wiedergabe-Aktionen, Attribute (Volume/Mute/Position/Medieninfos), Cover als Medienobjekt | Weitere Dienste/Features je Modell |
-| `button`       | teilweise             | `press` als Aktion (Enumeration mit einem Eintrag) | Weitere Button-Typen |
+| `button`       | voll                  | `press` als Aktion (Enumeration mit einem Eintrag) | - |
 
 ## Voraussetzungen
 
