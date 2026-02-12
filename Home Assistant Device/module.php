@@ -3986,7 +3986,3 @@ class HomeAssistantDevice extends IPSModuleStrict
         return array_any($required, static fn($mode) => in_array($mode, $modes, true));
     }
 }
-
-
-
-
