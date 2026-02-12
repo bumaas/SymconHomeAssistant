@@ -166,6 +166,12 @@ trait HAEntityStoreTrait
             $this->maintainVacuumActionVariable($entity);
             $this->maintainVacuumFanSpeedVariable($entity);
         }
+        if ($domain === HAFanDefinitions::DOMAIN) {
+            $this->maintainFanAttributeVariables($entity);
+        }
+        if ($domain === HAHumidifierDefinitions::DOMAIN) {
+            $this->maintainHumidifierAttributeVariables($entity);
+        }
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
             $this->maintainMediaPlayerActionVariable($entity);
             $this->maintainMediaPlayerPowerVariable($entity);

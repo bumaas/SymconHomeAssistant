@@ -51,6 +51,8 @@
               {"caption": "Select (select)", "value": "select"},
               {"caption": "Button (button)", "value": "button"},
               {"caption": "Vacuum (vacuum)", "value": "vacuum"},
+              {"caption": "Fan (fan)", "value": "fan"},
+              {"caption": "Humidifier (humidifier)", "value": "humidifier"},
               {"caption": "Media Player (media_player)", "value": "media_player"}
             ]
           },
@@ -116,6 +118,14 @@
           "type":    "CheckBox",
           "name":    "EnableExpertDebug",
           "caption": "Enable extended debug output"
+        },
+        {
+          "type":    "NumberSpinner",
+          "name":    "OutputBufferSize",
+          "caption": "Output buffer (MB)",
+          "minimum": 0,
+          "maximum": 100,
+          "value":   10
         }
       ]
     }

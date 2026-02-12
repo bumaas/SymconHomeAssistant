@@ -23,6 +23,8 @@ Dieses Repository stellt Symcon Module bereit, um Home Assistant Geräte in Symc
 | `lock`         | voll                  | REST `lock`/`unlock`/`open`, Hauptvariable Wertanzeige, Aktion als Enumeration | Code-Handling bei `open` (falls erforderlich) |
 | `cover`        | teilweise             | Position/Tilt, REST `open/close/stop` + `set_position` | Device-Class-Spezifika/weitere Attribute |
 | `event`        | teilweise             | Enumeration aus `event_type` | Weitere Event-Attribute |
+| `fan`          | teilweise             | Status (On/Off), Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`) | Weitere Dienste/Features je Modell |
+| `humidifier`   | teilweise             | Status (On/Off), Attribute (`target_humidity`, `current_humidity`, `mode`, `action`) | Weitere Dienste/Features je Modell |
 | `vacuum`       | teilweise             | REST `start`/`stop`/`pause`/`return_to_base`, `fan_speed` | Weitere Dienste/Features je Modell |
 | `media_player` | teilweise             | Basis-Status, Wiedergabe-Aktionen, Attribute (Volume/Mute/Position/Medieninfos), Cover als Medienobjekt | Weitere Dienste/Features je Modell |
 | `button`       | voll                  | `press` als Aktion (Enumeration mit einem Eintrag) | - |

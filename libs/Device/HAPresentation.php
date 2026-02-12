@@ -72,6 +72,14 @@ trait HAPresentationTrait
             return $this->getVacuumPresentation();
         }
 
+        if ($domain === HAFanDefinitions::DOMAIN) {
+            return $this->getFanPresentation();
+        }
+
+        if ($domain === HAHumidifierDefinitions::DOMAIN) {
+            return $this->getHumidifierPresentation();
+        }
+
         if ($domain === HAButtonDefinitions::DOMAIN) {
             return $this->getButtonPresentation($entity);
         }
@@ -181,6 +189,40 @@ trait HAPresentationTrait
                                          ]);
     }
 
+    private function getFanPresentation(): array
+    {
+        $options = [
+            [
+                'Value'       => false,
+                'Caption'     => $this->Translate('Off'),
+                'IconActive'  => false,
+                'IconValue'   => '',
+                'ColorActive' => false,
+                'ColorValue'  => -1
+            ],
+            [
+                'Value'       => true,
+                'Caption'     => $this->Translate('On'),
+                'IconActive'  => false,
+                'IconValue'   => '',
+                'ColorActive' => false,
+                'ColorValue'  => -1
+            ]
+        ];
+
+        return $this->filterPresentation([
+                                             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+                                         ]);
+    }
+
+    private function getHumidifierPresentation(): array
+    {
+        return $this->filterPresentation([
+                                             'PRESENTATION' => HAHumidifierDefinitions::PRESENTATION
+                                         ]);
+    }
+
     private function getMediaPlayerAttributePresentation(string $attribute, array $attributes, array $meta): array
     {
         if ($attribute === 'volume_level') {
@@ -217,8 +259,6 @@ trait HAPresentationTrait
                                                  'MAX'          => $max,
                                                  'STEP_SIZE'    => $stepSize,
                                                  'USAGE_TYPE'   => $usageType,
-                                                 'PERCENTAGE'   => false,
-                                                 'DIGITS'       => 0,
                                                  'SUFFIX'       => $this->formatPresentationSuffix('s')
                                              ]);
         }
@@ -283,6 +323,105 @@ trait HAPresentationTrait
                                                  'ICON_FALSE'     => $iconFalse,
                                                  'ICON_TRUE'      => $iconTrue,
                                                  'USE_ICON_FALSE' => $useIconFalse
+                                             ]);
+        }
+
+        $suffix = $meta['suffix'] ?? '';
+        return $this->filterPresentation([
+                                             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                             'SUFFIX'       => $this->formatPresentationSuffix((string)$suffix)
+                                         ]);
+    }
+
+    private function getFanAttributePresentation(string $attribute, array $attributes, array $meta): array
+    {
+        if ($attribute === 'percentage') {
+            $min  = (float)($meta['min'] ?? 0);
+            $max  = (float)($meta['max'] ?? 100);
+            $step = (float)($meta['step_size'] ?? 1);
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                                                 'MIN'          => $min,
+                                                 'MAX'          => $max,
+                                                 'STEP_SIZE'    => $step
+                                             ]);
+        }
+
+        if ($attribute === 'preset_mode') {
+            $options = $this->getPresentationOptions(
+                is_array($attributes['preset_modes'] ?? null) ? $attributes['preset_modes'] : null
+            );
+            if ($options !== null) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                     'OPTIONS'      => $options
+                                                 ]);
+            }
+        }
+
+        if ($attribute === 'direction' || $attribute === 'current_direction') {
+            $options = $this->getPresentationOptions(
+                is_array($attributes['direction_list'] ?? null) ? $attributes['direction_list'] : null
+            );
+            if ($options !== null) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                     'OPTIONS'      => $options
+                                                 ]);
+            }
+        }
+
+        if ($attribute === 'oscillating') {
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_SWITCH
+                                             ]);
+        }
+
+        $suffix = $meta['suffix'] ?? '';
+        return $this->filterPresentation([
+                                             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                             'SUFFIX'       => $this->formatPresentationSuffix((string)$suffix)
+                                         ]);
+    }
+
+    private function getHumidifierAttributePresentation(string $attribute, array $attributes, array $meta): array
+    {
+        if ($attribute === 'target_humidity') {
+            $min  = is_numeric($attributes['min_humidity'] ?? null) ? (float)$attributes['min_humidity'] : 0;
+            $max  = is_numeric($attributes['max_humidity'] ?? null) ? (float)$attributes['max_humidity'] : 100;
+            $step = is_numeric($attributes['target_humidity_step'] ?? null) ? (float)$attributes['target_humidity_step'] : 1;
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                                                 'MIN'          => $min,
+                                                 'MAX'          => $max,
+                                                 'STEP_SIZE'    => $step,
+                                                 'SUFFIX'       => $this->formatPresentationSuffix('%')
+                                             ]);
+        }
+
+        if ($attribute === 'current_humidity') {
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                                 'DIGITS'       => 0,
+                                                 'SUFFIX'       => $this->formatPresentationSuffix('%')
+                                             ]);
+        }
+
+        if ($attribute === 'mode') {
+            $options = $this->getPresentationOptions(
+                is_array($attributes['available_modes'] ?? null) ? $attributes['available_modes'] : null
+            );
+            if ($options !== null) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                     'OPTIONS'      => $options
+                                                 ]);
+            }
+        }
+
+        if ($attribute === 'action') {
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION
                                              ]);
         }
 
@@ -372,7 +511,6 @@ trait HAPresentationTrait
                                                  'MIN'          => 0,
                                                  'MAX'          => 100,
                                                  'STEP_SIZE'    => 1,
-                                                 'PERCENTAGE'   => true,
                                                  'DIGITS'       => 1,
                                                  'SUFFIX'       => $this->formatPresentationSuffix('%')
                                              ]);
@@ -537,7 +675,6 @@ trait HAPresentationTrait
                                              'MIN'          => (float)$min,
                                              'MAX'          => (float)$max,
                                              'STEP_SIZE'    => (float)$step,
-                                             'PERCENTAGE'   => $suffix === '%',
                                              'DIGITS'       => $this->getNumericDigits($attributes, $step),
                                              'SUFFIX'       => $presentationSuffix
                                          ]);
@@ -711,10 +848,24 @@ trait HAPresentationTrait
                 }
             }
         }
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN || $domain === HAVacuumDefinitions::DOMAIN) {
-            return $this->Translate('Status');
+        if ($this->isStatusDomain($domain)) {
+            if (!$this->hasMultipleStatusEntities) {
+                return $this->Translate('Status');
+            }
+            $domainLabel = strtoupper($domain);
+            return $this->Translate('Status') . ' (' . $domainLabel . ')';
         }
         return $entity['name'] ?? $entity['entity_id'];
+    }
+
+    private function isStatusDomain(string $domain): bool
+    {
+        return in_array($domain, [
+            HAMediaPlayerDefinitions::DOMAIN,
+            HAVacuumDefinitions::DOMAIN,
+            HAFanDefinitions::DOMAIN,
+            HAHumidifierDefinitions::DOMAIN
+        ], true);
     }
 
     private function getClimateAttributePresentation(string $attribute, array $attributes): array
@@ -768,15 +919,12 @@ trait HAPresentationTrait
                                                          'MIN'          => (float)$min,
                                                          'MAX'          => (float)$max,
                                                          'STEP_SIZE'    => 1,
-                                                         'PERCENTAGE'   => true,
-                                                         'DIGITS'       => 0,
                                                          'SUFFIX'       => $this->formatPresentationSuffix('%')
                                                      ]);
                 }
             }
             return $this->filterPresentation([
                                                  'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-                                                 'PERCENTAGE'   => true,
                                                  'DIGITS'       => $digitsOverride ??
                                                                    $this->getNumericDigits($attributes, null, $attributes[$attribute] ?? null),
                                                  'SUFFIX'       => $this->formatPresentationSuffix('%')
@@ -851,7 +999,6 @@ trait HAPresentationTrait
                                              'MIN'          => (float)$min,
                                              'MAX'          => (float)$max,
                                              'STEP_SIZE'    => (float)$step,
-                                             'PERCENTAGE'   => false,
                                              'DIGITS'       => $this->getNumericDigits(
                                                  $attributes,
                                                  $step,

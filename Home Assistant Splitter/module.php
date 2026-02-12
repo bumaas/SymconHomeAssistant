@@ -22,6 +22,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterPropertyInteger('RestAckTimeoutSec', 5);
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyString('DebugResponseFormat', 'json_compact');
+        $this->RegisterPropertyInteger('OutputBufferSize', 10);
 
         $this->RegisterAttributeString('LastMQTTMessage', '');
         $this->RegisterAttributeString('LastRestError', '');
@@ -416,6 +417,56 @@ class HomeAssistantSplitter extends IPSModuleStrict
             };
         }
 
+        if ($domain === HAFanDefinitions::DOMAIN) {
+            if (is_array($value)) {
+                if (isset($value['percentage']) && is_numeric($value['percentage'])) {
+                    return ['set_percentage', ['percentage' => (int)$value['percentage']]];
+                }
+                if (array_key_exists('oscillating', $value)) {
+                    return ['oscillate', ['oscillating' => (bool)$value['oscillating']]];
+                }
+                if (isset($value['preset_mode'])) {
+                    return ['set_preset_mode', ['preset_mode' => (string)$value['preset_mode']]];
+                }
+                if (isset($value['direction'])) {
+                    return ['set_direction', ['direction' => (string)$value['direction']]];
+                }
+            }
+
+            if (is_bool($value)) {
+                return [$value ? 'turn_on' : 'turn_off', []];
+            }
+
+            $command = strtolower(trim((string)$value));
+            return match ($command) {
+                'on', 'turn_on' => ['turn_on', []],
+                'off', 'turn_off' => ['turn_off', []],
+                default => ['', []],
+            };
+        }
+
+        if ($domain === HAHumidifierDefinitions::DOMAIN) {
+            if (is_array($value)) {
+                if (isset($value['target_humidity']) && is_numeric($value['target_humidity'])) {
+                    return ['set_humidity', ['humidity' => (float)$value['target_humidity']]];
+                }
+                if (isset($value['mode'])) {
+                    return ['set_mode', ['mode' => (string)$value['mode']]];
+                }
+            }
+
+            if (is_bool($value)) {
+                return [$value ? 'turn_on' : 'turn_off', []];
+            }
+
+            $command = strtolower(trim((string)$value));
+            return match ($command) {
+                'on', 'turn_on' => ['turn_on', []],
+                'off', 'turn_off' => ['turn_off', []],
+                default => ['', []],
+            };
+        }
+
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
             if (is_array($value)) {
                 if (isset($value['volume_level']) && is_numeric($value['volume_level'])) {
@@ -591,10 +642,18 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return ['Error' => 'HTTP Error', 'HttpCode' => $httpCode];
         }
 
+        $response = (string)$response;
+        $bufferSizeMb = max(0, $this->ReadPropertyInteger('OutputBufferSize'));
+        $maxBytes = $bufferSizeMb > 0 ? $bufferSizeMb * 1024 * 1024 : 720 * 1024;
+        if (strlen($response) > $maxBytes) {
+            $this->debugExpert('REST', 'Image too large', ['Bytes' => strlen($response), 'Limit' => $maxBytes]);
+            return ['Error' => 'Image too large', 'HttpCode' => $httpCode];
+        }
+
         return [
             'HttpCode' => $httpCode,
             'ContentType' => $contentType,
-            'Base64' => base64_encode((string)$response)
+            'Base64' => base64_encode($response)
         ];
     }
 
@@ -709,6 +768,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
             HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
+            HAFanDefinitions::DOMAIN => HAFanDefinitions::SUPPORTED_FEATURES,
+            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::SUPPORTED_FEATURES,
             default => []
         };
 

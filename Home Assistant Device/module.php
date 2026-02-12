@@ -54,11 +54,14 @@ class HomeAssistantDevice extends IPSModuleStrict
 
     private array $entityPositions = [];
 
+    private bool $hasMultipleStatusEntities = false;
+
     private const string PROP_DEVICE_CONFIG = 'DeviceConfig';
     private const string PROP_DEVICE_AREA = 'DeviceArea';
     private const string PROP_DEVICE_NAME = 'DeviceName';
     private const string PROP_DEVICE_ID = 'DeviceID';
     private const string PROP_ENABLE_EXPERT_DEBUG = 'EnableExpertDebug';
+    private const string PROP_OUTPUT_BUFFER_SIZE = 'OutputBufferSize';
 
     public function Create(): void
     {
@@ -81,6 +84,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->RegisterPropertyString(self::PROP_DEVICE_NAME, '');
         $this->RegisterPropertyString(self::PROP_DEVICE_CONFIG, '[]');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
+        $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
 
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HA_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
     }
@@ -349,6 +353,10 @@ class HomeAssistantDevice extends IPSModuleStrict
             $payload = $this->buildLightAttributePayload($attribute, $Value);
         } elseif ($attributeInfo['domain'] === HACoverDefinitions::DOMAIN) {
             $payload = $this->buildCoverAttributePayload($attribute, $Value);
+        } elseif ($attributeInfo['domain'] === HAFanDefinitions::DOMAIN) {
+            $payload = $this->buildFanAttributePayload($attribute, $Value);
+        } elseif ($attributeInfo['domain'] === HAHumidifierDefinitions::DOMAIN) {
+            $payload = $this->buildHumidifierAttributePayload($attribute, $Value);
         } elseif ($attributeInfo['domain'] === HAMediaPlayerDefinitions::DOMAIN) {
             $payload = $this->buildMediaPlayerAttributePayload($attribute, $Value);
         } else {
@@ -526,6 +534,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->entityPositions = [];
         $filterTopics          = [];
         $positionIndex         = 0;
+        $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
 
         foreach ($configData as $row) {
             $entity = $this->normalizeEntity($row, 'processEntities');
@@ -564,6 +573,28 @@ class HomeAssistantDevice extends IPSModuleStrict
             }
         }
         return $filterTopics;
+    }
+
+    private function countStatusEntities(array $configData): int
+    {
+        $count = 0;
+        foreach ($configData as $row) {
+            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            if ($entity === null || !($entity['create_var'] ?? true)) {
+                continue;
+            }
+            $domain = (string)($entity['domain'] ?? '');
+            if ($domain === '') {
+                continue;
+            }
+            if ($this->isStatusDomain($domain)) {
+                $count++;
+                if ($count > 1) {
+                    return $count;
+                }
+            }
+        }
+        return $count;
     }
 
     /**
@@ -625,6 +656,12 @@ class HomeAssistantDevice extends IPSModuleStrict
             if ($this->isClimateTargetWritable($entity['attributes'] ?? [])) {
                 $this->EnableAction($ident);
             }
+        } elseif ($domain === HAFanDefinitions::DOMAIN) {
+            if ($this->isFanToggleSupported($entity['attributes'] ?? [])) {
+                $this->EnableAction($ident);
+            }
+        } elseif ($domain === HAHumidifierDefinitions::DOMAIN) {
+            $this->EnableAction($ident);
         } elseif ($this->isWriteable($domain)) {
             $this->EnableAction($ident);
         }
@@ -634,6 +671,12 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($domain === HAClimateDefinitions::DOMAIN) {
             $this->maintainClimateAttributeVariables($entity);
+        }
+        if ($domain === HAFanDefinitions::DOMAIN) {
+            $this->maintainFanAttributeVariables($entity);
+        }
+        if ($domain === HAHumidifierDefinitions::DOMAIN) {
+            $this->maintainHumidifierAttributeVariables($entity);
         }
         if ($domain === HALockDefinitions::DOMAIN) {
             $this->maintainLockActionVariable($entity);
@@ -757,6 +800,40 @@ class HomeAssistantDevice extends IPSModuleStrict
                 $this->setValueWithDebug($ident, $parsed[self::KEY_STATE]);
             }
             $this->updateVacuumFanSpeedValue($entityId, $attributes);
+            if (is_array($attributes) && $attributes !== []) {
+                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+            } else {
+                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
+            }
+            return;
+        }
+        if ($domain === HAFanDefinitions::DOMAIN) {
+            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
+            if (is_array($attributes) && $attributes !== []) {
+                $attributes = $this->storeEntityAttributes($entityId, $attributes);
+            }
+            if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
+                $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], is_array($attributes) ? $attributes : []));
+            }
+            $this->updateFanAttributeValues($entityId, is_array($attributes) ? $attributes : []);
+            if (is_array($attributes) && $attributes !== []) {
+                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+            } else {
+                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
+            }
+            return;
+        }
+        if ($domain === HAHumidifierDefinitions::DOMAIN) {
+            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
+            if (is_array($attributes) && $attributes !== []) {
+                $attributes = $this->storeEntityAttributes($entityId, $attributes);
+            }
+            if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
+                $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], is_array($attributes) ? $attributes : []));
+            }
+            $this->updateHumidifierAttributeValues($entityId, is_array($attributes) ? $attributes : []);
             if (is_array($attributes) && $attributes !== []) {
                 $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
                 $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
@@ -894,7 +971,11 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         return match ($domain) {
             HAButtonDefinitions::DOMAIN => 0,
-            HALightDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HABinarySensorDefinitions::DOMAIN => $normalized === 'ON',
+            HALightDefinitions::DOMAIN,
+            HASwitchDefinitions::DOMAIN,
+            HABinarySensorDefinitions::DOMAIN,
+            HAFanDefinitions::DOMAIN,
+            HAHumidifierDefinitions::DOMAIN => $normalized === 'ON',
             HAClimateDefinitions::DOMAIN, HANumberDefinitions::DOMAIN => (float)$valueData,
             default => $valueData,
         };
@@ -1075,6 +1156,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
             return $this->mapMediaPlayerAttributeAliases($attributes, $context);
         }
+        if ($domain === HAHumidifierDefinitions::DOMAIN) {
+            return $this->mapHumidifierAttributeAliases($attributes, $context);
+        }
 
         return $attributes;
         /* das ausfiltern unbekannte attribute entfällt erst einmal
@@ -1143,6 +1227,17 @@ class HomeAssistantDevice extends IPSModuleStrict
         return $attributes;
     }
 
+    private function mapHumidifierAttributeAliases(array $attributes, string $context): array
+    {
+        if (!array_key_exists('target_humidity', $attributes) && array_key_exists('humidity', $attributes)) {
+            $attributes['target_humidity'] = $attributes['humidity'];
+            unset($attributes['humidity']);
+            $this->debugExpert($context, 'Humidifier-Attribute umbenannt', ['Mapped' => ['humidity' => 'target_humidity']]);
+        }
+
+        return $attributes;
+    }
+
     private function makeMediaImageUrlAbsolute(string $url): string
     {
         $trimmed = trim($url);
@@ -1206,6 +1301,8 @@ class HomeAssistantDevice extends IPSModuleStrict
             HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
+            HAFanDefinitions::DOMAIN => HAFanDefinitions::SUPPORTED_FEATURES,
+            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::SUPPORTED_FEATURES,
             default => []
         };
 
@@ -1246,7 +1343,9 @@ class HomeAssistantDevice extends IPSModuleStrict
             HALockDefinitions::DOMAIN,
             HACoverDefinitions::DOMAIN,
             HASelectDefinitions::DOMAIN,
-            HAButtonDefinitions::DOMAIN
+            HAButtonDefinitions::DOMAIN,
+            HAFanDefinitions::DOMAIN,
+            HAHumidifierDefinitions::DOMAIN
         ],              true);
     }
 
@@ -1259,6 +1358,8 @@ class HomeAssistantDevice extends IPSModuleStrict
             HALockDefinitions::DOMAIN => HALockDefinitions::normalizeCommand($value),
             HASelectDefinitions::DOMAIN => $this->formatSelectPayload($value, $attributes),
             HAButtonDefinitions::DOMAIN => 'press',
+            HAFanDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
+            HAHumidifierDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
             default => (string)$value,
         };
     }
@@ -1315,6 +1416,8 @@ class HomeAssistantDevice extends IPSModuleStrict
             HAEventDefinitions::DOMAIN => HAEventDefinitions::VARIABLE_TYPE,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::VARIABLE_TYPE,
             HAButtonDefinitions::DOMAIN => HAButtonDefinitions::VARIABLE_TYPE,
+            HAFanDefinitions::DOMAIN => HAFanDefinitions::VARIABLE_TYPE,
+            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::VARIABLE_TYPE,
             default => VARIABLETYPE_STRING,
         };
     }
@@ -1332,6 +1435,16 @@ class HomeAssistantDevice extends IPSModuleStrict
         return $hasTargetFeature || $hasTargetAttribute;
     }
 
+    private function isFanToggleSupported(mixed $attributes): bool
+    {
+        if (!is_array($attributes)) {
+            return false;
+        }
+        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
+        return (($supported & HAFanDefinitions::FEATURE_TURN_ON) === HAFanDefinitions::FEATURE_TURN_ON)
+               || (($supported & HAFanDefinitions::FEATURE_TURN_OFF) === HAFanDefinitions::FEATURE_TURN_OFF);
+    }
+
     private function isEntityWritable(string $domain, mixed $attributes): bool
     {
         if (!$this->isWriteable($domain)) {
@@ -1339,6 +1452,12 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($domain === HAClimateDefinitions::DOMAIN) {
             return $this->isClimateTargetWritable($attributes);
+        }
+        if ($domain === HAFanDefinitions::DOMAIN) {
+            return $this->isFanToggleSupported($attributes);
+        }
+        if ($domain === HAHumidifierDefinitions::DOMAIN) {
+            return true;
         }
         return true;
     }
@@ -1962,6 +2081,356 @@ class HomeAssistantDevice extends IPSModuleStrict
         return true;
     }
 
+    private function isWritableFanAttribute(string $attribute, array $entityAttributes = []): bool
+    {
+        $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return false;
+        }
+        if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
+            return false;
+        }
+        return true;
+    }
+
+    private function shouldCreateFanAttribute(string $attribute, array $meta, array $attributes): bool
+    {
+        $hasAttribute = array_key_exists($attribute, $attributes);
+        if (!$hasAttribute) {
+            if ($attribute === 'preset_mode') {
+                $hasAttribute = array_key_exists('preset_modes', $attributes);
+            } elseif ($attribute === 'direction' || $attribute === 'current_direction') {
+                $hasAttribute = array_key_exists('direction_list', $attributes);
+            }
+        }
+
+        if (($meta['writable'] ?? false) === true) {
+            return $hasAttribute || $this->checkSupportedFeatures($meta, $attributes);
+        }
+        return $hasAttribute;
+    }
+
+    private function applyFanAttributeActionState(string $attribute, array $attributes, string $ident): void
+    {
+        if ($this->isWritableFanAttribute($attribute, $attributes)) {
+            $this->EnableAction($ident);
+        } else {
+            $this->DisableAction($ident);
+        }
+    }
+
+    private function maintainFanAttributeVariables(array $entity): void
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
+        foreach (HAFanDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
+            if (!$this->shouldCreateFanAttribute($key, $meta, $attributes)) {
+                continue;
+            }
+            $ident        = $baseIdent . '_' . $key;
+            $name         = $this->Translate((string)$meta['caption']);
+            $basePosition = 0;
+            $position     = $this->getFanAttributePosition($key, $basePosition);
+            $presentation = $this->getFanAttributePresentation($key, $attributes, $meta);
+            $exists = @$this->GetIDForIdent($ident) !== false;
+            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+            if (!$exists) {
+                $this->applyFanAttributeActionState($key, $attributes, $ident);
+            } else {
+                $this->applyFanAttributeActionState($key, $attributes, $ident);
+            }
+        }
+    }
+
+    private function ensureFanAttributeVariable(string $entityId, string $attribute): bool
+    {
+        $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if ($meta === null) {
+            return false;
+        }
+        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        if (@$this->GetIDForIdent($ident) !== false) {
+            return true;
+        }
+
+        $entity = $this->entities[$entityId] ?? [
+            'entity_id' => $entityId,
+            'name'      => $entityId
+        ];
+
+        $attributes = $entity['attributes'] ?? [];
+        $attributesWith = is_array($attributes) ? $attributes : [];
+        if (!array_key_exists($attribute, $attributesWith)) {
+            $attributesWith[$attribute] = null;
+        }
+        if (!$this->shouldCreateFanAttribute($attribute, $meta, $attributesWith)) {
+            return false;
+        }
+        $name         = $this->Translate((string)$meta['caption']);
+        $basePosition = 0;
+        $position     = $this->getFanAttributePosition($attribute, $basePosition);
+        $presentation = $this->getFanAttributePresentation($attribute, is_array($attributes) ? $attributes : [], $meta);
+        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+        $this->applyFanAttributeActionState($attribute, is_array($attributes) ? $attributes : [], $ident);
+        return true;
+    }
+
+    private function updateFanAttributeValues(string $entityId, array $attributes): void
+    {
+        foreach (HAFanDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
+            if (!array_key_exists($key, $attributes)) {
+                continue;
+            }
+
+            $ident = $this->sanitizeIdent($entityId . '_' . $key);
+            $varId = @$this->GetIDForIdent($ident);
+            if ($varId === false) {
+                continue;
+            }
+
+            $value = $attributes[$key];
+            $value = $this->castVariableValue($value, $meta['type']);
+            $this->setValueWithDebug($ident, $value);
+            if ($key === 'mode') {
+                $modes = $attributes['available_modes'] ?? null;
+                if (is_array($modes) && $modes !== []) {
+                    $presentation = $this->getHumidifierAttributePresentation($key, $attributes, $meta);
+                    $position = $this->getHumidifierAttributePosition($key, 0);
+                    $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                }
+            }
+            if ($key === 'target_humidity') {
+                $presentation = $this->getHumidifierAttributePresentation($key, $attributes, $meta);
+                $position = $this->getHumidifierAttributePosition($key, 0);
+                $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+            }
+        }
+    }
+
+    private function buildFanAttributePayload(string $attribute, mixed $value): string
+    {
+        $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return '';
+        }
+        $payloadValue = $this->parseFanAttributeValue($attribute, $value);
+        return json_encode([$attribute => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function parseFanAttributeValue(string $attribute, mixed $value): mixed
+    {
+        return match ($attribute) {
+            'percentage' => max(0, min(100, (int)$value)),
+            'oscillating' => (bool)$value,
+            'preset_mode', 'direction' => trim((string)$value),
+            default => $value,
+        };
+    }
+
+    private function isWritableHumidifierAttribute(string $attribute, array $entityAttributes = []): bool
+    {
+        $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return false;
+        }
+        if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
+            return false;
+        }
+        return true;
+    }
+
+    private function shouldCreateHumidifierAttribute(string $attribute, array $meta, array $attributes): bool
+    {
+        $hasAttribute = array_key_exists($attribute, $attributes);
+        if (!$hasAttribute && $attribute === 'mode') {
+            $hasAttribute = array_key_exists('available_modes', $attributes);
+        }
+
+        if (($meta['writable'] ?? false) === true) {
+            return $hasAttribute || $this->checkSupportedFeatures($meta, $attributes);
+        }
+        return $hasAttribute;
+    }
+
+    private function applyHumidifierAttributeActionState(string $attribute, array $attributes, string $ident): void
+    {
+        if ($this->isWritableHumidifierAttribute($attribute, $attributes)) {
+            $this->EnableAction($ident);
+        } else {
+            $this->DisableAction($ident);
+        }
+    }
+
+    private function maintainHumidifierAttributeVariables(array $entity): void
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+        $hasModes = $this->hasHumidifierModes($attributes);
+
+        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
+        foreach (HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
+            if (!$this->shouldCreateHumidifierAttribute($key, $meta, $attributes)) {
+                continue;
+            }
+            $ident        = $baseIdent . '_' . $key;
+            $name         = $this->Translate((string)$meta['caption']);
+            $basePosition = 0;
+            $position     = $this->getHumidifierAttributePosition($key, $basePosition);
+            $presentation = $this->getHumidifierAttributePresentation($key, $attributes, $meta);
+            $exists = @$this->GetIDForIdent($ident) !== false;
+            if ($key === 'mode' && !$hasModes && $exists) {
+                $this->applyHumidifierAttributeActionState($key, $attributes, $ident);
+                continue;
+            }
+            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+            if (!$exists) {
+                $this->applyHumidifierAttributeActionState($key, $attributes, $ident);
+            } else {
+                $this->applyHumidifierAttributeActionState($key, $attributes, $ident);
+            }
+        }
+    }
+
+    private function ensureHumidifierAttributeVariable(string $entityId, string $attribute): bool
+    {
+        $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if ($meta === null) {
+            return false;
+        }
+        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        if (@$this->GetIDForIdent($ident) !== false) {
+            return true;
+        }
+
+        $entity = $this->entities[$entityId] ?? [
+            'entity_id' => $entityId,
+            'name'      => $entityId
+        ];
+
+        $attributes = $entity['attributes'] ?? [];
+        $attributesWith = is_array($attributes) ? $attributes : [];
+        if (!array_key_exists($attribute, $attributesWith)) {
+            $attributesWith[$attribute] = null;
+        }
+        if (!$this->shouldCreateHumidifierAttribute($attribute, $meta, $attributesWith)) {
+            return false;
+        }
+        $name         = $this->Translate((string)$meta['caption']);
+        $basePosition = 0;
+        $position     = $this->getHumidifierAttributePosition($attribute, $basePosition);
+        $presentation = $this->getHumidifierAttributePresentation($attribute, $attributesWith, $meta);
+        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+        $this->applyHumidifierAttributeActionState($attribute, $attributesWith, $ident);
+        return true;
+    }
+
+    private function updateHumidifierAttributeValues(string $entityId, array $attributes): void
+    {
+        if (array_key_exists('supported_features', $attributes)) {
+            $ident = $this->sanitizeIdent($entityId . '_mode');
+            if (@$this->GetIDForIdent($ident) !== false) {
+                $this->applyHumidifierAttributeActionState('mode', $attributes, $ident);
+            }
+        }
+        if (array_key_exists('min_humidity', $attributes)
+            || array_key_exists('max_humidity', $attributes)
+            || array_key_exists('target_humidity_step', $attributes)) {
+            $ident = $this->sanitizeIdent($entityId . '_target_humidity');
+            if (@$this->GetIDForIdent($ident) !== false) {
+                $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS['target_humidity'] ?? null;
+                if (is_array($meta)) {
+                    $presentation = $this->getHumidifierAttributePresentation('target_humidity', $attributes, $meta);
+                    $position = $this->getHumidifierAttributePosition('target_humidity', 0);
+                    $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                }
+            }
+        }
+        if (array_key_exists('available_modes', $attributes)) {
+            $ident = $this->sanitizeIdent($entityId . '_mode');
+            if (@$this->GetIDForIdent($ident) !== false) {
+                $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS['mode'] ?? null;
+                if (is_array($meta)) {
+                    $presentation = $this->getHumidifierAttributePresentation('mode', $attributes, $meta);
+                    $position = $this->getHumidifierAttributePosition('mode', 0);
+                    $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                    $this->applyHumidifierAttributeActionState('mode', $attributes, $ident);
+                }
+            }
+        }
+        foreach (HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
+            if (!array_key_exists($key, $attributes)) {
+                continue;
+            }
+
+            $ident = $this->sanitizeIdent($entityId . '_' . $key);
+            $varId = @$this->GetIDForIdent($ident);
+            if ($varId === false) {
+                continue;
+            }
+
+            $value = $attributes[$key];
+            $value = $this->castVariableValue($value, $meta['type']);
+            $this->setValueWithDebug($ident, $value);
+            if ($key === 'preset_mode') {
+                $modes = $attributes['preset_modes'] ?? null;
+                if (is_array($modes) && $modes !== []) {
+                    $presentation = $this->getFanAttributePresentation($key, $attributes, $meta);
+                    $position = $this->getFanAttributePosition($key, 0);
+                    $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                }
+            }
+            if ($key === 'direction' || $key === 'current_direction') {
+                $dirs = $attributes['direction_list'] ?? null;
+                if (is_array($dirs) && $dirs !== []) {
+                    $presentation = $this->getFanAttributePresentation($key, $attributes, $meta);
+                    $position = $this->getFanAttributePosition($key, 0);
+                    $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                }
+            }
+        }
+    }
+
+    private function buildHumidifierAttributePayload(string $attribute, mixed $value): string
+    {
+        $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return '';
+        }
+        $payloadValue = $this->parseHumidifierAttributeValue($attribute, $value);
+        return json_encode([$attribute => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function parseHumidifierAttributeValue(string $attribute, mixed $value): mixed
+    {
+        return match ($attribute) {
+            'target_humidity' => max(0, min(100, (float)$value)),
+            'mode' => trim((string)$value),
+            default => $value,
+        };
+    }
+
+    private function hasHumidifierModes(array $attributes): bool
+    {
+        $modes = $attributes['available_modes'] ?? null;
+        return is_array($modes) && $modes !== [];
+    }
+
+    private function refreshAttributePresentation(
+        string $ident,
+        string $caption,
+        int $type,
+        array $presentation,
+        int $position
+    ): void {
+        $this->MaintainVariable($ident, $this->Translate($caption), $type, $presentation, $position, true);
+    }
+
     private function updateMediaPlayerAttributeValues(string $entityId, array $attributes): void
     {
         foreach (HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
@@ -2158,12 +2627,21 @@ class HomeAssistantDevice extends IPSModuleStrict
             $this->debugExpert('MediaCover', 'Kein aktiver Parent', ['Url' => $url]);
             return null;
         }
+        $bufferSizeMb = max(0, $this->ReadPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE));
+        if ($bufferSizeMb > 0) {
+            $bufferSizeBytes = $bufferSizeMb * 1024 * 1024;
+            ini_set('ips.output_buffer', (string) $bufferSizeBytes);
+        }
         $payload = json_encode([
             'DataID' => HAIds::DATA_DEVICE_TO_SPLITTER,
             'ImageUrl' => $url
         ], JSON_THROW_ON_ERROR);
 
         $responseJson = $this->SendDataToParent($payload);
+        if (!is_string($responseJson) || $responseJson === '') {
+            $this->debugExpert('MediaCover', 'Image request failed (empty response)', ['Url' => $url]);
+            return null;
+        }
         $decoded = $this->decodeJsonArray($responseJson, __FUNCTION__);
         if ($decoded === null) {
             return null;
@@ -2188,6 +2666,36 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function getMediaPlayerOrderPosition(int $basePosition, string $key): int
     {
         $ordered = HAMediaPlayerDefinitions::ATTRIBUTE_ORDER;
+        $index = array_search($key, $ordered, true);
+        if ($index === false) {
+            return $basePosition + 200;
+        }
+        return $basePosition + (($index + 1) * 10);
+    }
+
+    private function getFanAttributePosition(string $attribute, int $basePosition): int
+    {
+        return $this->getFanOrderPosition($basePosition, $attribute);
+    }
+
+    private function getFanOrderPosition(int $basePosition, string $key): int
+    {
+        $ordered = HAFanDefinitions::ATTRIBUTE_ORDER;
+        $index = array_search($key, $ordered, true);
+        if ($index === false) {
+            return $basePosition + 200;
+        }
+        return $basePosition + (($index + 1) * 10);
+    }
+
+    private function getHumidifierAttributePosition(string $attribute, int $basePosition): int
+    {
+        return $this->getHumidifierOrderPosition($basePosition, $attribute);
+    }
+
+    private function getHumidifierOrderPosition(int $basePosition, string $key): int
+    {
+        $ordered = HAHumidifierDefinitions::ATTRIBUTE_ORDER;
         $index = array_search($key, $ordered, true);
         if ($index === false) {
             return $basePosition + 200;
@@ -2843,6 +3351,14 @@ class HomeAssistantDevice extends IPSModuleStrict
                     $this->setValueWithDebug($ident, $rawState);
                 }
                 $this->updateVacuumFanSpeedValue($entityId, is_array($attributes) ? $attributes : null);
+            } elseif ($domain === HAFanDefinitions::DOMAIN) {
+                if ($rawState !== '') {
+                    $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $rawState, is_array($attributes) ? $attributes : []));
+                }
+            } elseif ($domain === HAHumidifierDefinitions::DOMAIN) {
+                if ($rawState !== '') {
+                    $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $rawState, is_array($attributes) ? $attributes : []));
+                }
             } elseif ($domain === HAMediaPlayerDefinitions::DOMAIN) {
                 if ($rawState !== '') {
                     $this->setValueWithDebug($ident, $rawState);
@@ -2878,6 +3394,12 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($domain === HAClimateDefinitions::DOMAIN) {
             $this->updateClimateAttributeValues($entityId, $attributes);
+        }
+        if ($domain === HAFanDefinitions::DOMAIN) {
+            $this->updateFanAttributeValues($entityId, $attributes);
+        }
+        if ($domain === HAHumidifierDefinitions::DOMAIN) {
+            $this->updateHumidifierAttributeValues($entityId, $attributes);
         }
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
             $this->updateMediaPlayerAttributeValues($entityId, $attributes);
@@ -3125,6 +3647,94 @@ class HomeAssistantDevice extends IPSModuleStrict
 
             $domain = $entity['domain'] ?? $this->getEntityDomain($entityId);
             if ($domain !== HACoverDefinitions::DOMAIN) {
+                return null;
+            }
+
+            return [
+                'entity_id' => $entityId,
+                'attribute' => $attribute,
+                'domain'    => $domain
+            ];
+        }
+        foreach (HAFanDefinitions::ATTRIBUTE_DEFINITIONS as $attribute => $meta) {
+            if (!($meta['writable'] ?? false)) {
+                continue;
+            }
+            $suffix = '_' . $attribute;
+            if (!str_ends_with($ident, $suffix)) {
+                continue;
+            }
+
+            $baseIdent = substr($ident, 0, -strlen($suffix));
+            if ($baseIdent === '') {
+                continue;
+            }
+
+            $entityId = $this->getEntityIdByIdent($baseIdent);
+            $entity   = null;
+            $attributes = [];
+            if ($entityId !== null && isset($this->entities[$entityId])) {
+                $entity     = $this->entities[$entityId];
+                $attributes = is_array($entity['attributes'] ?? null) ? $entity['attributes'] : [];
+            } else {
+                $fromConfig = $this->findEntityByBaseIdentInConfig($baseIdent);
+                if ($fromConfig !== null) {
+                    $entityId   = $fromConfig['entity_id'];
+                    $entity     = $fromConfig;
+                    $attributes = $fromConfig['attributes'] ?? [];
+                }
+            }
+
+            if ($entityId === null || $entity === null) {
+                return null;
+            }
+
+            $domain = $entity['domain'] ?? $this->getEntityDomain($entityId);
+            if ($domain !== HAFanDefinitions::DOMAIN || !$this->isWritableFanAttribute($attribute, $attributes)) {
+                return null;
+            }
+
+            return [
+                'entity_id' => $entityId,
+                'attribute' => $attribute,
+                'domain'    => $domain
+            ];
+        }
+        foreach (HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS as $attribute => $meta) {
+            if (!($meta['writable'] ?? false)) {
+                continue;
+            }
+            $suffix = '_' . $attribute;
+            if (!str_ends_with($ident, $suffix)) {
+                continue;
+            }
+
+            $baseIdent = substr($ident, 0, -strlen($suffix));
+            if ($baseIdent === '') {
+                continue;
+            }
+
+            $entityId = $this->getEntityIdByIdent($baseIdent);
+            $entity   = null;
+            $attributes = [];
+            if ($entityId !== null && isset($this->entities[$entityId])) {
+                $entity     = $this->entities[$entityId];
+                $attributes = is_array($entity['attributes'] ?? null) ? $entity['attributes'] : [];
+            } else {
+                $fromConfig = $this->findEntityByBaseIdentInConfig($baseIdent);
+                if ($fromConfig !== null) {
+                    $entityId   = $fromConfig['entity_id'];
+                    $entity     = $fromConfig;
+                    $attributes = $fromConfig['attributes'] ?? [];
+                }
+            }
+
+            if ($entityId === null || $entity === null) {
+                return null;
+            }
+
+            $domain = $entity['domain'] ?? $this->getEntityDomain($entityId);
+            if ($domain !== HAHumidifierDefinitions::DOMAIN || !$this->isWritableHumidifierAttribute($attribute, $attributes)) {
                 return null;
             }
 

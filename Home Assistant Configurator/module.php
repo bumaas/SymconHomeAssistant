@@ -374,6 +374,8 @@ EOT;
             HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
+            HAFanDefinitions::DOMAIN => HAFanDefinitions::SUPPORTED_FEATURES,
+            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::SUPPORTED_FEATURES,
             default => []
         };
 

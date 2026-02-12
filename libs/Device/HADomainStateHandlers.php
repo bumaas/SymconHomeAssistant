@@ -38,6 +38,8 @@ trait HADomainStateHandlersTrait
             HALockDefinitions::DOMAIN => fn() => $this->handleStateTopicLock($ident, $entityId, $payload),
             HAVacuumDefinitions::DOMAIN => fn() => $this->handleStateTopicVacuum($ident, $entityId, $payload),
             HAClimateDefinitions::DOMAIN => fn() => $this->handleStateTopicClimate($ident, $entityId, $payload),
+            HAFanDefinitions::DOMAIN => fn() => $this->handleStateTopicFan($ident, $entityId, $payload),
+            HAHumidifierDefinitions::DOMAIN => fn() => $this->handleStateTopicHumidifier($ident, $entityId, $payload),
             HAMediaPlayerDefinitions::DOMAIN => fn() => $this->handleStateTopicMediaPlayer($ident, $entityId, $payload)
         ];
         if (isset($handlers[$domain])) {
@@ -138,6 +140,56 @@ trait HADomainStateHandlersTrait
             $this->setValueWithDebug($ident, $stateValue);
         }
         $this->updateVacuumFanSpeedValue($entityId, $attributes);
+        $this->updateEntityCache($entityId, $parsed['state'], $parsed['raw_attributes']);
+        $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+        return true;
+    }
+
+    private function handleStateTopicFan(string $ident, string $entityId, string $payload): bool
+    {
+        $parsed = $this->parseStatePayloadForEntity($entityId, $payload);
+        $attributes = $parsed['attributes'];
+        $stateValue = $parsed['state'];
+        if ($stateValue !== '') {
+            if (!$this->ensureStateVariable($ident)) {
+                return false;
+            }
+            $this->setValueWithDebug($ident, $this->convertValueByDomain(HAFanDefinitions::DOMAIN, $stateValue, $attributes ?? []));
+        }
+
+        $fanAttributes = [];
+        if (is_array($parsed['attributes'])) {
+            $fanAttributes = $parsed['attributes'];
+        } elseif (is_array($parsed['raw_attributes'])) {
+            $fanAttributes = $parsed['raw_attributes'];
+        }
+
+        $this->updateFanAttributeValues($entityId, $fanAttributes);
+        $this->updateEntityCache($entityId, $parsed['state'], $parsed['raw_attributes']);
+        $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+        return true;
+    }
+
+    private function handleStateTopicHumidifier(string $ident, string $entityId, string $payload): bool
+    {
+        $parsed = $this->parseStatePayloadForEntity($entityId, $payload);
+        $attributes = $parsed['attributes'];
+        $stateValue = $parsed['state'];
+        if ($stateValue !== '') {
+            if (!$this->ensureStateVariable($ident)) {
+                return false;
+            }
+            $this->setValueWithDebug($ident, $this->convertValueByDomain(HAHumidifierDefinitions::DOMAIN, $stateValue, $attributes ?? []));
+        }
+
+        $humidifierAttributes = [];
+        if (is_array($parsed['attributes'])) {
+            $humidifierAttributes = $parsed['attributes'];
+        } elseif (is_array($parsed['raw_attributes'])) {
+            $humidifierAttributes = $parsed['raw_attributes'];
+        }
+
+        $this->updateHumidifierAttributeValues($entityId, $humidifierAttributes);
         $this->updateEntityCache($entityId, $parsed['state'], $parsed['raw_attributes']);
         $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
         return true;

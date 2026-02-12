@@ -22,7 +22,7 @@ Verbindet den MQTT Client oder Server mit den Device/Configurator Instanzen und 
 
 - MQTT Daten werden an Devices verteilt.
 - REST Requests vom Configurator laufen über den Splitter.
-- Für `light`, `switch`, `lock`, `cover`, `number`, `climate` können Steuerbefehle per REST gesendet werden.
+- Für `light`, `switch`, `lock`, `cover`, `number`, `climate`, `fan`, `humidifier`, `media_player` können Steuerbefehle per REST gesendet werden.
 
 ## Home Assistant mqtt_statestream
 
@@ -36,7 +36,5 @@ mqtt_statestream:
   publish_attributes: true
   publish_timestamps: true
 ```
-
-
 
 

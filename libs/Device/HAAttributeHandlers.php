@@ -24,7 +24,9 @@ trait HAAttributeHandlersTrait
             && $currentDomain !== HAEventDefinitions::DOMAIN
             && $currentDomain !== HACoverDefinitions::DOMAIN
             && $currentDomain !== HAClimateDefinitions::DOMAIN
-            && $currentDomain !== HAMediaPlayerDefinitions::DOMAIN) {
+            && $currentDomain !== HAMediaPlayerDefinitions::DOMAIN
+            && $currentDomain !== HAFanDefinitions::DOMAIN
+            && $currentDomain !== HAHumidifierDefinitions::DOMAIN) {
             $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
@@ -134,6 +136,79 @@ trait HAAttributeHandlersTrait
             }
 
             $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+            if ($meta === null) {
+                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->castVariableValue($value, $meta['type']);
+            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+            $this->setValueWithDebug($ident, $value);
+            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+            $this->updateEntityCache($entityId, null, [$attribute => $value]);
+            return true;
+        }
+        if ($currentDomain === HAFanDefinitions::DOMAIN) {
+            if (!array_key_exists($attribute, HAFanDefinitions::ATTRIBUTE_DEFINITIONS)) {
+                $value = $this->parseAttributePayload($payload);
+                if ($value !== null) {
+                    $this->storeEntityAttribute($entityId, $attribute, $value);
+                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                }
+                return true;
+            }
+
+            if (!$this->ensureFanAttributeVariable($entityId, $attribute)) {
+                $this->debugExpert('AttributeTopic', 'Keine Variable fÃ¼r Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->parseAttributePayload($payload);
+            if ($value === null) {
+                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return true;
+            }
+
+            $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+            if ($meta === null) {
+                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->castVariableValue($value, $meta['type']);
+            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+            $this->setValueWithDebug($ident, $value);
+            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+            $this->updateEntityCache($entityId, null, [$attribute => $value]);
+            return true;
+        }
+        if ($currentDomain === HAHumidifierDefinitions::DOMAIN) {
+            if ($attribute === 'humidity') {
+                $attribute = 'target_humidity';
+            }
+            if (!array_key_exists($attribute, HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS)) {
+                $value = $this->parseAttributePayload($payload);
+                if ($value !== null) {
+                    $this->storeEntityAttribute($entityId, $attribute, $value);
+                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                }
+                return true;
+            }
+
+            if (!$this->ensureHumidifierAttributeVariable($entityId, $attribute)) {
+                $this->debugExpert('AttributeTopic', 'Keine Variable fÃ¼r Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return false;
+            }
+
+            $value = $this->parseAttributePayload($payload);
+            if ($value === null) {
+                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                return true;
+            }
+
+            $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
             if ($meta === null) {
                 $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
                 return false;
