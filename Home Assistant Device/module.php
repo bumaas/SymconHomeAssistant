@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../libs/HACommonIncludes.php';
 require_once __DIR__ . '/../libs/HAAttributeFilter.php';
+require_once __DIR__ . '/../libs/Device/HADomainRegistry.php';
 require_once __DIR__ . '/../libs/Device/HADomainStateHandlers.php';
 require_once __DIR__ . '/../libs/Device/HAAttributeHandlers.php';
 require_once __DIR__ . '/../libs/Device/HAPresentation.php';
@@ -31,6 +32,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     use HADebugTrait;
     use HADomainStateHandlersTrait;
     use HAAttributeHandlersTrait;
+    use HADomainRegistryTrait;
     use HAPresentationTrait;
     use HAEntityStoreTrait;
 
@@ -349,17 +351,14 @@ class HomeAssistantDevice extends IPSModuleStrict
         $entityId  = $attributeInfo['entity_id'];
         $attribute = $attributeInfo['attribute'];
 
-        if ($attributeInfo['domain'] === HALightDefinitions::DOMAIN) {
-            $payload = $this->buildLightAttributePayload($attribute, $Value);
-        } elseif ($attributeInfo['domain'] === HACoverDefinitions::DOMAIN) {
-            $payload = $this->buildCoverAttributePayload($attribute, $Value);
-        } elseif ($attributeInfo['domain'] === HAFanDefinitions::DOMAIN) {
-            $payload = $this->buildFanAttributePayload($attribute, $Value);
-        } elseif ($attributeInfo['domain'] === HAHumidifierDefinitions::DOMAIN) {
-            $payload = $this->buildHumidifierAttributePayload($attribute, $Value);
-        } elseif ($attributeInfo['domain'] === HAMediaPlayerDefinitions::DOMAIN) {
-            $payload = $this->buildMediaPlayerAttributePayload($attribute, $Value);
-        } else {
+        $payload = $this->buildDomainAttributePayload($attributeInfo['domain'], $attribute, $Value);
+        if ($payload === '' && !in_array($attributeInfo['domain'], [
+            HALightDefinitions::DOMAIN,
+            HACoverDefinitions::DOMAIN,
+            HAFanDefinitions::DOMAIN,
+            HAHumidifierDefinitions::DOMAIN,
+            HAMediaPlayerDefinitions::DOMAIN
+        ], true)) {
             $this->debugExpert(__FUNCTION__, 'Attribut-Domain nicht unterstützt', ['Attribute' => $attribute, 'Domain' => $attributeInfo['domain']], true);
             return;
         }
@@ -367,7 +366,6 @@ class HomeAssistantDevice extends IPSModuleStrict
             $this->debugExpert(__FUNCTION__, 'Attribut Payload leer', ['Attribute' => $attribute], true);
             return;
         }
-
         $topic = $this->getSetTopicForEntity($entityId);
         if ($topic === '') {
             $this->debugExpert('Action', 'Kein Set-Topic für Entity | EntityID=' . $entityId, [], true);
@@ -440,25 +438,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->debugExpert(__FUNCTION__, 'Form:', $form);
 
         return json_encode($form, JSON_THROW_ON_ERROR);
-    }
-
-    public function GetEntityState(string $entityId): array
-    {
-        $entityId = trim($entityId);
-        if ($entityId === '') {
-            $this->debugExpert(__FUNCTION__, 'EntityID leer', [], true);
-            return [];
-        }
-
-        $state = $this->requestHaState($entityId);
-        if ($state === null) {
-            $this->debugExpert(__FUNCTION__, 'Keine Daten von HA', ['EntityID' => $entityId], true);
-            return [];
-        }
-
-        $this->applyInitialState($entityId, $state);
-
-        return $state;
     }
 
     // --- Private Hilfsmethoden (Business Logic) ---
@@ -649,47 +628,8 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
 
-        // Aktionsskript aktivieren, wenn schreibbar
-        if ($domain === HALockDefinitions::DOMAIN) {
-            $this->DisableAction($ident);
-        } elseif ($domain === HAClimateDefinitions::DOMAIN) {
-            if ($this->isClimateTargetWritable($entity['attributes'] ?? [])) {
-                $this->EnableAction($ident);
-            }
-        } elseif ($domain === HAFanDefinitions::DOMAIN) {
-            if ($this->isFanToggleSupported($entity['attributes'] ?? [])) {
-                $this->EnableAction($ident);
-            }
-        } elseif ($domain === HAHumidifierDefinitions::DOMAIN) {
-            $this->EnableAction($ident);
-        } elseif ($this->isWriteable($domain)) {
-            $this->EnableAction($ident);
-        }
-
-        if ($domain === HALightDefinitions::DOMAIN) {
-            $this->maintainLightAttributeVariables($entity);
-        }
-        if ($domain === HAClimateDefinitions::DOMAIN) {
-            $this->maintainClimateAttributeVariables($entity);
-        }
-        if ($domain === HAFanDefinitions::DOMAIN) {
-            $this->maintainFanAttributeVariables($entity);
-        }
-        if ($domain === HAHumidifierDefinitions::DOMAIN) {
-            $this->maintainHumidifierAttributeVariables($entity);
-        }
-        if ($domain === HALockDefinitions::DOMAIN) {
-            $this->maintainLockActionVariable($entity);
-        }
-        if ($domain === HAVacuumDefinitions::DOMAIN) {
-            $this->maintainVacuumActionVariable($entity);
-            $this->maintainVacuumFanSpeedVariable($entity);
-        }
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
-            $this->maintainMediaPlayerActionVariable($entity);
-            $this->maintainMediaPlayerPowerVariable($entity);
-            $this->maintainMediaPlayerAttributeVariables($entity);
-        }
+        $this->applyDomainActionState($domain, $ident, $entity);
+        $this->applyDomainExtraMaintenance($domain, $entity);
     }
 
     /**
@@ -705,160 +645,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         $this->debugExpert(__FUNCTION__, 'Wert wird gesetzt', ['EntityID' => $entityId, 'Payload' => $payload], true);
         $parsed = $this->parseEntityPayload($payload);
-        if ($domain === HAEventDefinitions::DOMAIN) {
-            if (!empty($parsed[self::KEY_ATTRIBUTES])) {
-                $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
-                $this->updateEntityCache($entityId, null, $parsed[self::KEY_ATTRIBUTES]);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-            }
-            return;
-        }
-
-        if ($domain === HAClimateDefinitions::DOMAIN) {
-            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
-            if (is_array($attributes) && $attributes !== []) {
-                $attributes = $this->storeEntityAttributes($entityId, $attributes);
-                $mainValue = $this->extractClimateMainValue($attributes);
-                if ($mainValue !== null) {
-                    $this->setValueWithDebug($ident, $mainValue);
-                }
-                $this->updateEntityCache($entityId, $mainValue, $attributes);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-                $this->updateClimateAttributeValues($entityId, $attributes);
-                return;
-            }
-
-            if (is_numeric($parsed[self::KEY_STATE])) {
-                $value = (float)$parsed[self::KEY_STATE];
-                $this->setValueWithDebug($ident, $value);
-                $this->updateEntityCache($entityId, $value, null);
-            } elseif (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                $this->storeEntityAttribute($entityId, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $parsed[self::KEY_STATE]);
-                $this->updateEntityCache($entityId, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $parsed[self::KEY_STATE]]);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-            }
-            return;
-        }
-
-        if ($domain === HACoverDefinitions::DOMAIN) {
-            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
-            $storedAttributes = null;
-            if (is_array($attributes)) {
-                if ($attributes !== []) {
-                    $storedAttributes = $this->storeEntityAttributes($entityId, $attributes);
-                }
-                $position = $this->extractCoverPosition($storedAttributes ?? $attributes);
-                if ($position !== null) {
-                    $this->setValueWithDebug($ident, $position);
-                    $this->updateEntityCache($entityId, $position, $storedAttributes ?? $attributes);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-                    $this->updateCoverAttributeValues($entityId, $storedAttributes ?? $attributes);
-                    return;
-                }
-            }
-
-            $level = $this->normalizeCoverStateToLevel((string)$parsed[self::KEY_STATE]);
-            if ($level !== null) {
-                $this->setValueWithDebug($ident, $level);
-                $this->updateEntityCache($entityId, $level, is_array($attributes ?? null) ? $attributes : null);
-            }
-            if (!empty($parsed[self::KEY_ATTRIBUTES])) {
-                if ($storedAttributes === null) {
-                    $storedAttributes = $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
-                }
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-                $this->updateCoverAttributeValues($entityId, $storedAttributes);
-            }
-            return;
-        }
-
-        if ($domain === HALockDefinitions::DOMAIN) {
-            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
-            if (is_array($attributes) && $attributes !== []) {
-                $attributes = $this->storeEntityAttributes($entityId, $attributes);
-            }
-            $displayState = $this->resolveLockDisplayState((string)$parsed[self::KEY_STATE], is_array($attributes) ? $attributes : null);
-            if ($displayState !== null) {
-                $this->setValueWithDebug($ident, $displayState);
-            }
-            $this->updateLockActionValue($entityId, (string)$parsed[self::KEY_STATE], is_array($attributes) ? $attributes : null);
-            if (is_array($attributes) && $attributes !== []) {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-            } else {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
-            }
-            return;
-        }
-
-        if ($domain === HAVacuumDefinitions::DOMAIN) {
-            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
-            if (is_array($attributes) && $attributes !== []) {
-                $attributes = $this->storeEntityAttributes($entityId, $attributes);
-            }
-            if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                $this->setValueWithDebug($ident, $parsed[self::KEY_STATE]);
-            }
-            $this->updateVacuumFanSpeedValue($entityId, $attributes);
-            if (is_array($attributes) && $attributes !== []) {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-            } else {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
-            }
-            return;
-        }
-        if ($domain === HAFanDefinitions::DOMAIN) {
-            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
-            if (is_array($attributes) && $attributes !== []) {
-                $attributes = $this->storeEntityAttributes($entityId, $attributes);
-            }
-            if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], is_array($attributes) ? $attributes : []));
-            }
-            $this->updateFanAttributeValues($entityId, is_array($attributes) ? $attributes : []);
-            if (is_array($attributes) && $attributes !== []) {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-            } else {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
-            }
-            return;
-        }
-        if ($domain === HAHumidifierDefinitions::DOMAIN) {
-            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
-            if (is_array($attributes) && $attributes !== []) {
-                $attributes = $this->storeEntityAttributes($entityId, $attributes);
-            }
-            if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], is_array($attributes) ? $attributes : []));
-            }
-            $this->updateHumidifierAttributeValues($entityId, is_array($attributes) ? $attributes : []);
-            if (is_array($attributes) && $attributes !== []) {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-            } else {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
-            }
-            return;
-        }
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
-            $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
-            if (is_array($attributes) && $attributes !== []) {
-                $attributes = $this->storeEntityAttributes($entityId, $attributes);
-            }
-            if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                $state = $parsed[self::KEY_STATE];
-                $this->setValueWithDebug($ident, $state);
-                $this->updateMediaPlayerPowerValue($entityId, $state);
-            }
-            $this->updateMediaPlayerAttributeValues($entityId, is_array($attributes) ? $attributes : []);
-            if (is_array($attributes) && $attributes !== []) {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-            } else {
-                $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
-            }
+        if ($this->handleDomainUpdateEntityValue($domain, $entityId, $ident, $parsed)) {
             return;
         }
 
@@ -1352,14 +1139,12 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function formatPayloadForMqtt(string $domain, mixed $value, array $attributes = []): string
     {
         return match ($domain) {
-            HALightDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
+            HALightDefinitions::DOMAIN, HAFanDefinitions::DOMAIN, HAHumidifierDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
             HASwitchDefinitions::DOMAIN => $value ? HASwitchDefinitions::STATE_ON : HASwitchDefinitions::STATE_OFF,
             HACoverDefinitions::DOMAIN => HACoverDefinitions::normalizeCommand($value),
             HALockDefinitions::DOMAIN => HALockDefinitions::normalizeCommand($value),
             HASelectDefinitions::DOMAIN => $this->formatSelectPayload($value, $attributes),
             HAButtonDefinitions::DOMAIN => 'press',
-            HAFanDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
-            HAHumidifierDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
             default => (string)$value,
         };
     }
@@ -2258,7 +2043,11 @@ class HomeAssistantDevice extends IPSModuleStrict
 
     private function applyHumidifierAttributeActionState(string $attribute, array $attributes, string $ident): void
     {
-        if ($this->isWritableHumidifierAttribute($attribute, $attributes)) {
+        // Keep action enabled for mode when modes are available, even if supported_features is missing temporarily.
+        $hasModes = $attribute === 'mode'
+            && is_array($attributes['available_modes'] ?? null)
+            && $attributes['available_modes'] !== [];
+        if ($hasModes || $this->isWritableHumidifierAttribute($attribute, $attributes)) {
             $this->EnableAction($ident);
         } else {
             $this->DisableAction($ident);
@@ -3488,7 +3277,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         $buffer = $this->GetBuffer(self::BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG);
         $map = [];
         if ($buffer !== '') {
-            $decoded = json_decode($buffer, true);
+            $decoded = json_decode($buffer, true, 512, JSON_THROW_ON_ERROR);
             if (is_array($decoded)) {
                 $map = $decoded;
             }
@@ -3986,3 +3775,4 @@ class HomeAssistantDevice extends IPSModuleStrict
         return array_any($required, static fn($mode) => in_array($mode, $modes, true));
     }
 }
+

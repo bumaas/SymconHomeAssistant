@@ -70,169 +70,71 @@ trait HAAttributeHandlersTrait
         }
 
         if ($currentDomain === HACoverDefinitions::DOMAIN) {
-            if (!array_key_exists($attribute, HACoverDefinitions::ATTRIBUTE_DEFINITIONS)) {
-                $value = $this->parseAttributePayload($payload);
-                if ($value !== null) {
-                    $this->storeEntityAttribute($entityId, $attribute, $value);
-                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                }
-                return true;
-            }
-
-            if (!$this->ensureCoverAttributeVariable($entityId, $attribute)) {
-                $this->debugExpert('AttributeTopic', 'Keine Variable fÃ¼r Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->parseAttributePayload($payload);
-            if ($value === null) {
-                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return true;
-            }
-
-            $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-            if ($meta === null) {
-                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->castVariableValue($value, $meta['type']);
-            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-            $this->setValueWithDebug($ident, $value);
-            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-            $this->storeEntityAttribute($entityId, $attribute, $value);
-            $this->updateEntityCache($entityId, null, [$attribute => $value]);
-            $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-            if ($attribute === HACoverDefinitions::ATTRIBUTE_POSITION || $attribute === HACoverDefinitions::ATTRIBUTE_POSITION_ALT) {
-                $mainIdent = $this->sanitizeIdent($entityId);
-                if (@$this->GetIDForIdent($mainIdent) !== false) {
-                    $this->setValueWithDebug($mainIdent, (float)$value);
-                }
-            }
-            return true;
+            return $this->handleAttributeTopicWithDefinitions(
+                $entityId,
+                $attribute,
+                $payload,
+                HACoverDefinitions::ATTRIBUTE_DEFINITIONS,
+                fn(string $id, string $attr): bool => $this->ensureCoverAttributeVariable($id, $attr),
+                [
+                    'store_unknown' => true,
+                    'update_presentation_unknown' => true,
+                    'store_defined' => true,
+                    'update_presentation_defined' => true,
+                    'post_set' => function (string $id, string $attr, mixed $value): void {
+                        if ($attr === HACoverDefinitions::ATTRIBUTE_POSITION || $attr === HACoverDefinitions::ATTRIBUTE_POSITION_ALT) {
+                            $mainIdent = $this->sanitizeIdent($id);
+                            if (@$this->GetIDForIdent($mainIdent) !== false) {
+                                $this->setValueWithDebug($mainIdent, (float)$value);
+                            }
+                        }
+                    }
+                ]
+            );
         }
-
         if ($currentDomain === HAClimateDefinitions::DOMAIN) {
-            if (!array_key_exists($attribute, HAClimateDefinitions::ATTRIBUTE_DEFINITIONS)) {
-                $value = $this->parseAttributePayload($payload);
-                if ($value !== null) {
-                    $this->storeEntityAttribute($entityId, $attribute, $value);
-                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                }
-                return true;
-            }
-
-            if (!$this->ensureClimateAttributeVariable($entityId, $attribute)) {
-                $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->parseAttributePayload($payload);
-            if ($value === null) {
-                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return true;
-            }
-
-            $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-            if ($meta === null) {
-                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->castVariableValue($value, $meta['type']);
-            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-            $this->setValueWithDebug($ident, $value);
-            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-            $this->updateEntityCache($entityId, null, [$attribute => $value]);
-            return true;
+            return $this->handleAttributeTopicWithDefinitions(
+                $entityId,
+                $attribute,
+                $payload,
+                HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
+                fn(string $id, string $attr): bool => $this->ensureClimateAttributeVariable($id, $attr),
+                [
+                    'store_unknown' => true,
+                    'update_presentation_unknown' => true
+                ]
+            );
         }
         if ($currentDomain === HAFanDefinitions::DOMAIN) {
-            if (!array_key_exists($attribute, HAFanDefinitions::ATTRIBUTE_DEFINITIONS)) {
-                $value = $this->parseAttributePayload($payload);
-                if ($value !== null) {
-                    $this->storeEntityAttribute($entityId, $attribute, $value);
-                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                }
-                return true;
-            }
-
-            if (!$this->ensureFanAttributeVariable($entityId, $attribute)) {
-                $this->debugExpert('AttributeTopic', 'Keine Variable fÃ¼r Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->parseAttributePayload($payload);
-            if ($value === null) {
-                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return true;
-            }
-
-            $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-            if ($meta === null) {
-                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->castVariableValue($value, $meta['type']);
-            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-            $this->setValueWithDebug($ident, $value);
-            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-            $this->updateEntityCache($entityId, null, [$attribute => $value]);
-            return true;
+            return $this->handleAttributeTopicWithDefinitions(
+                $entityId,
+                $attribute,
+                $payload,
+                HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
+                fn(string $id, string $attr): bool => $this->ensureFanAttributeVariable($id, $attr),
+                [
+                    'store_unknown' => true,
+                    'update_presentation_unknown' => true
+                ]
+            );
         }
         if ($currentDomain === HAHumidifierDefinitions::DOMAIN) {
-            if ($attribute === 'humidity') {
-                $attribute = 'target_humidity';
-            }
-            if (!array_key_exists($attribute, HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS)) {
-                $value = $this->parseAttributePayload($payload);
-                if ($value !== null) {
-                    $this->storeEntityAttribute($entityId, $attribute, $value);
-                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                }
-                return true;
-            }
-
-            if (!$this->ensureHumidifierAttributeVariable($entityId, $attribute)) {
-                $this->debugExpert('AttributeTopic', 'Keine Variable fÃ¼r Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->parseAttributePayload($payload);
-            if ($value === null) {
-                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return true;
-            }
-
-            $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-            if ($meta === null) {
-                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->castVariableValue($value, $meta['type']);
-            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-            $this->setValueWithDebug($ident, $value);
-            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-            $this->updateEntityCache($entityId, null, [$attribute => $value]);
-            return true;
+            return $this->handleAttributeTopicWithDefinitions(
+                $entityId,
+                $attribute,
+                $payload,
+                HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
+                fn(string $id, string $attr): bool => $this->ensureHumidifierAttributeVariable($id, $attr),
+                [
+                    'attribute_alias' => ['humidity' => 'target_humidity'],
+                    'store_unknown' => true,
+                    'update_presentation_unknown' => true
+                ]
+            );
         }
         if ($currentDomain === HAMediaPlayerDefinitions::DOMAIN) {
             if ($attribute === 'entity_picture') {
                 $attribute = 'media_image_url';
-            }
-            if (!array_key_exists($attribute, HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS)) {
-                $value = $this->parseAttributePayload($payload);
-                if ($value !== null) {
-                    $this->storeEntityAttribute($entityId, $attribute, $value);
-                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                }
-                return true;
             }
 
             if ($attribute === 'media_image_url') {
@@ -244,7 +146,7 @@ trait HAAttributeHandlersTrait
                 $original = (string)$value;
                 $absolute = $this->makeMediaImageUrlAbsolute($original);
                 if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
-                    $this->debugExpert('AttributeTopic', 'Keine Variable fÃ¼r Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                    $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
                     return false;
                 }
                 $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
@@ -264,33 +166,35 @@ trait HAAttributeHandlersTrait
                 return true;
             }
 
-            if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
-                $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                return false;
-            }
-
-            $value = $this->parseAttributePayload($payload);
-            if ($value === null) {
-                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+            if ($attribute === 'repeat') {
+                if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
+                    $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                    return false;
+                }
+                $value = $this->parseAttributePayload($payload);
+                if ($value === null) {
+                    $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                    return true;
+                }
+                $value = $this->mapMediaPlayerRepeatToValue($value);
+                $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+                $this->setValueWithDebug($ident, $value);
+                $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+                $this->updateEntityCache($entityId, null, [$attribute => $value]);
                 return true;
             }
 
-            $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-            if ($meta === null) {
-                $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
-                return false;
-            }
-
-            if ($attribute === 'repeat') {
-                $value = $this->mapMediaPlayerRepeatToValue($value);
-            } else {
-                $value = $this->castVariableValue($value, $meta['type']);
-            }
-            $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-            $this->setValueWithDebug($ident, $value);
-            $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-            $this->updateEntityCache($entityId, null, [$attribute => $value]);
-            return true;
+            return $this->handleAttributeTopicWithDefinitions(
+                $entityId,
+                $attribute,
+                $payload,
+                HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS,
+                fn(string $id, string $attr): bool => $this->ensureMediaPlayerAttributeVariable($id, $attr),
+                [
+                    'store_unknown' => true,
+                    'update_presentation_unknown' => true
+                ]
+            );
         }
         if ($currentDomain === HASelectDefinitions::DOMAIN) {
             $value = $this->parseAttributePayload($payload);
@@ -342,7 +246,80 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
+    private function handleAttributeTopicWithDefinitions(
+        string $entityId,
+        string $attribute,
+        string $payload,
+        array $definitions,
+        callable $ensureVariable,
+        array $options = []
+    ): bool {
+        $aliases = $options['attribute_alias'] ?? [];
+        if (is_array($aliases) && array_key_exists($attribute, $aliases)) {
+            $attribute = (string)$aliases[$attribute];
+        }
+
+        $storeUnknown = (bool)($options['store_unknown'] ?? true);
+        $updatePresentationUnknown = (bool)($options['update_presentation_unknown'] ?? true);
+        $storeDefined = (bool)($options['store_defined'] ?? false);
+        $updatePresentationDefined = (bool)($options['update_presentation_defined'] ?? false);
+        $postSet = $options['post_set'] ?? null;
+
+        if (!array_key_exists($attribute, $definitions)) {
+            if (!$storeUnknown) {
+                return true;
+            }
+            $value = $this->parseAttributePayload($payload);
+            if ($value !== null) {
+                $this->storeEntityAttribute($entityId, $attribute, $value);
+                $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                if ($updatePresentationUnknown) {
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                }
+            }
+            return true;
+        }
+
+        if (!$ensureVariable($entityId, $attribute)) {
+            $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+            return false;
+        }
+
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+            return true;
+        }
+
+        $meta = $definitions[$attribute] ?? null;
+        if ($meta === null) {
+            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+            return false;
+        }
+
+        $value = $this->castVariableValue($value, $meta['type']);
+        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        $this->setValueWithDebug($ident, $value);
+        $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+        if ($storeDefined) {
+            $this->storeEntityAttribute($entityId, $attribute, $value);
+        }
+        $this->updateEntityCache($entityId, null, [$attribute => $value]);
+        if ($updatePresentationDefined) {
+            $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+        }
+        if (is_callable($postSet)) {
+            $postSet($entityId, $attribute, $value);
+        }
+        return true;
+    }
 }
+
+
+
+
+
+
 
 
 

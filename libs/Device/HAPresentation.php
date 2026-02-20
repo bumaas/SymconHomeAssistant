@@ -7,6 +7,7 @@ trait HAPresentationTrait
 
     private function getEntityPresentation(string $domain, array $entity, int $type): array
     {
+        $this->debugExpert(__FUNCTION__, 'Input', ['Domain' => $domain, 'Type' => $type, 'Entity' => $entity], false);
         $attributes = $entity['attributes'] ?? [];
         if (!is_array($attributes)) {
             $attributes = [];
@@ -191,28 +192,8 @@ trait HAPresentationTrait
 
     private function getFanPresentation(): array
     {
-        $options = [
-            [
-                'Value'       => false,
-                'Caption'     => $this->Translate('Off'),
-                'IconActive'  => false,
-                'IconValue'   => '',
-                'ColorActive' => false,
-                'ColorValue'  => -1
-            ],
-            [
-                'Value'       => true,
-                'Caption'     => $this->Translate('On'),
-                'IconActive'  => false,
-                'IconValue'   => '',
-                'ColorActive' => false,
-                'ColorValue'  => -1
-            ]
-        ];
-
         return $this->filterPresentation([
-                                             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+                                             'PRESENTATION' => HAFanDefinitions::PRESENTATION
                                          ]);
     }
 
