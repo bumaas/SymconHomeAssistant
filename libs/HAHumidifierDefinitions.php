@@ -8,6 +8,11 @@ final class HAHumidifierDefinitions
     public const int VARIABLE_TYPE = VARIABLETYPE_BOOLEAN;
     public const string PRESENTATION = VARIABLE_PRESENTATION_SWITCH;
 
+    public const string ATTRIBUTE_TARGET_HUMIDITY = 'target_humidity';
+    public const string ATTRIBUTE_CURRENT_HUMIDITY = 'current_humidity';
+    public const string ATTRIBUTE_MODE = 'mode';
+    public const string ATTRIBUTE_ACTION = 'action';
+
     public const int FEATURE_MODES = 1;
 
     public const array SUPPORTED_FEATURES = [
@@ -15,34 +20,43 @@ final class HAHumidifierDefinitions
     ];
 
     public const array ATTRIBUTE_DEFINITIONS = [
-        'target_humidity' => [
+        self::ATTRIBUTE_TARGET_HUMIDITY => [
             'caption' => 'Target Humidity',
             'type' => VARIABLETYPE_FLOAT,
             'writable' => true
         ],
-        'current_humidity' => [
+        self::ATTRIBUTE_CURRENT_HUMIDITY => [
             'caption' => 'Current Humidity',
             'type' => VARIABLETYPE_FLOAT,
             'writable' => false
         ],
-        'mode' => [
+        self::ATTRIBUTE_MODE => [
             'caption' => 'Mode',
             'type' => VARIABLETYPE_STRING,
             'writable' => true,
             'requires_features' => [self::FEATURE_MODES]
         ],
-        'action' => [
+        self::ATTRIBUTE_ACTION => [
             'caption' => 'Action',
             'type' => VARIABLETYPE_STRING,
             'writable' => false
         ]
     ];
 
+    public const array ATTRIBUTE_REFRESH_TRIGGERS = [
+        self::ATTRIBUTE_TARGET_HUMIDITY => ['min_humidity', 'max_humidity', 'target_humidity_step'],
+        self::ATTRIBUTE_MODE => ['available_modes']
+    ];
+
+    public const array ACTION_STATE_REFRESH_TRIGGERS = [
+        self::ATTRIBUTE_MODE => ['supported_features', 'available_modes']
+    ];
+
     public const array ATTRIBUTE_ORDER = [
         'status',
-        'target_humidity',
-        'current_humidity',
-        'mode',
-        'action'
+        self::ATTRIBUTE_TARGET_HUMIDITY,
+        self::ATTRIBUTE_CURRENT_HUMIDITY,
+        self::ATTRIBUTE_MODE,
+        self::ATTRIBUTE_ACTION
     ];
 }

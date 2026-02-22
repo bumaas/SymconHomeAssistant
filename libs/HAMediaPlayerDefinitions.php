@@ -247,6 +247,16 @@ final class HAMediaPlayerDefinitions
         ]
     ];
 
+    public const array ATTRIBUTE_REFRESH_TRIGGERS = [
+        'source' => ['source_list'],
+        'sound_mode' => ['sound_mode_list'],
+        'media_position' => ['media_duration']
+    ];
+
+    public const array ACTION_STATE_REFRESH_TRIGGERS = [
+        'media_position' => ['media_duration']
+    ];
+
     public const array ATTRIBUTE_ORDER = [
         'status',
         'action',

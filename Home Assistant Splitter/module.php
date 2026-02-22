@@ -447,8 +447,12 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
         if ($domain === HAHumidifierDefinitions::DOMAIN) {
             if (is_array($value)) {
-                if (isset($value['target_humidity']) && is_numeric($value['target_humidity'])) {
-                    return ['set_humidity', ['humidity' => (float)$value['target_humidity']]];
+                if (isset($value[HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY])
+                    && is_numeric($value[HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY])) {
+                    return [
+                        'set_humidity',
+                        ['humidity' => (float)$value[HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY]]
+                    ];
                 }
                 if (isset($value['mode'])) {
                     return ['set_mode', ['mode' => (string)$value['mode']]];

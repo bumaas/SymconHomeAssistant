@@ -42,7 +42,7 @@ final class HAFanDefinitions
             'requires_features' => [self::FEATURE_OSCILLATE]
         ],
         'preset_mode' => [
-            'caption' => 'Preset Mode',
+            'caption' => 'Preset Mode Fan',
             'type' => VARIABLETYPE_STRING,
             'writable' => true,
             'requires_features' => [self::FEATURE_PRESET_MODE]
@@ -58,6 +58,17 @@ final class HAFanDefinitions
             'type' => VARIABLETYPE_STRING,
             'writable' => false
         ]
+    ];
+
+    public const array ATTRIBUTE_REFRESH_TRIGGERS = [
+        'preset_mode' => ['preset_modes'],
+        'direction' => ['direction_list'],
+        'current_direction' => ['direction_list']
+    ];
+
+    public const array ACTION_STATE_REFRESH_TRIGGERS = [
+        'preset_mode' => ['preset_modes', 'supported_features'],
+        'direction' => ['direction_list', 'supported_features']
     ];
 
     public const array ATTRIBUTE_ORDER = [

@@ -103,7 +103,6 @@ trait HAPresentationTrait
             ];
         }
 
-        $suffix = $this->getPresentationSuffix($attributes);
         if ($domain === HASelectDefinitions::DOMAIN) {
             $options = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
             if ($options !== []) {
@@ -123,6 +122,7 @@ trait HAPresentationTrait
             }
         }
 
+        $suffix = $this->getPresentationSuffix($attributes);
         return $this->filterPresentation([
                                              'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
                                              'DIGITS'       => ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT)
@@ -367,7 +367,7 @@ trait HAPresentationTrait
 
     private function getHumidifierAttributePresentation(string $attribute, array $attributes, array $meta): array
     {
-        if ($attribute === 'target_humidity') {
+        if ($attribute === HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY) {
             $min  = is_numeric($attributes['min_humidity'] ?? null) ? (float)$attributes['min_humidity'] : 0;
             $max  = is_numeric($attributes['max_humidity'] ?? null) ? (float)$attributes['max_humidity'] : 100;
             $step = is_numeric($attributes['target_humidity_step'] ?? null) ? (float)$attributes['target_humidity_step'] : 1;

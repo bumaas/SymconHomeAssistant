@@ -112,6 +112,16 @@ final class HALightDefinitions
         ],
     ];
 
+    public const array ATTRIBUTE_REFRESH_TRIGGERS = [
+        'brightness' => ['supported_features'],
+        'color_temp' => ['supported_features', 'min_mireds', 'max_mireds'],
+        'color_temp_kelvin' => ['supported_features', 'min_color_temp_kelvin', 'max_color_temp_kelvin']
+    ];
+
+    public const array ACTION_STATE_REFRESH_TRIGGERS = [
+        '*' => ['supported_features']
+    ];
+
     public const array ALLOWED_ATTRIBUTES = [
         'brightness',
         'color_mode',

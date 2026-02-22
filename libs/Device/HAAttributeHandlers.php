@@ -119,18 +119,21 @@ trait HAAttributeHandlersTrait
             );
         }
         if ($currentDomain === HAHumidifierDefinitions::DOMAIN) {
-            return $this->handleAttributeTopicWithDefinitions(
+            $result = $this->handleAttributeTopicWithDefinitions(
                 $entityId,
                 $attribute,
                 $payload,
                 HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
                 fn(string $id, string $attr): bool => $this->ensureHumidifierAttributeVariable($id, $attr),
                 [
-                    'attribute_alias' => ['humidity' => 'target_humidity'],
+                    'attribute_alias' => ['humidity' => HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY],
                     'store_unknown' => true,
-                    'update_presentation_unknown' => true
+                    'store_defined' => true,
+                    'update_presentation_unknown' => true,
+                    'update_presentation_defined' => true
                 ]
             );
+            return $result;
         }
         if ($currentDomain === HAMediaPlayerDefinitions::DOMAIN) {
             if ($attribute === 'entity_picture') {

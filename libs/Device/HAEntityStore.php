@@ -102,7 +102,22 @@ trait HAEntityStoreTrait
 
     private function storeEntityAttribute(string $entityId, string $attribute, mixed $value): void
     {
-        $this->storeEntityAttributes($entityId, [$attribute => $value]);
+        if (!isset($this->entities[$entityId])) {
+            $this->entities[$entityId] = [
+                'entity_id' => $entityId,
+                'domain'    => $this->getEntityDomain($entityId),
+                'name'      => $entityId
+            ];
+        }
+
+        $existing = $this->entities[$entityId]['attributes'] ?? [];
+        if (!is_array($existing)) {
+            $existing = [];
+        }
+
+        $merged = $existing;
+        $merged[$attribute] = $value;
+        $this->storeEntityAttributes($entityId, $merged);
     }
 
     private function updateEntityCache(string $entityId, mixed $state, ?array $attributes): void
@@ -148,6 +163,10 @@ trait HAEntityStoreTrait
             $existing = [];
         }
         $mergedAttributes = array_merge($existing, $attributes);
+        $cachedAttributes = $this->getCachedEntityAttributes($entityId);
+        if ($cachedAttributes !== []) {
+            $mergedAttributes = array_merge($mergedAttributes, $cachedAttributes);
+        }
         $this->entities[$entityId]['attributes'] = $mergedAttributes;
         $entity = $this->entities[$entityId];
         $entity['attributes'] = $mergedAttributes;
@@ -177,6 +196,24 @@ trait HAEntityStoreTrait
             $this->maintainMediaPlayerPowerVariable($entity);
             $this->maintainMediaPlayerAttributeVariables($entity);
         }
+    }
+
+    private function getCachedEntityAttributes(string $entityId): array
+    {
+        $raw = $this->ReadAttributeString('EntityStateCache');
+        if ($raw === '') {
+            return [];
+        }
+        try {
+            $cache = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+        if (!is_array($cache) || !isset($cache[$entityId]) || !is_array($cache[$entityId])) {
+            return [];
+        }
+        $attrs = $cache[$entityId][self::KEY_ATTRIBUTES] ?? null;
+        return is_array($attrs) ? $attrs : [];
     }
 
     private function updateDiagnosticsLabels(): void

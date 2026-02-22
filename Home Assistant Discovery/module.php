@@ -206,7 +206,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     {
         $formValues = [];
 
-        // Map: IP/Host => InstanzID (inkl. unvollständige Konfiguratoren)
+        // Map: IP/Host => InstanzID (inklusive unvollständiger Konfiguratoren)
         $hostToId = [];
         foreach ($existingInstanceIDs as $id) {
             $host = $this->getConfiguratorHost($id);
@@ -360,27 +360,28 @@ class HomeAssistantDiscovery extends IPSModuleStrict
             $this->SetTimerInterval(self::TIMER_LOAD, 200);
         }
 
-        $elements = $this->formElements();
-        $elements[] = [
-            'type'    => 'ExpansionPanel',
-            'caption' => 'Expert',
-            'items'   => [
-                [
-                    'type'    => 'CheckBox',
-                    'name'    => 'EnableExpertDebug',
-                    'caption' => 'Enable extended debug output'
-                ]
-            ]
-        ];
-        $actions  = $this->formActions();
-        $status   = [];
+        $elements   = $this->formElements();
+        $actions    = $this->formActions();
+        $status     = [];
 
         return json_encode(compact('elements', 'actions', 'status'), JSON_THROW_ON_ERROR);
     }
 
     private function formElements(): array
     {
-        return [];
+        return [
+            [
+                'type'    => 'ExpansionPanel',
+                'caption' => 'Expert',
+                'items'   => [
+                    [
+                        'type'    => 'CheckBox',
+                        'name'    => 'EnableExpertDebug',
+                        'caption' => 'Enable extended debug output'
+                    ]
+                ]
+            ]
+        ];
     }
 
     private function formActions(): array
