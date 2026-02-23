@@ -1,4 +1,6 @@
-<?php /** @noinspection AutoloadingIssuesInspection */
+<?php /** @noinspection PhpUnused */
+
+/** @noinspection AutoloadingIssuesInspection */
 
 declare(strict_types=1);
 
@@ -7,6 +9,8 @@ require_once __DIR__ . '/../libs/HACommonIncludes.php';
 class HomeAssistantSplitter extends IPSModuleStrict
 {
     use HADebugTrait;
+    use HASupportedFeaturesTrait;
+    use HADiagnosticsTrait;
     public function Create(): void
     {
         parent::Create();
@@ -326,195 +330,18 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function buildRestServicePayload(string $domain, mixed $value): array
     {
-        if (is_array($value) && $domain === HALightDefinitions::DOMAIN) {
-            $data = $value;
-            $service = 'turn_on';
-            if (array_key_exists('state', $data)) {
-                $state = $data['state'];
-                unset($data['state']);
-                if ($state === false || $state === 0 || strtoupper((string)$state) === 'OFF') {
-                    $service = 'turn_off';
-                }
-            }
-            return [$service, $data];
-        }
-
-        if ($domain === HAButtonDefinitions::DOMAIN) {
-            return ['press', []];
-        }
-
-        if ($domain === HAVacuumDefinitions::DOMAIN) {
-            if (is_array($value)) {
-                if (isset($value['fan_speed'])) {
-                    return ['set_fan_speed', ['fan_speed' => (string)$value['fan_speed']]];
-                }
-                if (isset($value['command'])) {
-                    $data = ['command' => (string)$value['command']];
-                    if (isset($value['params'])) {
-                        $data['params'] = $value['params'];
-                    }
-                    return ['send_command', $data];
-                }
-            }
-
-            if (is_bool($value)) {
-                return [$value ? 'start' : 'stop', []];
-            }
-
-            $command = strtolower(trim((string)$value));
-            if ($command === 'clean' || $command === 'start' || $command === 'on') {
-                return ['start', []];
-            }
-            if ($command === 'stop' || $command === 'off') {
-                return ['stop', []];
-            }
-            if ($command === 'pause') {
-                return ['pause', []];
-            }
-            if ($command === 'return' || $command === 'return_to_base' || $command === 'dock' || $command === 'home') {
-                return ['return_to_base', []];
-            }
-            if ($command === 'clean_spot' || $command === 'spot') {
-                return ['clean_spot', []];
-            }
-            if ($command === 'locate') {
-                return ['locate', []];
-            }
-            if ($command !== '') {
-                return ['set_fan_speed', ['fan_speed' => $command]];
-            }
-        }
-
-        if ($domain === HALockDefinitions::DOMAIN) {
-            $command = HALockDefinitions::normalizeCommand($value);
-            if ($command === '') {
-                return ['', []];
-            }
-            return [$command, []];
-        }
-
-        if ($domain === HACoverDefinitions::DOMAIN && is_array($value)) {
-            if (isset($value[HACoverDefinitions::PAYLOAD_POSITION]) && is_numeric($value[HACoverDefinitions::PAYLOAD_POSITION])) {
-                return ['set_cover_position', ['position' => (float)$value[HACoverDefinitions::PAYLOAD_POSITION]]];
-            }
-            if (isset($value[HACoverDefinitions::PAYLOAD_TILT_POSITION]) && is_numeric($value[HACoverDefinitions::PAYLOAD_TILT_POSITION])) {
-                return ['set_cover_tilt_position', ['tilt_position' => (float)$value[HACoverDefinitions::PAYLOAD_TILT_POSITION]]];
-            }
-        }
-        if ($domain === HACoverDefinitions::DOMAIN && is_numeric($value)) {
-            return ['set_cover_position', ['position' => (float)$value]];
-        }
-        if ($domain === HACoverDefinitions::DOMAIN && is_string($value)) {
-            $command = strtolower(trim($value));
-            return match ($command) {
-                'open' => ['open_cover', []],
-                'close' => ['close_cover', []],
-                'stop' => ['stop_cover', []],
-                'open_tilt' => ['open_cover_tilt', []],
-                'close_tilt' => ['close_cover_tilt', []],
-                'stop_tilt' => ['stop_cover_tilt', []],
-                default => ['', []],
-            };
-        }
-
-        if ($domain === HAFanDefinitions::DOMAIN) {
-            if (is_array($value)) {
-                if (isset($value['percentage']) && is_numeric($value['percentage'])) {
-                    return ['set_percentage', ['percentage' => (int)$value['percentage']]];
-                }
-                if (array_key_exists('oscillating', $value)) {
-                    return ['oscillate', ['oscillating' => (bool)$value['oscillating']]];
-                }
-                if (isset($value['preset_mode'])) {
-                    return ['set_preset_mode', ['preset_mode' => (string)$value['preset_mode']]];
-                }
-                if (isset($value['direction'])) {
-                    return ['set_direction', ['direction' => (string)$value['direction']]];
-                }
-            }
-
-            if (is_bool($value)) {
-                return [$value ? 'turn_on' : 'turn_off', []];
-            }
-
-            $command = strtolower(trim((string)$value));
-            return match ($command) {
-                'on', 'turn_on' => ['turn_on', []],
-                'off', 'turn_off' => ['turn_off', []],
-                default => ['', []],
-            };
-        }
-
-        if ($domain === HAHumidifierDefinitions::DOMAIN) {
-            if (is_array($value)) {
-                if (isset($value[HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY])
-                    && is_numeric($value[HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY])) {
-                    return [
-                        'set_humidity',
-                        ['humidity' => (float)$value[HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY]]
-                    ];
-                }
-                if (isset($value['mode'])) {
-                    return ['set_mode', ['mode' => (string)$value['mode']]];
-                }
-            }
-
-            if (is_bool($value)) {
-                return [$value ? 'turn_on' : 'turn_off', []];
-            }
-
-            $command = strtolower(trim((string)$value));
-            return match ($command) {
-                'on', 'turn_on' => ['turn_on', []],
-                'off', 'turn_off' => ['turn_off', []],
-                default => ['', []],
-            };
-        }
-
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
-            if (is_array($value)) {
-                if (isset($value['volume_level']) && is_numeric($value['volume_level'])) {
-                    return ['volume_set', ['volume_level' => (float)$value['volume_level']]];
-                }
-                if (array_key_exists('is_volume_muted', $value)) {
-                    return ['volume_mute', ['is_volume_muted' => (bool)$value['is_volume_muted']]];
-                }
-                if (isset($value['media_position']) && is_numeric($value['media_position'])) {
-                    return ['media_seek', ['seek_position' => (float)$value['media_position']]];
-                }
-                if (isset($value['repeat'])) {
-                    return ['repeat_set', ['repeat' => (string)$value['repeat']]];
-                }
-                if (array_key_exists('shuffle', $value)) {
-                    return ['shuffle_set', ['shuffle' => (bool)$value['shuffle']]];
-                }
-                if (isset($value['source'])) {
-                    return ['select_source', ['source' => (string)$value['source']]];
-                }
-                if (isset($value['sound_mode'])) {
-                    return ['select_sound_mode', ['sound_mode' => (string)$value['sound_mode']]];
-                }
-            }
-
-            $command = strtolower(trim((string)$value));
-            return match ($command) {
-                'on', 'turn_on' => ['turn_on', []],
-                'off', 'turn_off' => ['turn_off', []],
-                'play' => ['media_play', []],
-                'pause' => ['media_pause', []],
-                'stop' => ['media_stop', []],
-                'next', 'next_track', 'nexttrack' => ['media_next_track', []],
-                'previous', 'prev', 'previous_track', 'previoustrack' => ['media_previous_track', []],
-                'play_pause', 'playpause' => ['media_play_pause', []],
-                default => ['', []],
-            };
-        }
-
         return match ($domain) {
-            HALightDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN => [$value ? 'turn_on' : 'turn_off', []],
-            HACoverDefinitions::DOMAIN => [$value ? 'open_cover' : 'close_cover', []],
-            HANumberDefinitions::DOMAIN => ['set_value', ['value' => (float)$value]],
-            HAClimateDefinitions::DOMAIN => ['set_temperature', ['temperature' => (float)$value]],
+            HALightDefinitions::DOMAIN => HALightDefinitions::buildRestServicePayload($value),
+            HAButtonDefinitions::DOMAIN => HAButtonDefinitions::buildRestServicePayload($value),
+            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::buildRestServicePayload($value),
+            HALockDefinitions::DOMAIN => HALockDefinitions::buildRestServicePayload($value),
+            HACoverDefinitions::DOMAIN => HACoverDefinitions::buildRestServicePayload($value),
+            HAFanDefinitions::DOMAIN => HAFanDefinitions::buildRestServicePayload($value),
+            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::buildRestServicePayload($value),
+            HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::buildRestServicePayload($value),
+            HASwitchDefinitions::DOMAIN => HASwitchDefinitions::buildRestServicePayload($value),
+            HANumberDefinitions::DOMAIN => HANumberDefinitions::buildRestServicePayload($value),
+            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::buildRestServicePayload($value),
             default => ['', []],
         };
     }
@@ -763,34 +590,6 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return $changed;
     }
 
-    private function mapSupportedFeaturesByDomain(string $domain, int $mask): array
-    {
-        $map = match ($domain) {
-            HALightDefinitions::DOMAIN => HALightDefinitions::SUPPORTED_FEATURES,
-            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::SUPPORTED_FEATURES,
-            HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
-            HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
-            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
-            HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
-            HAFanDefinitions::DOMAIN => HAFanDefinitions::SUPPORTED_FEATURES,
-            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::SUPPORTED_FEATURES,
-            default => []
-        };
-
-        if ($map === []) {
-            return [];
-        }
-
-        $list = [];
-        foreach ($map as $bit => $label) {
-            if (($mask & (int)$bit) === (int)$bit) {
-                $list[] = $label;
-            }
-        }
-
-        return $list;
-    }
-
     private function storeRestDiagnostics(array $result): void
     {
         $error = $result['Error'] ?? '';
@@ -892,23 +691,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
         );
         $this->updateFormFieldSafe('DiagBaseTopic', 'caption', 'MQTT Base Topic: ' . ($baseTopic !== '' ? $baseTopic : 'leer'));
 
-        $lastRestError = $this->ReadAttributeString('LastRestError');
-        if ($lastRestError === '') {
-            $lastRestError = 'keiner';
-        }
-        $this->updateFormFieldSafe('DiagRest', 'caption', 'Letzter REST-Fehler: ' . $lastRestError);
-
-        $lastRestResponse = $this->ReadAttributeString('LastRestResponse');
-        if ($lastRestResponse === '') {
-            $lastRestResponse = 'keine';
-        }
-        $this->updateFormFieldSafe('DiagRestResponse', 'caption', 'Letzte REST-Antwort: ' . $lastRestResponse);
-
-        $lastRestTimeout = $this->ReadAttributeString('LastRestTimeout');
-        if ($lastRestTimeout === '') {
-            $lastRestTimeout = 'keiner';
-        }
-        $this->updateFormFieldSafe('DiagRestTimeout', 'caption', 'Letzter REST-Timeout: ' . $lastRestTimeout);
+        $this->updateRestErrorLabel();
+        $this->updateRestResponseLabel();
+        $this->updateRestTimeoutLabel();
     }
 
     private function getInstanceStatusName(int $status): string

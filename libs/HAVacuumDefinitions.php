@@ -36,4 +36,50 @@ final class HAVacuumDefinitions
         256 => 'Vacuum feature: State',
         512 => 'Vacuum feature: Stop'
     ];
+
+    // Map MQTT "set" payloads to HA vacuum services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        if (is_array($value)) {
+            if (isset($value['fan_speed'])) {
+                return ['set_fan_speed', ['fan_speed' => (string)$value['fan_speed']]];
+            }
+            if (isset($value['command'])) {
+                $data = ['command' => (string)$value['command']];
+                if (isset($value['params'])) {
+                    $data['params'] = $value['params'];
+                }
+                return ['send_command', $data];
+            }
+        }
+
+        if (is_bool($value)) {
+            return [$value ? 'start' : 'stop', []];
+        }
+
+        $command = strtolower(trim((string)$value));
+        if ($command === 'clean' || $command === 'start' || $command === 'on') {
+            return ['start', []];
+        }
+        if ($command === 'stop' || $command === 'off') {
+            return ['stop', []];
+        }
+        if ($command === 'pause') {
+            return ['pause', []];
+        }
+        if ($command === 'return' || $command === 'return_to_base' || $command === 'dock' || $command === 'home') {
+            return ['return_to_base', []];
+        }
+        if ($command === 'clean_spot' || $command === 'spot') {
+            return ['clean_spot', []];
+        }
+        if ($command === 'locate') {
+            return ['locate', []];
+        }
+        if ($command !== '') {
+            return ['set_fan_speed', ['fan_speed' => $command]];
+        }
+
+        return ['', []];
+    }
 }

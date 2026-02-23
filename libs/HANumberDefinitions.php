@@ -14,4 +14,9 @@ final class HANumberDefinitions
         'power_factor' => '%',
         'wind_direction' => '°'
     ];
+    // Map MQTT "set" payloads to HA number services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        return ['set_value', ['value' => (float)$value]];
+    }
 }

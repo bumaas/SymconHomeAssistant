@@ -59,4 +59,28 @@ final class HAHumidifierDefinitions
         self::ATTRIBUTE_MODE,
         self::ATTRIBUTE_ACTION
     ];
+
+    // Map MQTT "set" payloads to HA humidifier services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        if (is_array($value)) {
+            if (isset($value[self::ATTRIBUTE_TARGET_HUMIDITY]) && is_numeric($value[self::ATTRIBUTE_TARGET_HUMIDITY])) {
+                return ['set_humidity', ['humidity' => (float)$value[self::ATTRIBUTE_TARGET_HUMIDITY]]];
+            }
+            if (isset($value[self::ATTRIBUTE_MODE])) {
+                return ['set_mode', ['mode' => (string)$value[self::ATTRIBUTE_MODE]]];
+            }
+        }
+
+        if (is_bool($value)) {
+            return [$value ? 'turn_on' : 'turn_off', []];
+        }
+
+        $command = strtolower(trim((string)$value));
+        return match ($command) {
+            'on', 'turn_on' => ['turn_on', []],
+            'off', 'turn_off' => ['turn_off', []],
+            default => ['', []],
+        };
+    }
 }

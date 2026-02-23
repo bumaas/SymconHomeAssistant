@@ -79,4 +79,34 @@ final class HAFanDefinitions
         'direction',
         'current_direction'
     ];
+
+    // Map MQTT "set" payloads to HA fan services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        if (is_array($value)) {
+            if (isset($value['percentage']) && is_numeric($value['percentage'])) {
+                return ['set_percentage', ['percentage' => (int)$value['percentage']]];
+            }
+            if (array_key_exists('oscillating', $value)) {
+                return ['oscillate', ['oscillating' => (bool)$value['oscillating']]];
+            }
+            if (isset($value['preset_mode'])) {
+                return ['set_preset_mode', ['preset_mode' => (string)$value['preset_mode']]];
+            }
+            if (isset($value['direction'])) {
+                return ['set_direction', ['direction' => (string)$value['direction']]];
+            }
+        }
+
+        if (is_bool($value)) {
+            return [$value ? 'turn_on' : 'turn_off', []];
+        }
+
+        $command = strtolower(trim((string)$value));
+        return match ($command) {
+            'on', 'turn_on' => ['turn_on', []],
+            'off', 'turn_off' => ['turn_off', []],
+            default => ['', []],
+        };
+    }
 }

@@ -127,4 +127,40 @@ final class HACoverDefinitions
             default => $text
         };
     }
+
+    // Map MQTT "set" payloads to HA cover services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        if (is_array($value)) {
+            if (isset($value[self::PAYLOAD_POSITION]) && is_numeric($value[self::PAYLOAD_POSITION])) {
+                return ['set_cover_position', ['position' => (float)$value[self::PAYLOAD_POSITION]]];
+            }
+            if (isset($value[self::PAYLOAD_TILT_POSITION]) && is_numeric($value[self::PAYLOAD_TILT_POSITION])) {
+                return ['set_cover_tilt_position', ['tilt_position' => (float)$value[self::PAYLOAD_TILT_POSITION]]];
+            }
+        }
+
+        if (is_numeric($value)) {
+            return ['set_cover_position', ['position' => (float)$value]];
+        }
+
+        if (is_bool($value)) {
+            return [$value ? 'open_cover' : 'close_cover', []];
+        }
+
+        if (is_string($value)) {
+            $command = strtolower(trim($value));
+            return match ($command) {
+                'open' => ['open_cover', []],
+                'close' => ['close_cover', []],
+                'stop' => ['stop_cover', []],
+                'open_tilt' => ['open_cover_tilt', []],
+                'close_tilt' => ['close_cover_tilt', []],
+                'stop_tilt' => ['stop_cover_tilt', []],
+                default => ['', []],
+            };
+        }
+
+        return ['', []];
+    }
 }

@@ -41,4 +41,14 @@ final class HALockDefinitions
             default => ''
         };
     }
+
+    // Map MQTT "set" payloads to HA lock services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        $command = self::normalizeCommand($value);
+        if ($command === '') {
+            return ['', []];
+        }
+        return [$command, []];
+    }
 }

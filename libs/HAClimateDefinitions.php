@@ -162,4 +162,10 @@ final class HAClimateDefinitions
         self::ATTRIBUTE_SWING_HORIZONTAL_MODES,
         self::ATTRIBUTE_SUPPORTED_FEATURES
     ];
+
+    // Map MQTT "set" payloads to HA climate services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        return ['set_temperature', ['temperature' => (float)$value]];
+    }
 }

@@ -9,4 +9,10 @@ final class HAButtonDefinitions
     public const string PRESENTATION = VARIABLE_PRESENTATION_ENUMERATION;
 
     public const int ACTION_PRESS = 0;
+
+    // Map MQTT "set" payloads to HA button services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        return ['press', []];
+    }
 }

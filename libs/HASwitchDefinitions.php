@@ -9,4 +9,10 @@ final class HASwitchDefinitions
     public const string STATE_OFF = 'OFF';
     public const int VARIABLE_TYPE = VARIABLETYPE_BOOLEAN;
     public const string PRESENTATION = VARIABLE_PRESENTATION_SWITCH;
+
+    // Map MQTT "set" payloads to HA switch services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        return [$value ? 'turn_on' : 'turn_off', []];
+    }
 }

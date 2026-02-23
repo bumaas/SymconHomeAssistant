@@ -19,3 +19,5 @@ require_once __DIR__ . '/HAMediaPlayerDefinitions.php';
 require_once __DIR__ . '/HAButtonDefinitions.php';
 require_once __DIR__ . '/HAFanDefinitions.php';
 require_once __DIR__ . '/HAHumidifierDefinitions.php';
+require_once __DIR__ . '/HASupportedFeatures.php';
+require_once __DIR__ . '/HADiagnostics.php';

@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUnused */
 
 /** @noinspection AutoloadingIssuesInspection */
 
@@ -35,6 +35,8 @@ class HomeAssistantDevice extends IPSModuleStrict
     use HADomainRegistryTrait;
     use HAPresentationTrait;
     use HAEntityStoreTrait;
+    use HASupportedFeaturesTrait;
+    use HADiagnosticsTrait;
 
     private const string KEY_STATE      = 'state';
     private const string KEY_ATTRIBUTES = 'attributes';
@@ -193,52 +195,94 @@ class HomeAssistantDevice extends IPSModuleStrict
                 continue;
             }
 
-            $state = strtolower((string)($entry[self::KEY_STATE] ?? ''));
-            if ($state !== 'playing') {
+            if (!$this->isMediaPlayerPlaying($entry)) {
                 continue;
             }
 
-            $attributes = [];
-            $stored = $this->entities[$entityId]['attributes'] ?? null;
-            if (is_array($stored)) {
-                $attributes = $stored;
-            }
-            if (isset($entry[self::KEY_ATTRIBUTES]) && is_array($entry[self::KEY_ATTRIBUTES])) {
-                $attributes = array_merge($attributes, $entry[self::KEY_ATTRIBUTES]);
-            }
-
-            $basePosition = $attributes['media_position'] ?? null;
-            if (!is_numeric($basePosition)) {
+            $attributes = $this->getMediaPlayerProgressAttributes($entityId, $entry);
+            if ($attributes === null) {
                 continue;
             }
 
-            $updatedAt = $attributes['media_position_updated_at'] ?? null;
-            $updatedAtTs = $this->parseMediaPositionUpdatedAt($updatedAt);
-            if ($updatedAtTs === null) {
-                $updatedAtTs = is_numeric($entry['ts'] ?? null) ? (int)$entry['ts'] : null;
-            }
-            if ($updatedAtTs === null) {
+            $base = $this->getMediaPlayerProgressBase($attributes, $entry);
+            if ($base === null) {
                 continue;
             }
 
-            $elapsed = max(0, $now - $updatedAtTs);
-            $position = (int)max(0, (float)$basePosition + $elapsed);
-            $duration = $attributes['media_duration'] ?? null;
-            if (is_numeric($duration)) {
-                $position = min($position, (int)$duration);
-            }
-
+            $position = $this->computeMediaPlayerProgressPosition($base['base_position'], $base['updated_at_ts'], $attributes, $now);
             $ident = $this->sanitizeIdent($entityId . '_media_position');
-            if (@$this->GetIDForIdent($ident) === false) {
-                continue;
-            }
-
-            $current = $this->GetValue($ident);
-            if (is_int($current) && $current === $position) {
+            if (!$this->shouldUpdateMediaPlayerPosition($ident, $position)) {
                 continue;
             }
             $this->setValueWithDebug($ident, $position);
         }
+    }
+
+    private function isMediaPlayerPlaying(array $entry): bool
+    {
+        $state = strtolower((string)($entry[self::KEY_STATE] ?? ''));
+        return $state === 'playing';
+    }
+
+    private function getMediaPlayerProgressAttributes(string $entityId, array $entry): ?array
+    {
+        $attributes = [];
+        $stored = $this->entities[$entityId]['attributes'] ?? null;
+        if (is_array($stored)) {
+            $attributes = $stored;
+        }
+        if (isset($entry[self::KEY_ATTRIBUTES]) && is_array($entry[self::KEY_ATTRIBUTES])) {
+            $attributes = array_merge($attributes, $entry[self::KEY_ATTRIBUTES]);
+        }
+
+        $basePosition = $attributes['media_position'] ?? null;
+        if (!is_numeric($basePosition)) {
+            return null;
+        }
+
+        return $attributes;
+    }
+
+    private function getMediaPlayerProgressBase(array $attributes, array $entry): ?array
+    {
+        $updatedAt = $attributes['media_position_updated_at'] ?? null;
+        $updatedAtTs = $this->parseMediaPositionUpdatedAt($updatedAt);
+        if ($updatedAtTs === null) {
+            $updatedAtTs = is_numeric($entry['ts'] ?? null) ? (int)$entry['ts'] : null;
+        }
+        if ($updatedAtTs === null) {
+            return null;
+        }
+
+        return [
+            'base_position' => (float)$attributes['media_position'],
+            'updated_at_ts' => $updatedAtTs
+        ];
+    }
+
+    private function computeMediaPlayerProgressPosition(
+        float $basePosition,
+        int $updatedAtTs,
+        array $attributes,
+        int $now
+    ): int {
+        $elapsed = max(0, $now - $updatedAtTs);
+        $position = (int)max(0, $basePosition + $elapsed);
+        $duration = $attributes['media_duration'] ?? null;
+        if (is_numeric($duration)) {
+            $position = min($position, (int)$duration);
+        }
+        return $position;
+    }
+
+    private function shouldUpdateMediaPlayerPosition(string $ident, int $position): bool
+    {
+        if (@$this->GetIDForIdent($ident) === false) {
+            return false;
+        }
+
+        $current = $this->GetValue($ident);
+        return !(is_int($current) && $current === $position);
     }
 
     private function parseMediaPositionUpdatedAt(mixed $value): ?int
@@ -1003,9 +1047,14 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function mapMediaPlayerAttributeAliases(array $attributes, string $context): array
     {
         $mapped = [];
-        if (!array_key_exists('media_image_url', $attributes) && array_key_exists('entity_picture', $attributes)) {
-            $attributes['media_image_url'] = $attributes['entity_picture'];
-            $mapped['entity_picture'] = 'media_image_url';
+        if (!array_key_exists('media_image_url', $attributes)) {
+            if (array_key_exists('entity_picture', $attributes)) {
+                $attributes['media_image_url'] = $attributes['entity_picture'];
+                $mapped['entity_picture'] = 'media_image_url';
+            } elseif (array_key_exists('entity_picture_local', $attributes)) {
+                $attributes['media_image_url'] = $attributes['entity_picture_local'];
+                $mapped['entity_picture_local'] = 'media_image_url';
+            }
         }
         if ($mapped !== []) {
             $this->debugExpert($context, 'Media-Attribute umbenannt', ['Mapped' => $mapped]);
@@ -1074,43 +1123,10 @@ class HomeAssistantDevice extends IPSModuleStrict
             [$domain] = explode('.', (string)$row['entity_id'], 2);
         }
 
-        $list = $this->mapSupportedFeaturesByDomain($domain, (int)$row['attributes']['supported_features']);
+        $list = $this->mapSupportedFeaturesByDomain($domain, (int)$row['attributes']['supported_features'], true);
         if ($list !== []) {
             $row['attributes']['supported_features_list'] = $list;
         }
-    }
-
-    private function mapSupportedFeaturesByDomain(string $domain, int $mask): array
-    {
-        $map = match ($domain) {
-            HALightDefinitions::DOMAIN => HALightDefinitions::SUPPORTED_FEATURES,
-            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::SUPPORTED_FEATURES,
-            HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
-            HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
-            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
-            HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
-            HAFanDefinitions::DOMAIN => HAFanDefinitions::SUPPORTED_FEATURES,
-            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::SUPPORTED_FEATURES,
-            default => []
-        };
-
-        if ($map === []) {
-            return [];
-        }
-
-        $list = [];
-        foreach ($map as $bit => $label) {
-            if (($mask & (int)$bit) === (int)$bit) {
-                $list[] = $label;
-            }
-        }
-        return array_map(
-            static function (string $label): string {
-                $parts = explode(':', $label, 2);
-                return isset($parts[1]) ? ltrim($parts[1]) : $label;
-            },
-            $list
-        );
     }
 
 
@@ -1702,7 +1718,8 @@ class HomeAssistantDevice extends IPSModuleStrict
         if (array_key_exists(self::KEY_SUPPORTED_FEATURES, $attributes)) {
             $featuresList = $this->mapSupportedFeaturesByDomain(
                 HAMediaPlayerDefinitions::DOMAIN,
-                (int)$attributes[self::KEY_SUPPORTED_FEATURES]
+                (int)$attributes[self::KEY_SUPPORTED_FEATURES],
+                true
             );
             $debugContext['SupportedFeaturesList'] = $featuresList;
         }

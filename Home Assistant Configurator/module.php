@@ -1,4 +1,6 @@
-<?php /** @noinspection AutoloadingIssuesInspection */
+<?php /** @noinspection PhpUnused */
+
+/** @noinspection AutoloadingIssuesInspection */
 
 declare(strict_types=1);
 
@@ -7,6 +9,7 @@ require_once __DIR__ . '/../libs/HACommonIncludes.php';
 class HomeAssistantConfigurator extends IPSModuleStrict
 {
     use HADebugTrait;
+    use HASupportedFeaturesTrait;
 
     // ... Caches ...
     private array $entities = [];
@@ -363,33 +366,6 @@ EOT;
         if ($list !== []) {
             $entity['attributes']['supported_features_list'] = $list;
         }
-    }
-
-    private function mapSupportedFeaturesByDomain(string $domain, int $mask): array
-    {
-        $map = match ($domain) {
-            HALightDefinitions::DOMAIN => HALightDefinitions::SUPPORTED_FEATURES,
-            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::SUPPORTED_FEATURES,
-            HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
-            HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
-            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
-            HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
-            HAFanDefinitions::DOMAIN => HAFanDefinitions::SUPPORTED_FEATURES,
-            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::SUPPORTED_FEATURES,
-            default => []
-        };
-
-        if ($map === []) {
-            return [];
-        }
-
-        $list = [];
-        foreach ($map as $bit => $label) {
-            if (($mask & (int)$bit) === (int)$bit) {
-                $list[] = $label;
-            }
-        }
-        return $list;
     }
 
     /**

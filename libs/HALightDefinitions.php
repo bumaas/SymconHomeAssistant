@@ -137,4 +137,27 @@ final class HALightDefinitions
         'xy_color',
         'supported_features'
     ];
+
+    // Map MQTT "set" payloads to HA light services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        if (is_array($value)) {
+            $data = $value;
+            $service = 'turn_on';
+            if (array_key_exists('state', $data)) {
+                $state = $data['state'];
+                unset($data['state']);
+                if ($state === false || $state === 0 || strtoupper((string)$state) === 'OFF') {
+                    $service = 'turn_off';
+                }
+            }
+            return [$service, $data];
+        }
+
+        if (is_bool($value)) {
+            return [$value ? 'turn_on' : 'turn_off', []];
+        }
+
+        return ['', []];
+    }
 }

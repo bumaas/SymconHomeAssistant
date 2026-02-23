@@ -208,6 +208,16 @@ final class HAMediaPlayerDefinitions
             'type' => VARIABLETYPE_STRING,
             'writable' => false
         ],
+        'media_album_name' => [
+            'caption' => 'Album',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => false
+        ],
+        'media_album_artist' => [
+            'caption' => 'Album Artist',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => false
+        ],
         'media_duration' => [
             'caption' => 'Duration',
             'type' => VARIABLETYPE_INTEGER,
@@ -272,6 +282,8 @@ final class HAMediaPlayerDefinitions
         'media_image_url',
         'media_cover',
         'media_artist',
+        'media_album_artist',
+        'media_album_name',
         'media_title',
         'media_playlist',
         'cross_fade',
@@ -316,4 +328,45 @@ final class HAMediaPlayerDefinitions
         'volume_step',
         'supported_features'
     ];
+
+    // Map MQTT "set" payloads to HA media_player services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        if (is_array($value)) {
+            if (isset($value['volume_level']) && is_numeric($value['volume_level'])) {
+                return ['volume_set', ['volume_level' => (float)$value['volume_level']]];
+            }
+            if (array_key_exists('is_volume_muted', $value)) {
+                return ['volume_mute', ['is_volume_muted' => (bool)$value['is_volume_muted']]];
+            }
+            if (isset($value['media_position']) && is_numeric($value['media_position'])) {
+                return ['media_seek', ['seek_position' => (float)$value['media_position']]];
+            }
+            if (isset($value['repeat'])) {
+                return ['repeat_set', ['repeat' => (string)$value['repeat']]];
+            }
+            if (array_key_exists('shuffle', $value)) {
+                return ['shuffle_set', ['shuffle' => (bool)$value['shuffle']]];
+            }
+            if (isset($value['source'])) {
+                return ['select_source', ['source' => (string)$value['source']]];
+            }
+            if (isset($value['sound_mode'])) {
+                return ['select_sound_mode', ['sound_mode' => (string)$value['sound_mode']]];
+            }
+        }
+
+        $command = strtolower(trim((string)$value));
+        return match ($command) {
+            'on', 'turn_on' => ['turn_on', []],
+            'off', 'turn_off' => ['turn_off', []],
+            'play' => ['media_play', []],
+            'pause' => ['media_pause', []],
+            'stop' => ['media_stop', []],
+            'next', 'next_track', 'nexttrack' => ['media_next_track', []],
+            'previous', 'prev', 'previous_track', 'previoustrack' => ['media_previous_track', []],
+            'play_pause', 'playpause' => ['media_play_pause', []],
+            default => ['', []],
+        };
+    }
 }

@@ -380,7 +380,7 @@ trait HAPresentationTrait
                                              ]);
         }
 
-        if ($attribute === 'current_humidity') {
+        if ($attribute === HAHumidifierDefinitions::ATTRIBUTE_CURRENT_HUMIDITY) {
             return $this->filterPresentation([
                                                  'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
                                                  'DIGITS'       => 0,
@@ -767,8 +767,14 @@ trait HAPresentationTrait
         );
     }
 
-    private function getPresentationOptions(?array $options): ?string
+    private function getPresentationOptions(array|string|null $options): ?string
     {
+        if (is_string($options)) {
+            $trimmed = trim($options);
+            if ($trimmed !== '') {
+                $options = [$trimmed];
+            }
+        }
         if (!is_array($options) || count($options) === 0) {
             return null;
         }

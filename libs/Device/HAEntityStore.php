@@ -218,17 +218,8 @@ trait HAEntityStoreTrait
 
     private function updateDiagnosticsLabels(): void
     {
-        $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
-        if ($lastMqtt === '') {
-            $lastMqtt = 'nie';
-        }
-        $this->updateFormFieldSafe('DiagLastMQTT', 'caption', 'Letzte MQTT-Message: ' . $lastMqtt);
-
-        $lastRest = $this->ReadAttributeString('LastRESTFetch');
-        if ($lastRest === '') {
-            $lastRest = 'nie';
-        }
-        $this->updateFormFieldSafe('DiagLastREST', 'caption', 'Letzter REST-Abruf: ' . $lastRest);
+        $this->updateLastMqttLabel();
+        $this->updateLastRestFetchLabel();
 
         $count = count($this->entities);
         $this->updateFormFieldSafe('DiagEntityCount', 'caption', 'Entitäten (aktiv): ' . $count);
