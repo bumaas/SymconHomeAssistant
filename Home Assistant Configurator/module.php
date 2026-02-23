@@ -14,6 +14,9 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     // ... Caches ...
     private array $entities = [];
 
+    private const string TIMER_CACHE_REFRESH = 'CacheRefreshTimer';
+    private const string BUFFER_REFRESH_ACTIVE = 'CacheRefreshActive';
+
     // Max. Anzahl an Entity-Namen in der Zusammenfassung (danach nur Anzahl).
     private const int ENTITY_SUMMARY_MAX_NAMES = 10;
     // Anzahl Entities pro Template-Request, um die HA-Output-Grenze einzuhalten.
@@ -155,12 +158,12 @@ EOT;
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
         $this->RegisterPropertyString('DeviceMapping', '[]');
         $this->RegisterAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
+        $this->RegisterTimer(self::TIMER_CACHE_REFRESH, 0, 'IPS_RequestAction($_IPS["TARGET"], "refresh_cache", "");');
     }
 
     public function GetConfigurationForm(): string
     {
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
-        $this->UpdateCacheFromHA();
 
         $bufferSizeMb = max(0, $this->ReadPropertyInteger('OutputBufferSize'));
         if ($bufferSizeMb > 0) {
@@ -174,6 +177,14 @@ EOT;
             } catch (JsonException) {
                 $this->entities = [];
             }
+        }
+
+        $lastRefreshRaw = $this->GetBuffer(self::BUFFER_REFRESH_ACTIVE);
+        $lastRefresh = is_numeric($lastRefreshRaw) ? (int) $lastRefreshRaw : 0;
+        $needsRefresh = $this->entities === [] || (time() - $lastRefresh) >= 120;
+        if ($needsRefresh) {
+            $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, (string) time());
+            $this->SetTimerInterval(self::TIMER_CACHE_REFRESH, 120 *1200);
         }
 
         try {
@@ -216,6 +227,25 @@ EOT;
         ];
 
         return json_encode($form, JSON_THROW_ON_ERROR);
+    }
+
+    /** @noinspection PhpUnused */
+    private function updateConfiguratorCache(): void
+    {
+        $this->SetTimerInterval(self::TIMER_CACHE_REFRESH, 0);
+        $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, (string) time());
+        $this->UpdateCacheFromHA();
+        $this->ReloadForm();
+    }
+
+    /** @noinspection PhpUnused */
+    public function RequestAction($Ident, $Value): void
+    {
+        if ($Ident === 'refresh_cache') {
+            $this->updateConfiguratorCache();
+            return;
+        }
+        parent::RequestAction($Ident, $Value);
     }
 
     private function groupEntitiesToDevices(array $entities): array
@@ -451,6 +481,7 @@ EOT;
         } catch (JsonException) {
             $domainsList = [];
         }
+
         if ($parentID <= 0) {
             return;
         }

@@ -357,7 +357,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
 
         if (!$searchActive) {
             $this->SetBuffer(self::BUFFER_SEARCHACTIVE, json_encode(true, JSON_THROW_ON_ERROR));
-            $this->SetTimerInterval(self::TIMER_LOAD, 200);
+            $this->SetTimerInterval(self::TIMER_LOAD, 120*1200);
         }
 
         $elements   = $this->formElements();

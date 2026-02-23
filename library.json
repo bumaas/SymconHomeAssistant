@@ -4,10 +4,9 @@
   "name": "Home Assistant Bridge",
   "url": "",
   "compatibility": {
-    "version": "8.2",
-    "date": 1767222000
+    "version": "9.0"
   },
-  "version": "0.9",
+  "version": "1.0",
   "build": 28,
-  "date": 1771774227
+  "date": 1771859281
 }

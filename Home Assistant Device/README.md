@@ -1,38 +1,71 @@
-﻿# Home Assistant Device
+[![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+# Home Assistant Device
 
 Stellt ein einzelnes Home Assistant Gerät in Symcon dar und mappt Entitäten auf Variablen.
 
-## Voraussetzungen
+## Dokumentation
 
-- Parent: Home Assistant Splitter.
-- DeviceConfig wird vom Configurator erzeugt oder manuell gepflegt.
-- Home Assistant mqtt_statestream aktiv, `base_topic` passend zu `MQTTBaseTopic`.
+**Inhaltsverzeichnis**
 
-## Konfiguration
+1. [Funktionsumfang](#1-funktionsumfang)  
+2. [Voraussetzungen](#2-voraussetzungen)  
+3. [Installation](#3-installation)  
+4. [Funktionsreferenz](#4-funktionsreferenz)  
+5. [Konfiguration](#5-konfiguration)  
+6. [Statusvariablen und Profile](#6-statusvariablen-und-profile)  
+7. [Anhang](#7-anhang)  
+8. [Home Assistant mqtt_statestream](#home-assistant-mqtt_statestream)
 
-- `DeviceName`, `DeviceArea`, `DeviceID`: nur lesbar (vom Configurator gesetzt).
-- `DeviceConfig`: Liste der Entitäten mit Domain, Name, entity_id und Aktiv-Flag.
-- Optional: `EnableExpertDebug`.
-
-## Verhalten
+## 1. Funktionsumfang
 
 - Legt Variablen je Entität an und abonniert deren MQTT Topics.
 - Schreibt Werte aus `state` Topics in Variablen.
-- Sendet Steuerbefehle an `*/set` Topics (oder REST via Splitter, wenn aktiviert).
-- `MQTTBaseTopic` wird vom Splitter übernommen oder aus der Parent-Subscription ermittelt.
-- Bei `light` werden zusätzliche Attribute als Variablen angelegt.
-- `binary_sensor`: Präsentation und Icon werden anhand von `device_class` gemappt.
+- Sendet Steuerbefehle an `*/set` Topics oder via REST über den Splitter.
+- Mappt Präsentationen und Optionen je Domain.
+
+## 2. Voraussetzungen
+
+- Parent: Home Assistant Splitter.
+- `DeviceConfig` wird vom Configurator erzeugt oder manuell gepflegt.
+- Home Assistant `mqtt_statestream` aktiv und `base_topic` passend zu `MQTTBaseTopic`.
+
+## 3. Installation
+
+- In Symcon `Instanz hinzufügen` und `Home Assistant Device` auswählen.
+- Konfiguration über den Configurator oder manuell setzen.
+
+## 4. Funktionsreferenz
+
+Keine öffentlichen Funktionen.
+
+## 5. Konfiguration
+
+- `DeviceName`, `DeviceArea`, `DeviceID`: nur lesbar (vom Configurator gesetzt).
+- `DeviceConfig`: Liste der Entitäten mit Domain, Name, `entity_id` und Aktiv-Flag.
+- Optional: `EnableExpertDebug`.
+
+## 6. Statusvariablen und Profile
+
+- Variablen je Entität.
+- Suffix aus `unit_of_measurement`, `native_unit_of_measurement` und `device_class`.
+- Diagnosefelder in der Konfiguration (z.B. letzte MQTT-Message, letzter REST-Abruf, Entity-Count).
+
+## 7. Anhang
+
+### Domain-spezifisches Verhalten
+
+- `light`: zusätzliche Attribute als Variablen, schreibbare Attribute nur bei passenden `supported_features`.
+- `binary_sensor`: Präsentation und Icon anhand von `device_class`.
 - `number`: Präsentation nutzt `min`, `max`, `step` (bzw. `native_*`) auch bei `mode: box`.
-- `sensor`: `device_class: enum` mit `options` wird als Enumeration dargestellt.
-- Suffix wird aus `unit_of_measurement`/`native_unit_of_measurement` und `device_class` abgeleitet.
-- `lock`: Darstellung als Enumeration (locked/unlocked/locking/...) und optional `open` wenn unterstützt.
-- `media_player`: Status-Variable ist read-only; Read-only-Attribute (z. B. `media_title`, `media_artist`) werden immer angelegt, schreibbare Attribute (z. B. `volume_level`, `is_volume_muted`, `shuffle`, `source`, `sound_mode`) nur wenn `supported_features` sie ausweist; Aktionen sind aktuell auf Play/Pause/Stop/Previous/Next begrenzt (kein Turn On/Off in der Action-Variable); wenn `supported_features` Turn On/Off meldet, wird eine zusätzliche boolesche `Power`-Variable angelegt, `device_class` wie `speaker`/`receiver` wird nicht speziell ausgewertet.
-- `fan`: Status-Variable als Ein/Aus; Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`) werden angelegt, sobald HA sie liefert; schreibbare Attribute werden nur angelegt, wenn `supported_features` sie ausweist.
-- `humidifier`: Status-Variable als Ein/Aus; Attribute (`target_humidity`, `current_humidity`, `mode`, `action`) werden angelegt, sobald HA sie liefert; schreibbare Attribute werden nur angelegt, wenn `supported_features` sie ausweist.
+- `sensor`: `device_class: enum` mit `options` als Enumeration.
+- `lock`: Darstellung als Enumeration und optional `open` wenn unterstützt.
+- `media_player`: Status read-only, Attribute je `supported_features`, zusätzliche `Power`-Variable bei Turn On/Off.
+- `fan`: Status Ein/Aus; Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`).
+- `humidifier`: Status Ein/Aus; Attribute (`target_humidity`, `current_humidity`, `mode`, `action`).
 
-## Icon Mapping
+### Icon Mapping
 
-### Binary Sensor
+#### Binary Sensor
 
 | Quelle | Wert | Icon |
 | --- | --- | --- |
@@ -64,7 +97,7 @@ Stellt ein einzelnes Home Assistant Gerät in Symcon dar und mappt Entitäten au
 | `device_class` | `vibration` | `chart-fft` |
 | `device_class` | `window` | `window-frame-open` |
 
-### Vacuum
+#### Vacuum
 
 | Quelle | Wert | Icon |
 | --- | --- | --- |
@@ -75,14 +108,14 @@ Stellt ein einzelnes Home Assistant Gerät in Symcon dar und mappt Entitäten au
 | `state` | `returning` | `arrow-rotate-left` |
 | `state` | `error` | `triangle-exclamation` |
 
-## Diagnose
+### Schreibbare Light-Attribute
 
-- In der Konfiguration werden Statusinfos angezeigt (z. B. letzte MQTT-Message, letzter REST-Abruf, Entity-Count).
+`brightness`, `color_temp`, `color_temp_kelvin`, `effect`, `flash`, `hs_color`, `rgb_color`, `rgbw_color`, `rgbww_color`, `transition`, `xy_color`.
 
-## Home Assistant mqtt_statestream
+### Home Assistant mqtt_statestream
 
 Siehe Home Assistant Doku: https://www.home-assistant.io/integrations/mqtt_statestream/
-Mit den Optionen `include` und `exclude` kannst du gezielt Domains/Entitäten ein- oder ausschließen und damit beeinflussen, welche Integrationen hier ankommen.
+Mit `include` und `exclude` können Domains/Entitäten gezielt ein- oder ausgeschlossen werden.
 
 ```yaml
 mqtt_statestream:
@@ -90,9 +123,3 @@ mqtt_statestream:
   publish_attributes: true
   publish_timestamps: true
 ```
-
-## Schreibbare Light-Attribute
-
-Wenn ein Light die Attribute meldet, werden für diese Attribute Variablen angelegt. Schreibbar sind:
-`brightness`, `color_temp`, `color_temp_kelvin`, `effect`, `flash`, `hs_color`, `rgb_color`,
-`rgbw_color`, `rgbww_color`, `transition`, `xy_color`.

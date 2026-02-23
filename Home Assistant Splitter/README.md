@@ -1,34 +1,64 @@
-﻿# Home Assistant Splitter
+[![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+# Home Assistant Splitter
 
-Verbindet den MQTT Client oder Server mit den Device/Configurator Instanzen und bietet optional REST-basierte Steuerung für `*/set` Topics.
+Verbindet MQTT mit den Device- und Configurator-Instanzen und bietet optional REST-basierte Steuerung für `*/set` Topics.
 
-## Voraussetzungen
+## Dokumentation
+
+**Inhaltsverzeichnis**
+
+1. [Funktionsumfang](#1-funktionsumfang)  
+2. [Voraussetzungen](#2-voraussetzungen)  
+3. [Installation](#3-installation)  
+4. [Funktionsreferenz](#4-funktionsreferenz)  
+5. [Konfiguration](#5-konfiguration)  
+6. [Statusvariablen und Profile](#6-statusvariablen-und-profile)  
+7. [Anhang](#7-anhang)  
+8. [Home Assistant mqtt_statestream](#home-assistant-mqtt_statestream)
+
+## 1. Funktionsumfang
+
+- Verteilt MQTT-Daten an Device-Instanzen.
+- Leitet REST-Requests vom Configurator an Home Assistant weiter.
+- Optionale REST-Steuerung für `*/set` Topics.
+- REST-Steuerung für `light`, `switch`, `lock`, `cover`, `number`, `climate`, `fan`, `humidifier`, `media_player`, `button`, `vacuum`.
+
+## 2. Voraussetzungen
 
 - Home Assistant MQTT Integration aktiv.
-- MQTT Client oder MQTT Server Instanz als Parent (direkt verbinden).
-  - Bei MQTT Client: mindestens `ClientID` setzen und eine Subscription konfigurieren (z.B. `#` oder `homeassistant/#`).
-  - Hinweis zu Ports: MQTT nutzt i.d.R. `1883` (oder `8883` bei TLS). Der Home Assistant Web/REST-Port ist typischerweise `8123`.
+- MQTT Client oder MQTT Server Instanz als Parent.
+- Bei MQTT Client: `ClientID` setzen und Subscription konfigurieren (z.B. `#` oder `homeassistant/#`).
+- Ports: MQTT i.d.R. `1883` (oder `8883` bei TLS), Home Assistant REST typischerweise `8123`.
 
-## Konfiguration
+## 3. Installation
+
+- In Symcon `Instanz hinzufügen` und `Home Assistant Splitter` auswählen.
+- Parent auf MQTT Client oder MQTT Server verbinden.
+
+## 4. Funktionsreferenz
+
+Keine öffentlichen Funktionen.
+
+## 5. Konfiguration
 
 - `MQTTBaseTopic`: Basis-Topic für Discovery (typisch `homeassistant`).
-- `HAUrl`: Base URL von Home Assistant im Format `http(s)://<host>:<port>` (z.B. `http://homeassistant.local:8123`).
-- `HAToken`: Long-Lived Access Token aus Home Assistant (Profil -> Long-Lived Access Tokens) für REST.
-- `UseRestForSetTopics`: Leitet `*/set` Topics an REST weiter (optional).
-- `RestAckTimeoutSec`: Timeout in Sekunden für REST-ACKs (Fallback/Status).
+- `HAUrl`: Base URL `http(s)://<host>:<port>` (z.B. `http://homeassistant.local:8123`).
+- `HAToken`: Long-Lived Access Token (Home Assistant Profil).
+- `UseRestForSetTopics`: Leitet `*/set` Topics an REST weiter.
+- `RestAckTimeoutSec`: Timeout in Sekunden für REST-ACKs.
 - Optional: `EnableExpertDebug`, `DebugResponseFormat`.
 
-## Verhalten
+## 6. Statusvariablen und Profile
 
-- MQTT Daten werden an Devices verteilt.
-- REST Requests vom Configurator laufen über den Splitter.
-- Für `light`, `switch`, `lock`, `cover`, `number`, `climate`, `fan`, `humidifier`, `media_player` können Steuerbefehle per REST gesendet werden.
+- Diagnosefelder in der Konfiguration (z.B. REST-Fehler, REST-Antwort, REST-Timeout, Parent-Status).
 
-## Home Assistant mqtt_statestream
+## 7. Anhang
 
-Damit Zustandsänderungen per MQTT ankommen, muss `mqtt_statestream` aktiv sein und das `base_topic` mit `MQTTBaseTopic` übereinstimmen:
+### Home Assistant mqtt_statestream
+
+Damit Zustandsänderungen per MQTT ankommen, muss `mqtt_statestream` aktiv sein und das `base_topic` mit `MQTTBaseTopic` übereinstimmen.
 Siehe Home Assistant Doku: https://www.home-assistant.io/integrations/mqtt_statestream/
-Mit den Optionen `include` und `exclude` kannst du gezielt Domains/Entitäten ein- oder ausschließen und damit beeinflussen, welche Integrationen hier ankommen.
+Mit `include` und `exclude` können Domains/Entitäten gezielt ein- oder ausgeschlossen werden.
 
 ```yaml
 mqtt_statestream:
@@ -36,5 +66,3 @@ mqtt_statestream:
   publish_attributes: true
   publish_timestamps: true
 ```
-
-
