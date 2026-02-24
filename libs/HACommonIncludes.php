@@ -17,6 +17,7 @@ require_once __DIR__ . '/Domains/HASelectDefinitions.php';
 require_once __DIR__ . '/Domains/HAVacuumDefinitions.php';
 require_once __DIR__ . '/Domains/HAMediaPlayerDefinitions.php';
 require_once __DIR__ . '/Domains/HAButtonDefinitions.php';
+require_once __DIR__ . '/Domains/HAInputButtonDefinitions.php';
 require_once __DIR__ . '/Domains/HAFanDefinitions.php';
 require_once __DIR__ . '/Domains/HAHumidifierDefinitions.php';
 require_once __DIR__ . '/HASupportedFeatures.php';

@@ -771,6 +771,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
     private function convertValueByDomain(string $domain, string $valueData, array $attributes = []): string|bool|float|int|null
     {
+        $domain = $this->normalizeDomainAlias($domain);
         $normalized = strtoupper(trim($valueData));
         if ($normalized === 'UNAVAILABLE' || $normalized === 'UNKNOWN') {
             if ($domain === HASelectDefinitions::DOMAIN || $domain === HAButtonDefinitions::DOMAIN) {
@@ -1139,6 +1140,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
     private function isWriteable(string $domain): bool
     {
+        $domain = $this->normalizeDomainAlias($domain);
         return in_array($domain, [
             HALightDefinitions::DOMAIN,
             HASwitchDefinitions::DOMAIN,
@@ -1155,6 +1157,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
     private function formatPayloadForMqtt(string $domain, mixed $value, array $attributes = []): string
     {
+        $domain = $this->normalizeDomainAlias($domain);
         return match ($domain) {
             HALightDefinitions::DOMAIN, HAFanDefinitions::DOMAIN, HAHumidifierDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
             HASwitchDefinitions::DOMAIN => $value ? HASwitchDefinitions::STATE_ON : HASwitchDefinitions::STATE_OFF,
@@ -1187,6 +1190,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
     private function getVariableType(string $domain, array $attributes = []): int
     {
+        $domain = $this->normalizeDomainAlias($domain);
         if ($domain === HASensorDefinitions::DOMAIN) {
             $deviceClass = $attributes['device_class'] ?? '';
             if (is_string($deviceClass)) {
@@ -1222,6 +1226,14 @@ class HomeAssistantDevice extends IPSModuleStrict
             HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::VARIABLE_TYPE,
             default => VARIABLETYPE_STRING,
         };
+    }
+
+    private function normalizeDomainAlias(string $domain): string
+    {
+        if ($domain === HAInputButtonDefinitions::DOMAIN) {
+            return HAButtonDefinitions::DOMAIN;
+        }
+        return $domain;
     }
 
 

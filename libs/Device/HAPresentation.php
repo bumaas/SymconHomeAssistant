@@ -81,7 +81,7 @@ trait HAPresentationTrait
             return $this->getHumidifierPresentation();
         }
 
-        if ($domain === HAButtonDefinitions::DOMAIN) {
+        if ($domain === HAButtonDefinitions::DOMAIN || $domain === HAInputButtonDefinitions::DOMAIN) {
             return $this->getButtonPresentation($entity);
         }
 

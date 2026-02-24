@@ -144,7 +144,8 @@ EOT;
             HASelectDefinitions::DOMAIN,
             HAVacuumDefinitions::DOMAIN,
             HAMediaPlayerDefinitions::DOMAIN,
-            HAButtonDefinitions::DOMAIN
+            HAButtonDefinitions::DOMAIN,
+            HAInputButtonDefinitions::DOMAIN
         ];
         $domainList     = [];
         foreach ($defaultDomains as $d) {
@@ -240,10 +241,22 @@ EOT;
 
             $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
             $this->debugExpert(__FUNCTION__, 'SearchActive deactivated');
+            $this->updateConfiguratorList();
 
             return;
         }
         parent::RequestAction($Ident, $Value);
+    }
+
+    private function updateConfiguratorList(): void
+    {
+        $devices = $this->groupEntitiesToDevices($this->entities);
+        $values = $this->prepareConfiguratorValues($devices);
+        $this->UpdateFormField(
+            'HomeAssistantDevices',
+            'values',
+            json_encode($values, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
     }
 
     private function groupEntitiesToDevices(array $entities): array

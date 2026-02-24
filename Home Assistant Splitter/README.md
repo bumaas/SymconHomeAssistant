@@ -20,8 +20,9 @@ Verbindet MQTT mit den Device- und Configurator-Instanzen und bietet optional RE
 
 - Verteilt MQTT-Daten an Device-Instanzen.
 - Leitet REST-Requests vom Configurator an Home Assistant weiter.
-- Optionale REST-Steuerung für `*/set` Topics.
-- REST-Steuerung für `light`, `switch`, `lock`, `cover`, `number`, `climate`, `fan`, `humidifier`, `media_player`, `button`, `vacuum`.
+- Optional REST-Steuerung für `*/set` Topics.
+- REST-Steuerung für `light`, `switch`, `lock`, `cover`, `number`, `climate`, `fan`, `humidifier`, `media_player`, `button`, `input_button`, `vacuum`.
+- Optionaler generischer REST-Service-Call für beliebige Home Assistant Services.
 
 ## 2. Voraussetzungen
 
@@ -37,7 +38,19 @@ Verbindet MQTT mit den Device- und Configurator-Instanzen und bietet optional RE
 
 ## 4. Funktionsreferenz
 
-Keine öffentlichen Funktionen.
+Öffentliche Funktion:
+
+- `CallService(string $domain, string $service, array $data): bool`  
+  Führt einen beliebigen Home Assistant Service per REST aus.
+
+Beispiel:
+
+```php
+$splitterId = 12345;
+HA_CallService($splitterId, 'script', 'turn_on', [
+    'entity_id' => 'script.play_swr3'
+]);
+```
 
 ## 5. Konfiguration
 

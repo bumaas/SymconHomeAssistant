@@ -51,6 +51,7 @@ Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
 | `vacuum`        | teilweise   | REST `start`/`stop`/`pause`/`return_to_base`, `fan_speed` | Weitere Dienste/Features je Modell |
 | `media_player`  | teilweise   | Status, Aktionen, Attribute, Cover als Medienobjekt | Weitere Dienste/Features je Modell |
 | `button`        | voll        | `press` als Aktion | - |
+| `input_button`  | voll        | `press` als Aktion | - |
 
 ## 2. Voraussetzungen
 

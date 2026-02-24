@@ -166,6 +166,33 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return '';
     }
 
+    /** @noinspection PhpUnused */
+    public function CallService(string $domain, string $service, array $data): bool
+    {
+        $domain = trim($domain);
+        $service = trim($service);
+        if ($domain === '' || $service === '') {
+            $this->debugExpert('REST', __FUNCTION__, ['domain/service missing']);
+            return false;
+        }
+
+        $haUrl = trim($this->ReadPropertyString('HAUrl'));
+        $token = trim($this->ReadPropertyString('HAToken'));
+        if ($haUrl === '' || $token === '') {
+            $this->debugExpert('REST', __FUNCTION__, ['Missing HAUrl/HAToken']);
+            return false;
+        }
+
+        $url = rtrim($haUrl, '/') . '/api/services/' . $domain . '/' . $service;
+        $postData = json_encode($data, JSON_THROW_ON_ERROR);
+        $this->debugExpert('REST', __FUNCTION__, ['Url' => $url, 'Data' => $data]);
+        $ok = $this->sendHaRequest($url, $token, $postData);
+        if ($ok && isset($data['entity_id']) && is_string($data['entity_id']) && $data['entity_id'] !== '') {
+            $this->addPendingRestAck($data['entity_id'], $service);
+        }
+        return $ok;
+    }
+
     private function updateLastMqttMessageLabel(): void
     {
         $last = $this->ReadAttributeString('LastMQTTMessage');
@@ -335,6 +362,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return match ($domain) {
             HALightDefinitions::DOMAIN => HALightDefinitions::buildRestServicePayload($value),
             HAButtonDefinitions::DOMAIN => HAButtonDefinitions::buildRestServicePayload($value),
+            HAInputButtonDefinitions::DOMAIN => HAButtonDefinitions::buildRestServicePayload($value),
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::buildRestServicePayload($value),
             HALockDefinitions::DOMAIN => HALockDefinitions::buildRestServicePayload($value),
             HACoverDefinitions::DOMAIN => HACoverDefinitions::buildRestServicePayload($value),
