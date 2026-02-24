@@ -11,6 +11,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
     use HADebugTrait;
     use HASupportedFeaturesTrait;
     use HADiagnosticsTrait;
+
+    private const string TIMER_RESTACK = 'RestAckTimer';
     public function Create(): void
     {
         parent::Create();
@@ -34,7 +36,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterAttributeString('LastRestTimeout', '');
         $this->RegisterAttributeString('PendingRestAcks', '{}');
 
-        $this->RegisterTimer('RestAckTimer', 0, 'HA_CheckRestAcks($_IPS["TARGET"]);');
+        $this->RegisterTimer(self::TIMER_RESTACK, 0, 'HA_CheckRestAcks($_IPS["TARGET"]);');
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -713,13 +715,13 @@ class HomeAssistantSplitter extends IPSModuleStrict
     {
         $timeoutSec = $this->ReadPropertyInteger('RestAckTimeoutSec');
         if ($timeoutSec <= 0) {
-            $this->SetTimerInterval('RestAckTimer', 0);
+            $this->SetTimerInterval(self::TIMER_RESTACK, 0);
             return;
         }
 
         $pending = $this->readPendingRestAcks();
         if ($pending === []) {
-            $this->SetTimerInterval('RestAckTimer', 0);
+            $this->SetTimerInterval(self::TIMER_RESTACK, 0);
             return;
         }
 
@@ -746,7 +748,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         }
 
         if ($pending === []) {
-            $this->SetTimerInterval('RestAckTimer', 0);
+            $this->SetTimerInterval(self::TIMER_RESTACK, 0);
         }
     }
 
@@ -761,7 +763,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             'service' => $service
         ];
         $this->writePendingRestAcks($pending);
-        $this->SetTimerInterval('RestAckTimer', 1000);
+        $this->SetTimerInterval(self::TIMER_RESTACK, 1000);
     }
 
     private function clearPendingRestAck(string $entityId): void
@@ -776,7 +778,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         unset($pending[$entityId]);
         $this->writePendingRestAcks($pending);
         if ($pending === []) {
-            $this->SetTimerInterval('RestAckTimer', 0);
+            $this->SetTimerInterval(self::TIMER_RESTACK, 0);
         }
     }
 

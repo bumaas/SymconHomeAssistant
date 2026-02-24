@@ -158,12 +158,23 @@ EOT;
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
         $this->RegisterPropertyString('DeviceMapping', '[]');
         $this->RegisterAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
-        $this->RegisterTimer(self::TIMER_CACHE_REFRESH, 0, 'IPS_RequestAction($_IPS["TARGET"], "refresh_cache", "");');
+
+        $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
+
     }
 
     public function GetConfigurationForm(): string
     {
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
+
+        // Do not start a new search if a search is currently active
+        if (!json_decode($this->GetBuffer(self::BUFFER_REFRESH_ACTIVE), false, 512, JSON_THROW_ON_ERROR)) {
+            $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(true, JSON_THROW_ON_ERROR));
+
+            // Start device search in a timer, not prolonging the execution of GetConfigurationForm
+            $this->SendDebug(__FUNCTION__, 'RegisterOnceTimer', 0);
+            $this->RegisterOnceTimer(self::TIMER_CACHE_REFRESH, 'IPS_RequestAction($_IPS["TARGET"], "refresh_cache", "");');
+        }
 
         $bufferSizeMb = max(0, $this->ReadPropertyInteger('OutputBufferSize'));
         if ($bufferSizeMb > 0) {
@@ -177,14 +188,6 @@ EOT;
             } catch (JsonException) {
                 $this->entities = [];
             }
-        }
-
-        $lastRefreshRaw = $this->GetBuffer(self::BUFFER_REFRESH_ACTIVE);
-        $lastRefresh = is_numeric($lastRefreshRaw) ? (int) $lastRefreshRaw : 0;
-        $needsRefresh = $this->entities === [] || (time() - $lastRefresh) >= 120;
-        if ($needsRefresh) {
-            $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, (string) time());
-            $this->SetTimerInterval(self::TIMER_CACHE_REFRESH, 120 *1200);
         }
 
         try {
@@ -230,19 +233,14 @@ EOT;
     }
 
     /** @noinspection PhpUnused */
-    private function updateConfiguratorCache(): void
-    {
-        $this->SetTimerInterval(self::TIMER_CACHE_REFRESH, 0);
-        $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, (string) time());
-        $this->UpdateCacheFromHA();
-        $this->ReloadForm();
-    }
-
-    /** @noinspection PhpUnused */
     public function RequestAction($Ident, $Value): void
     {
         if ($Ident === 'refresh_cache') {
-            $this->updateConfiguratorCache();
+            $this->UpdateCacheFromHA();
+
+            $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
+            $this->debugExpert(__FUNCTION__, 'SearchActive deactivated');
+
             return;
         }
         parent::RequestAction($Ident, $Value);
@@ -490,29 +488,29 @@ EOT;
         $domainsSimple = array_column($domainsList, 'Domain');
         $domainChunks = array_chunk($domainsSimple, 1);
         foreach ($domainChunks as $chunk) {
-            $this->debugExpert('UpdateCache', 'Request Domain', ['Domains' => $chunk]);
+            $this->debugExpert(__FUNCTION__, 'Request Domain', ['Domains' => $chunk]);
             $entityIds = $this->fetchEntityIdsForDomains($chunk);
             if ($entityIds === null) {
-                $this->debugExpert('UpdateCache', 'API-Fehler (IDs)', ['Domains' => $chunk]);
+                $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs)', ['Domains' => $chunk]);
                 continue;
             }
             if ($entityIds === []) {
-                $this->debugExpert('UpdateCache', 'Keine Entities', ['Domains' => $chunk]);
+                $this->debugExpert(__FUNCTION__, 'Keine Entities', ['Domains' => $chunk]);
                 continue;
             }
 
             $idChunks = array_chunk($entityIds, self::ENTITY_CHUNK_SIZE);
             foreach ($idChunks as $idChunk) {
-                $this->debugExpert('UpdateCache', 'Request Entities', ['Count' => count($idChunk)]);
+                $this->debugExpert(__FUNCTION__, 'Request Entities', ['Count' => count($idChunk)]);
                 $rawEntities = $this->fetchEntitiesByIds($idChunk);
                 if ($rawEntities === null) {
-                    $this->debugExpert('UpdateCache', 'API-Fehler (Entities)', ['Count' => count($idChunk)]);
+                    $this->debugExpert(__FUNCTION__, 'API-Fehler (Entities)', ['Count' => count($idChunk)]);
                     continue;
                 }
                 if ($rawEntities === []) {
                     continue;
                 }
-                $this->debugExpert('UpdateCache', 'Entities geladen', ['Count' => count($rawEntities)]);
+                $this->debugExpert(__FUNCTION__, 'Entities geladen', ['Count' => count($rawEntities)]);
 
                 foreach ($rawEntities as $entity) {
                     if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
@@ -538,7 +536,7 @@ EOT;
         }
 
         if ($newEntities === []) {
-            $this->debugExpert('UpdateCache', 'No entities found or API error');
+            $this->debugExpert(__FUNCTION__, 'No entities found or API error');
             return;
         }
 

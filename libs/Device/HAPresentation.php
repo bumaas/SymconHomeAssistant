@@ -293,7 +293,30 @@ trait HAPresentationTrait
             }
         }
 
-        if ($attribute === 'shuffle' || $attribute === 'is_volume_muted' || $attribute === 'cross_fade') {
+        if ($attribute === 'shuffle') {
+            $options = [
+                [
+                    'Value'      => false,
+                    'Caption'    => $this->Translate('Off'),
+                    'IconActive' => true,
+                    'IconValue'  => 'angles-right',
+                    'Color'      => -1
+                ],
+                [
+                    'Value'      => true,
+                    'Caption'    => $this->Translate('On'),
+                    'IconActive' => true,
+                    'IconValue'  => 'shuffle',
+                    'Color'      => -1
+                ]
+            ];
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                 'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+                                             ]);
+        }
+
+        if ($attribute === 'is_volume_muted' || $attribute === 'cross_fade') {
             $usageType    = (int)($meta['usage_type'] ?? 0);
             $iconFalse    = (string)($meta['icon_false'] ?? null);
             $iconTrue     = (string)($meta['icon_true'] ?? null);
@@ -304,6 +327,14 @@ trait HAPresentationTrait
                                                  'ICON_FALSE'     => $iconFalse,
                                                  'ICON_TRUE'      => $iconTrue,
                                                  'USE_ICON_FALSE' => $useIconFalse
+                                             ]);
+        }
+
+        $profile = (string)($meta['profile'] ?? '');
+        if ($profile !== '') {
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_LEGACY,
+                                                 'PROFILE'      => $profile
                                              ]);
         }
 

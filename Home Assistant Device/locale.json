@@ -154,7 +154,9 @@
       "Button (button)": "Taste (button)",
       "Fan (fan)": "Ventilator (fan)",
       "Humidifier (humidifier)": "Luftbefeuchter (humidifier)",
-      "Media Player (media_player)": "Medienplayer (media_player)"
+      "Media Player (media_player)": "Medienplayer (media_player)",
+      "Off": "Aus",
+      "On": "An"
     }
   }
 }

@@ -201,12 +201,14 @@ final class HAMediaPlayerDefinitions
         'media_artist' => [
             'caption' => 'Artist',
             'type' => VARIABLETYPE_STRING,
-            'writable' => false
+            'writable' => false,
+            'profile' => '~Artist'
         ],
         'media_title' => [
             'caption' => 'Title',
             'type' => VARIABLETYPE_STRING,
-            'writable' => false
+            'writable' => false,
+            'profile' => '~Song'
         ],
         'media_album_name' => [
             'caption' => 'Album',
