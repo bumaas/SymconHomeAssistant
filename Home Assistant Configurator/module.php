@@ -173,7 +173,8 @@ EOT;
             $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(true, JSON_THROW_ON_ERROR));
 
             // Start device search in a timer, not prolonging the execution of GetConfigurationForm
-            $this->SendDebug(__FUNCTION__, 'RegisterOnceTimer', 0);
+
+            $this->debugExpert(__FUNCTION__, 'RegisterOnceTimer');
             $this->RegisterOnceTimer(self::TIMER_CACHE_REFRESH, 'IPS_RequestAction($_IPS["TARGET"], "refresh_cache", "");');
         }
 
@@ -240,7 +241,6 @@ EOT;
             $this->UpdateCacheFromHA();
 
             $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
-            $this->debugExpert(__FUNCTION__, 'SearchActive deactivated');
             $this->updateConfiguratorList();
 
             return;
@@ -290,100 +290,190 @@ EOT;
 
     private function prepareConfiguratorValues(array $devices): array
     {
-        // --- Matching Logic: Finde existierende Instanzen ---
-        $existingInstances = IPS_GetInstanceListByModuleID(HAIds::MODULE_DEVICE);
-        $mappedInstances   = [];
         $autoCreateVariables = $this->ReadPropertyBoolean('AutoCreateVariables');
 
-        foreach ($existingInstances as $id) {
-            $devID = (string)@IPS_GetProperty($id, 'DeviceID');
-            if ($devID !== '') {
-                $mappedInstances[$devID] = $id;
-            }
-        }
+        $instance = IPS_GetInstance($this->InstanceID);
+        $configuratorParentId = (int)($instance['ConnectionID'] ?? 0);
+        [$mappedInstances, $blockedDeviceIds] = $this->buildDeviceInstanceMaps($configuratorParentId);
 
         $values = [];
+        $haDeviceIds = [];
         foreach ($devices as $dev) {
             $this->debugExpert(__FUNCTION__, json_encode($dev, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
 
             $instanceID = 0;
-
-            // 1. Matching via DeviceID
             if (isset($dev['device_id'], $mappedInstances[$dev['device_id']]) && $dev['device_id'] !== 'none') {
-                $instanceID = $mappedInstances[$dev['device_id']];
+                $instanceID = $mappedInstances[$dev['device_id']][0] ?? 0;
+            }
+
+            // Devices bound to a different gateway are skipped.
+            $isBlocked = (($dev['device_id'] ?? 'none') !== 'none' && isset($blockedDeviceIds[$dev['device_id']]));
+            if ($isBlocked) {
+                continue;
+            }
+            if (($dev['device_id'] ?? 'none') !== 'none') {
+                $haDeviceIds[$dev['device_id']] = true;
             }
 
             $cleanedEntities = $this->getCleanedEntities($dev);
             $cleanedNameById = array_column($cleanedEntities, 'name', 'entity_id');
+            $entitiesForConfig = $this->buildEntitiesForConfig($dev, $cleanedNameById, $autoCreateVariables);
 
-            // Hier holen wir die Entitäten inklusive aller Attribute für die Konfiguration
-            $entitiesForConfig = [];
-            foreach ($dev['entities'] as $entity) {
-                // Daten mergen (Cache + Aktuell)
-                $finalEntity = $entity;
-                if (isset($cleanedNameById[$entity['entity_id']])) {
-                    $finalEntity['name'] = $cleanedNameById[$entity['entity_id']];
-                }
-                if (isset($this->entities[$entity['entity_id']])) {
-                    $cached = $this->entities[$entity['entity_id']];
-                    // Name und Attribute vom Cache übernehmen/aktualisieren
-                    $finalEntity = array_merge($finalEntity, [
-                        'attributes' => $cached['attributes'] ?? []
-                    ]);
-                }
+            $values[] = $this->buildDeviceRow($dev, $instanceID, $cleanedEntities, $entitiesForConfig, $isBlocked);
+        }
 
-                if (isset($finalEntity['attributes']['device_class'])
-                    && (!isset($finalEntity['device_class'])
-                        || trim((string)$finalEntity['device_class']) === '')
-                    && is_array($finalEntity['attributes'])
-                    && is_string($finalEntity['attributes']['device_class'])) {
-                    $finalEntity['device_class'] = trim($finalEntity['attributes']['device_class']);
-                }
-                $finalEntity['create_var'] = $autoCreateVariables;
+        $this->appendMissingDeviceRows($values, $mappedInstances, $haDeviceIds);
+        $this->appendDuplicateDeviceRows($values, $mappedInstances);
+        return $values;
+    }
 
-                $this->enrichSupportedFeaturesList($finalEntity);
+    private function buildDeviceInstanceMaps(int $configuratorParentId): array
+    {
+        $existingInstances = IPS_GetInstanceListByModuleID(HAIds::MODULE_DEVICE);
+        $mappedInstances = [];
+        $blockedDeviceIds = [];
 
-                // Attribute zu String
-                if (isset($finalEntity['attributes']) && is_array($finalEntity['attributes'])) {
-                    $finalEntity['attributes'] = json_encode(
-                        $finalEntity['attributes'],
-                        JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
-                    );
-                } else {
-                    $finalEntity['attributes'] = '{}';
-                }
+        foreach ($existingInstances as $id) {
+            $inst = IPS_GetInstance($id);
+            $parentId = (int)($inst['ConnectionID'] ?? 0);
+            $devID = (string)@IPS_GetProperty($id, 'DeviceID');
+            if ($devID === '') {
+                continue;
+            }
+            // Only map devices that are attached to the same gateway (Splitter) as this Configurator.
+            if ($configuratorParentId > 0 && $parentId !== $configuratorParentId) {
+                // Device exists on another gateway: hide it in this Configurator.
+                $blockedDeviceIds[$devID] = true;
+                continue;
+            }
+            $mappedInstances[$devID][] = $id;
+        }
+
+        return [$mappedInstances, $blockedDeviceIds];
+    }
+
+    private function buildEntitiesForConfig(array $dev, array $cleanedNameById, bool $autoCreateVariables): array
+    {
+        $entitiesForConfig = [];
+        foreach ($dev['entities'] as $entity) {
+            // Daten mergen (Cache + Aktuell)
+            $finalEntity = $entity;
+            if (isset($cleanedNameById[$entity['entity_id']])) {
+                $finalEntity['name'] = $cleanedNameById[$entity['entity_id']];
+            }
+            if (isset($this->entities[$entity['entity_id']])) {
+                $cached = $this->entities[$entity['entity_id']];
+                // Name und Attribute vom Cache übernehmen/aktualisieren
+                $finalEntity = array_merge($finalEntity, [
+                    'attributes' => $cached['attributes'] ?? []
+                ]);
+            }
+
+            if (isset($finalEntity['attributes']['device_class'])
+                && (!isset($finalEntity['device_class'])
+                    || trim((string)$finalEntity['device_class']) === '')
+                && is_array($finalEntity['attributes'])
+                && is_string($finalEntity['attributes']['device_class'])) {
+                $finalEntity['device_class'] = trim($finalEntity['attributes']['device_class']);
+            }
+            $finalEntity['create_var'] = $autoCreateVariables;
+
+            $this->enrichSupportedFeaturesList($finalEntity);
+
+            // Attribute zu String
+            if (isset($finalEntity['attributes']) && is_array($finalEntity['attributes'])) {
+                $finalEntity['attributes'] = json_encode(
+                    $finalEntity['attributes'],
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+                );
+            } else {
+                $finalEntity['attributes'] = '{}';
+            }
 
                 // Aufräumen: Diese Daten sind jetzt redundant, da im Device global gespeichert
                 unset($finalEntity['device_id'], $finalEntity['area'], $finalEntity['device']);
-                // Alter Gerätename
 
-                $entitiesForConfig[] = $finalEntity;
-            }
+            $entitiesForConfig[] = $finalEntity;
+        }
 
-            $values[] = [
-                'instanceID' => $instanceID,
-                'name'       => $dev['name'],
-                'Area'       => $dev['area'],
-                'Manufacturer' => $dev['manufacturer'] ?? '',
-                'Model'      => $dev['model'] ?? '',
-                'DeviceID'   => $dev['device_id'],
-                'Summary'    => $this->generateEntitySummary($cleanedEntities),
-                'group'      => $dev['area'],
-                'create'     => [
-                    'moduleID'      => HAIds::MODULE_DEVICE,
-                    'configuration' => [
-                        // Zentrale Properties setzen
-                        'DeviceID'     => $dev['device_id'],
-                        'DeviceArea'   => $dev['area'],
-                        'DeviceName'   => $dev['name'],
-                        // Bereinigte Liste übergeben
-                        'DeviceConfig' => json_encode($entitiesForConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
-                    ],
-                    'name'          => $dev['name']
-                ]
+        return $entitiesForConfig;
+    }
+
+    private function buildDeviceRow(array $dev, int $instanceID, array $cleanedEntities, array $entitiesForConfig, bool $isBlocked): array
+    {
+        $row = [
+            'instanceID' => $instanceID,
+            'name'       => $dev['name'],
+            'Area'       => $dev['area'],
+            'Manufacturer' => $dev['manufacturer'] ?? '',
+            'Model'      => $dev['model'] ?? '',
+            'DeviceID'   => $dev['device_id'],
+            'Summary'    => $this->generateEntitySummary($cleanedEntities),
+            'group'      => $dev['area']
+        ];
+        if (!$isBlocked) {
+            $row['create'] = [
+                'moduleID'      => HAIds::MODULE_DEVICE,
+                'configuration' => [
+                    // Zentrale Properties setzen
+                    'DeviceID'     => $dev['device_id'],
+                    'DeviceArea'   => $dev['area'],
+                    'DeviceName'   => $dev['name'],
+                    // Bereinigte Liste übergeben
+                    'DeviceConfig' => json_encode($entitiesForConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+                ],
+                'name'          => $dev['name']
             ];
         }
-        return $values;
+        return $row;
+    }
+
+    private function appendMissingDeviceRows(array &$values, array $mappedInstances, array $haDeviceIds): void
+    {
+        // Add devices that exist in Symcon but no longer exist in Home Assistant.
+        foreach ($mappedInstances as $devId => $instanceIds) {
+            if (isset($haDeviceIds[$devId])) {
+                continue;
+            }
+            foreach ($instanceIds as $instanceId) {
+                $deviceName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
+                $deviceArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
+                $values[] = [
+                    'instanceID'   => $instanceId,
+                    'name'         => $deviceName !== '' ? $deviceName : IPS_GetName($instanceId),
+                    'Area'         => $deviceArea !== '' ? $deviceArea : 'Unbekannt',
+                    'Manufacturer' => '',
+                    'Model'        => '',
+                    'DeviceID'     => $devId,
+                    'Summary'      => $this->Translate('In Home Assistant nicht gefunden'),
+                    'group'        => $deviceArea !== '' ? $deviceArea : 'Unbekannt'
+                ];
+            }
+        }
+    }
+
+    private function appendDuplicateDeviceRows(array &$values, array $mappedInstances): void
+    {
+        foreach ($mappedInstances as $devId => $instanceIds) {
+            if (count($instanceIds) <= 1) {
+                continue;
+            }
+            // Show additional instances with the same DeviceID (misconfiguration).
+            foreach (array_slice($instanceIds, 1) as $instanceId) {
+                $deviceName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
+                $deviceArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
+                $values[] = [
+                    'instanceID'   => $instanceId,
+                    'name'         => $deviceName !== '' ? $deviceName : IPS_GetName($instanceId),
+                    'Area'         => $deviceArea !== '' ? $deviceArea : 'Unbekannt',
+                    'Manufacturer' => '',
+                    'Model'        => '',
+                    'DeviceID'     => $devId,
+                    'Summary'      => $this->Translate('Doppelte Geräte-ID'),
+                    'group'        => $deviceArea !== '' ? $deviceArea : 'Unbekannt'
+                ];
+            }
+        }
     }
 
     private function enrichSupportedFeaturesList(array &$entity): void
@@ -514,7 +604,6 @@ EOT;
 
             $idChunks = array_chunk($entityIds, self::ENTITY_CHUNK_SIZE);
             foreach ($idChunks as $idChunk) {
-                $this->debugExpert(__FUNCTION__, 'Request Entities', ['Count' => count($idChunk)]);
                 $rawEntities = $this->fetchEntitiesByIds($idChunk);
                 if ($rawEntities === null) {
                     $this->debugExpert(__FUNCTION__, 'API-Fehler (Entities)', ['Count' => count($idChunk)]);

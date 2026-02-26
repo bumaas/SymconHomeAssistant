@@ -4,10 +4,23 @@ declare(strict_types=1);
 
 trait HADebugTrait
 {
+    private const array BASIC_DEBUG_CATEGORIES = [
+        'ApplyChanges',
+        'Config',
+        'Discovery',
+        'MessageSink',
+        'RequestAction',
+        'REST',
+        'UpdateCache',
+        'UpdateCacheFromHA'
+    ];
+
     private function debugExpert(string $category, string $message, array $context = [], bool $always = false): void
     {
         if (!$always && !$this->ReadPropertyBoolean('EnableExpertDebug')) {
-            return;
+            if (!in_array($category, self::BASIC_DEBUG_CATEGORIES, true)) {
+                return;
+            }
         }
 
         $suffix = '';
