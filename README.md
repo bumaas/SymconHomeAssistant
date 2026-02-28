@@ -99,10 +99,33 @@ Die Variablen werden in den jeweiligen Device-Instanzen pro Entität angelegt. D
 
 ## 7. Anhang
 
+
+**Überblick (Ablaufdiagramm)**
+
+```text
+Home Assistant
+  |  mqtt_statestream (states + attributes)
+  v
+MQTT Broker
+  |  homeassistant/<domain>/<entity>/state
+  |  homeassistant/<domain>/<entity>/attributes
+  v
+IP-Symcon MQTT Client/Server
+  v
+Home Assistant Splitter
+  |  verteilt an Device/Configurator
+  |  optional REST für Set/Service-Calls
+  v
+Home Assistant Device / Configurator
+```
+
+**Hinweise zur Fehlersuche**
+
+- Wenn es im Datenfluss hakt: mit Hilfe des [MQTT Explorer](https://mqtt-explorer.com/) kann komfortabel geprüft werden, ob der MQTT-Server mit Daten versorgt wird (Topic, Payload, Attribute).
+- IP-Adressen und Ports prüfen: MQTT standardmäßig `1883` (TLS `8883`), Home Assistant REST standardmäßig `8123`.
+- MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.
+
 ### Datenfluss
-
-Die Kommunikation zwischen Device/Configurator und Splitter erfolgt über definierte DataIDs aus `lib/HAIds.php`.
-
 - Device/Configurator -> Splitter: `{E62B0B4F-1B5C-4F2C-9B6B-2C86F5B7C1D1}`
 - Splitter -> Device/Configurator: `{F4A2B9F1-1D3B-44A9-9B6A-0D3A5A7D6E10}`
 - Splitter <-> MQTT Client (RX): `{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}`

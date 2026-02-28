@@ -798,7 +798,10 @@ class HomeAssistantDevice extends IPSModuleStrict
             if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_DURATION) {
                 return (int)$valueData;
             }
-            return (float)$valueData;
+            if (is_numeric($valueData)) {
+                return (float)$valueData;
+            }
+            return $valueData;
         }
 
         return match ($domain) {
@@ -1207,6 +1210,10 @@ class HomeAssistantDevice extends IPSModuleStrict
             if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_DURATION) {
                 return VARIABLETYPE_INTEGER;
             }
+            if (array_key_exists('unit_of_measurement', $attributes) || array_key_exists('state_class', $attributes)) {
+                return VARIABLETYPE_FLOAT;
+            }
+            return VARIABLETYPE_STRING;
         }
         return match ($domain) {
             HALightDefinitions::DOMAIN => HALightDefinitions::VARIABLE_TYPE,
@@ -2495,12 +2502,12 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         $base64 = $response['Base64'] ?? '';
         if (!is_string($base64) || $base64 === '') {
-            $this->debugExpert('MediaCover', 'Bilddownload fehlgeschlagen', ['Url' => $url, 'Response' => $response]);
+            $this->debugExpert(__FUNCTION__, 'Bilddownload fehlgeschlagen', ['Url' => $url, 'Response' => $response]);
             return null;
         }
         $decoded = base64_decode($base64, true);
         if ($decoded === false) {
-            $this->debugExpert('MediaCover', 'Base64 decode fehlgeschlagen', ['Url' => $url]);
+            $this->debugExpert(__FUNCTION__, 'Base64 decode fehlgeschlagen', ['Url' => $url]);
             return null;
         }
         return $decoded;
@@ -2509,22 +2516,23 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function sendImageRequestToParent(string $url): ?array
     {
         if (!$this->hasActiveParent()) {
-            $this->debugExpert('MediaCover', 'Kein aktiver Parent', ['Url' => $url]);
+            $this->debugExpert(__FUNCTION__, 'Kein aktiver Parent', ['Url' => $url]);
             return null;
         }
         $bufferSizeMb = max(0, $this->ReadPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE));
         if ($bufferSizeMb > 0) {
             $bufferSizeBytes = $bufferSizeMb * 1024 * 1024;
             ini_set('ips.output_buffer', (string) $bufferSizeBytes);
+            $this->debugExpert(__FUNCTION__, 'output_buffer', ['Value' => ini_get('ips.output_buffer')]);
         }
         $payload = json_encode([
             'DataID' => HAIds::DATA_DEVICE_TO_SPLITTER,
             'ImageUrl' => $url
         ], JSON_THROW_ON_ERROR);
 
-        $responseJson = $this->SendDataToParent($payload);
+        $responseJson = @$this->SendDataToParent($payload);
         if (!is_string($responseJson) || $responseJson === '') {
-            $this->debugExpert('MediaCover', 'Image request failed (empty response)', ['Url' => $url]);
+            $this->debugExpert(__FUNCTION__, 'Image request failed (empty response)', ['Url' => $url]);
             return null;
         }
         $decoded = $this->decodeJsonArray($responseJson, __FUNCTION__);
@@ -2532,7 +2540,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             return null;
         }
         if (isset($decoded['Error'])) {
-            $this->debugExpert('MediaCover', 'Image request error', ['Url' => $url, 'Error' => $decoded['Error']]);
+            $this->debugExpert(__FUNCTION__, 'Image request error', ['Url' => $url, 'Error' => $decoded['Error']]);
             return null;
         }
         return $decoded;
