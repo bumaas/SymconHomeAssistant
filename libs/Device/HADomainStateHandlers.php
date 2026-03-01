@@ -7,13 +7,13 @@ trait HADomainStateHandlersTrait
     private function tryHandleStateFromTopic(string $topic, string $payload): bool
     {
         if ($topic === '') {
-            $this->debugExpert('StateTopic', 'Leeres Topic, ignoriert.');
+            $this->debugExpert(__FUNCTION__, 'Leeres Topic, ignoriert.');
             return false;
         }
 
         $parts = explode('/', trim($topic, '/'));
         if (count($parts) < 3) {
-            $this->debugExpert('StateTopic', 'Topic zu kurz', ['Topic' => $topic]);
+            $this->debugExpert(__FUNCTION__, 'Topic zu kurz', ['Topic' => $topic]);
             return false;
         }
 
@@ -28,7 +28,7 @@ trait HADomainStateHandlersTrait
 
         $ident = $this->sanitizeIdent($domain . '_' . $entity);
         if ($domain === HAEventDefinitions::DOMAIN) {
-            $this->debugExpert('StateTopic', 'Event-State ignoriert', ['EntityID' => $entityId]);
+            $this->debugExpert(__FUNCTION__, 'Event-State ignoriert', ['EntityID' => $entityId]);
             return true;
         }
 
@@ -61,11 +61,12 @@ trait HADomainStateHandlersTrait
         $value = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], $attributes);
 
         $this->debugExpert(
-            'StateTopic',
+            __FUNCTION__,
             'SetValue',
             ['Ident' => $ident, 'Domain' => $domain, 'Entity' => $entity, 'Value' => $value]
         );
-        if ($value !== null) {
+        $skipSetValue = $this->shouldSkipStateSetValue($ident, $value);
+        if ($value !== null && !$skipSetValue) {
             $this->setValueWithDebug($ident, $value);
         }
         $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $parsed[self::KEY_ATTRIBUTES] ?? null);
@@ -163,7 +164,13 @@ trait HADomainStateHandlersTrait
             $entityId,
             $payload,
             null,
-            fn(string $id, array $attributes, string $state) => $this->updateMediaPlayerAttributeValues($id, $attributes)
+            function (string $id, array $attributes, string $state): void {
+                $this->updateMediaPlayerAttributeValues($id, $attributes);
+                if ($state !== '') {
+                    $this->updateMediaPlayerPowerValue($id, $state);
+                    $this->updateMediaPlayerActionValue($id, $state);
+                }
+            }
         );
     }
 
@@ -184,7 +191,7 @@ trait HADomainStateHandlersTrait
             $value = $stateValueResolver !== null
                 ? $stateValueResolver($stateValue, $attributes)
                 : $stateValue;
-            if ($value !== null) {
+            if ($value !== null && !$this->shouldSkipStateSetValue($ident, $value)) {
                 $this->setValueWithDebug($ident, $value);
             }
         }
@@ -202,6 +209,26 @@ trait HADomainStateHandlersTrait
         $this->updateEntityCache($entityId, $parsed['state'], $parsed['raw_attributes']);
         $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
         return true;
+    }
+
+    private function shouldSkipStateSetValue(string $ident, mixed $value): bool
+    {
+        if (!is_string($value)) {
+            return false;
+        }
+
+        $normalized = strtolower(trim($value));
+        if (!in_array($normalized, ['unknown', 'unavailable'], true)) {
+            return false;
+        }
+
+        $varId = @$this->GetIDForIdent($ident);
+        if ($varId === false) {
+            return false;
+        }
+
+        $varType = IPS_GetVariable($varId)['VariableType'] ?? null;
+        return $varType !== VARIABLETYPE_STRING;
     }
 
     private function handleStateTopicWithLevel(
@@ -272,4 +299,3 @@ trait HADomainStateHandlersTrait
         ];
     }
 }
-

@@ -315,7 +315,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             $payload = '';
         }
 
-        $this->debugExpert('ReceiveData', 'Eingangsdaten', ['Topic' => $topic, 'Payload' => $payload]);
+        $this->debugExpert(__FUNCTION__, 'Eingangsdaten', ['Topic' => $topic, 'Payload' => $payload]);
         $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s'));
         $this->updateDiagnosticsLabels();
 
@@ -703,6 +703,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         $finalValue = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], $attributes);
         if ($finalValue !== null) {
             $this->setValueWithDebug($ident, $finalValue);
+        }
+        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
+            $this->updateMediaPlayerActionValue($entityId, (string)$parsed[self::KEY_STATE]);
         }
         $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $parsed['attributes'] ?? null);
 
@@ -1680,6 +1683,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->debugExpert(__FUNCTION__, 'Options', ['Options' => $options]);
 
         $ident = $this->getMediaPlayerActionIdent($entityId);
+        $exists = @$this->GetIDForIdent($ident) !== false;
         $position = $this->getMediaPlayerOrderPosition(0, 'action');
 
         $presentation = [
@@ -1688,7 +1692,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         ];
 
         $this->MaintainVariable($ident, $this->Translate('Playback'), VARIABLETYPE_INTEGER, $presentation, $position, true);
-        $this->setValueWithDebug($ident, -1);
+        if (!$exists) {
+            $this->setValueWithDebug($ident, -1);
+        }
         $this->EnableAction($ident);
     }
 
@@ -1799,6 +1805,17 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $isOn = !in_array($normalized, ['off', 'standby'], true);
         $this->setValueWithDebug($ident, $isOn);
+    }
+
+    private function updateMediaPlayerActionValue(string $entityId, string $state): void
+    {
+        $ident = $this->getMediaPlayerActionIdent($entityId);
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        $value = ($state === 'playing') ? HAMediaPlayerDefinitions::ACTION_PLAY : -1;
+        $this->setValueWithDebug($ident, $value);
     }
 
     private function shouldCreateMediaPlayerAttribute(string $attribute, array $meta, array $attributes): bool
@@ -3256,6 +3273,7 @@ class HomeAssistantDevice extends IPSModuleStrict
                 if ($rawState !== '') {
                     $this->setValueWithDebug($ident, $rawState);
                     $this->updateMediaPlayerPowerValue($entityId, $rawState);
+                    $this->updateMediaPlayerActionValue($entityId, $rawState);
                 }
             } elseif ($domain === HACoverDefinitions::DOMAIN) {
                 $value = $this->extractCoverPosition($coverAttributes);
