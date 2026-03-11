@@ -63,6 +63,9 @@ Keine öffentlichen Funktionen.
 - `fan`: Status Ein/Aus; Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`).
 - `humidifier`: Status Ein/Aus; Attribute (`target_humidity`, `current_humidity`, `mode`, `action`).
 
+- `vacuum`: Status + Aktionen (`Start`, `Stop`, `Pause`, `Zur Basis`, `Punktreinigung`, `Lokalisieren`) gemaess aktuellen `supported_features`.
+- `lawn_mower`: Status + Aktionen (`Start`, `Pause`, `Zur Basis`) gemaess `supported_features`.
+
 ### Icon Mapping
 
 #### Binary Sensor
@@ -104,6 +107,16 @@ Keine öffentlichen Funktionen.
 | `state` | `cleaning` | `robot` |
 | `state` | `docked` | `house` |
 | `state` | `idle` | `robot` |
+| `state` | `paused` | `pause` |
+| `state` | `returning` | `arrow-rotate-left` |
+| `state` | `error` | `triangle-exclamation` |
+
+#### Lawn Mower
+
+| Quelle | Wert | Icon |
+| --- | --- | --- |
+| `state` | `mowing` | `leaf` |
+| `state` | `docked` | `house` |
 | `state` | `paused` | `pause` |
 | `state` | `returning` | `arrow-rotate-left` |
 | `state` | `error` | `triangle-exclamation` |

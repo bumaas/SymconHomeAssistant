@@ -12,6 +12,7 @@ trait HASupportedFeaturesTrait
             HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
             HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
+            HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::SUPPORTED_FEATURES,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
             HAFanDefinitions::DOMAIN => HAFanDefinitions::SUPPORTED_FEATURES,
             HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::SUPPORTED_FEATURES,

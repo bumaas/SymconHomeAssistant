@@ -44,6 +44,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     private const string LOCK_ACTION_SUFFIX = '_lock_action';
     private const string VACUUM_ACTION_SUFFIX = '_vacuum_action';
     private const string VACUUM_FAN_SPEED_SUFFIX = '_vacuum_fan_speed';
+    private const string LAWN_MOWER_ACTION_SUFFIX = '_lawn_mower_action';
     private const string MEDIA_PLAYER_ACTION_SUFFIX = '_media_player_action';
     private const string MEDIA_PLAYER_POWER_SUFFIX = '_power';
     private const string MEDIA_PLAYER_COVER_SUFFIX = '_media_cover';
@@ -345,6 +346,9 @@ class HomeAssistantDevice extends IPSModuleStrict
             return;
         }
         if ($this->handleVacuumFanSpeedAction($Ident, $Value)) {
+            return;
+        }
+        if ($this->handleLawnMowerAction($Ident, $Value)) {
             return;
         }
         if ($this->handleMediaPlayerPowerAction($Ident, $Value)) {
@@ -1228,6 +1232,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             HALockDefinitions::DOMAIN => HALockDefinitions::VARIABLE_TYPE,
             HASelectDefinitions::DOMAIN => HASelectDefinitions::VARIABLE_TYPE,
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::VARIABLE_TYPE,
+            HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::VARIABLE_TYPE,
             HACoverDefinitions::DOMAIN => HACoverDefinitions::VARIABLE_TYPE,
             HAEventDefinitions::DOMAIN => HAEventDefinitions::VARIABLE_TYPE,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::VARIABLE_TYPE,
@@ -1334,6 +1339,11 @@ class HomeAssistantDevice extends IPSModuleStrict
         return $this->sanitizeIdent($entityId) . self::VACUUM_FAN_SPEED_SUFFIX;
     }
 
+    private function getLawnMowerActionIdent(string $entityId): string
+    {
+        return $this->sanitizeIdent($entityId) . self::LAWN_MOWER_ACTION_SUFFIX;
+    }
+
     private function maintainLockActionVariable(array $entity): void
     {
         $entityId = $entity['entity_id'] ?? '';
@@ -1411,6 +1421,34 @@ class HomeAssistantDevice extends IPSModuleStrict
         ];
 
         $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, $presentation, $position, true);
+        $this->EnableAction($ident);
+    }
+
+    private function maintainLawnMowerActionVariable(array $entity): void
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $options = $this->getLawnMowerActionOptions($attributes);
+        if ($options === []) {
+            return;
+        }
+
+        $ident = $this->getLawnMowerActionIdent($entityId);
+        $position = $this->getEntityPosition($entityId) + 5;
+        $presentation = [
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+        ];
+
+        $this->MaintainVariable($ident, $this->Translate('Aktion'), VARIABLETYPE_INTEGER, $presentation, $position, true);
         $this->EnableAction($ident);
     }
 
@@ -1571,6 +1609,43 @@ class HomeAssistantDevice extends IPSModuleStrict
         if (@$this->GetIDForIdent($ident) !== false) {
             $this->setValueWithDebug($ident, $fanSpeed);
         }
+    }
+
+    private function handleLawnMowerAction(string $ident, mixed $value): bool
+    {
+        if (!str_ends_with($ident, self::LAWN_MOWER_ACTION_SUFFIX)) {
+            return false;
+        }
+
+        $entity = $this->findEntityByIdentSuffix($ident, self::LAWN_MOWER_ACTION_SUFFIX, HALawnMowerDefinitions::DOMAIN);
+        if ($entity === null) {
+            return false;
+        }
+
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return true;
+        }
+
+        $action = is_numeric($value) ? (int)$value : null;
+        $command = match ($action) {
+            HALawnMowerDefinitions::ACTION_START_MOWING => 'start_mowing',
+            HALawnMowerDefinitions::ACTION_PAUSE => 'pause',
+            HALawnMowerDefinitions::ACTION_DOCK => 'dock',
+            default => ''
+        };
+        if ($command === '') {
+            return true;
+        }
+
+        $topic = $this->getSetTopicForEntity($entityId);
+        if ($topic === '') {
+            return true;
+        }
+
+        $this->debugExpert('RequestAction', 'Lawn mower action', ['EntityID' => $entityId, 'Command' => $command]);
+        $this->sendMqttMessage($topic, $command);
+        return true;
     }
 
     private function handleMediaPlayerAction(string $ident, mixed $value): bool
@@ -2733,23 +2808,48 @@ class HomeAssistantDevice extends IPSModuleStrict
         $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
         $options = [];
 
-        if (($supported & 128) === 128) {
+        if (($supported & HAVacuumDefinitions::FEATURE_START) === HAVacuumDefinitions::FEATURE_START) {
             $options[] = ['Value' => HAVacuumDefinitions::ACTION_START, 'Caption' => $this->Translate('Start')];
         }
-        if (($supported & 512) === 512) {
+        if (($supported & HAVacuumDefinitions::FEATURE_STOP) === HAVacuumDefinitions::FEATURE_STOP) {
             $options[] = ['Value' => HAVacuumDefinitions::ACTION_STOP, 'Caption' => $this->Translate('Stop')];
         }
-        if (($supported & 16) === 16) {
+        if (($supported & HAVacuumDefinitions::FEATURE_PAUSE) === HAVacuumDefinitions::FEATURE_PAUSE) {
             $options[] = ['Value' => HAVacuumDefinitions::ACTION_PAUSE, 'Caption' => $this->Translate('Pause')];
         }
-        if (($supported & 32) === 32) {
+        if (($supported & HAVacuumDefinitions::FEATURE_RETURN_HOME) === HAVacuumDefinitions::FEATURE_RETURN_HOME) {
             $options[] = ['Value' => HAVacuumDefinitions::ACTION_RETURN_HOME, 'Caption' => $this->Translate('Zur Basis')];
         }
-        if (($supported & 1) === 1) {
+        if (($supported & HAVacuumDefinitions::FEATURE_CLEAN_SPOT) === HAVacuumDefinitions::FEATURE_CLEAN_SPOT) {
             $options[] = ['Value' => HAVacuumDefinitions::ACTION_CLEAN_SPOT, 'Caption' => $this->Translate('Punktreinigung')];
         }
-        if (($supported & 4) === 4) {
+        if (($supported & HAVacuumDefinitions::FEATURE_LOCATE) === HAVacuumDefinitions::FEATURE_LOCATE) {
             $options[] = ['Value' => HAVacuumDefinitions::ACTION_LOCATE, 'Caption' => $this->Translate('Lokalisieren')];
+        }
+
+        foreach ($options as &$option) {
+            $option['IconActive'] = false;
+            $option['IconValue'] = '';
+            $option['Color'] = -1;
+        }
+        unset($option);
+
+        return $options;
+    }
+
+    private function getLawnMowerActionOptions(array $attributes): array
+    {
+        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
+        $options = [];
+
+        if (($supported & HALawnMowerDefinitions::FEATURE_START_MOWING) === HALawnMowerDefinitions::FEATURE_START_MOWING) {
+            $options[] = ['Value' => HALawnMowerDefinitions::ACTION_START_MOWING, 'Caption' => $this->Translate('Start')];
+        }
+        if (($supported & HALawnMowerDefinitions::FEATURE_PAUSE) === HALawnMowerDefinitions::FEATURE_PAUSE) {
+            $options[] = ['Value' => HALawnMowerDefinitions::ACTION_PAUSE, 'Caption' => $this->Translate('Pause')];
+        }
+        if (($supported & HALawnMowerDefinitions::FEATURE_DOCK) === HALawnMowerDefinitions::FEATURE_DOCK) {
+            $options[] = ['Value' => HALawnMowerDefinitions::ACTION_DOCK, 'Caption' => $this->Translate('Zur Basis')];
         }
 
         foreach ($options as &$option) {
@@ -3261,6 +3361,10 @@ class HomeAssistantDevice extends IPSModuleStrict
                     $this->setValueWithDebug($ident, $rawState);
                 }
                 $this->updateVacuumFanSpeedValue($entityId, is_array($attributes) ? $attributes : null);
+            } elseif ($domain === HALawnMowerDefinitions::DOMAIN) {
+                if ($rawState !== '') {
+                    $this->setValueWithDebug($ident, $rawState);
+                }
             } elseif ($domain === HAFanDefinitions::DOMAIN) {
                 if ($rawState !== '') {
                     $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $rawState, is_array($attributes) ? $attributes : []));

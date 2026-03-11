@@ -185,6 +185,9 @@ trait HAEntityStoreTrait
             $this->maintainVacuumActionVariable($entity);
             $this->maintainVacuumFanSpeedVariable($entity);
         }
+        if ($domain === HALawnMowerDefinitions::DOMAIN) {
+            $this->maintainLawnMowerActionVariable($entity);
+        }
         if ($domain === HAFanDefinitions::DOMAIN) {
             $this->maintainFanAttributeVariables($entity);
         }

@@ -37,6 +37,7 @@ trait HADomainStateHandlersTrait
             HALightDefinitions::DOMAIN => fn() => $this->handleStateTopicLight($ident, $entityId, $payload),
             HALockDefinitions::DOMAIN => fn() => $this->handleStateTopicLock($ident, $entityId, $payload),
             HAVacuumDefinitions::DOMAIN => fn() => $this->handleStateTopicVacuum($ident, $entityId, $payload),
+            HALawnMowerDefinitions::DOMAIN => fn() => $this->handleStateTopicLawnMower($ident, $entityId, $payload),
             HAClimateDefinitions::DOMAIN => fn() => $this->handleStateTopicClimate($ident, $entityId, $payload),
             HAFanDefinitions::DOMAIN => fn() => $this->handleStateTopicFan($ident, $entityId, $payload),
             HAHumidifierDefinitions::DOMAIN => fn() => $this->handleStateTopicHumidifier($ident, $entityId, $payload),
@@ -122,6 +123,17 @@ trait HADomainStateHandlersTrait
             $payload,
             null,
             fn(string $id, array $attributes, string $state) => $this->updateVacuumFanSpeedValue($id, $attributes)
+        );
+    }
+
+    private function handleStateTopicLawnMower(string $ident, string $entityId, string $payload): bool
+    {
+        return $this->handleStateTopicWithAttributes(
+            $ident,
+            $entityId,
+            $payload,
+            null,
+            null
         );
     }
 

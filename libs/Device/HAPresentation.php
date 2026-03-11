@@ -73,6 +73,10 @@ trait HAPresentationTrait
             return $this->getVacuumPresentation();
         }
 
+        if ($domain === HALawnMowerDefinitions::DOMAIN) {
+            return $this->getLawnMowerPresentation();
+        }
+
         if ($domain === HAFanDefinitions::DOMAIN) {
             return $this->getFanPresentation();
         }
@@ -135,6 +139,28 @@ trait HAPresentationTrait
     {
         $options = [];
         foreach (HAVacuumDefinitions::STATE_OPTIONS as $value => $meta) {
+            $caption   = (string)($meta['caption'] ?? $value);
+            $icon      = (string)($meta['icon'] ?? '');
+            $options[] = [
+                'Value'       => $value,
+                'Caption'     => $this->Translate($caption),
+                'IconActive'  => $icon !== '',
+                'IconValue'   => $icon,
+                'ColorActive' => false,
+                'ColorValue'  => -1
+            ];
+        }
+
+        return $this->filterPresentation([
+                                             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+                                         ]);
+    }
+
+    private function getLawnMowerPresentation(): array
+    {
+        $options = [];
+        foreach (HALawnMowerDefinitions::STATE_OPTIONS as $value => $meta) {
             $caption   = (string)($meta['caption'] ?? $value);
             $icon      = (string)($meta['icon'] ?? '');
             $options[] = [
@@ -881,6 +907,7 @@ trait HAPresentationTrait
         return in_array($domain, [
             HAMediaPlayerDefinitions::DOMAIN,
             HAVacuumDefinitions::DOMAIN,
+            HALawnMowerDefinitions::DOMAIN,
             HAFanDefinitions::DOMAIN,
             HAHumidifierDefinitions::DOMAIN
         ], true);

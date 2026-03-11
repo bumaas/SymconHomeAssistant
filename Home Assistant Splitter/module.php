@@ -364,6 +364,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             HAButtonDefinitions::DOMAIN => HAButtonDefinitions::buildRestServicePayload($value),
             HAInputButtonDefinitions::DOMAIN => HAButtonDefinitions::buildRestServicePayload($value),
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::buildRestServicePayload($value),
+            HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::buildRestServicePayload($value),
             HALockDefinitions::DOMAIN => HALockDefinitions::buildRestServicePayload($value),
             HACoverDefinitions::DOMAIN => HACoverDefinitions::buildRestServicePayload($value),
             HAFanDefinitions::DOMAIN => HAFanDefinitions::buildRestServicePayload($value),

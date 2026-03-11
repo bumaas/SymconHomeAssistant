@@ -15,6 +15,7 @@ require_once __DIR__ . '/Domains/HACoverDefinitions.php';
 require_once __DIR__ . '/Domains/HAEventDefinitions.php';
 require_once __DIR__ . '/Domains/HASelectDefinitions.php';
 require_once __DIR__ . '/Domains/HAVacuumDefinitions.php';
+require_once __DIR__ . '/Domains/HALawnMowerDefinitions.php';
 require_once __DIR__ . '/Domains/HAMediaPlayerDefinitions.php';
 require_once __DIR__ . '/Domains/HAButtonDefinitions.php';
 require_once __DIR__ . '/Domains/HAInputButtonDefinitions.php';

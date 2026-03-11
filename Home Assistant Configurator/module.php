@@ -143,6 +143,7 @@ EOT;
             HAEventDefinitions::DOMAIN,
             HASelectDefinitions::DOMAIN,
             HAVacuumDefinitions::DOMAIN,
+            HALawnMowerDefinitions::DOMAIN,
             HAMediaPlayerDefinitions::DOMAIN,
             HAButtonDefinitions::DOMAIN,
             HAInputButtonDefinitions::DOMAIN

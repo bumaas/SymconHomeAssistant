@@ -36,7 +36,7 @@ Keine öffentlichen Funktionen.
 
 ## 5. Konfiguration
 
-- `IncludeDomains`: Liste der erlaubten Domains (z.B. `light`, `switch`, `sensor`, `media_player`).
+- `IncludeDomains`: Liste der erlaubten Domains (z.B. `light`, `switch`, `sensor`, `media_player`, `vacuum`, `lawn_mower`).
 - `Statusvariablen automatisch anlegen`: legt Statusvariablen bei neu erzeugten Devices automatisch an.
 - Optional: `EnableExpertDebug`.
 
@@ -51,3 +51,4 @@ Keine.
 1. Configurator öffnen, Entitäten werden per REST geladen.
 2. Geräte nach Bereich sortieren.
 3. Gewünschte Geräte anlegen (Device-Instanzen).
+

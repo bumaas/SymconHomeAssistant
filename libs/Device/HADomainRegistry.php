@@ -68,6 +68,9 @@ trait HADomainRegistryTrait
                 fn(array $entity) => $this->maintainVacuumActionVariable($entity),
                 fn(array $entity) => $this->maintainVacuumFanSpeedVariable($entity)
             ],
+            HALawnMowerDefinitions::DOMAIN => [
+                fn(array $entity) => $this->maintainLawnMowerActionVariable($entity)
+            ],
             HAMediaPlayerDefinitions::DOMAIN => [
                 fn(array $entity) => $this->maintainMediaPlayerActionVariable($entity),
                 fn(array $entity) => $this->maintainMediaPlayerPowerVariable($entity),
@@ -176,6 +179,21 @@ trait HADomainRegistryTrait
                     $this->setValueWithDebug($ident, $parsed[self::KEY_STATE]);
                 }
                 $this->updateVacuumFanSpeedValue($entityId, $attributes);
+                if (is_array($attributes) && $attributes !== []) {
+                    $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+                } else {
+                    $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
+                }
+            },
+            HALawnMowerDefinitions::DOMAIN => function (string $entityId, string $ident, array $parsed): void {
+                $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
+                if (is_array($attributes) && $attributes !== []) {
+                    $attributes = $this->storeEntityAttributes($entityId, $attributes);
+                }
+                if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
+                    $this->setValueWithDebug($ident, $parsed[self::KEY_STATE]);
+                }
                 if (is_array($attributes) && $attributes !== []) {
                     $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);

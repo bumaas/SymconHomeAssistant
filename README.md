@@ -48,7 +48,8 @@ Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
 | `event`         | teilweise   | Enumeration aus `event_type` | Weitere Event-Attribute |
 | `fan`           | teilweise   | Status (On/Off), Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`) | Weitere Dienste/Features je Modell |
 | `humidifier`    | teilweise   | Status (On/Off), Attribute (`target_humidity`, `current_humidity`, `mode`, `action`) | Weitere Dienste/Features je Modell |
-| `vacuum`        | teilweise   | REST `start`/`stop`/`pause`/`return_to_base`, `fan_speed` | Weitere Dienste/Features je Modell |
+| `vacuum`        | teilweise   | REST `start`/`stop`/`pause`/`return_to_base`, `clean_spot`, `locate`, `fan_speed` | Weitere Dienste/Features je Modell |
+| `lawn_mower`    | teilweise   | Status + Aktionen `start_mowing`/`pause`/`dock` | Weitere Dienste/Features je Modell |
 | `media_player`  | teilweise   | Status, Aktionen, Attribute, Cover als Medienobjekt | Weitere Dienste/Features je Modell |
 | `button`        | voll        | `press` als Aktion | - |
 | `input_button`  | voll        | `press` als Aktion | - |
