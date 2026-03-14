@@ -8,7 +8,7 @@ require_once __DIR__ . '/../libs/HACommonIncludes.php';
 
 class HomeAssistantConfigurator extends IPSModuleStrict
 {
-    use HADebugTrait;
+    use ModuleDebugTrait;
     use HASupportedFeaturesTrait;
 
     // ... Caches ...
@@ -787,4 +787,3 @@ EOT;
     }
 
 }
-

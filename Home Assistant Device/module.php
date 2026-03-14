@@ -29,7 +29,7 @@ require_once __DIR__ . '/../libs/Device/HAEntityStore.php';
  */
 class HomeAssistantDevice extends IPSModuleStrict
 {
-    use HADebugTrait;
+    use ModuleDebugTrait;
     use HADomainStateHandlersTrait;
     use HAAttributeHandlersTrait;
     use HADomainRegistryTrait;
@@ -2983,7 +2983,9 @@ class HomeAssistantDevice extends IPSModuleStrict
             }
 
             $value = $attributes[$key];
-            if (is_array($value)) {
+            if ($key === 'rgb_color') {
+                $value = $this->formatRgbColorStorageValue($value);
+            } elseif (is_array($value)) {
                 $value = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             }
             $value = $this->castVariableValue($value, $meta['type']);
@@ -3552,7 +3554,10 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         if (!empty($entityAttributes)) {
             if (!$this->checkSupportedFeatures($meta, $entityAttributes)) {
-                return false;
+                // Some integrations expose effect_list but do not reliably set feature bit 4.
+                if ($attribute !== 'effect' || !is_array($entityAttributes['effect_list'] ?? null) || $entityAttributes['effect_list'] === []) {
+                    return false;
+                }
             }
             if (!$this->checkSupportedColorModes($meta, $entityAttributes)) {
                 return false;
@@ -3898,11 +3903,89 @@ class HomeAssistantDevice extends IPSModuleStrict
             'brightness', 'color_temp', 'color_temp_kelvin' => (int)$value,
             'transition' => (float)$value,
             'hs_color', 'xy_color' => $this->parseNumberList($value, 2, true),
-            'rgb_color' => $this->parseNumberList($value, 3, false),
+            'rgb_color' => $this->parseRgbColorPayloadValue($value),
             'rgbw_color' => $this->parseNumberList($value, 4, false),
             'rgbww_color' => $this->parseNumberList($value, 5, false),
             default => (string)$value,
         };
+    }
+
+    private function formatRgbColorStorageValue(mixed $value): string
+    {
+        $rgb = $this->parseRgbColorComponents($value);
+        if ($rgb === null) {
+            return (string)$value;
+        }
+
+        return json_encode([
+            'r' => $rgb[0],
+            'g' => $rgb[1],
+            'b' => $rgb[2]
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
+    }
+
+    private function parseRgbColorPayloadValue(mixed $value): array
+    {
+        $rgb = $this->parseRgbColorComponents($value);
+        if ($rgb === null) {
+            return $this->parseNumberList($value, 3, false);
+        }
+
+        return [
+            (int)round($rgb[0]),
+            (int)round($rgb[1]),
+            (int)round($rgb[2])
+        ];
+    }
+
+    private function parseRgbColorComponents(mixed $value): ?array
+    {
+        $items = $value;
+        if (is_string($items)) {
+            $text = trim($items);
+            if ($text === '') {
+                return null;
+            }
+            if ($text[0] === '[' || $text[0] === '{') {
+                try {
+                    $decoded = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
+                    if (is_array($decoded)) {
+                        $items = $decoded;
+                    }
+                } catch (JsonException) {
+                    $items = $text;
+                }
+            }
+            if (!is_array($items)) {
+                $parts = preg_split('/[;,]/', (string)$items) ?: [];
+                $items = array_map('trim', $parts);
+            }
+        }
+
+        if (!is_array($items)) {
+            return null;
+        }
+
+        if (array_key_exists('r', $items) && array_key_exists('g', $items) && array_key_exists('b', $items)) {
+            $raw = [$items['r'], $items['g'], $items['b']];
+        } else {
+            $raw = array_values($items);
+            if (count($raw) < 3) {
+                return null;
+            }
+            $raw = array_slice($raw, 0, 3);
+        }
+
+        foreach ($raw as $component) {
+            if (!is_numeric($component)) {
+                return null;
+            }
+        }
+
+        $r = $this->clampFloat((float)$raw[0], 0.0, 255.0);
+        $g = $this->clampFloat((float)$raw[1], 0.0, 255.0);
+        $b = $this->clampFloat((float)$raw[2], 0.0, 255.0);
+        return [$r, $g, $b];
     }
 
     private function parseNumberList(mixed $value, int $expectedCount, bool $useFloat): array
@@ -4001,4 +4084,3 @@ class HomeAssistantDevice extends IPSModuleStrict
         return array_any($required, static fn($mode) => in_array($mode, $modes, true));
     }
 }
-

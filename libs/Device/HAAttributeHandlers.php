@@ -236,7 +236,9 @@ trait HAAttributeHandlersTrait
             return false;
         }
 
-        if (is_array($value)) {
+        if ($attribute === 'rgb_color') {
+            $value = $this->formatRgbColorStorageValue($value);
+        } elseif (is_array($value)) {
             $value = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
 

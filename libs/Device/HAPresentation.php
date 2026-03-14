@@ -641,6 +641,13 @@ trait HAPresentationTrait
         $presentationSuffix = $this->formatPresentationSuffix($suffix);
         $digitsOverride     = $this->getMetaDigitsOverride($meta);
 
+        if ($attribute === 'rgb_color') {
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_COLOR,
+                                                 'ENCODING'     => 0 // RGB
+                                             ]);
+        }
+
         if (!$this->isWritableLightAttribute($attribute, $attributes)) {
             return $this->filterPresentation([
                                                  'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
@@ -686,6 +693,15 @@ trait HAPresentationTrait
                                                      'PERCENTAGE'   => $isPercent,
                                                      'DIGITS'       => $digitsOverride ?? 0,
                                                      'SUFFIX'       => $presentationSuffix
+                                                 ]);
+            }
+        }
+        if ($attribute === 'effect') {
+            $options = $this->getPresentationOptions($attributes['effect_list'] ?? null);
+            if ($options !== null) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                     'OPTIONS'      => $options
                                                  ]);
             }
         }

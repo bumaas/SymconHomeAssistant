@@ -5,11 +5,11 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../libs/HAIds.php';
-require_once __DIR__ . '/../libs/HADebug.php';
+require_once __DIR__ . '/../libs/ModuleDebug.php';
 
 class HomeAssistantDiscovery extends IPSModuleStrict
 {
-    use HADebugTrait;
+    use ModuleDebugTrait;
 
     // GUIDs ohne Typisierung für PHP 8.0
     private const string DISCOVERY_SEARCHTARGET = '_home-assistant._tcp';

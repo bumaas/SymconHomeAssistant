@@ -8,7 +8,7 @@ require_once __DIR__ . '/../libs/HACommonIncludes.php';
 
 class HomeAssistantSplitter extends IPSModuleStrict
 {
-    use HADebugTrait;
+    use ModuleDebugTrait;
     use HASupportedFeaturesTrait;
     use HADiagnosticsTrait;
 
