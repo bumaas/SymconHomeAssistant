@@ -818,7 +818,10 @@ class HomeAssistantDevice extends IPSModuleStrict
             HABinarySensorDefinitions::DOMAIN,
             HAFanDefinitions::DOMAIN,
             HAHumidifierDefinitions::DOMAIN => $normalized === 'ON',
-            HAClimateDefinitions::DOMAIN, HANumberDefinitions::DOMAIN => (float)$valueData,
+            HAClimateDefinitions::DOMAIN => (float)$valueData,
+            HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER
+                ? (int)$valueData
+                : (float)$valueData,
             default => $valueData,
         };
     }
@@ -1227,7 +1230,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             HABinarySensorDefinitions::DOMAIN => HABinarySensorDefinitions::VARIABLE_TYPE,
             HASwitchDefinitions::DOMAIN => HASwitchDefinitions::VARIABLE_TYPE,
             HASensorDefinitions::DOMAIN => VARIABLETYPE_FLOAT,
-            HANumberDefinitions::DOMAIN => HANumberDefinitions::VARIABLE_TYPE,
+            HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes),
             HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
             HALockDefinitions::DOMAIN => HALockDefinitions::VARIABLE_TYPE,
             HASelectDefinitions::DOMAIN => HASelectDefinitions::VARIABLE_TYPE,
@@ -1241,6 +1244,54 @@ class HomeAssistantDevice extends IPSModuleStrict
             HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::VARIABLE_TYPE,
             default => VARIABLETYPE_STRING,
         };
+    }
+
+    private function inferNumberVariableType(array $attributes): int
+    {
+        $step = $this->extractNumericAttribute($attributes, ['step', 'native_step']);
+        if ($step === null || !$this->isWholeNumber($step) || $step <= 0.0) {
+            return VARIABLETYPE_FLOAT;
+        }
+
+        $min = $this->extractNumericAttribute($attributes, ['min', 'native_min_value']);
+        if ($min !== null && !$this->isWholeNumber($min)) {
+            return VARIABLETYPE_FLOAT;
+        }
+
+        $max = $this->extractNumericAttribute($attributes, ['max', 'native_max_value']);
+        if ($max !== null && !$this->isWholeNumber($max)) {
+            return VARIABLETYPE_FLOAT;
+        }
+
+        $value = $this->extractNumericAttribute($attributes, ['value', 'state']);
+        if ($value !== null && !$this->isWholeNumber($value)) {
+            return VARIABLETYPE_FLOAT;
+        }
+
+        return VARIABLETYPE_INTEGER;
+    }
+
+    private function extractNumericAttribute(array $attributes, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $attributes)) {
+                continue;
+            }
+            $value = $attributes[$key];
+            if (is_string($value)) {
+                $value = str_replace(',', '.', trim($value));
+            }
+            if (is_numeric($value)) {
+                return (float)$value;
+            }
+        }
+
+        return null;
+    }
+
+    private function isWholeNumber(float $value): bool
+    {
+        return abs($value - round($value)) < 0.0000001;
     }
 
     private function normalizeDomainAlias(string $domain): string

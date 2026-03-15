@@ -647,6 +647,22 @@ trait HAPresentationTrait
                                                  'ENCODING'     => 0 // RGB
                                              ]);
         }
+        if ($attribute === 'color_mode') {
+            $modes = $attributes['supported_color_modes'] ?? [];
+            if (!is_array($modes)) {
+                $modes = [];
+            }
+            $currentMode = $attributes['color_mode'] ?? null;
+            if (is_string($currentMode) && trim($currentMode) !== '') {
+                $modes[] = trim($currentMode);
+            }
+
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                                 'SUFFIX'       => $presentationSuffix,
+                                                 'OPTIONS'      => $this->getLightColorModeValueOptions($modes)
+                                             ]);
+        }
 
         if (!$this->isWritableLightAttribute($attribute, $attributes)) {
             return $this->filterPresentation([
@@ -723,15 +739,37 @@ trait HAPresentationTrait
         $step               = $attributes['step'] ?? $attributes['native_step'] ?? 1;
         $suffix             = $this->getPresentationSuffix($attributes);
         $presentationSuffix = $this->formatPresentationSuffix($suffix);
+        $digits             = $this->getNumericDigits($attributes, $step);
+
+        $usageType = null;
+        $isPercentage = false;
+        $displaySuffix = $presentationSuffix;
+        if ($this->isIntensitySliderRange((float)$min, (float)$max) && trim($suffix) === '' && $digits === 0) {
+            $usageType = 2; // Intensitaet
+            $isPercentage = true;
+            $displaySuffix = $this->formatPresentationSuffix('%');
+        }
 
         return $this->filterPresentation([
                                              'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
                                              'MIN'          => (float)$min,
                                              'MAX'          => (float)$max,
                                              'STEP_SIZE'    => (float)$step,
-                                             'DIGITS'       => $this->getNumericDigits($attributes, $step),
-                                             'SUFFIX'       => $presentationSuffix
+                                             'DIGITS'       => $digits,
+                                             'PERCENTAGE'   => $isPercentage,
+                                             'USAGE_TYPE'   => $usageType,
+                                             'SUFFIX'       => $displaySuffix
                                          ]);
+    }
+
+    private function isIntensitySliderRange(float $min, float $max): bool
+    {
+        $isZeroMin = abs($min - 0.0) < 0.0000001;
+        if (!$isZeroMin) {
+            return false;
+        }
+
+        return abs($max - 100.0) < 0.0000001 || abs($max - 255.0) < 0.0000001;
     }
 
     private function getPresentationSuffix(array $attributes): string
@@ -877,6 +915,59 @@ trait HAPresentationTrait
             $formatted[] = [
                 'Value'       => $value,
                 'Caption'     => $this->translate((string)$value),
+                'IconActive'  => false,
+                'IconValue'   => '',
+                'ColorActive' => false,
+                'ColorValue'  => -1
+            ];
+        }
+
+        return json_encode($formatted, JSON_THROW_ON_ERROR);
+    }
+
+    private function getLightColorModeValueOptions(array|string|null $modes): ?string
+    {
+        if (is_string($modes)) {
+            $modes = [trim($modes)];
+        }
+        if (!is_array($modes) || count($modes) === 0) {
+            return null;
+        }
+
+        $captions = [
+            'unknown'    => 'Unknown',
+            'onoff'      => 'On/Off',
+            'brightness' => 'Brightness',
+            'color_temp' => 'Color Temperature',
+            'hs'         => 'HS',
+            'rgb'        => 'RGB',
+            'rgbw'       => 'RGBW',
+            'rgbww'      => 'RGBWW',
+            'white'      => 'White',
+            'xy'         => 'XY'
+        ];
+
+        $unique = [];
+        foreach ($modes as $mode) {
+            if (!is_string($mode)) {
+                continue;
+            }
+            $value = strtolower(trim($mode));
+            if ($value === '' || isset($unique[$value])) {
+                continue;
+            }
+            $unique[$value] = true;
+        }
+        if ($unique === []) {
+            return null;
+        }
+
+        $formatted = [];
+        foreach (array_keys($unique) as $value) {
+            $caption = $captions[$value] ?? strtoupper($value);
+            $formatted[] = [
+                'Value'       => $value,
+                'Caption'     => $this->translate($caption),
                 'IconActive'  => false,
                 'IconValue'   => '',
                 'ColorActive' => false,
