@@ -160,6 +160,7 @@
       "Event (event)": "Ereignis (event)",
       "Select (select)": "Auswahl (select)",
       "Button (button)": "Taste (button)",
+      "Input Button (input_button)": "Eingabe-Taste (input_button)",
       "Fan (fan)": "Ventilator (fan)",
       "Humidifier (humidifier)": "Luftbefeuchter (humidifier)",
       "Media Player (media_player)": "Medienplayer (media_player)",
