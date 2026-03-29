@@ -6,10 +6,15 @@
       "visible": true,
       "items": [
         {
+          "type": "CheckBox",
+          "name": "EnableDomainFilter",
+          "caption": "Filter domains explicitly"
+        },
+        {
           "type": "List",
           "name": "IncludeDomains",
           "caption": "Allowed Domains (Filter)",
-          "visible": true,
+          "visible": false,
           "rowCount": 5,
           "add": true,
           "delete": true,

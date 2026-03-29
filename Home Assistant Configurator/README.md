@@ -36,7 +36,9 @@ Keine öffentlichen Funktionen.
 
 ## 5. Konfiguration
 
-- `IncludeDomains`: Liste der erlaubten Domains (z.B. `light`, `switch`, `sensor`, `media_player`, `vacuum`, `lawn_mower`).
+- Standard: alle Domains werden geladen.
+- `EnableDomainFilter`: aktiviert optional einen expliziten Domain-Filter.
+- `IncludeDomains`: Liste der erlaubten Domains (nur relevant, wenn `EnableDomainFilter` aktiv ist). Ist die Liste leer, werden keine Entitäten geladen.
 - `Statusvariablen automatisch anlegen`: legt Statusvariablen bei neu erzeugten Devices automatisch an.
 - Optional: `EnableExpertDebug`.
 

@@ -77,6 +77,14 @@ EOT;
 ]
 EOT;
 
+    private const string HA_ENTITY_ID_TEMPLATE_ALL = <<<'EOT'
+[
+    {% for state in states %}
+    {{ state.entity_id | to_json }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+]
+EOT;
+
     private const string HA_FULL_DATA_TEMPLATE_BY_ENTITY = <<<'EOT'
 [
     {# Rekursive JSON-Sanitizer: wandelt Sets/Iterables in JSON-kompatible Listen um #}
@@ -129,8 +137,9 @@ EOT;
 
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyBoolean('AutoCreateVariables', true);
+        $this->RegisterPropertyBoolean('EnableDomainFilter', false);
 
-        // Standard-Domänen im korrekten Listen-Format initialisieren (Array von Objekten)
+        // Für neue Instanzen: vollständige Domainliste vorbelegen.
         $defaultDomains = [
             HALightDefinitions::DOMAIN,
             HASwitchDefinitions::DOMAIN,
@@ -148,9 +157,9 @@ EOT;
             HAButtonDefinitions::DOMAIN,
             HAInputButtonDefinitions::DOMAIN
         ];
-        $domainList     = [];
-        foreach ($defaultDomains as $d) {
-            $domainList[] = ['Domain' => $d];
+        $domainList = [];
+        foreach ($defaultDomains as $domain) {
+            $domainList[] = ['Domain' => $domain];
         }
 
         $this->RegisterPropertyString(
@@ -193,11 +202,9 @@ EOT;
             }
         }
 
-        try {
-            $domainsList = json_decode($this->ReadPropertyString('IncludeDomains'), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            $domainsList = [];
-        }
+        $domainsList = $this->getConfiguredDomainRows();
+        $domainFilterEnabled = $this->ReadPropertyBoolean('EnableDomainFilter');
+        $domainsSimple = $this->getConfiguredDomainNames();
         foreach ($form['elements'] as &$element) {
             if (!isset($element['items']) || !is_array($element['items'])) {
                 continue;
@@ -205,14 +212,19 @@ EOT;
             foreach ($element['items'] as &$item) {
                 if (($item['name'] ?? '') === 'IncludeDomains') {
                     $item['values'] = $domainsList;
-                    break 2;
+                    $item['visible'] = $domainFilterEnabled;
+                    continue;
+                }
+                if (($item['name'] ?? '') === 'EnableDomainFilter') {
+                    $item['value'] = $domainFilterEnabled;
                 }
             }
             unset($item);
         }
         unset($element);
 
-        $devices = $this->groupEntitiesToDevices($this->entities);
+        $entitiesForDisplay = $this->getFilteredEntitiesForDisplay($this->entities, $domainFilterEnabled, $domainsSimple);
+        $devices = $this->groupEntitiesToDevices($entitiesForDisplay);
         $values = $this->prepareConfiguratorValues($devices);
 
         $form['actions'][] = [
@@ -251,13 +263,44 @@ EOT;
 
     private function updateConfiguratorList(): void
     {
-        $devices = $this->groupEntitiesToDevices($this->entities);
+        $domainFilterEnabled = $this->ReadPropertyBoolean('EnableDomainFilter');
+        $domainsSimple = $this->getConfiguredDomainNames();
+        $entitiesForDisplay = $this->getFilteredEntitiesForDisplay($this->entities, $domainFilterEnabled, $domainsSimple);
+        $devices = $this->groupEntitiesToDevices($entitiesForDisplay);
         $values = $this->prepareConfiguratorValues($devices);
         $this->UpdateFormField(
             'HomeAssistantDevices',
             'values',
             json_encode($values, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
+    }
+
+    private function getFilteredEntitiesForDisplay(array $entities, bool $domainFilterEnabled, array $domains): array
+    {
+        if (!$domainFilterEnabled) {
+            return $entities;
+        }
+
+        if ($domains === []) {
+            return [];
+        }
+
+        $filtered = [];
+        foreach ($entities as $entity) {
+            if (!is_array($entity)) {
+                continue;
+            }
+            $domain = (string)($entity['domain'] ?? '');
+            if ($domain === '' && isset($entity['entity_id']) && is_string($entity['entity_id']) && str_contains($entity['entity_id'], '.')) {
+                [$domain] = explode('.', $entity['entity_id'], 2);
+            }
+            if ($domain === '' || !in_array($domain, $domains, true)) {
+                continue;
+            }
+            $filtered[] = $entity;
+        }
+
+        return $filtered;
     }
 
     private function groupEntitiesToDevices(array $entities): array
@@ -575,79 +618,54 @@ EOT;
     {
         $instance = IPS_GetInstance($this->InstanceID);
         $parentID = $instance['ConnectionID'];
-
-        // Domänen aus der Listen-Struktur extrahieren.
-        // Format ist: [{"Domain": "light"}, {"Domain": "switch"}]
-        try {
-            $domainsList = json_decode($this->ReadPropertyString('IncludeDomains'), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            $domainsList = [];
-        }
-
         if ($parentID <= 0) {
             return;
         }
 
         $newEntities = [];
-        $domainsSimple = array_column($domainsList, 'Domain');
-        $domainChunks = array_chunk($domainsSimple, 1);
-        foreach ($domainChunks as $chunk) {
-            $this->debugExpert(__FUNCTION__, 'Request Domain', ['Domains' => $chunk]);
-            $entityIds = $this->fetchEntityIdsForDomains($chunk);
-            if ($entityIds === null) {
-                $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs)', ['Domains' => $chunk]);
-                continue;
-            }
-            if ($entityIds === []) {
-                $this->debugExpert(__FUNCTION__, 'Keine Entities', ['Domains' => $chunk]);
-                continue;
-            }
+        $domainFilterEnabled = $this->ReadPropertyBoolean('EnableDomainFilter');
+        $domainsSimple = $this->getConfiguredDomainNames();
 
-            $idChunks = array_chunk($entityIds, self::ENTITY_CHUNK_SIZE);
-            foreach ($idChunks as $idChunk) {
-                $rawEntities = $this->fetchEntitiesByIds($idChunk);
-                if ($rawEntities === null) {
-                    $this->debugExpert(__FUNCTION__, 'API-Fehler (Entities)', ['Count' => count($idChunk)]);
+        if ($domainFilterEnabled && $domainsSimple !== []) {
+            $domainChunks = array_chunk($domainsSimple, 1);
+            foreach ($domainChunks as $chunk) {
+                $this->debugExpert(__FUNCTION__, 'Request Domain', ['Domains' => $chunk]);
+                $entityIds = $this->fetchEntityIdsForDomains($chunk);
+                if ($entityIds === null) {
+                    $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs)', ['Domains' => $chunk]);
                     continue;
                 }
-                if ($rawEntities === []) {
+                if ($entityIds === []) {
+                    $this->debugExpert(__FUNCTION__, 'Keine Entities', ['Domains' => $chunk]);
                     continue;
                 }
-                $this->debugExpert(__FUNCTION__, 'Entities geladen', ['Count' => count($rawEntities)]);
-
-                foreach ($rawEntities as $entity) {
-                    if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
-                        $entity['attributes'] = [];
-                    }
-                    if (!isset($entity['attributes']['supported_features']) || !is_numeric($entity['attributes']['supported_features'])) {
-                        if (isset($entity['supported_features']) && is_numeric($entity['supported_features'])) {
-                            $entity['attributes']['supported_features'] = (int)$entity['supported_features'];
-                        }
-                    }
-                    unset($entity['supported_features']);
-                    // Fallback für den Anzeigenamen des Geräts, falls 'Unbekannt'
-                    if ($entity['device_name'] === 'Unbekannt' || $entity['device_id'] === 'none') {
-                        $entity['device'] = ucfirst($entity['domain']) . ' (Ohne Gerät)';
-                    } else {
-                        // Sauberer Gerätename ohne Bereich in Klammern für die Anzeige
-                        $entity['device'] = $entity['device_name'];
-                    }
-
-                    $newEntities[$entity['entity_id']] = $entity;
+                $this->loadEntitiesByIds($entityIds, $newEntities);
+            }
+        } else {
+            if ($domainFilterEnabled) {
+                $this->debugExpert(__FUNCTION__, 'Domain-Filter aktiv, aber keine Domains gesetzt. Ergebnis bleibt leer.');
+            } else {
+                $this->debugExpert(__FUNCTION__, 'Domain-Filter inaktiv. Lade alle Domains.');
+                $entityIds = $this->fetchEntityIdsForAllDomains();
+                if ($entityIds === null) {
+                    $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs) fuer alle Domains');
+                } elseif ($entityIds === []) {
+                    $this->debugExpert(__FUNCTION__, 'Keine Entities fuer alle Domains');
+                } else {
+                    $this->loadEntitiesByIds($entityIds, $newEntities);
                 }
             }
         }
 
         if ($newEntities === []) {
-            $this->debugExpert(__FUNCTION__, 'No entities found or API error');
+            $this->debugExpert(__FUNCTION__, 'No entities loaded. Cache cleared.');
+            $this->entities = [];
+            $this->WriteAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
             return;
         }
 
-        // 4. Persistieren
         $this->entities = $newEntities;
         $this->WriteAttributeString('CachedEntities', json_encode($this->entities, JSON_THROW_ON_ERROR));
-
-        // 5. Protokollieren
         $this->LogUpdatedEntities();
     }
 
@@ -669,6 +687,83 @@ EOT;
             }
         }
         return $ids;
+    }
+
+    private function fetchEntityIdsForAllDomains(): ?array
+    {
+        $result = $this->RenderHATemplate(trim(self::HA_ENTITY_ID_TEMPLATE_ALL));
+        if ($result === null) {
+            return null;
+        }
+        $ids = [];
+        foreach ($result as $item) {
+            if (is_string($item) && $item !== '') {
+                $ids[] = $item;
+            }
+        }
+        return $ids;
+    }
+
+    private function loadEntitiesByIds(array $entityIds, array &$newEntities): void
+    {
+        $idChunks = array_chunk($entityIds, self::ENTITY_CHUNK_SIZE);
+        foreach ($idChunks as $idChunk) {
+            $rawEntities = $this->fetchEntitiesByIds($idChunk);
+            if ($rawEntities === null) {
+                $this->debugExpert(__FUNCTION__, 'API-Fehler (Entities)', ['Count' => count($idChunk)]);
+                continue;
+            }
+            if ($rawEntities === []) {
+                continue;
+            }
+            $this->debugExpert(__FUNCTION__, 'Entities geladen', ['Count' => count($rawEntities)]);
+
+            foreach ($rawEntities as $entity) {
+                if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
+                    $entity['attributes'] = [];
+                }
+                if (!isset($entity['attributes']['supported_features']) || !is_numeric($entity['attributes']['supported_features'])) {
+                    if (isset($entity['supported_features']) && is_numeric($entity['supported_features'])) {
+                        $entity['attributes']['supported_features'] = (int)$entity['supported_features'];
+                    }
+                }
+                unset($entity['supported_features']);
+                if ($entity['device_name'] === 'Unbekannt' || $entity['device_id'] === 'none') {
+                    $entity['device'] = ucfirst($entity['domain']) . ' (Ohne Gerät)';
+                } else {
+                    $entity['device'] = $entity['device_name'];
+                }
+
+                $newEntities[$entity['entity_id']] = $entity;
+            }
+        }
+    }
+
+    private function getConfiguredDomainRows(): array
+    {
+        try {
+            $rows = json_decode($this->ReadPropertyString('IncludeDomains'), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+        return is_array($rows) ? $rows : [];
+    }
+
+    private function getConfiguredDomainNames(): array
+    {
+        $rows = $this->getConfiguredDomainRows();
+        $domains = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $domain = trim((string)($row['Domain'] ?? ''));
+            if ($domain === '') {
+                continue;
+            }
+            $domains[$domain] = true;
+        }
+        return array_keys($domains);
     }
 
     private function fetchEntitiesByIds(array $entityIds): ?array

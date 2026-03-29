@@ -10,7 +10,8 @@
       "Domain": "Domäne",
       "Configuration": "Konfiguration",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
-      "Create status variables automatically": "Statusvariablen automatisch anlegen"
+      "Create status variables automatically": "Statusvariablen automatisch anlegen",
+      "Filter domains explicitly": "Domänen explizit filtern"
     }
   }
 }
