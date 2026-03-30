@@ -1084,7 +1084,7 @@ trait HAPresentationTrait
         }
 
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_HVAC_MODES] ?? null);
+            $options = $this->getClimatePresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_HVAC_MODES] ?? null);
             if ($options !== null) {
                 return $this->filterPresentation([
                                                      'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -1093,7 +1093,7 @@ trait HAPresentationTrait
             }
         }
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_PRESET_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_PRESET_MODES] ?? null);
+            $options = $this->getClimatePresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_PRESET_MODES] ?? null);
             if ($options !== null) {
                 return $this->filterPresentation([
                                                      'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -1102,7 +1102,7 @@ trait HAPresentationTrait
             }
         }
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_FAN_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_FAN_MODES] ?? null);
+            $options = $this->getClimatePresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_FAN_MODES] ?? null);
             if ($options !== null) {
                 return $this->filterPresentation([
                                                      'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -1111,7 +1111,7 @@ trait HAPresentationTrait
             }
         }
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_SWING_MODES] ?? null);
+            $options = $this->getClimatePresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_SWING_MODES] ?? null);
             if ($options !== null) {
                 return $this->filterPresentation([
                                                      'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -1120,7 +1120,21 @@ trait HAPresentationTrait
             }
         }
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE) {
-            $options = $this->getPresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES] ?? null);
+            $options = $this->getClimatePresentationOptions($attributes[HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES] ?? null);
+            if ($options !== null) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                     'OPTIONS'      => $options
+                ]);
+            }
+        }
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION) {
+            $optionsRaw = ['off', 'idle', 'heating', 'cooling', 'drying', 'fan', 'preheating', 'defrosting'];
+            $current = $attributes[HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION] ?? null;
+            if (is_string($current) && trim($current) !== '') {
+                $optionsRaw[] = trim($current);
+            }
+            $options = $this->getClimatePresentationOptions($optionsRaw);
             if ($options !== null) {
                 return $this->filterPresentation([
                                                      'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -1133,7 +1147,91 @@ trait HAPresentationTrait
         return $this->filterPresentation([
                                              'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
                                              'SUFFIX'       => $this->formatPresentationSuffix((string)$suffix)
-                                         ]);
+        ]);
+    }
+
+    private function getClimatePresentationOptions(array|string|null $options): ?string
+    {
+        if (is_string($options)) {
+            $trimmed = trim($options);
+            if ($trimmed !== '') {
+                $options = [$trimmed];
+            }
+        }
+        if (!is_array($options) || count($options) === 0) {
+            return null;
+        }
+
+        $formatted = [];
+        foreach ($options as $value) {
+            $text = is_scalar($value) ? (string)$value : '';
+            if ($text === '') {
+                continue;
+            }
+            $formatted[] = [
+                'Value'       => $text,
+                'Caption'     => $this->translate($this->getClimateOptionCaption($text)),
+                'IconActive'  => false,
+                'IconValue'   => '',
+                'Color'       => -1
+            ];
+        }
+
+        if ($formatted === []) {
+            return null;
+        }
+        return json_encode($formatted, JSON_THROW_ON_ERROR);
+    }
+
+    private function getClimateOptionCaption(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+        if ($normalized === '') {
+            return $value;
+        }
+
+        $map = [
+            'heat' => 'Heating',
+            'cool' => 'Cooling',
+            'heat_cool' => 'Heat/Cool',
+            'dry' => 'Dry',
+            'fan_only' => 'Fan Only',
+            'auto' => 'Auto',
+            'off' => 'Off',
+            'on' => 'On',
+            'none' => 'None',
+            'eco' => 'Eco',
+            'boost' => 'Boost',
+            'comfort' => 'Comfort',
+            'away' => 'Away',
+            'home' => 'Home',
+            'sleep' => 'Sleep',
+            'activity' => 'Activity',
+            'idle' => 'Idle',
+            'heating' => 'Heating',
+            'cooling' => 'Cooling',
+            'drying' => 'Drying',
+            'fan' => 'Fan',
+            'preheating' => 'Preheating',
+            'defrosting' => 'Defrosting',
+            'low' => 'Low',
+            'lowmid' => 'Low-Middle',
+            'highmid' => 'Middle-High',
+            'high' => 'High',
+            'up' => 'Up',
+            'down' => 'Down',
+            'left' => 'Left',
+            'right' => 'Right',
+            'mid' => 'Middle',
+            'middle' => 'Middle',
+            'leftmid' => 'Middle-Left',
+            'rightmid' => 'Middle-Right',
+            'upmid' => 'Upper-Middle',
+            'downmid' => 'Lower-Middle',
+            'swing' => 'Swing'
+        ];
+
+        return $map[$normalized] ?? $value;
     }
 
     private function getClimateSliderPresentation(array $attributes): ?array

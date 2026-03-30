@@ -280,6 +280,13 @@ trait HADomainStateHandlersTrait
             return true;
         }
         $this->storeEntityAttribute($entityId, $attribute, $payload);
+        if ($this->getEntityDomain($entityId) === HAClimateDefinitions::DOMAIN) {
+            $storedAttributes = $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? [];
+            if (is_array($storedAttributes)) {
+                $this->updateClimateAttributeValues($entityId, $storedAttributes);
+            }
+            $this->updateClimatePowerValue($entityId, $payload);
+        }
         $this->updateEntityCache($entityId, null, [$attribute => $payload]);
         $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
         return true;

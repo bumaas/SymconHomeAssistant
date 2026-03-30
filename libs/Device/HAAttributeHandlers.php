@@ -93,17 +93,31 @@ trait HAAttributeHandlersTrait
             );
         }
         if ($currentDomain === HAClimateDefinitions::DOMAIN) {
-            return $this->handleAttributeTopicWithDefinitions(
+            $climateAliases = [
+                'temperature' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+                'target_temp_low' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_LOW,
+                'target_temp_high' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_HIGH,
+                'target_temp_step' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP
+            ];
+            $mappedAttribute = $climateAliases[$attribute] ?? $attribute;
+            $handled = $this->handleAttributeTopicWithDefinitions(
                 $entityId,
                 $attribute,
                 $payload,
                 HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
                 fn(string $id, string $attr): bool => $this->ensureClimateAttributeVariable($id, $attr),
                 [
+                    'attribute_alias' => $climateAliases,
                     'store_unknown' => true,
-                    'update_presentation_unknown' => true
+                    'store_defined' => true,
+                    'update_presentation_unknown' => true,
+                    'update_presentation_defined' => true
                 ]
             );
+            if ($handled) {
+                $this->updateClimateMainValueFromAttributes($entityId, $mappedAttribute);
+            }
+            return $handled;
         }
         if ($currentDomain === HAFanDefinitions::DOMAIN) {
             return $this->handleAttributeTopicWithDefinitions(
@@ -317,6 +331,29 @@ trait HAAttributeHandlersTrait
             $postSet($entityId, $attribute, $value);
         }
         return true;
+    }
+
+    private function updateClimateMainValueFromAttributes(string $entityId, string $attribute): void
+    {
+        if (!in_array($attribute, [
+            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+            HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE
+        ], true)) {
+            return;
+        }
+        $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? [];
+        if (!is_array($attributes)) {
+            return;
+        }
+        $mainValue = $this->extractClimateMainValue($attributes);
+        if ($mainValue === null) {
+            return;
+        }
+        $mainIdent = $this->sanitizeIdent($entityId);
+        if (@$this->GetIDForIdent($mainIdent) === false) {
+            return;
+        }
+        $this->setValueWithDebug($mainIdent, $mainValue);
     }
 }
 

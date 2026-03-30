@@ -53,7 +53,8 @@ trait HADomainRegistryTrait
                 fn(array $entity) => $this->maintainLightAttributeVariables($entity)
             ],
             HAClimateDefinitions::DOMAIN => [
-                fn(array $entity) => $this->maintainClimateAttributeVariables($entity)
+                fn(array $entity) => $this->maintainClimateAttributeVariables($entity),
+                fn(array $entity) => $this->maintainClimatePowerVariable($entity)
             ],
             HAFanDefinitions::DOMAIN => [
                 fn(array $entity) => $this->maintainFanAttributeVariables($entity)
@@ -102,7 +103,15 @@ trait HADomainRegistryTrait
             HAClimateDefinitions::DOMAIN => function (string $entityId, string $ident, array $parsed): void {
                 $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
                 if (is_array($attributes) && $attributes !== []) {
+                    // Normalize HA climate aliases (e.g. "temperature" -> "target_temperature") for consistent downstream updates.
+                    $attributes = $this->mapClimateAttributeAliases($attributes, __FUNCTION__);
+                    $state = $parsed[self::KEY_STATE] ?? null;
+                    $hasHvacActionUpdate = array_key_exists(HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION, $attributes);
+                    if (is_string($state) && $state !== '' && ($hasHvacActionUpdate || !array_key_exists(HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $attributes))) {
+                        $attributes[HAClimateDefinitions::ATTRIBUTE_HVAC_MODE] = $state;
+                    }
                     $attributes = $this->storeEntityAttributes($entityId, $attributes);
+                    $this->maintainClimatePowerVariable($this->entities[$entityId] ?? ['entity_id' => $entityId, 'attributes' => $attributes]);
                     $mainValue = $this->extractClimateMainValue($attributes);
                     if ($mainValue !== null) {
                         $this->setValueWithDebug($ident, $mainValue);
@@ -110,6 +119,9 @@ trait HADomainRegistryTrait
                     $this->updateEntityCache($entityId, $mainValue, $attributes);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
                     $this->updateClimateAttributeValues($entityId, $attributes);
+                    if (is_string($state) && $state !== '') {
+                        $this->updateClimatePowerValue($entityId, $state);
+                    }
                     return;
                 }
 
@@ -121,6 +133,11 @@ trait HADomainRegistryTrait
                     $this->storeEntityAttribute($entityId, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $parsed[self::KEY_STATE]);
                     $this->updateEntityCache($entityId, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $parsed[self::KEY_STATE]]);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+                    $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? [];
+                    if (is_array($attributes)) {
+                        $this->updateClimateAttributeValues($entityId, $attributes);
+                    }
+                    $this->updateClimatePowerValue($entityId, (string)$parsed[self::KEY_STATE]);
                 }
             },
             HACoverDefinitions::DOMAIN => function (string $entityId, string $ident, array $parsed): void {
@@ -268,6 +285,7 @@ trait HADomainRegistryTrait
         return [
             HALightDefinitions::DOMAIN => fn(string $attribute, mixed $value) => $this->buildLightAttributePayload($attribute, $value),
             HACoverDefinitions::DOMAIN => fn(string $attribute, mixed $value) => $this->buildCoverAttributePayload($attribute, $value),
+            HAClimateDefinitions::DOMAIN => fn(string $attribute, mixed $value) => $this->buildClimateAttributePayload($attribute, $value),
             HAFanDefinitions::DOMAIN => fn(string $attribute, mixed $value) => $this->buildFanAttributePayload($attribute, $value),
             HAHumidifierDefinitions::DOMAIN => fn(string $attribute, mixed $value) => $this->buildHumidifierAttributePayload($attribute, $value),
             HAMediaPlayerDefinitions::DOMAIN => fn(string $attribute, mixed $value) => $this->buildMediaPlayerAttributePayload($attribute, $value)

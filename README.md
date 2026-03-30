@@ -42,7 +42,7 @@ Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
 | `number`        | voll        | Slider/Min/Max/Step, REST `set_value` | - |
 | `sensor`        | voll        | Units/Suffix, `enum` als Enumeration | - |
 | `select`        | voll        | Enumeration | - |
-| `climate`       | teilweise   | Solltemp (Slider), REST `set_temperature`, Modi/Attribute read-only | Preset/Fan/Swing write, Target-Range/Target-Humidity write |
+| `climate`       | voll        | Heizen/Kühlen steuerbar: Solltemperatur, Modus (z. B. Heizen/Kühlen), Preset-, Lüfter- und Swing-Modus sowie Ein/Aus und Zielfeuchte | - |
 | `lock`          | voll        | REST `lock`/`unlock`/`open`, Hauptvariable Wertanzeige, Aktion als Enumeration | Code-Handling bei `open` (falls erforderlich) |
 | `cover`         | teilweise   | Position/Tilt, REST `open/close/stop` + `set_position` | Device-Class-Spezifika/weitere Attribute |
 | `event`         | teilweise   | Enumeration aus `event_type` | Weitere Event-Attribute |

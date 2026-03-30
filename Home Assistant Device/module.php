@@ -47,6 +47,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     private const string LAWN_MOWER_ACTION_SUFFIX = '_lawn_mower_action';
     private const string MEDIA_PLAYER_ACTION_SUFFIX = '_media_player_action';
     private const string MEDIA_PLAYER_POWER_SUFFIX = '_power';
+    private const string CLIMATE_POWER_SUFFIX = '_power';
     private const string MEDIA_PLAYER_COVER_SUFFIX = '_media_cover';
     private const int MEDIA_TYPE_IMAGE = 1;
     private const string TIMER_MEDIA_PLAYER_PROGRESS = 'MediaPlayerProgressTimer';
@@ -357,6 +358,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         if ($this->handleMediaPlayerAction($Ident, $Value)) {
             return;
         }
+        if ($this->handleClimatePowerAction($Ident, $Value)) {
+            return;
+        }
 
         $entity = $this->findEntityByIdent($Ident);
         if ($entity !== null && !empty($entity['entity_id'])) {
@@ -403,6 +407,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         if ($payload === '' && !in_array($attributeInfo['domain'], [
             HALightDefinitions::DOMAIN,
             HACoverDefinitions::DOMAIN,
+            HAClimateDefinitions::DOMAIN,
             HAFanDefinitions::DOMAIN,
             HAHumidifierDefinitions::DOMAIN,
             HAMediaPlayerDefinitions::DOMAIN
@@ -421,6 +426,14 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $payload, [], true);
         $this->sendMqttMessage($topic, $payload);
+        if ($attributeInfo['domain'] === HAClimateDefinitions::DOMAIN && $attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
+            $hvacMode = trim((string)$Value);
+            if ($hvacMode !== '') {
+                $this->storeEntityAttribute($entityId, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $hvacMode);
+                $this->updateEntityCache($entityId, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $hvacMode]);
+                $this->setValueWithDebug($Ident, $hvacMode);
+            }
+        }
     }
 
     public function GetConfigurationForm(): string
@@ -1789,6 +1802,55 @@ class HomeAssistantDevice extends IPSModuleStrict
         return true;
     }
 
+    private function handleClimatePowerAction(string $ident, mixed $value): bool
+    {
+        if (!str_ends_with($ident, self::CLIMATE_POWER_SUFFIX)) {
+            return false;
+        }
+
+        $entity = $this->findEntityByIdentSuffix($ident, self::CLIMATE_POWER_SUFFIX, HAClimateDefinitions::DOMAIN);
+        if ($entity === null) {
+            return false;
+        }
+
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return true;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+        if (!$this->supportsClimatePower($attributes)) {
+            return true;
+        }
+
+        $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
+        $turnOn = (bool)$value;
+        if ($turnOn && ($supported & HAClimateDefinitions::FEATURE_TURN_ON) !== HAClimateDefinitions::FEATURE_TURN_ON) {
+            return true;
+        }
+        if (!$turnOn && ($supported & HAClimateDefinitions::FEATURE_TURN_OFF) !== HAClimateDefinitions::FEATURE_TURN_OFF) {
+            return true;
+        }
+
+        $command = $turnOn ? 'turn_on' : 'turn_off';
+        if ($this->sendServiceRequestToParent(HAClimateDefinitions::DOMAIN, $command, ['entity_id' => $entityId])) {
+            $this->debugExpert('RequestAction', 'Climate power (REST)', ['EntityID' => $entityId, 'Command' => $command], true);
+            return true;
+        }
+
+        $topic = $this->getSetTopicForEntity($entityId);
+        if ($topic === '') {
+            return true;
+        }
+
+        $this->debugExpert('RequestAction', 'Climate power', ['EntityID' => $entityId, 'Command' => $command], true);
+        $this->sendMqttMessage($topic, $command);
+        return true;
+    }
+
     private function maintainMediaPlayerActionVariable(array $entity): void
     {
         $entityId = $entity['entity_id'] ?? '';
@@ -1863,6 +1925,11 @@ class HomeAssistantDevice extends IPSModuleStrict
         return $this->sanitizeIdent($entityId) . self::MEDIA_PLAYER_POWER_SUFFIX;
     }
 
+    private function getClimatePowerIdent(string $entityId): string
+    {
+        return $this->sanitizeIdent($entityId) . self::CLIMATE_POWER_SUFFIX;
+    }
+
     private function getMediaPlayerActionOptions(array $attributes): array
     {
         $debugContext = ['Attributes' => $attributes];
@@ -1917,6 +1984,16 @@ class HomeAssistantDevice extends IPSModuleStrict
                || (($supported & HAMediaPlayerDefinitions::FEATURE_TURN_OFF) === HAMediaPlayerDefinitions::FEATURE_TURN_OFF);
     }
 
+    private function supportsClimatePower(array $attributes): bool
+    {
+        $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
+        if ($supported === 0) {
+            return false;
+        }
+        return (($supported & HAClimateDefinitions::FEATURE_TURN_ON) === HAClimateDefinitions::FEATURE_TURN_ON)
+               || (($supported & HAClimateDefinitions::FEATURE_TURN_OFF) === HAClimateDefinitions::FEATURE_TURN_OFF);
+    }
+
     private function updateMediaPlayerPowerValue(string $entityId, string $state): void
     {
         $ident = $this->getMediaPlayerPowerIdent($entityId);
@@ -1930,6 +2007,56 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
 
         $isOn = !in_array($normalized, ['off', 'standby'], true);
+        $this->setValueWithDebug($ident, $isOn);
+    }
+
+    private function maintainClimatePowerVariable(array $entity): void
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return;
+        }
+
+        $ident = $this->getClimatePowerIdent($entityId);
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+        if (!$this->supportsClimatePower($attributes)) {
+            $this->MaintainVariable($ident, $this->Translate('Power'), VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], 1, false);
+            return;
+        }
+
+        $position = $this->getEntityPosition($entityId) + 1;
+        $this->MaintainVariable(
+            $ident,
+            $this->Translate('Power'),
+            VARIABLETYPE_BOOLEAN,
+            ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH],
+            $position,
+            true
+        );
+        $this->EnableAction($ident);
+
+        $state = $entity[self::KEY_STATE] ?? $this->getCachedEntityState($entityId);
+        if (is_string($state) && $state !== '') {
+            $this->updateClimatePowerValue($entityId, $state);
+        }
+    }
+
+    private function updateClimatePowerValue(string $entityId, string $state): void
+    {
+        $ident = $this->getClimatePowerIdent($entityId);
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        $normalized = strtolower(trim($state));
+        if ($normalized === '' || $normalized === 'unknown' || $normalized === 'unavailable') {
+            return;
+        }
+
+        $isOn = $normalized !== 'off';
         $this->setValueWithDebug($ident, $isOn);
     }
 
@@ -2053,6 +2180,64 @@ class HomeAssistantDevice extends IPSModuleStrict
             return false;
         }
         return true;
+    }
+
+    private function isWritableClimateAttribute(string $attribute, array $entityAttributes = []): bool
+    {
+        $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return false;
+        }
+        if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
+            return false;
+        }
+
+        // For mode-like attributes, require available options.
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
+            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_HVAC_MODES] ?? null;
+            return is_array($modes) && $modes !== [];
+        }
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_PRESET_MODE) {
+            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_PRESET_MODES] ?? null;
+            return is_array($modes) && $modes !== [];
+        }
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_FAN_MODE) {
+            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_FAN_MODES] ?? null;
+            return is_array($modes) && $modes !== [];
+        }
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_MODE) {
+            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_SWING_MODES] ?? null;
+            return is_array($modes) && $modes !== [];
+        }
+        if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE) {
+            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES] ?? null;
+            return is_array($modes) && $modes !== [];
+        }
+
+        return true;
+    }
+
+    private function shouldCreateClimateAttribute(string $attribute, array $meta, array $attributes): bool
+    {
+        $hasAttribute = array_key_exists($attribute, $attributes);
+        if (!$hasAttribute) {
+            if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
+                $hasAttribute = array_key_exists(HAClimateDefinitions::ATTRIBUTE_HVAC_MODES, $attributes);
+            } elseif ($attribute === HAClimateDefinitions::ATTRIBUTE_PRESET_MODE) {
+                $hasAttribute = array_key_exists(HAClimateDefinitions::ATTRIBUTE_PRESET_MODES, $attributes);
+            } elseif ($attribute === HAClimateDefinitions::ATTRIBUTE_FAN_MODE) {
+                $hasAttribute = array_key_exists(HAClimateDefinitions::ATTRIBUTE_FAN_MODES, $attributes);
+            } elseif ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_MODE) {
+                $hasAttribute = array_key_exists(HAClimateDefinitions::ATTRIBUTE_SWING_MODES, $attributes);
+            } elseif ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE) {
+                $hasAttribute = array_key_exists(HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES, $attributes);
+            }
+        }
+
+        if (($meta['writable'] ?? false) === true) {
+            return $hasAttribute || $this->isWritableClimateAttribute($attribute, $attributes);
+        }
+        return $hasAttribute;
     }
 
     private function shouldCreateFanAttribute(string $attribute, array $meta, array $attributes): bool
@@ -2360,6 +2545,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::ACTION_STATE_REFRESH_TRIGGERS ?? [],
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::ACTION_STATE_REFRESH_TRIGGERS ?? [],
             HALightDefinitions::DOMAIN => HALightDefinitions::ACTION_STATE_REFRESH_TRIGGERS ?? [],
+            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::ACTION_STATE_REFRESH_TRIGGERS ?? [],
             default => []
         };
     }
@@ -2463,6 +2649,14 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($domain === HAFanDefinitions::DOMAIN) {
             $this->applyFanAttributeActionState($attribute, $attributes, $ident);
+            return;
+        }
+        if ($domain === HAClimateDefinitions::DOMAIN) {
+            if ($this->isWritableClimateAttribute($attribute, $attributes)) {
+                $this->EnableAction($ident);
+            } else {
+                $this->DisableAction($ident);
+            }
             return;
         }
         if ($domain === HAMediaPlayerDefinitions::DOMAIN && $attribute === 'media_position') {
@@ -3056,16 +3250,21 @@ class HomeAssistantDevice extends IPSModuleStrict
         $baseIdent = $this->sanitizeIdent($entity['entity_id']);
 
         foreach (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!array_key_exists($key, $attributes)) {
+            if (!$this->shouldCreateClimateAttribute($key, $meta, $attributes)) {
                 continue;
             }
 
             $ident        = $baseIdent . '_' . $key;
-            $name         = $meta['caption'];
+            $name         = $this->Translate((string)$meta['caption']);
             $basePosition = $this->getEntityPosition($entity['entity_id']);
             $position     = $this->getClimateAttributePosition($key, $basePosition);
             $presentation = $this->getClimateAttributePresentation($key, $attributes);
             $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+            if ($this->isWritableClimateAttribute($key, $attributes)) {
+                $this->EnableAction($ident);
+            } else {
+                $this->DisableAction($ident);
+            }
             $this->debugExpert('ClimateVars', 'Variable angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
         }
     }
@@ -3088,11 +3287,16 @@ class HomeAssistantDevice extends IPSModuleStrict
         ];
 
         $attributes   = $entity['attributes'] ?? [];
-        $name         = $meta['caption'];
+        $name         = $this->Translate((string)$meta['caption']);
         $basePosition = $this->getEntityPosition($entityId);
         $position     = $this->getClimateAttributePosition($attribute, $basePosition);
         $presentation = $this->getClimateAttributePresentation($attribute, is_array($attributes) ? $attributes : []);
         $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+        if ($this->isWritableClimateAttribute($attribute, is_array($attributes) ? $attributes : [])) {
+            $this->EnableAction($ident);
+        } else {
+            $this->DisableAction($ident);
+        }
         $this->debugExpert('ClimateVars', 'Variable nachträglich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
         return true;
     }
@@ -3100,7 +3304,8 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function updateClimateAttributeValues(string $entityId, array $attributes): void
     {
         foreach (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!array_key_exists($key, $attributes)) {
+            $hasAttributeValue = array_key_exists($key, $attributes);
+            if (!$hasAttributeValue && $key !== HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
                 continue;
             }
 
@@ -3110,7 +3315,16 @@ class HomeAssistantDevice extends IPSModuleStrict
                 continue;
             }
 
-            $value = $this->castVariableValue($attributes[$key], $meta['type']);
+            if ($hasAttributeValue) {
+                $value = $this->castVariableValue($attributes[$key], $meta['type']);
+            } else {
+                $state = $this->entities[$entityId][self::KEY_STATE] ?? null;
+                if (is_string($state) && $state !== '') {
+                    $value = $this->castVariableValue($state, $meta['type']);
+                } else {
+                    continue;
+                }
+            }
             $this->setValueWithDebug($ident, $value);
         }
         $this->refreshDomainAttributePresentations(HAClimateDefinitions::DOMAIN, $entityId, $attributes);
@@ -3140,11 +3354,15 @@ class HomeAssistantDevice extends IPSModuleStrict
         $candidates = $preferTarget
             ? [
                 HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+                // Some HA integrations provide only "temperature"; treat it as target fallback.
+                'temperature',
                 HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE
             ]
             : [
                 HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE,
-                HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE
+                HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+                // Keep legacy/raw key fallback to avoid stale values in mixed payloads.
+                'temperature'
             ];
         foreach ($candidates as $key) {
             $value = $attributes[$key] ?? null;
@@ -3771,6 +3989,50 @@ class HomeAssistantDevice extends IPSModuleStrict
                 'domain'    => $domain
             ];
         }
+        foreach (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS as $attribute => $meta) {
+            if (!($meta['writable'] ?? false)) {
+                continue;
+            }
+            $suffix = '_' . $attribute;
+            if (!str_ends_with($ident, $suffix)) {
+                continue;
+            }
+
+            $baseIdent = substr($ident, 0, -strlen($suffix));
+            if ($baseIdent === '') {
+                continue;
+            }
+
+            $entityId = $this->getEntityIdByIdent($baseIdent);
+            $entity   = null;
+            $attributes = [];
+            if ($entityId !== null && isset($this->entities[$entityId])) {
+                $entity     = $this->entities[$entityId];
+                $attributes = is_array($entity['attributes'] ?? null) ? $entity['attributes'] : [];
+            } else {
+                $fromConfig = $this->findEntityByBaseIdentInConfig($baseIdent);
+                if ($fromConfig !== null) {
+                    $entityId   = $fromConfig['entity_id'];
+                    $entity     = $fromConfig;
+                    $attributes = $fromConfig['attributes'] ?? [];
+                }
+            }
+
+            if ($entityId === null || $entity === null) {
+                return null;
+            }
+
+            $domain = $entity['domain'] ?? $this->getEntityDomain($entityId);
+            if ($domain !== HAClimateDefinitions::DOMAIN || !$this->isWritableClimateAttribute($attribute, $attributes)) {
+                return null;
+            }
+
+            return [
+                'entity_id' => $entityId,
+                'attribute' => $attribute,
+                'domain'    => $domain
+            ];
+        }
         foreach (HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS as $attribute => $meta) {
             if (!($meta['writable'] ?? false)) {
                 continue;
@@ -3884,6 +4146,25 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         $payloadValue = $this->parseCoverAttributeValue($value);
         return json_encode([$payloadKey => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function buildClimateAttributePayload(string $attribute, mixed $value): string
+    {
+        $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return '';
+        }
+
+        $payloadValue = match ($attribute) {
+            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_LOW,
+            HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_HIGH,
+            HAClimateDefinitions::ATTRIBUTE_TARGET_HUMIDITY => (float)$value,
+            default => trim((string)$value)
+        };
+        if ($payloadValue === '') {
+            return '';
+        }
+        return json_encode([$attribute => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     private function buildMediaPlayerAttributePayload(string $attribute, mixed $value): string
