@@ -14,6 +14,7 @@ trait HASupportedFeaturesTrait
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
             HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::SUPPORTED_FEATURES,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
+            HACameraDefinitions::DOMAIN => HACameraDefinitions::SUPPORTED_FEATURES,
             HAFanDefinitions::DOMAIN => HAFanDefinitions::SUPPORTED_FEATURES,
             HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::SUPPORTED_FEATURES,
             default => []

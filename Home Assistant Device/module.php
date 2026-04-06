@@ -49,7 +49,8 @@ class HomeAssistantDevice extends IPSModuleStrict
     private const string MEDIA_PLAYER_POWER_SUFFIX = '_power';
     private const string CLIMATE_POWER_SUFFIX = '_power';
     private const string MEDIA_PLAYER_COVER_SUFFIX = '_media_cover';
-    private const string CAMERA_IMAGE_SUFFIX = '_camera_stream';
+    private const string CAMERA_STREAM_SUFFIX = '_camera_stream';
+    private const string CAMERA_PREVIEW_SUFFIX = '_camera_preview';
     private const string TIMER_MEDIA_PLAYER_PROGRESS = 'MediaPlayerProgressTimer';
     private const string BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG = 'MediaPlayerProgressDebug';
     private const int MEDIA_PLAYER_PROGRESS_DEBUG_INTERVAL = 10;
@@ -925,12 +926,6 @@ class HomeAssistantDevice extends IPSModuleStrict
             return null;
         }
 
-        if (isset($row['stream_source_override'])) {
-            $row['stream_source_override'] = trim((string)$row['stream_source_override']);
-        } else {
-            $row['stream_source_override'] = '';
-        }
-
         $row = $this->normalizeEntityDomain($row);
         $row = $this->normalizeEntityAttributes($row, $context);
         $row = $this->syncDeviceClass($row);
@@ -1078,7 +1073,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             return $this->mapMediaPlayerAttributeAliases($attributes, $context);
         }
         if ($domain === HACameraDefinitions::DOMAIN) {
-            return $this->mapCameraAttributeAliases($attributes, $context);
+            return $this->normalizeCameraAttributes($attributes, $context);
         }
         if ($domain === HAHumidifierDefinitions::DOMAIN) {
             return $this->mapHumidifierAttributeAliases($attributes, $context);
@@ -1168,16 +1163,21 @@ class HomeAssistantDevice extends IPSModuleStrict
         return $attributes;
     }
 
-    private function mapCameraAttributeAliases(array $attributes, string $context): array
+    private function normalizeCameraAttributes(array $attributes, string $context): array
     {
-        $mapped = [];
-        if (!array_key_exists('camera_image_url', $attributes)
-            && array_key_exists('entity_picture', $attributes)) {
-            $attributes['camera_image_url'] = $attributes['entity_picture'];
-            $mapped['entity_picture'] = 'camera_image_url';
+        $normalized = [];
+        foreach (['entity_picture', 'stream_source', 'rtsp_url'] as $key) {
+            if (!isset($attributes[$key]) || !is_string($attributes[$key])) {
+                continue;
+            }
+            $trimmed = trim($attributes[$key]);
+            if ($trimmed !== $attributes[$key]) {
+                $attributes[$key] = $trimmed;
+                $normalized[] = $key;
+            }
         }
-        if ($mapped !== []) {
-            $this->debugExpert($context, 'Camera-Attribute umbenannt', ['Mapped' => $mapped]);
+        if ($normalized !== []) {
+            $this->debugExpert($context, 'Camera-Attribute normalisiert', ['Attributes' => $normalized]);
         }
 
         return $attributes;
@@ -2340,9 +2340,6 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function shouldCreateCameraAttribute(string $attribute, array $meta, array $attributes): bool
     {
         $hasAttribute = array_key_exists($attribute, $attributes);
-        if (!$hasAttribute && $attribute === 'camera_image_url') {
-            $hasAttribute = array_key_exists('entity_picture', $attributes);
-        }
         if (($meta['writable'] ?? false) === true) {
             return $hasAttribute || $this->checkSupportedFeatures($meta, $attributes);
         }
@@ -2355,78 +2352,119 @@ class HomeAssistantDevice extends IPSModuleStrict
         if (!is_array($attributes)) {
             $attributes = [];
         }
-        $attributes = $this->mapCameraAttributeAliases($attributes, __FUNCTION__);
+        $attributes = $this->normalizeCameraAttributes($attributes, __FUNCTION__);
 
-        $this->maintainCameraImageMedia($entity['entity_id'], 0);
+        $this->maintainCameraPreviewMedia($entity['entity_id'], 0);
+        $this->maintainCameraStreamMedia($entity['entity_id'], 0);
         $this->updateCameraAttributeValues($entity['entity_id'], $attributes);
     }
 
     private function ensureCameraAttributeVariable(string $entityId, string $attribute): bool
     {
-        if ($attribute !== 'camera_image_url') {
-            return false;
-        }
-        // Camera image URL is handled internally for stream setup and should stay hidden in the UI.
-        return true;
+        return false;
     }
 
     private function updateCameraAttributeValues(string $entityId, array $attributes): void
     {
-        $attributes = $this->mapCameraAttributeAliases($attributes, __FUNCTION__);
-        $imageUrl = (string)($attributes['camera_image_url'] ?? '');
-        if (trim($imageUrl) !== '') {
-            $this->updateCameraImageMedia($entityId, $imageUrl);
+        $attributes = $this->normalizeCameraAttributes($attributes, __FUNCTION__);
+
+        $previewUrl = (string)($attributes['entity_picture'] ?? '');
+        if ($previewUrl !== '') {
+            $this->updateCameraPreviewMedia($entityId, $previewUrl);
+        }
+
+        $streamUrl = $this->resolveCameraStreamUrl($entityId, $attributes);
+        if ($streamUrl !== '') {
+            $this->updateCameraStreamMedia($entityId, $streamUrl);
         }
     }
 
-    private function maintainCameraImageMedia(string $entityId, int $basePosition): void
+    private function maintainCameraPreviewMedia(string $entityId, int $basePosition): void
     {
-        $this->ensureCameraImageMedia($entityId, $basePosition);
+        $this->ensureCameraPreviewMedia($entityId, $basePosition);
     }
 
-    private function ensureCameraImageMedia(string $entityId, int $basePosition): bool
+    private function maintainCameraStreamMedia(string $entityId, int $basePosition): void
     {
-        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_IMAGE_SUFFIX;
+        $this->ensureCameraStreamMedia($entityId, $basePosition);
+    }
+
+    private function ensureCameraPreviewMedia(string $entityId, int $basePosition): bool
+    {
+        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_PREVIEW_SUFFIX;
         $objectId = @$this->GetIDForIdent($ident);
         if ($objectId !== false) {
             $object = IPS_GetObject($objectId);
             if (($object['ObjectType'] ?? null) !== 5) {
-                $this->debugExpert('CameraImage', 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
+                $this->debugExpert('CameraPreview', 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
                 return false;
             }
-            $this->syncCameraImageMeta($objectId, $basePosition);
+            $this->syncCameraPreviewMeta($objectId, $basePosition);
+            return true;
+        }
+
+        $mediaId = IPS_CreateMedia(MEDIATYPE_IMAGE);
+        IPS_SetParent($mediaId, $this->InstanceID);
+        IPS_SetIdent($mediaId, $ident);
+        $this->syncCameraPreviewMeta($mediaId, $basePosition);
+        return true;
+    }
+
+    private function ensureCameraStreamMedia(string $entityId, int $basePosition): bool
+    {
+        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_STREAM_SUFFIX;
+        $objectId = @$this->GetIDForIdent($ident);
+        if ($objectId !== false) {
+            $object = IPS_GetObject($objectId);
+            if (($object['ObjectType'] ?? null) !== 5) {
+                $this->debugExpert('CameraStream', 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
+                return false;
+            }
+            $this->syncCameraStreamMeta($objectId, $basePosition);
             return true;
         }
 
         $mediaId = IPS_CreateMedia(MEDIATYPE_STREAM);
         IPS_SetParent($mediaId, $this->InstanceID);
         IPS_SetIdent($mediaId, $ident);
-        $this->syncCameraImageMeta($mediaId, $basePosition);
+        $this->syncCameraStreamMeta($mediaId, $basePosition);
         return true;
     }
 
-    private function syncCameraImageMeta(int $mediaId, int $basePosition): void
+    private function syncCameraPreviewMeta(int $mediaId, int $basePosition): void
     {
-        IPS_SetName($mediaId, $this->Translate('Camera'));
+        IPS_SetName($mediaId, $this->Translate('Preview'));
         IPS_SetPosition($mediaId, $basePosition + 20);
+        IPS_SetParent($mediaId, $this->InstanceID);
+        $ident = IPS_GetObject($mediaId)['ObjectIdent'] ?? '';
+        if (is_string($ident) && $ident !== '') {
+            $this->ensureCameraPreviewMediaFileDefault($mediaId, $ident);
+        }
+    }
+
+    private function syncCameraStreamMeta(int $mediaId, int $basePosition): void
+    {
+        IPS_SetName($mediaId, $this->Translate('Stream'));
+        IPS_SetPosition($mediaId, $basePosition + 21);
         IPS_SetParent($mediaId, $this->InstanceID);
     }
 
-    private function updateCameraImageMedia(string $entityId, string $url): void
+    private function updateCameraPreviewMedia(string $entityId, string $url): void
     {
         $trimmed = trim($url);
         if ($trimmed === '') {
             return;
         }
-        $streamUrl = $this->resolveCameraStreamUrl($entityId, $trimmed);
-        if ($streamUrl === '') {
+
+        $absoluteUrl = $this->makeMediaImageUrlAbsolute($trimmed);
+        if ($absoluteUrl === '') {
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_IMAGE_SUFFIX;
+        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_PREVIEW_SUFFIX;
         $mediaId = @$this->GetIDForIdent($ident);
         if ($mediaId === false) {
-            if (!$this->ensureCameraImageMedia($entityId, 0)) {
+            if (!$this->ensureCameraPreviewMedia($entityId, 0)) {
                 return;
             }
             $mediaId = @$this->GetIDForIdent($ident);
@@ -2435,36 +2473,78 @@ class HomeAssistantDevice extends IPSModuleStrict
             }
         }
 
-        $this->ensureCameraImageMediaFile($mediaId, $ident, $streamUrl);
-        $this->debugExpert('CameraImage', 'Stream URL aktualisiert', ['Ident' => $ident, 'Url' => $streamUrl]);
+        $content = $this->fetchMediaImageContent($absoluteUrl);
+        if ($content === null) {
+            return;
+        }
+
+        $this->ensureCameraPreviewMediaFile($mediaId, $ident, $absoluteUrl);
+        IPS_SetMediaContent($mediaId, base64_encode($content));
+        $this->debugExpert('CameraPreview', 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
     }
 
-    private function ensureCameraImageMediaFile(int $mediaId, string $ident, string $url): void
+    private function ensureCameraPreviewMediaFile(int $mediaId, string $ident, string $url): void
     {
         $media = IPS_GetMedia($mediaId);
         $current = (string)($media['MediaFile'] ?? '');
-        if (!$this->isRtspUrl($url)) {
-            if ($current !== '#') {
-                IPS_SetMediaFile($mediaId, '#', false);
-            }
-            $this->debugExpert('CameraImage', 'Kein RTSP-Stream verfÃ¼gbar', ['Ident' => $ident, 'Url' => $url], true);
-            return;
-        }
-        if ($current !== $url) {
-            IPS_SetMediaFile($mediaId, $url, false);
+        $extension = $this->detectMediaImageExtension($url);
+        $safeIdent = preg_replace('/\W/', '_', $ident);
+        $file = 'media/ha_camera_preview_' . $safeIdent . '.' . $extension;
+        if ($file !== '' && $current !== $file) {
+            IPS_SetMediaFile($mediaId, $file, false);
         }
     }
 
-    private function resolveCameraStreamUrl(string $entityId, string $fallbackUrl): string
+    private function ensureCameraPreviewMediaFileDefault(int $mediaId, string $ident): void
+    {
+        $media = IPS_GetMedia($mediaId);
+        $current = (string)($media['MediaFile'] ?? '');
+        if ($current !== '' && $current !== '#') {
+            return;
+        }
+        $safeIdent = preg_replace('/\W/', '_', $ident);
+        $file = 'media/ha_camera_preview_' . $safeIdent . '.png';
+        IPS_SetMediaFile($mediaId, $file, false);
+        $size = (int)($media['MediaSize'] ?? 0);
+        if ($size === 0) {
+            $placeholder = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBA0b9XQAAAABJRU5ErkJggg==';
+            IPS_SetMediaContent($mediaId, $placeholder);
+        }
+    }
+
+    private function updateCameraStreamMedia(string $entityId, string $url): void
+    {
+        $trimmed = trim($url);
+        if ($trimmed === '' || !$this->isRtspUrl($trimmed)) {
+            return;
+        }
+
+        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_STREAM_SUFFIX;
+        $mediaId = @$this->GetIDForIdent($ident);
+        if ($mediaId === false) {
+            if (!$this->ensureCameraStreamMedia($entityId, 0)) {
+                return;
+            }
+            $mediaId = @$this->GetIDForIdent($ident);
+            if ($mediaId === false) {
+                return;
+            }
+        }
+
+        $media = IPS_GetMedia($mediaId);
+        $current = (string)($media['MediaFile'] ?? '');
+        if ($current !== $trimmed) {
+            IPS_SetMediaFile($mediaId, $trimmed, false);
+        }
+        $this->debugExpert('CameraStream', 'Stream URL aktualisiert', ['Ident' => $ident, 'Url' => $trimmed]);
+    }
+
+    private function resolveCameraStreamUrl(string $entityId, ?array $attributes = null): string
     {
         $entity = $this->entities[$entityId] ?? null;
-        $attributes = is_array($entity['attributes'] ?? null) ? $entity['attributes'] : [];
+        $attributes = is_array($attributes) ? $attributes : (is_array($entity['attributes'] ?? null) ? $entity['attributes'] : []);
 
         $candidates = [];
-        $override = trim((string)($entity['stream_source_override'] ?? ''));
-        if ($override !== '') {
-            $candidates[] = $override;
-        }
         $streamSource = $attributes['stream_source'] ?? null;
         if (is_string($streamSource) && trim($streamSource) !== '') {
             $candidates[] = trim($streamSource);
@@ -2472,15 +2552,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         $rtspSource = $attributes['rtsp_url'] ?? null;
         if (is_string($rtspSource) && trim($rtspSource) !== '') {
             $candidates[] = trim($rtspSource);
-        }
-
-        $fallbackTrimmed = trim($fallbackUrl);
-        if ($fallbackTrimmed !== '') {
-            $candidates[] = $fallbackTrimmed;
-            $absoluteFallback = $this->makeMediaImageUrlAbsolute($fallbackTrimmed);
-            if ($absoluteFallback !== $fallbackTrimmed) {
-                $candidates[] = $absoluteFallback;
-            }
         }
 
         foreach ($candidates as $candidate) {
@@ -2496,7 +2567,6 @@ class HomeAssistantDevice extends IPSModuleStrict
     {
         return preg_match('#^rtsps?://#i', trim($url)) === 1;
     }
-
     private function isWritableFanAttribute(string $attribute, array $entityAttributes = []): bool
     {
         $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;

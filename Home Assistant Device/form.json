@@ -79,15 +79,6 @@
           "add":     ""
         },
         {
-          "caption": "RTSP URL (optional)",
-          "name":    "stream_source_override",
-          "width":   "320px",
-          "edit":    {
-            "type": "ValidationTextBox"
-          },
-          "add":     ""
-        },
-        {
           "caption": "Device class",
           "name":    "device_class",
           "width":   "140px",

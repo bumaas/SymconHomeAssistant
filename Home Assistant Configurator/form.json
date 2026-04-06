@@ -7,6 +7,17 @@
       "items": [
         {
           "type": "CheckBox",
+          "name": "AutoCreateVariables",
+          "caption": "Create status variables automatically"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Expert Settings",
+      "items": [
+        {
+          "type": "CheckBox",
           "name": "EnableDomainFilter",
           "caption": "Filter domains explicitly"
         },
@@ -30,17 +41,6 @@
             }
           ]
         },
-        {
-          "type": "CheckBox",
-          "name": "AutoCreateVariables",
-          "caption": "Create status variables automatically"
-        }
-      ]
-    },
-    {
-      "type": "ExpansionPanel",
-      "caption": "Expert Settings",
-      "items": [
         {
           "type": "CheckBox",
           "name": "EnableExpertDebug",
