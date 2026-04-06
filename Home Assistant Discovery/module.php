@@ -200,7 +200,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     }
 
     /**
-     * Verbindet gefundene Server mit existierenden Symcon Instanzen
+     * Verbindet gefundene Server mit existierenden Symcon-Instanzen
      */
     private function mapServersToForm(array $foundServers, array $existingInstanceIDs): array
     {
