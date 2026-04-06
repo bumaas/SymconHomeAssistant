@@ -361,8 +361,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     {
         return match ($domain) {
             HALightDefinitions::DOMAIN => HALightDefinitions::buildRestServicePayload($value),
-            HAButtonDefinitions::DOMAIN => HAButtonDefinitions::buildRestServicePayload($value),
-            HAInputButtonDefinitions::DOMAIN => HAButtonDefinitions::buildRestServicePayload($value),
+            HAButtonDefinitions::DOMAIN, HAInputButtonDefinitions::DOMAIN => HAButtonDefinitions::buildRestServicePayload($value),
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::buildRestServicePayload($value),
             HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::buildRestServicePayload($value),
             HALockDefinitions::DOMAIN => HALockDefinitions::buildRestServicePayload($value),
@@ -470,7 +469,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         }
 
         $result = $this->sendHaImageRequest($url, $token);
-        return json_encode($result, JSON_THROW_ON_ERROR);
+        return $this->encodeImageResponseForTransport($url, $result);
     }
 
     private function sendHaImageRequest(string $url, string $token): array
@@ -512,11 +511,68 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return ['Error' => 'Image too large', 'HttpCode' => $httpCode];
         }
 
+        if (!$this->isValidImageResponse($response, $contentType)) {
+            $preview = $this->formatDebugResponse($response);
+            $this->debugExpert('REST', 'Image response is not a valid image', [
+                'HttpCode' => $httpCode,
+                'ContentType' => $contentType,
+                'ResponsePreview' => $preview
+            ]);
+            return [
+                'Error' => 'Invalid image response',
+                'HttpCode' => $httpCode,
+                'ContentType' => $contentType,
+                'ResponsePreview' => $preview
+            ];
+        }
+
+        $base64 = base64_encode($response);
         return [
             'HttpCode' => $httpCode,
             'ContentType' => $contentType,
-            'Base64' => base64_encode($response)
+            'Base64' => $base64
         ];
+    }
+
+    private function isValidImageResponse(string $response, mixed $contentType): bool
+    {
+        if ($response === '') {
+            return false;
+        }
+
+        $imageInfo = @getimagesizefromstring($response);
+        if ($imageInfo === false) {
+            return false;
+        }
+
+        if (!is_string($contentType) || $contentType === '') {
+            return true;
+        }
+
+        return preg_match('#^image/#i', $contentType) === 1;
+    }
+
+    private function encodeImageResponseForTransport(string $url, array $result): string
+    {
+        $responseJson = json_encode($result, JSON_THROW_ON_ERROR);
+        $jsonBytes = strlen($responseJson);
+
+        $configuredBufferMb = max(0, $this->ReadPropertyInteger('OutputBufferSize'));
+        $configuredBufferBytes = $configuredBufferMb > 0 ? $configuredBufferMb * 1024 * 1024 : 720 * 1024;
+        $recommendedBufferBytes = max($configuredBufferBytes, $jsonBytes + 256 * 1024);
+        ini_set('ips.output_buffer', (string)$recommendedBufferBytes);
+
+        if ($jsonBytes > $recommendedBufferBytes) {
+            return json_encode([
+                'Error' => 'Image response too large for transport',
+                'HttpCode' => $result['HttpCode'] ?? null,
+                'ContentType' => $result['ContentType'] ?? null,
+                'JsonBytes' => $jsonBytes,
+                'BufferBytes' => $recommendedBufferBytes
+            ], JSON_THROW_ON_ERROR);
+        }
+
+        return $responseJson;
     }
 
     private function sendHaRequestRaw(string $url, string $token, ?string $postData, string $method): array
