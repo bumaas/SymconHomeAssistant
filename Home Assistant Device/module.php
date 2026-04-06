@@ -1164,7 +1164,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function normalizeCameraAttributes(array $attributes, string $context): array
     {
         $normalized = [];
-        foreach (['entity_picture', 'stream_source', 'rtsp_url'] as $key) {
+        foreach (['stream_source', 'rtsp_url'] as $key) {
             if (!isset($attributes[$key]) || !is_string($attributes[$key])) {
                 continue;
             }
@@ -2344,11 +2344,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function updateCameraAttributeValues(string $entityId, array $attributes): void
     {
         $attributes = $this->normalizeCameraAttributes($attributes, __FUNCTION__);
-
-        $previewUrl = (string)($attributes['entity_picture'] ?? '');
-        if ($previewUrl !== '') {
-            $this->updateCameraPreviewMedia($entityId, $previewUrl);
-        }
+        $this->updateCameraPreviewMedia($entityId);
 
         $streamUrl = $this->resolveCameraStreamUrl($entityId, $attributes);
         if ($streamUrl !== '') {
@@ -2426,14 +2422,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         IPS_SetParent($mediaId, $this->InstanceID);
     }
 
-    private function updateCameraPreviewMedia(string $entityId, string $url): void
+    private function updateCameraPreviewMedia(string $entityId): void
     {
-        $trimmed = trim($url);
-        if ($trimmed === '') {
-            return;
-        }
-
-        $absoluteUrl = $this->makeMediaImageUrlAbsolute($trimmed);
+        $absoluteUrl = $this->buildCameraPreviewUrl($entityId);
         if ($absoluteUrl === '') {
             return;
         }
@@ -2458,6 +2449,16 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->ensureCameraPreviewMediaFile($mediaId, $ident, $absoluteUrl);
         IPS_SetMediaContent($mediaId, base64_encode($content));
         $this->debugExpert('CameraPreview', 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
+    }
+
+    private function buildCameraPreviewUrl(string $entityId): string
+    {
+        $baseUrl = $this->getHaBaseUrl();
+        if ($baseUrl === '') {
+            return '';
+        }
+
+        return $baseUrl . '/api/camera_proxy/' . $entityId;
     }
 
     private function ensureCameraPreviewMediaFile(int $mediaId, string $ident, string $url): void
