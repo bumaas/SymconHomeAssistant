@@ -182,7 +182,6 @@ trait HADomainRegistryTrait
                 if ($displayState !== null) {
                     $this->setValueWithDebug($ident, $displayState);
                 }
-                $this->updateLockActionValue($entityId, (string)$parsed[self::KEY_STATE], is_array($attributes) ? $attributes : null);
                 if (is_array($attributes) && $attributes !== []) {
                     $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);

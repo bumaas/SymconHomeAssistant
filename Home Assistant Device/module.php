@@ -549,7 +549,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
 
         $json = json_decode($subscriptions, true, 512, JSON_THROW_ON_ERROR);
-        // Wir nehmen an, das erste Subscription-Topic ist das BaseTopic (z.B. "homeassistant/#")
+        // Wir nehmen an, das erste Subscription-Topic ist das BaseTopic (z. B. "homeassistant/#")
         if (is_array($json) && count($json) > 0 && isset($json[0]['Topic'])) {
             $newTopic = rtrim($json[0]['Topic'], '/#');
             if ($newTopic !== '' && $newTopic !== $currentBase) {
@@ -725,9 +725,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         if ($finalValue !== null) {
             $this->setValueWithDebug($ident, $finalValue);
         }
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
-            $this->updateMediaPlayerActionValue($entityId, (string)$parsed[self::KEY_STATE]);
-        }
         $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $parsed['attributes'] ?? null);
 
         if (!empty($parsed[self::KEY_ATTRIBUTES])) {
@@ -812,7 +809,8 @@ class HomeAssistantDevice extends IPSModuleStrict
             if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
                 $parsed = $this->parseTimestampValue($valueData);
                 if ($parsed === null) {
-                    if (!in_array(strtolower(trim($valueData)), ['unknown', 'unavailable'], true)) {
+                    $normalizedValue = strtolower(trim($valueData));
+                    if (!in_array($normalizedValue, ['unknown', 'unavailable'], true)) {
                         $this->debugExpert('Timestamp', 'Zeitstempel konnte nicht geparst werden', ['Value' => $valueData], true);
                     }
                     return null;
@@ -1298,36 +1296,16 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function getVariableType(string $domain, array $attributes = []): int
     {
         $domain = $this->normalizeDomainAlias($domain);
-        if ($domain === HASensorDefinitions::DOMAIN) {
-            $deviceClass = $attributes['device_class'] ?? '';
-            if (is_string($deviceClass)) {
-                $deviceClass = trim($deviceClass);
-            } else {
-                $deviceClass = '';
-            }
-            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_ENUM) {
-                return VARIABLETYPE_STRING;
-            }
-            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
-                return VARIABLETYPE_INTEGER;
-            }
-            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_DURATION) {
-                return VARIABLETYPE_INTEGER;
-            }
-            if (array_key_exists('unit_of_measurement', $attributes) || array_key_exists('state_class', $attributes)) {
-                return VARIABLETYPE_FLOAT;
-            }
-            return VARIABLETYPE_STRING;
-        }
+
         return match ($domain) {
             HALightDefinitions::DOMAIN => HALightDefinitions::VARIABLE_TYPE,
             HABinarySensorDefinitions::DOMAIN => HABinarySensorDefinitions::VARIABLE_TYPE,
             HASwitchDefinitions::DOMAIN => HASwitchDefinitions::VARIABLE_TYPE,
-            HASensorDefinitions::DOMAIN => VARIABLETYPE_FLOAT,
             HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes),
             HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
             HALockDefinitions::DOMAIN => HALockDefinitions::VARIABLE_TYPE,
             HASelectDefinitions::DOMAIN => HASelectDefinitions::VARIABLE_TYPE,
+            HASensorDefinitions::DOMAIN => $this->inferSensorVariableType($attributes),
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::VARIABLE_TYPE,
             HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::VARIABLE_TYPE,
             HACoverDefinitions::DOMAIN => HACoverDefinitions::VARIABLE_TYPE,
@@ -1341,10 +1319,28 @@ class HomeAssistantDevice extends IPSModuleStrict
         };
     }
 
+    private function inferSensorVariableType(array $attributes): int
+    {
+        $deviceClass = $attributes['device_class'] ?? '';
+        if (is_string($deviceClass)) {
+            $deviceClass = trim($deviceClass);
+        } else {
+            $deviceClass = '';
+        }
+
+        return match (true) {
+            $deviceClass === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP,
+            $deviceClass === HASensorDefinitions::DEVICE_CLASS_DURATION => VARIABLETYPE_INTEGER,
+            array_key_exists('unit_of_measurement', $attributes),
+            array_key_exists('state_class', $attributes) => VARIABLETYPE_FLOAT,
+            default => VARIABLETYPE_STRING,
+        };
+    }
+
     private function inferNumberVariableType(array $attributes): int
     {
         $step = $this->extractNumericAttribute($attributes, ['step', 'native_step']);
-        if ($step === null || !$this->isWholeNumber($step) || $step <= 0.0) {
+        if ($step === null || $step <= 0.0 || !$this->isWholeNumber($step)) {
             return VARIABLETYPE_FLOAT;
         }
 
@@ -1439,10 +1435,11 @@ class HomeAssistantDevice extends IPSModuleStrict
             return $this->createTriggerVariableDescriptor();
         }
 
-        foreach ($this->getTriggerVariableSuffixes() as $suffix) {
-            if (str_ends_with($ident, $suffix)) {
-                return $this->createTriggerVariableDescriptor();
-            }
+        if (array_any(
+            $this->getTriggerVariableSuffixes(),
+            static fn(string $suffix): bool => str_ends_with($ident, $suffix)
+        )) {
+            return $this->createTriggerVariableDescriptor();
         }
 
         return $this->createStateVariableDescriptor();
@@ -2232,12 +2229,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->setValueWithDebug($ident, $isOn);
     }
 
-    private function updateMediaPlayerActionValue(string $entityId, string $state): void
-    {
-        // Action trigger variables are stateless and must not be changed by state updates.
-        return;
-    }
-
     private function shouldCreateMediaPlayerAttribute(string $attribute, array $meta, array $attributes): bool
     {
         $hasAttribute = array_key_exists($attribute, $attributes);
@@ -2337,15 +2328,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         return true;
     }
 
-    private function shouldCreateCameraAttribute(string $attribute, array $meta, array $attributes): bool
-    {
-        $hasAttribute = array_key_exists($attribute, $attributes);
-        if (($meta['writable'] ?? false) === true) {
-            return $hasAttribute || $this->checkSupportedFeatures($meta, $attributes);
-        }
-        return $hasAttribute;
-    }
-
     private function maintainCameraAttributeVariables(array $entity): void
     {
         $attributes = $entity['attributes'] ?? [];
@@ -2357,11 +2339,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->maintainCameraPreviewMedia($entity['entity_id'], 0);
         $this->maintainCameraStreamMedia($entity['entity_id'], 0);
         $this->updateCameraAttributeValues($entity['entity_id'], $attributes);
-    }
-
-    private function ensureCameraAttributeVariable(string $entityId, string $attribute): bool
-    {
-        return false;
     }
 
     private function updateCameraAttributeValues(string $entityId, array $attributes): void
@@ -2542,7 +2519,10 @@ class HomeAssistantDevice extends IPSModuleStrict
     private function resolveCameraStreamUrl(string $entityId, ?array $attributes = null): string
     {
         $entity = $this->entities[$entityId] ?? null;
-        $attributes = is_array($attributes) ? $attributes : (is_array($entity['attributes'] ?? null) ? $entity['attributes'] : []);
+        if (!is_array($attributes)) {
+            $entityAttributes = $entity['attributes'] ?? null;
+            $attributes = is_array($entityAttributes) ? $entityAttributes : [];
+        }
 
         $candidates = [];
         $streamSource = $attributes['stream_source'] ?? null;
@@ -3504,35 +3484,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         return $options;
     }
 
-    private function updateLockActionValue(string $entityId, string $state, ?array $attributes): void
-    {
-        // Action trigger variables are stateless and must not be changed by state updates.
-        return;
-    }
-
-    private function mapLockActionFromState(string $state, ?array $attributes): ?int
-    {
-        $displayState = $this->resolveLockDisplayState($state, $attributes);
-        if ($displayState === null) {
-            return null;
-        }
-
-        if (in_array($displayState, ['locked', 'locking'], true)) {
-            return HALockDefinitions::ACTION_LOCK;
-        }
-        if (in_array($displayState, ['unlocked', 'unlocking'], true)) {
-            return HALockDefinitions::ACTION_UNLOCK;
-        }
-        if (in_array($displayState, ['open', 'opening'], true)) {
-            $allowOpen = is_array($attributes) && $this->isLockOpenSupported($attributes);
-            return $allowOpen ? HALockDefinitions::ACTION_OPEN : HALockDefinitions::ACTION_UNLOCK;
-        }
-
-        return null;
-    }
-
-
-
 
 
 
@@ -4003,57 +3954,56 @@ class HomeAssistantDevice extends IPSModuleStrict
         $ident = $this->sanitizeIdent($entityId);
         $varId = @$this->GetIDForIdent($ident);
         if ($varId !== false && $domain !== HAEventDefinitions::DOMAIN) {
-            if ($this->isTriggerVariableDescriptor($this->describeVariableByIdent($ident, $domain))) {
-                // Keep trigger-only domains neutral; do not mirror HA state.
-            } elseif ($domain === HAClimateDefinitions::DOMAIN) {
-                $climateAttributes = is_array($attributes) ? $attributes : [];
-                $mainValue = $this->extractClimateMainValue($climateAttributes);
-                if ($mainValue !== null) {
-                    $this->setValueWithDebug($ident, $mainValue);
-                } elseif (is_numeric($rawState)) {
-                    $this->setValueWithDebug($ident, (float)$rawState);
-                }
-            } elseif ($domain === HALockDefinitions::DOMAIN) {
-                $displayState = $this->resolveLockDisplayState($rawState, is_array($attributes) ? $attributes : null);
-                if ($displayState !== null) {
-                    $this->setValueWithDebug($ident, $displayState);
-                }
-                $this->updateLockActionValue($entityId, $rawState, is_array($attributes) ? $attributes : null);
-            } elseif ($domain === HAVacuumDefinitions::DOMAIN) {
-                if ($rawState !== '') {
-                    $this->setValueWithDebug($ident, $rawState);
-                }
-                $this->updateVacuumFanSpeedValue($entityId, is_array($attributes) ? $attributes : null);
-            } elseif ($domain === HALawnMowerDefinitions::DOMAIN) {
-                if ($rawState !== '') {
-                    $this->setValueWithDebug($ident, $rawState);
-                }
-            } elseif ($domain === HAFanDefinitions::DOMAIN) {
-                if ($rawState !== '') {
-                    $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $rawState, is_array($attributes) ? $attributes : []));
-                }
-            } elseif ($domain === HAHumidifierDefinitions::DOMAIN) {
-                if ($rawState !== '') {
-                    $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $rawState, is_array($attributes) ? $attributes : []));
-                }
-            } elseif ($domain === HAMediaPlayerDefinitions::DOMAIN) {
-                if ($rawState !== '') {
-                    $this->setValueWithDebug($ident, $rawState);
-                    $this->updateMediaPlayerPowerValue($entityId, $rawState);
-                    $this->updateMediaPlayerActionValue($entityId, $rawState);
-                }
-            } elseif ($domain === HACoverDefinitions::DOMAIN) {
-                $value = $this->extractCoverPosition($coverAttributes);
-                if ($value === null) {
-                    $value = $this->normalizeCoverStateToLevel($rawState);
-                }
-                if ($value !== null) {
-                    $this->setValueWithDebug($ident, $value);
-                }
-            } else {
-                $value = $this->convertValueByDomain($domain, $rawState, $this->resolveEntityStateAttributes($entityId, $attributes));
-                if ($value !== null) {
-                    $this->setValueWithDebug($ident, $value);
+            $isTriggerVariable = $this->isTriggerVariableDescriptor($this->describeVariableByIdent($ident, $domain));
+            if (!$isTriggerVariable) {
+                if ($domain === HAClimateDefinitions::DOMAIN) {
+                    $climateAttributes = is_array($attributes) ? $attributes : [];
+                    $mainValue = $this->extractClimateMainValue($climateAttributes);
+                    if ($mainValue !== null) {
+                        $this->setValueWithDebug($ident, $mainValue);
+                    } elseif (is_numeric($rawState)) {
+                        $this->setValueWithDebug($ident, (float)$rawState);
+                    }
+                } elseif ($domain === HALockDefinitions::DOMAIN) {
+                    $displayState = $this->resolveLockDisplayState($rawState, is_array($attributes) ? $attributes : null);
+                    if ($displayState !== null) {
+                        $this->setValueWithDebug($ident, $displayState);
+                    }
+                } elseif ($domain === HAVacuumDefinitions::DOMAIN) {
+                    if ($rawState !== '') {
+                        $this->setValueWithDebug($ident, $rawState);
+                    }
+                    $this->updateVacuumFanSpeedValue($entityId, is_array($attributes) ? $attributes : null);
+                } elseif ($domain === HALawnMowerDefinitions::DOMAIN) {
+                    if ($rawState !== '') {
+                        $this->setValueWithDebug($ident, $rawState);
+                    }
+                } elseif ($domain === HAFanDefinitions::DOMAIN) {
+                    if ($rawState !== '') {
+                        $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $rawState, is_array($attributes) ? $attributes : []));
+                    }
+                } elseif ($domain === HAHumidifierDefinitions::DOMAIN) {
+                    if ($rawState !== '') {
+                        $this->setValueWithDebug($ident, $this->convertValueByDomain($domain, $rawState, is_array($attributes) ? $attributes : []));
+                    }
+                } elseif ($domain === HAMediaPlayerDefinitions::DOMAIN) {
+                    if ($rawState !== '') {
+                        $this->setValueWithDebug($ident, $rawState);
+                        $this->updateMediaPlayerPowerValue($entityId, $rawState);
+                    }
+                } elseif ($domain === HACoverDefinitions::DOMAIN) {
+                    $value = $this->extractCoverPosition($coverAttributes);
+                    if ($value === null) {
+                        $value = $this->normalizeCoverStateToLevel($rawState);
+                    }
+                    if ($value !== null) {
+                        $this->setValueWithDebug($ident, $value);
+                    }
+                } else {
+                    $value = $this->convertValueByDomain($domain, $rawState, $this->resolveEntityStateAttributes($entityId, $attributes));
+                    if ($value !== null) {
+                        $this->setValueWithDebug($ident, $value);
+                    }
                 }
             }
         }
@@ -4684,7 +4634,7 @@ class HomeAssistantDevice extends IPSModuleStrict
                 }
             }
             if (!is_array($items)) {
-                $parts = preg_split('/[;,]/', (string)$items) ?: [];
+                $parts = preg_split('/[;,]/', $items) ?: [];
                 $items = array_map('trim', $parts);
             }
         }
@@ -4703,10 +4653,8 @@ class HomeAssistantDevice extends IPSModuleStrict
             $raw = array_slice($raw, 0, 3);
         }
 
-        foreach ($raw as $component) {
-            if (!is_numeric($component)) {
-                return null;
-            }
+        if (array_any($raw, static fn($component): bool => !is_numeric($component))) {
+            return null;
         }
 
         $r = $this->clampFloat((float)$raw[0], 0.0, 255.0);

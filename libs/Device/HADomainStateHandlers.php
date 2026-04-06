@@ -110,7 +110,7 @@ trait HADomainStateHandlersTrait
             $entityId,
             $payload,
             fn(string $state, array $attributes): mixed => $this->resolveLockDisplayState($state, $attributes),
-            fn(string $id, array $attributes, string $state) => $this->updateLockActionValue($id, $state, $attributes)
+            null
         );
     }
 
@@ -179,7 +179,6 @@ trait HADomainStateHandlersTrait
                 $this->updateMediaPlayerAttributeValues($id, $attributes);
                 if ($state !== '') {
                     $this->updateMediaPlayerPowerValue($id, $state);
-                    $this->updateMediaPlayerActionValue($id, $state);
                 }
             }
         );

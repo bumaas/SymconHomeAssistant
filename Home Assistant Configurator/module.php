@@ -364,7 +364,7 @@ EOT;
             $cleanedNameById = array_column($cleanedEntities, 'name', 'entity_id');
             $entitiesForConfig = $this->buildEntitiesForConfig($dev, $cleanedNameById, $autoCreateVariables);
 
-            $values[] = $this->buildDeviceRow($dev, $instanceID, $cleanedEntities, $entitiesForConfig, $isBlocked);
+            $values[] = $this->buildDeviceRow($dev, $instanceID, $cleanedEntities, $entitiesForConfig, false);
         }
 
         $this->appendMissingDeviceRows($values, $mappedInstances, $haDeviceIds);
@@ -481,18 +481,7 @@ EOT;
                 continue;
             }
             foreach ($instanceIds as $instanceId) {
-                $deviceName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
-                $deviceArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
-                $values[] = [
-                    'instanceID'   => $instanceId,
-                    'name'         => $deviceName !== '' ? $deviceName : IPS_GetName($instanceId),
-                    'Area'         => $deviceArea !== '' ? $deviceArea : 'Unbekannt',
-                    'Manufacturer' => '',
-                    'Model'        => '',
-                    'DeviceID'     => $devId,
-                    'Summary'      => $this->Translate('In Home Assistant nicht gefunden'),
-                    'group'        => $deviceArea !== '' ? $deviceArea : 'Unbekannt'
-                ];
+                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('In Home Assistant nicht gefunden'));
             }
         }
     }
@@ -505,20 +494,27 @@ EOT;
             }
             // Show additional instances with the same DeviceID (misconfiguration).
             foreach (array_slice($instanceIds, 1) as $instanceId) {
-                $deviceName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
-                $deviceArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
-                $values[] = [
-                    'instanceID'   => $instanceId,
-                    'name'         => $deviceName !== '' ? $deviceName : IPS_GetName($instanceId),
-                    'Area'         => $deviceArea !== '' ? $deviceArea : 'Unbekannt',
-                    'Manufacturer' => '',
-                    'Model'        => '',
-                    'DeviceID'     => $devId,
-                    'Summary'      => $this->Translate('Doppelte Geräte-ID'),
-                    'group'        => $deviceArea !== '' ? $deviceArea : 'Unbekannt'
-                ];
+                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('Doppelte Geräte-ID'));
             }
         }
+    }
+
+    private function buildStatusRow(int $instanceId, string $deviceId, string $summary): array
+    {
+        $deviceName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
+        $deviceArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
+        $area = $deviceArea !== '' ? $deviceArea : 'Unbekannt';
+
+        return [
+            'instanceID'   => $instanceId,
+            'name'         => $deviceName !== '' ? $deviceName : IPS_GetName($instanceId),
+            'Area'         => $area,
+            'Manufacturer' => '',
+            'Model'        => '',
+            'DeviceID'     => $deviceId,
+            'Summary'      => $summary,
+            'group'        => $area
+        ];
     }
 
     private function enrichSupportedFeaturesList(array &$entity): void
@@ -642,19 +638,17 @@ EOT;
                 }
                 $this->loadEntitiesByIds($entityIds, $newEntities);
             }
+        } elseif ($domainFilterEnabled) {
+            $this->debugExpert(__FUNCTION__, 'Domain-Filter aktiv, aber keine Domains gesetzt. Ergebnis bleibt leer.');
         } else {
-            if ($domainFilterEnabled) {
-                $this->debugExpert(__FUNCTION__, 'Domain-Filter aktiv, aber keine Domains gesetzt. Ergebnis bleibt leer.');
+            $this->debugExpert(__FUNCTION__, 'Domain-Filter inaktiv. Lade alle Domains.');
+            $entityIds = $this->fetchEntityIdsForAllDomains();
+            if ($entityIds === null) {
+                $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs) für alle Domains');
+            } elseif ($entityIds === []) {
+                $this->debugExpert(__FUNCTION__, 'Keine Entities für alle Domains');
             } else {
-                $this->debugExpert(__FUNCTION__, 'Domain-Filter inaktiv. Lade alle Domains.');
-                $entityIds = $this->fetchEntityIdsForAllDomains();
-                if ($entityIds === null) {
-                    $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs) fuer alle Domains');
-                } elseif ($entityIds === []) {
-                    $this->debugExpert(__FUNCTION__, 'Keine Entities fuer alle Domains');
-                } else {
-                    $this->loadEntitiesByIds($entityIds, $newEntities);
-                }
+                $this->loadEntitiesByIds($entityIds, $newEntities);
             }
         }
 
