@@ -51,10 +51,10 @@ trait HAPresentationTrait
             if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
                 return $this->filterPresentation([
                                                      'PRESENTATION'   => VARIABLE_PRESENTATION_DATE_TIME,
-                                                     'DATE'           => 2,
+                                                     'DATE'           => 1, //Jahr, Monat, Tag
                                                      'DAY_OF_THE_WEEK' => false,
                                                      'MONTH_TEXT'     => false,
-                                                     'TIME'           => 1
+                                                     'TIME'           => 2 //Stunden, Minuten, Sekunden
                                                  ]);
             }
             if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_DURATION) {
@@ -1013,6 +1013,7 @@ trait HAPresentationTrait
     {
         return in_array($domain, [
             HAMediaPlayerDefinitions::DOMAIN,
+            HACameraDefinitions::DOMAIN,
             HAVacuumDefinitions::DOMAIN,
             HALawnMowerDefinitions::DOMAIN,
             HAFanDefinitions::DOMAIN,

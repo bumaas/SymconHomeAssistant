@@ -76,7 +76,7 @@ Keine öffentlichen Funktionen im Root-Modul. Siehe die jeweiligen Modul-READMEs
 
 **Einrichtung (Kurzfassung)**
 
-1. MQTT Client in Symcon einrichten und mit dem Broker verbinden.
+1. MQTT Client in Symcon einrichten und mit dem Broker verbinden (inkl. Subscription `homeassistant/#` oder `#`).
 2. Home Assistant Splitter anlegen und mit dem MQTT Client verbinden.
 3. Im Splitter `MQTTBaseTopic` setzen (typisch: `homeassistant`) sowie `HAUrl` und `HAToken` für REST.
 4. Home Assistant Discovery ausführen, um eine Configurator Instanz zu erstellen.
@@ -122,6 +122,7 @@ Home Assistant Device / Configurator
 
 **Hinweise zur Fehlersuche**
 
+- Wenn im Splitter `Kein aktiver MQTT Parent gefunden` steht: Parent-Verbindung im Splitter, MQTT-Client-Status und Subscription in Symcon pruefen (`homeassistant/#`).
 - Wenn es im Datenfluss hakt: mit Hilfe des [MQTT Explorer](https://mqtt-explorer.com/) kann komfortabel geprüft werden, ob der MQTT-Server mit Daten versorgt wird (Topic, Payload, Attribute).
 - IP-Adressen und Ports prüfen: MQTT standardmäßig `1883` (TLS `8883`), Home Assistant REST standardmäßig `8123`.
 - MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.

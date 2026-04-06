@@ -25,6 +25,10 @@ trait HADomainStateHandlersTrait
         $entity = $parts[count($parts) - 2];
         $domain = $parts[count($parts) - 3];
         $entityId = $domain . '.' . $entity;
+        if (!$this->isManagedEntityId($entityId)) {
+            $this->debugExpert(__FUNCTION__, 'Fremde Entity ignoriert', ['EntityID' => $entityId, 'Topic' => $topic]);
+            return false;
+        }
 
         $ident = $this->sanitizeIdent($domain . '_' . $entity);
         if ($domain === HAEventDefinitions::DOMAIN) {
@@ -41,6 +45,7 @@ trait HADomainStateHandlersTrait
             HAClimateDefinitions::DOMAIN => fn() => $this->handleStateTopicClimate($ident, $entityId, $payload),
             HAFanDefinitions::DOMAIN => fn() => $this->handleStateTopicFan($ident, $entityId, $payload),
             HAHumidifierDefinitions::DOMAIN => fn() => $this->handleStateTopicHumidifier($ident, $entityId, $payload),
+            HACameraDefinitions::DOMAIN => fn() => $this->handleStateTopicCamera($ident, $entityId, $payload),
             HAMediaPlayerDefinitions::DOMAIN => fn() => $this->handleStateTopicMediaPlayer($ident, $entityId, $payload)
         ];
         if (isset($handlers[$domain])) {
@@ -52,13 +57,7 @@ trait HADomainStateHandlersTrait
         }
 
         $parsed = $this->parseEntityPayload($payload);
-        $attributes = [];
-        if (!empty($parsed[self::KEY_ATTRIBUTES]) && is_array($parsed[self::KEY_ATTRIBUTES])) {
-            $attributes = $parsed[self::KEY_ATTRIBUTES];
-        } elseif (!empty($this->entities[$entityId][self::KEY_ATTRIBUTES])
-                  && is_array($this->entities[$entityId][self::KEY_ATTRIBUTES])) {
-            $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES];
-        }
+        $attributes = $this->resolveEntityStateAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $value = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], $attributes);
 
         $this->debugExpert(
@@ -186,6 +185,17 @@ trait HADomainStateHandlersTrait
         );
     }
 
+    private function handleStateTopicCamera(string $ident, string $entityId, string $payload): bool
+    {
+        return $this->handleStateTopicWithAttributes(
+            $ident,
+            $entityId,
+            $payload,
+            null,
+            fn(string $id, array $attributes, string $state) => $this->updateCameraAttributeValues($id, $attributes)
+        );
+    }
+
     private function handleStateTopicWithAttributes(
         string $ident,
         string $entityId,
@@ -306,10 +316,10 @@ trait HADomainStateHandlersTrait
     {
         $parsed = $this->parseEntityPayload($payload);
         $rawAttributes = $parsed[self::KEY_ATTRIBUTES] ?? null;
-        $attributes = null;
         if (is_array($rawAttributes) && $rawAttributes !== []) {
-            $attributes = $this->storeEntityAttributes($entityId, $rawAttributes);
+            $this->storeEntityAttributes($entityId, $rawAttributes);
         }
+        $attributes = $this->resolveEntityStateAttributes($entityId, $rawAttributes);
 
         return [
             'state' => (string)$parsed[self::KEY_STATE],

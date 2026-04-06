@@ -49,7 +49,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     private const string MEDIA_PLAYER_POWER_SUFFIX = '_power';
     private const string CLIMATE_POWER_SUFFIX = '_power';
     private const string MEDIA_PLAYER_COVER_SUFFIX = '_media_cover';
-    private const int MEDIA_TYPE_IMAGE = 1;
+    private const string CAMERA_IMAGE_SUFFIX = '_camera_stream';
     private const string TIMER_MEDIA_PLAYER_PROGRESS = 'MediaPlayerProgressTimer';
     private const string BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG = 'MediaPlayerProgressDebug';
     private const int MEDIA_PLAYER_PROGRESS_DEBUG_INTERVAL = 10;
@@ -391,6 +391,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $mqttPayload, [], true);
 
             $this->sendMqttMessage($topic, $mqttPayload);
+            $this->resetVariableByDescriptor($Ident, $this->describeVariableByIdent($Ident, $domain));
             return;
         }
 
@@ -673,7 +674,9 @@ class HomeAssistantDevice extends IPSModuleStrict
     {
         $ident  = $this->sanitizeIdent($entity['entity_id']);
         $domain = $entity['domain'];
-        $name   = $this->getEntityVariableName($domain, $entity);
+        $name       = $this->getEntityVariableName($domain, $entity);
+        $exists     = @$this->GetIDForIdent($ident) !== false;
+        $descriptor = $this->describeEntityMainVariable($entity);
 
         $type         = $this->getVariableType($domain, $entity['attributes'] ?? []);
         $position     = $this->getEntityPosition($entity['entity_id']);
@@ -688,6 +691,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         $presentation = $this->getEntityPresentation($domain, $entity, $type);
 
         $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
+        $this->initializeVariableDescriptorValue($ident, $descriptor, $exists);
 
         $this->applyDomainActionState($domain, $ident, $entity);
         $this->applyDomainExtraMaintenance($domain, $entity);
@@ -704,19 +708,18 @@ class HomeAssistantDevice extends IPSModuleStrict
             $this->debugExpert(__FUNCTION__, 'Domain nicht ermittelbar', ['EntityID' => $entityId]);
             return;
         }
+        $descriptor = $this->describeVariableByIdent($ident, $domain);
+        if ($this->isTriggerVariableDescriptor($descriptor)) {
+            $this->updateEntityCache($entityId, null, null);
+            return;
+        }
         $this->debugExpert(__FUNCTION__, 'Wert wird gesetzt', ['EntityID' => $entityId, 'Payload' => $payload], true);
         $parsed = $this->parseEntityPayload($payload);
         if ($this->handleDomainUpdateEntityValue($domain, $entityId, $ident, $parsed)) {
             return;
         }
 
-        $attributes = [];
-        if (!empty($parsed[self::KEY_ATTRIBUTES]) && is_array($parsed[self::KEY_ATTRIBUTES])) {
-            $attributes = $parsed[self::KEY_ATTRIBUTES];
-        } elseif (!empty($this->entities[$entityId][self::KEY_ATTRIBUTES])
-                  && is_array($this->entities[$entityId][self::KEY_ATTRIBUTES])) {
-            $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES];
-        }
+        $attributes = $this->resolveEntityStateAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $finalValue = $this->convertValueByDomain($domain, $parsed[self::KEY_STATE], $attributes);
         if ($finalValue !== null) {
             $this->setValueWithDebug($ident, $finalValue);
@@ -825,7 +828,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
 
         return match ($domain) {
-            HAButtonDefinitions::DOMAIN => 0,
+            HAButtonDefinitions::DOMAIN => -1,
             HALightDefinitions::DOMAIN,
             HASwitchDefinitions::DOMAIN,
             HABinarySensorDefinitions::DOMAIN,
@@ -922,6 +925,12 @@ class HomeAssistantDevice extends IPSModuleStrict
             return null;
         }
 
+        if (isset($row['stream_source_override'])) {
+            $row['stream_source_override'] = trim((string)$row['stream_source_override']);
+        } else {
+            $row['stream_source_override'] = '';
+        }
+
         $row = $this->normalizeEntityDomain($row);
         $row = $this->normalizeEntityAttributes($row, $context);
         $row = $this->syncDeviceClass($row);
@@ -992,6 +1001,60 @@ class HomeAssistantDevice extends IPSModuleStrict
         return $row;
     }
 
+    private function resolveEntityStateAttributes(string $entityId, mixed $attributes = null): array
+    {
+        $resolved = is_array($attributes) ? $attributes : [];
+
+        $existing = $this->entities[$entityId]['attributes'] ?? [];
+        if (is_array($existing) && $existing !== []) {
+            $resolved = array_merge($existing, $resolved);
+        }
+
+        $configured = $this->findConfiguredEntityById($entityId);
+        if ($configured !== null) {
+            $configuredAttributes = $configured['attributes'] ?? [];
+            if (is_array($configuredAttributes) && $configuredAttributes !== []) {
+                $resolved = array_merge($configuredAttributes, $resolved);
+            }
+            $configuredDeviceClass = $configured['device_class'] ?? '';
+            if (($resolved['device_class'] ?? '') === '' && is_string($configuredDeviceClass) && trim($configuredDeviceClass) !== '') {
+                $resolved['device_class'] = trim($configuredDeviceClass);
+            }
+        }
+
+        $entityDeviceClass = $this->entities[$entityId]['device_class'] ?? '';
+        if (($resolved['device_class'] ?? '') === '' && is_string($entityDeviceClass) && trim($entityDeviceClass) !== '') {
+            $resolved['device_class'] = trim($entityDeviceClass);
+        }
+
+        $domain = $this->getEntityDomain($entityId);
+        if ($domain !== '') {
+            $resolved = $this->filterAttributesByDomain($domain, $resolved, __FUNCTION__);
+        }
+
+        return $resolved;
+    }
+
+    private function findConfiguredEntityById(string $entityId): ?array
+    {
+        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), __FUNCTION__);
+        if ($configData === null) {
+            return null;
+        }
+
+        foreach ($configData as $row) {
+            $row = $this->normalizeEntity($row, __FUNCTION__);
+            if ($row === null || (($row['create_var'] ?? true) === false)) {
+                continue;
+            }
+            if (($row['entity_id'] ?? '') === $entityId) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
     private function applyEinLevelDefaults(array $row): array
     {
         $entityId = (string)$row['entity_id'];
@@ -1013,6 +1076,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
             return $this->mapMediaPlayerAttributeAliases($attributes, $context);
+        }
+        if ($domain === HACameraDefinitions::DOMAIN) {
+            return $this->mapCameraAttributeAliases($attributes, $context);
         }
         if ($domain === HAHumidifierDefinitions::DOMAIN) {
             return $this->mapHumidifierAttributeAliases($attributes, $context);
@@ -1097,6 +1163,21 @@ class HomeAssistantDevice extends IPSModuleStrict
             $attributes[HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY] = $attributes['humidity'];
             unset($attributes['humidity']);
             $this->debugExpert($context, 'Humidifier-Attribute umbenannt', ['Mapped' => ['humidity' => 'target_humidity']]);
+        }
+
+        return $attributes;
+    }
+
+    private function mapCameraAttributeAliases(array $attributes, string $context): array
+    {
+        $mapped = [];
+        if (!array_key_exists('camera_image_url', $attributes)
+            && array_key_exists('entity_picture', $attributes)) {
+            $attributes['camera_image_url'] = $attributes['entity_picture'];
+            $mapped['entity_picture'] = 'camera_image_url';
+        }
+        if ($mapped !== []) {
+            $this->debugExpert($context, 'Camera-Attribute umbenannt', ['Mapped' => $mapped]);
         }
 
         return $attributes;
@@ -1252,6 +1333,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             HACoverDefinitions::DOMAIN => HACoverDefinitions::VARIABLE_TYPE,
             HAEventDefinitions::DOMAIN => HAEventDefinitions::VARIABLE_TYPE,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::VARIABLE_TYPE,
+            HACameraDefinitions::DOMAIN => HACameraDefinitions::VARIABLE_TYPE,
             HAButtonDefinitions::DOMAIN => HAButtonDefinitions::VARIABLE_TYPE,
             HAFanDefinitions::DOMAIN => HAFanDefinitions::VARIABLE_TYPE,
             HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::VARIABLE_TYPE,
@@ -1313,6 +1395,88 @@ class HomeAssistantDevice extends IPSModuleStrict
             return HAButtonDefinitions::DOMAIN;
         }
         return $domain;
+    }
+
+    private function createStateVariableDescriptor(): array
+    {
+        return [
+            'kind' => 'state'
+        ];
+    }
+
+    private function createTriggerVariableDescriptor(mixed $resetValue = -1): array
+    {
+        return [
+            'kind'       => 'trigger',
+            'resetValue' => $resetValue
+        ];
+    }
+
+    private function getTriggerVariableSuffixes(): array
+    {
+        return [
+            self::LOCK_ACTION_SUFFIX,
+            self::VACUUM_ACTION_SUFFIX,
+            self::LAWN_MOWER_ACTION_SUFFIX,
+            self::MEDIA_PLAYER_ACTION_SUFFIX
+        ];
+    }
+
+    private function describeEntityMainVariable(array $entity): array
+    {
+        $domain = $this->normalizeDomainAlias((string)($entity['domain'] ?? ''));
+        if ($domain === HAButtonDefinitions::DOMAIN) {
+            return $this->createTriggerVariableDescriptor();
+        }
+
+        return $this->createStateVariableDescriptor();
+    }
+
+    private function describeVariableByIdent(string $ident, ?string $domain = null): array
+    {
+        $normalizedDomain = $this->normalizeDomainAlias((string)$domain);
+        if ($normalizedDomain === HAButtonDefinitions::DOMAIN) {
+            return $this->createTriggerVariableDescriptor();
+        }
+
+        foreach ($this->getTriggerVariableSuffixes() as $suffix) {
+            if (str_ends_with($ident, $suffix)) {
+                return $this->createTriggerVariableDescriptor();
+            }
+        }
+
+        return $this->createStateVariableDescriptor();
+    }
+
+    private function isTriggerVariableDescriptor(array $descriptor): bool
+    {
+        return ($descriptor['kind'] ?? 'state') === 'trigger';
+    }
+
+    private function initializeVariableDescriptorValue(string $ident, array $descriptor, bool $exists): void
+    {
+        if ($exists || !$this->isTriggerVariableDescriptor($descriptor)) {
+            return;
+        }
+
+        $this->resetVariableByDescriptor($ident, $descriptor);
+    }
+
+    private function resetVariableByDescriptor(string $ident, array $descriptor): void
+    {
+        if (!$this->isTriggerVariableDescriptor($descriptor)) {
+            return;
+        }
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        $resetValue = $descriptor['resetValue'] ?? null;
+        if ($resetValue === null) {
+            return;
+        }
+
+        $this->setValueWithDebug($ident, $resetValue);
     }
 
 
@@ -1422,6 +1586,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
 
         $ident = $this->getLockActionIdent($entityId);
+        $exists = @$this->GetIDForIdent($ident) !== false;
         $position = $this->getEntityPosition($entityId) + 5;
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -1429,6 +1594,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         ];
 
         $this->MaintainVariable($ident, 'Aktion', VARIABLETYPE_INTEGER, $presentation, $position, true);
+        $this->initializeVariableDescriptorValue($ident, $this->createTriggerVariableDescriptor(), $exists);
         $this->EnableAction($ident);
     }
 
@@ -1450,6 +1616,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
 
         $ident = $this->getVacuumActionIdent($entityId);
+        $exists = @$this->GetIDForIdent($ident) !== false;
         $position = $this->getEntityPosition($entityId) + 5;
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -1457,6 +1624,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         ];
 
         $this->MaintainVariable($ident, $this->Translate('Aktion'), VARIABLETYPE_INTEGER, $presentation, $position, true);
+        $this->initializeVariableDescriptorValue($ident, $this->createTriggerVariableDescriptor(), $exists);
         $this->EnableAction($ident);
     }
 
@@ -1506,6 +1674,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
 
         $ident = $this->getLawnMowerActionIdent($entityId);
+        $exists = @$this->GetIDForIdent($ident) !== false;
         $position = $this->getEntityPosition($entityId) + 5;
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -1513,6 +1682,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         ];
 
         $this->MaintainVariable($ident, $this->Translate('Aktion'), VARIABLETYPE_INTEGER, $presentation, $position, true);
+        $this->initializeVariableDescriptorValue($ident, $this->createTriggerVariableDescriptor(), $exists);
         $this->EnableAction($ident);
     }
 
@@ -1585,6 +1755,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $this->debugExpert('RequestAction', 'Lock action', ['EntityID' => $entityId, 'Command' => $command]);
         $this->sendMqttMessage($topic, $command);
+        $this->resetVariableByDescriptor($ident, $this->describeVariableByIdent($ident));
         return true;
     }
 
@@ -1625,6 +1796,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $this->debugExpert('RequestAction', 'Vacuum action', ['EntityID' => $entityId, 'Command' => $command]);
         $this->sendMqttMessage($topic, $command);
+        $this->resetVariableByDescriptor($ident, $this->describeVariableByIdent($ident));
         return true;
     }
 
@@ -1709,6 +1881,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $this->debugExpert('RequestAction', 'Lawn mower action', ['EntityID' => $entityId, 'Command' => $command]);
         $this->sendMqttMessage($topic, $command);
+        $this->resetVariableByDescriptor($ident, $this->describeVariableByIdent($ident));
         return true;
     }
 
@@ -1750,6 +1923,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         $this->debugExpert('RequestAction', 'Media player action', ['EntityID' => $entityId, 'Action' => $command], true);
         $this->sendMqttMessage($topic, $command);
+        $this->resetVariableByDescriptor($ident, $this->describeVariableByIdent($ident));
         return true;
     }
 
@@ -1880,9 +2054,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         ];
 
         $this->MaintainVariable($ident, $this->Translate('Playback'), VARIABLETYPE_INTEGER, $presentation, $position, true);
-        if (!$exists) {
-            $this->setValueWithDebug($ident, -1);
-        }
+        $this->initializeVariableDescriptorValue($ident, $this->createTriggerVariableDescriptor(), $exists);
         $this->EnableAction($ident);
     }
 
@@ -2062,13 +2234,8 @@ class HomeAssistantDevice extends IPSModuleStrict
 
     private function updateMediaPlayerActionValue(string $entityId, string $state): void
     {
-        $ident = $this->getMediaPlayerActionIdent($entityId);
-        if (@$this->GetIDForIdent($ident) === false) {
-            return;
-        }
-
-        $value = ($state === 'playing') ? HAMediaPlayerDefinitions::ACTION_PLAY : -1;
-        $this->setValueWithDebug($ident, $value);
+        // Action trigger variables are stateless and must not be changed by state updates.
+        return;
     }
 
     private function shouldCreateMediaPlayerAttribute(string $attribute, array $meta, array $attributes): bool
@@ -2168,6 +2335,166 @@ class HomeAssistantDevice extends IPSModuleStrict
             $this->maintainMediaPlayerCoverMedia($entityId, $basePosition);
         }
         return true;
+    }
+
+    private function shouldCreateCameraAttribute(string $attribute, array $meta, array $attributes): bool
+    {
+        $hasAttribute = array_key_exists($attribute, $attributes);
+        if (!$hasAttribute && $attribute === 'camera_image_url') {
+            $hasAttribute = array_key_exists('entity_picture', $attributes);
+        }
+        if (($meta['writable'] ?? false) === true) {
+            return $hasAttribute || $this->checkSupportedFeatures($meta, $attributes);
+        }
+        return $hasAttribute;
+    }
+
+    private function maintainCameraAttributeVariables(array $entity): void
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+        $attributes = $this->mapCameraAttributeAliases($attributes, __FUNCTION__);
+
+        $this->maintainCameraImageMedia($entity['entity_id'], 0);
+        $this->updateCameraAttributeValues($entity['entity_id'], $attributes);
+    }
+
+    private function ensureCameraAttributeVariable(string $entityId, string $attribute): bool
+    {
+        if ($attribute !== 'camera_image_url') {
+            return false;
+        }
+        // Camera image URL is handled internally for stream setup and should stay hidden in the UI.
+        return true;
+    }
+
+    private function updateCameraAttributeValues(string $entityId, array $attributes): void
+    {
+        $attributes = $this->mapCameraAttributeAliases($attributes, __FUNCTION__);
+        $imageUrl = (string)($attributes['camera_image_url'] ?? '');
+        if (trim($imageUrl) !== '') {
+            $this->updateCameraImageMedia($entityId, $imageUrl);
+        }
+    }
+
+    private function maintainCameraImageMedia(string $entityId, int $basePosition): void
+    {
+        $this->ensureCameraImageMedia($entityId, $basePosition);
+    }
+
+    private function ensureCameraImageMedia(string $entityId, int $basePosition): bool
+    {
+        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_IMAGE_SUFFIX;
+        $objectId = @$this->GetIDForIdent($ident);
+        if ($objectId !== false) {
+            $object = IPS_GetObject($objectId);
+            if (($object['ObjectType'] ?? null) !== 5) {
+                $this->debugExpert('CameraImage', 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
+                return false;
+            }
+            $this->syncCameraImageMeta($objectId, $basePosition);
+            return true;
+        }
+
+        $mediaId = IPS_CreateMedia(MEDIATYPE_STREAM);
+        IPS_SetParent($mediaId, $this->InstanceID);
+        IPS_SetIdent($mediaId, $ident);
+        $this->syncCameraImageMeta($mediaId, $basePosition);
+        return true;
+    }
+
+    private function syncCameraImageMeta(int $mediaId, int $basePosition): void
+    {
+        IPS_SetName($mediaId, $this->Translate('Camera'));
+        IPS_SetPosition($mediaId, $basePosition + 20);
+        IPS_SetParent($mediaId, $this->InstanceID);
+    }
+
+    private function updateCameraImageMedia(string $entityId, string $url): void
+    {
+        $trimmed = trim($url);
+        if ($trimmed === '') {
+            return;
+        }
+        $streamUrl = $this->resolveCameraStreamUrl($entityId, $trimmed);
+        if ($streamUrl === '') {
+            return;
+        }
+
+        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_IMAGE_SUFFIX;
+        $mediaId = @$this->GetIDForIdent($ident);
+        if ($mediaId === false) {
+            if (!$this->ensureCameraImageMedia($entityId, 0)) {
+                return;
+            }
+            $mediaId = @$this->GetIDForIdent($ident);
+            if ($mediaId === false) {
+                return;
+            }
+        }
+
+        $this->ensureCameraImageMediaFile($mediaId, $ident, $streamUrl);
+        $this->debugExpert('CameraImage', 'Stream URL aktualisiert', ['Ident' => $ident, 'Url' => $streamUrl]);
+    }
+
+    private function ensureCameraImageMediaFile(int $mediaId, string $ident, string $url): void
+    {
+        $media = IPS_GetMedia($mediaId);
+        $current = (string)($media['MediaFile'] ?? '');
+        if (!$this->isRtspUrl($url)) {
+            if ($current !== '#') {
+                IPS_SetMediaFile($mediaId, '#', false);
+            }
+            $this->debugExpert('CameraImage', 'Kein RTSP-Stream verfÃ¼gbar', ['Ident' => $ident, 'Url' => $url], true);
+            return;
+        }
+        if ($current !== $url) {
+            IPS_SetMediaFile($mediaId, $url, false);
+        }
+    }
+
+    private function resolveCameraStreamUrl(string $entityId, string $fallbackUrl): string
+    {
+        $entity = $this->entities[$entityId] ?? null;
+        $attributes = is_array($entity['attributes'] ?? null) ? $entity['attributes'] : [];
+
+        $candidates = [];
+        $override = trim((string)($entity['stream_source_override'] ?? ''));
+        if ($override !== '') {
+            $candidates[] = $override;
+        }
+        $streamSource = $attributes['stream_source'] ?? null;
+        if (is_string($streamSource) && trim($streamSource) !== '') {
+            $candidates[] = trim($streamSource);
+        }
+        $rtspSource = $attributes['rtsp_url'] ?? null;
+        if (is_string($rtspSource) && trim($rtspSource) !== '') {
+            $candidates[] = trim($rtspSource);
+        }
+
+        $fallbackTrimmed = trim($fallbackUrl);
+        if ($fallbackTrimmed !== '') {
+            $candidates[] = $fallbackTrimmed;
+            $absoluteFallback = $this->makeMediaImageUrlAbsolute($fallbackTrimmed);
+            if ($absoluteFallback !== $fallbackTrimmed) {
+                $candidates[] = $absoluteFallback;
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            if ($this->isRtspUrl($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    private function isRtspUrl(string $url): bool
+    {
+        return preg_match('#^rtsps?://#i', trim($url)) === 1;
     }
 
     private function isWritableFanAttribute(string $attribute, array $entityAttributes = []): bool
@@ -2735,7 +3062,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             return true;
         }
 
-        $mediaId = IPS_CreateMedia(self::MEDIA_TYPE_IMAGE);
+        $mediaId = IPS_CreateMedia(MEDIATYPE_IMAGE);
         IPS_SetParent($mediaId, $this->InstanceID);
         IPS_SetIdent($mediaId, $ident);
         $this->syncMediaPlayerCoverMeta($mediaId, $basePosition);
@@ -3109,15 +3436,8 @@ class HomeAssistantDevice extends IPSModuleStrict
 
     private function updateLockActionValue(string $entityId, string $state, ?array $attributes): void
     {
-        $action = $this->mapLockActionFromState($state, $attributes);
-        if ($action === null) {
-            return;
-        }
-
-        $ident = $this->getLockActionIdent($entityId);
-        if (@$this->GetIDForIdent($ident) !== false) {
-            $this->setValueWithDebug($ident, $action);
-        }
+        // Action trigger variables are stateless and must not be changed by state updates.
+        return;
     }
 
     private function mapLockActionFromState(string $state, ?array $attributes): ?int
@@ -3613,7 +3933,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         $ident = $this->sanitizeIdent($entityId);
         $varId = @$this->GetIDForIdent($ident);
         if ($varId !== false && $domain !== HAEventDefinitions::DOMAIN) {
-            if ($domain === HAClimateDefinitions::DOMAIN) {
+            if ($this->isTriggerVariableDescriptor($this->describeVariableByIdent($ident, $domain))) {
+                // Keep trigger-only domains neutral; do not mirror HA state.
+            } elseif ($domain === HAClimateDefinitions::DOMAIN) {
                 $climateAttributes = is_array($attributes) ? $attributes : [];
                 $mainValue = $this->extractClimateMainValue($climateAttributes);
                 if ($mainValue !== null) {
@@ -3659,7 +3981,7 @@ class HomeAssistantDevice extends IPSModuleStrict
                     $this->setValueWithDebug($ident, $value);
                 }
             } else {
-                $value = $this->convertValueByDomain($domain, $rawState, is_array($attributes) ? $attributes : []);
+                $value = $this->convertValueByDomain($domain, $rawState, $this->resolveEntityStateAttributes($entityId, $attributes));
                 if ($value !== null) {
                     $this->setValueWithDebug($ident, $value);
                 }
@@ -3689,6 +4011,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
             $this->updateMediaPlayerAttributeValues($entityId, $attributes);
+        }
+        if ($domain === HACameraDefinitions::DOMAIN) {
+            $this->updateCameraAttributeValues($entityId, $attributes);
         }
     }
 

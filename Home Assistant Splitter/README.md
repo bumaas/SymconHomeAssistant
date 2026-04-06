@@ -36,6 +36,17 @@ Verbindet MQTT mit den Device- und Configurator-Instanzen und bietet optional RE
 - In Symcon `Instanz hinzufügen` und `Home Assistant Splitter` auswählen.
 - Parent auf MQTT Client oder MQTT Server verbinden.
 
+
+### Pruefliste fuer MQTT Parent (wichtig)
+
+Wenn im Splitter Kein aktiver MQTT Parent gefunden steht:
+
+1. In Symcon muss ein MQTT Client oder MQTT Server als Parent vorhanden und aktiv verbunden sein.
+2. Beim MQTT Client muss eine Subscription gesetzt sein, z. B. homeassistant/# (oder testweise #).
+3. Der Splitter muss genau mit dieser MQTT Instanz verbunden sein.
+4. MQTTBaseTopic im Splitter muss zum mqtt_statestream.base_topic in Home Assistant passen.
+5. Dass im MQTT Explorer nicht sofort alle Entitaeten sichtbar sind, ist normal: viele Topics erscheinen erst bei Zustandsaenderungen.
+
 ## 4. Funktionsreferenz
 
 Öffentliche Funktion:

@@ -54,7 +54,8 @@
               {"caption": "Vacuum (vacuum)", "value": "vacuum"},
               {"caption": "Fan (fan)", "value": "fan"},
               {"caption": "Humidifier (humidifier)", "value": "humidifier"},
-              {"caption": "Media Player (media_player)", "value": "media_player"}
+              {"caption": "Media Player (media_player)", "value": "media_player"},
+              {"caption": "Camera (camera)", "value": "camera"}
             ]
           },
           "add":     "light"
@@ -72,6 +73,15 @@
           "caption": "Entity ID (e.g. light.floorlamp)",
           "name":    "entity_id",
           "width":   "250px",
+          "edit":    {
+            "type": "ValidationTextBox"
+          },
+          "add":     ""
+        },
+        {
+          "caption": "RTSP URL (optional)",
+          "name":    "stream_source_override",
+          "width":   "320px",
           "edit":    {
             "type": "ValidationTextBox"
           },
@@ -172,4 +182,3 @@
     }
   ]
 }
-

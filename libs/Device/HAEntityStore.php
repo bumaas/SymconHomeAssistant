@@ -4,6 +4,29 @@ declare(strict_types=1);
 
 trait HAEntityStoreTrait
 {
+    private function isManagedEntityId(string $entityId): bool
+    {
+        if (isset($this->entities[$entityId]) && (($this->entities[$entityId]['create_var'] ?? true) !== false)) {
+            return true;
+        }
+
+        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), __FUNCTION__);
+        if ($configData === null) {
+            return false;
+        }
+
+        foreach ($configData as $row) {
+            $row = $this->normalizeEntity($row, __FUNCTION__);
+            if ($row === null || (($row['create_var'] ?? true) === false)) {
+                continue;
+            }
+            if (($row['entity_id'] ?? '') === $entityId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private function getEntityDomain(string $entityId): string
     {

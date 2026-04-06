@@ -25,19 +25,22 @@ trait HAAttributeHandlersTrait
             && $currentDomain !== HACoverDefinitions::DOMAIN
             && $currentDomain !== HAClimateDefinitions::DOMAIN
             && $currentDomain !== HAMediaPlayerDefinitions::DOMAIN
+            && $currentDomain !== HACameraDefinitions::DOMAIN
             && $currentDomain !== HAFanDefinitions::DOMAIN
             && $currentDomain !== HAHumidifierDefinitions::DOMAIN) {
             $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
+        if (!$this->isManagedEntityId($entityId)) {
+            $this->debugExpert('AttributeTopic', 'Fremde Entity ignoriert', ['EntityID' => $entityId, 'Domain' => $domain]);
+            return false;
+        }
         if (!isset($this->entities[$entityId])) {
-            // Ensure the entity exists even if it wasn't part of the initial config list.
             $this->entities[$entityId] = [
                 'entity_id' => $entityId,
-                'domain'    => $domain,
+                'domain'    => $currentDomain,
                 'name'      => $entity
             ];
-            $this->debugExpert('AttributeTopic', 'Entity aus Topic angelegt', ['EntityID' => $entityId]);
         }
 
         if ($currentDomain === HAEventDefinitions::DOMAIN) {
@@ -213,6 +216,37 @@ trait HAAttributeHandlersTrait
                 ]
             );
         }
+        if ($currentDomain === HACameraDefinitions::DOMAIN) {
+            if ($attribute === 'entity_picture') {
+                $attribute = 'camera_image_url';
+            }
+            if ($attribute === 'camera_image_url') {
+                $value = $this->parseAttributePayload($payload);
+                if ($value === null) {
+                    $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                    return true;
+                }
+                $original = (string)$value;
+                $absolute = $this->makeMediaImageUrlAbsolute($original);
+                if (!$this->ensureCameraAttributeVariable($entityId, $attribute)) {
+                    $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+                    return false;
+                }
+                $this->storeEntityAttribute($entityId, $attribute, $original);
+                $this->updateEntityCache($entityId, null, [$attribute => $original]);
+                if ($absolute !== '') {
+                    $this->updateCameraImageMedia($entityId, $absolute);
+                }
+                return true;
+            }
+            $value = $this->parseAttributePayload($payload);
+            if ($value !== null) {
+                $this->storeEntityAttribute($entityId, $attribute, $value);
+                $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+            }
+            return true;
+        }
         if ($currentDomain === HASelectDefinitions::DOMAIN) {
             $value = $this->parseAttributePayload($payload);
             if ($value !== null) {
@@ -356,10 +390,6 @@ trait HAAttributeHandlersTrait
         $this->setValueWithDebug($mainIdent, $mainValue);
     }
 }
-
-
-
-
 
 
 
