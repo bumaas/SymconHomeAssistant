@@ -46,6 +46,7 @@ trait HADomainStateHandlersTrait
             HAFanDefinitions::DOMAIN => fn() => $this->handleStateTopicFan($ident, $entityId, $payload),
             HAHumidifierDefinitions::DOMAIN => fn() => $this->handleStateTopicHumidifier($ident, $entityId, $payload),
             HACameraDefinitions::DOMAIN => fn() => $this->handleStateTopicCamera($ident, $entityId, $payload),
+            HAImageDefinitions::DOMAIN => fn() => $this->handleStateTopicImage($ident, $entityId, $payload),
             HAMediaPlayerDefinitions::DOMAIN => fn() => $this->handleStateTopicMediaPlayer($ident, $entityId, $payload)
         ];
         if (isset($handlers[$domain])) {
@@ -192,6 +193,17 @@ trait HADomainStateHandlersTrait
             $payload,
             null,
             fn(string $id, array $attributes, string $state) => $this->updateCameraAttributeValues($id, $attributes)
+        );
+    }
+
+    private function handleStateTopicImage(string $ident, string $entityId, string $payload): bool
+    {
+        return $this->handleStateTopicWithAttributes(
+            $ident,
+            $entityId,
+            $payload,
+            fn(string $state, array $attributes): mixed => $this->convertValueByDomain(HAImageDefinitions::DOMAIN, $state, $attributes),
+            fn(string $id, array $attributes, string $state) => $this->updateImageAttributeValues($id, $attributes)
         );
     }
 

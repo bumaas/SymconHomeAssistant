@@ -51,6 +51,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     private const string MEDIA_PLAYER_COVER_SUFFIX = '_media_cover';
     private const string CAMERA_STREAM_SUFFIX = '_camera_stream';
     private const string CAMERA_PREVIEW_SUFFIX = '_camera_preview';
+    private const string IMAGE_PREVIEW_SUFFIX = '_image_preview';
     private const string TIMER_MEDIA_PLAYER_PROGRESS = 'MediaPlayerProgressTimer';
     private const string BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG = 'MediaPlayerProgressDebug';
     private const int MEDIA_PLAYER_PROGRESS_DEBUG_INTERVAL = 10;
@@ -828,6 +829,7 @@ class HomeAssistantDevice extends IPSModuleStrict
 
         return match ($domain) {
             HAButtonDefinitions::DOMAIN => -1,
+            HAImageDefinitions::DOMAIN => $this->parseTimestampValue($valueData),
             HALightDefinitions::DOMAIN,
             HASwitchDefinitions::DOMAIN,
             HABinarySensorDefinitions::DOMAIN,
@@ -1073,6 +1075,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         if ($domain === HACameraDefinitions::DOMAIN) {
             return $this->normalizeCameraAttributes($attributes, $context);
         }
+        if ($domain === HAImageDefinitions::DOMAIN) {
+            return $this->normalizeImageAttributes($attributes, $context);
+        }
         if ($domain === HAHumidifierDefinitions::DOMAIN) {
             return $this->mapHumidifierAttributeAliases($attributes, $context);
         }
@@ -1176,6 +1181,41 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($normalized !== []) {
             $this->debugExpert($context, 'Camera-Attribute normalisiert', ['Attributes' => $normalized]);
+        }
+
+        return $attributes;
+    }
+
+    private function normalizeImageAttributes(array $attributes, string $context): array
+    {
+        $normalized = [];
+        foreach (['entity_picture', 'entity_picture_local', 'url'] as $key) {
+            if (!isset($attributes[$key]) || !is_string($attributes[$key])) {
+                continue;
+            }
+            $trimmed = trim($attributes[$key]);
+            if ($trimmed !== $attributes[$key]) {
+                $attributes[$key] = $trimmed;
+                $normalized[] = $key;
+            }
+        }
+
+        $mapped = [];
+        if (!array_key_exists('entity_picture', $attributes) || trim((string)$attributes['entity_picture']) === '') {
+            if (array_key_exists('entity_picture_local', $attributes) && trim((string)$attributes['entity_picture_local']) !== '') {
+                $attributes['entity_picture'] = $attributes['entity_picture_local'];
+                $mapped['entity_picture_local'] = 'entity_picture';
+            } elseif (array_key_exists('url', $attributes) && trim((string)$attributes['url']) !== '') {
+                $attributes['entity_picture'] = $attributes['url'];
+                $mapped['url'] = 'entity_picture';
+            }
+        }
+
+        if ($normalized !== []) {
+            $this->debugExpert($context, 'Image-Attribute normalisiert', ['Attributes' => $normalized]);
+        }
+        if ($mapped !== []) {
+            $this->debugExpert($context, 'Image-Attribute umbenannt', ['Mapped' => $mapped]);
         }
 
         return $attributes;
@@ -1297,26 +1337,38 @@ class HomeAssistantDevice extends IPSModuleStrict
     {
         $domain = $this->normalizeDomainAlias($domain);
 
+        $staticTypes = $this->getStaticDomainVariableTypes();
+        if (array_key_exists($domain, $staticTypes)) {
+            return $staticTypes[$domain];
+        }
+
         return match ($domain) {
+            HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes),
+            HASensorDefinitions::DOMAIN => $this->inferSensorVariableType($attributes),
+            default => VARIABLETYPE_STRING,
+        };
+    }
+
+    private function getStaticDomainVariableTypes(): array
+    {
+        return [
             HALightDefinitions::DOMAIN => HALightDefinitions::VARIABLE_TYPE,
             HABinarySensorDefinitions::DOMAIN => HABinarySensorDefinitions::VARIABLE_TYPE,
             HASwitchDefinitions::DOMAIN => HASwitchDefinitions::VARIABLE_TYPE,
-            HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes),
             HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
             HALockDefinitions::DOMAIN => HALockDefinitions::VARIABLE_TYPE,
             HASelectDefinitions::DOMAIN => HASelectDefinitions::VARIABLE_TYPE,
-            HASensorDefinitions::DOMAIN => $this->inferSensorVariableType($attributes),
             HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::VARIABLE_TYPE,
             HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::VARIABLE_TYPE,
             HACoverDefinitions::DOMAIN => HACoverDefinitions::VARIABLE_TYPE,
             HAEventDefinitions::DOMAIN => HAEventDefinitions::VARIABLE_TYPE,
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::VARIABLE_TYPE,
             HACameraDefinitions::DOMAIN => HACameraDefinitions::VARIABLE_TYPE,
+            HAImageDefinitions::DOMAIN => HAImageDefinitions::VARIABLE_TYPE,
             HAButtonDefinitions::DOMAIN => HAButtonDefinitions::VARIABLE_TYPE,
             HAFanDefinitions::DOMAIN => HAFanDefinitions::VARIABLE_TYPE,
-            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::VARIABLE_TYPE,
-            default => VARIABLETYPE_STRING,
-        };
+            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::VARIABLE_TYPE
+        ];
     }
 
     private function inferSensorVariableType(array $attributes): int
@@ -2341,6 +2393,18 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->updateCameraAttributeValues($entity['entity_id'], $attributes);
     }
 
+    private function maintainImageAttributeVariables(array $entity): void
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+        $attributes = $this->normalizeImageAttributes($attributes, __FUNCTION__);
+
+        $this->maintainImagePreviewMedia($entity['entity_id'], 0);
+        $this->updateImageAttributeValues($entity['entity_id'], $attributes);
+    }
+
     private function updateCameraAttributeValues(string $entityId, array $attributes): void
     {
         $attributes = $this->normalizeCameraAttributes($attributes, __FUNCTION__);
@@ -2352,9 +2416,59 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
     }
 
+    private function updateImageAttributeValues(string $entityId, array $attributes): void
+    {
+        $attributes = $this->normalizeImageAttributes($attributes, __FUNCTION__);
+        $previewUrl = $this->resolveImagePreviewUrl($entityId, $attributes);
+        if ($previewUrl === '') {
+            return;
+        }
+
+        $this->updateEntityPreviewMedia(
+            $entityId,
+            $previewUrl,
+            self::IMAGE_PREVIEW_SUFFIX,
+            'ImagePreview',
+            'ha_image_preview'
+        );
+    }
+
+    private function updateImageStateValue(string $ident, string $state): void
+    {
+        if ($state === '') {
+            return;
+        }
+
+        $value = $this->convertValueByDomain(HAImageDefinitions::DOMAIN, $state);
+        if ($value === null || $this->shouldSkipStateSetValue($ident, $value)) {
+            return;
+        }
+
+        $this->setValueWithDebug($ident, $value);
+    }
+
     private function maintainCameraPreviewMedia(string $entityId, int $basePosition): void
     {
-        $this->ensureCameraPreviewMedia($entityId, $basePosition);
+        $this->maintainEntityPreviewMedia(
+            $entityId,
+            self::CAMERA_PREVIEW_SUFFIX,
+            $basePosition,
+            $this->Translate('Preview'),
+            'CameraPreview',
+            'ha_camera_preview'
+        );
+    }
+
+    private function maintainImagePreviewMedia(string $entityId, int $basePosition): void
+    {
+        $this->maintainEntityPreviewMedia(
+            $entityId,
+            self::IMAGE_PREVIEW_SUFFIX,
+            $basePosition,
+            $this->Translate('Preview'),
+            'ImagePreview',
+            'ha_image_preview'
+        );
     }
 
     private function maintainCameraStreamMedia(string $entityId, int $basePosition): void
@@ -2362,24 +2476,42 @@ class HomeAssistantDevice extends IPSModuleStrict
         $this->ensureCameraStreamMedia($entityId, $basePosition);
     }
 
-    private function ensureCameraPreviewMedia(string $entityId, int $basePosition): bool
+    private function maintainEntityPreviewMedia(
+        string $entityId,
+        string $suffix,
+        int $basePosition,
+        string $name,
+        string $debugCategory,
+        string $filePrefix
+    ): void {
+        $this->ensureEntityPreviewMedia($entityId, $suffix, $basePosition, $name, $debugCategory, $filePrefix);
+    }
+
+    private function ensureEntityPreviewMedia(
+        string $entityId,
+        string $suffix,
+        int $basePosition,
+        string $name,
+        string $debugCategory,
+        string $filePrefix
+    ): bool
     {
-        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_PREVIEW_SUFFIX;
+        $ident = $this->sanitizeIdent($entityId) . $suffix;
         $objectId = @$this->GetIDForIdent($ident);
         if ($objectId !== false) {
             $object = IPS_GetObject($objectId);
             if (($object['ObjectType'] ?? null) !== 5) {
-                $this->debugExpert('CameraPreview', 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
+                $this->debugExpert($debugCategory, 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
                 return false;
             }
-            $this->syncCameraPreviewMeta($objectId, $basePosition);
+            $this->syncEntityPreviewMeta($objectId, $basePosition, $name, $filePrefix);
             return true;
         }
 
         $mediaId = IPS_CreateMedia(MEDIATYPE_IMAGE);
         IPS_SetParent($mediaId, $this->InstanceID);
         IPS_SetIdent($mediaId, $ident);
-        $this->syncCameraPreviewMeta($mediaId, $basePosition);
+        $this->syncEntityPreviewMeta($mediaId, $basePosition, $name, $filePrefix);
         return true;
     }
 
@@ -2404,14 +2536,14 @@ class HomeAssistantDevice extends IPSModuleStrict
         return true;
     }
 
-    private function syncCameraPreviewMeta(int $mediaId, int $basePosition): void
+    private function syncEntityPreviewMeta(int $mediaId, int $basePosition, string $name, string $filePrefix): void
     {
-        IPS_SetName($mediaId, $this->Translate('Preview'));
+        IPS_SetName($mediaId, $name);
         IPS_SetPosition($mediaId, $basePosition + 20);
         IPS_SetParent($mediaId, $this->InstanceID);
         $ident = IPS_GetObject($mediaId)['ObjectIdent'] ?? '';
         if (is_string($ident) && $ident !== '') {
-            $this->ensureCameraPreviewMediaFileDefault($mediaId, $ident);
+            $this->ensureEntityPreviewMediaFileDefault($mediaId, $ident, $filePrefix);
         }
     }
 
@@ -2429,10 +2561,54 @@ class HomeAssistantDevice extends IPSModuleStrict
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_PREVIEW_SUFFIX;
+        $this->updateEntityPreviewMedia(
+            $entityId,
+            $absoluteUrl,
+            self::CAMERA_PREVIEW_SUFFIX,
+            'CameraPreview',
+            'ha_camera_preview'
+        );
+    }
+
+    private function buildCameraPreviewUrl(string $entityId): string
+    {
+        $baseUrl = $this->getHaBaseUrl();
+        if ($baseUrl === '') {
+            return '';
+        }
+
+        return $baseUrl . '/api/camera_proxy/' . $entityId;
+    }
+
+    private function resolveImagePreviewUrl(string $entityId, ?array $attributes = null): string
+    {
+        $entity = $this->entities[$entityId] ?? null;
+        if (!is_array($attributes)) {
+            $entityAttributes = $entity['attributes'] ?? null;
+            $attributes = is_array($entityAttributes) ? $entityAttributes : [];
+        }
+
+        $attributes = $this->normalizeImageAttributes($attributes, __FUNCTION__);
+        $candidate = $attributes['entity_picture'] ?? '';
+        if (!is_string($candidate) || trim($candidate) === '') {
+            return '';
+        }
+
+        return $this->makeMediaImageUrlAbsolute($candidate);
+    }
+
+    private function updateEntityPreviewMedia(
+        string $entityId,
+        string $absoluteUrl,
+        string $suffix,
+        string $debugCategory,
+        string $filePrefix
+    ): void
+    {
+        $ident = $this->sanitizeIdent($entityId) . $suffix;
         $mediaId = @$this->GetIDForIdent($ident);
         if ($mediaId === false) {
-            if (!$this->ensureCameraPreviewMedia($entityId, 0)) {
+            if (!$this->ensureEntityPreviewMedia($entityId, $suffix, 0, $this->Translate('Preview'), $debugCategory, $filePrefix)) {
                 return;
             }
             $mediaId = @$this->GetIDForIdent($ident);
@@ -2446,34 +2622,24 @@ class HomeAssistantDevice extends IPSModuleStrict
             return;
         }
 
-        $this->ensureCameraPreviewMediaFile($mediaId, $ident, $absoluteUrl);
+        $this->ensureEntityPreviewMediaFile($mediaId, $ident, $absoluteUrl, $filePrefix);
         IPS_SetMediaContent($mediaId, base64_encode($content));
-        $this->debugExpert('CameraPreview', 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
+        $this->debugExpert($debugCategory, 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
     }
 
-    private function buildCameraPreviewUrl(string $entityId): string
-    {
-        $baseUrl = $this->getHaBaseUrl();
-        if ($baseUrl === '') {
-            return '';
-        }
-
-        return $baseUrl . '/api/camera_proxy/' . $entityId;
-    }
-
-    private function ensureCameraPreviewMediaFile(int $mediaId, string $ident, string $url): void
+    private function ensureEntityPreviewMediaFile(int $mediaId, string $ident, string $url, string $filePrefix): void
     {
         $media = IPS_GetMedia($mediaId);
         $current = (string)($media['MediaFile'] ?? '');
         $extension = $this->detectMediaImageExtension($url);
         $safeIdent = preg_replace('/\W/', '_', $ident);
-        $file = 'media/ha_camera_preview_' . $safeIdent . '.' . $extension;
+        $file = 'media/' . $filePrefix . '_' . $safeIdent . '.' . $extension;
         if ($file !== '' && $current !== $file) {
             IPS_SetMediaFile($mediaId, $file, false);
         }
     }
 
-    private function ensureCameraPreviewMediaFileDefault(int $mediaId, string $ident): void
+    private function ensureEntityPreviewMediaFileDefault(int $mediaId, string $ident, string $filePrefix): void
     {
         $media = IPS_GetMedia($mediaId);
         $current = (string)($media['MediaFile'] ?? '');
@@ -2481,7 +2647,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             return;
         }
         $safeIdent = preg_replace('/\W/', '_', $ident);
-        $file = 'media/ha_camera_preview_' . $safeIdent . '.png';
+        $file = 'media/' . $filePrefix . '_' . $safeIdent . '.png';
         IPS_SetMediaFile($mediaId, $file, false);
         $size = (int)($media['MediaSize'] ?? 0);
         if ($size === 0) {
@@ -4035,6 +4201,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($domain === HACameraDefinitions::DOMAIN) {
             $this->updateCameraAttributeValues($entityId, $attributes);
+        }
+        if ($domain === HAImageDefinitions::DOMAIN) {
+            $this->updateImageAttributeValues($entityId, $attributes);
         }
     }
 

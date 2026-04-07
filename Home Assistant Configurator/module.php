@@ -155,6 +155,7 @@ EOT;
             HALawnMowerDefinitions::DOMAIN,
             HAMediaPlayerDefinitions::DOMAIN,
             HACameraDefinitions::DOMAIN,
+            HAImageDefinitions::DOMAIN,
             HAButtonDefinitions::DOMAIN,
             HAInputButtonDefinitions::DOMAIN
         ];

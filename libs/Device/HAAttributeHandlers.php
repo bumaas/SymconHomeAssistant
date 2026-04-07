@@ -26,6 +26,7 @@ trait HAAttributeHandlersTrait
             && $currentDomain !== HAClimateDefinitions::DOMAIN
             && $currentDomain !== HAMediaPlayerDefinitions::DOMAIN
             && $currentDomain !== HACameraDefinitions::DOMAIN
+            && $currentDomain !== HAImageDefinitions::DOMAIN
             && $currentDomain !== HAFanDefinitions::DOMAIN
             && $currentDomain !== HAHumidifierDefinitions::DOMAIN) {
             $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
@@ -216,27 +217,18 @@ trait HAAttributeHandlersTrait
                 ]
             );
         }
-        if ($currentDomain === HACameraDefinitions::DOMAIN) {
-            if ($attribute === 'entity_picture') {
-                $value = $this->parseAttributePayload($payload);
-                if ($value === null) {
-                    $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                    return true;
-                }
-                $original = (string)$value;
-                $this->storeEntityAttribute($entityId, $attribute, $original);
-                $this->updateEntityCache($entityId, null, [$attribute => $original]);
-                if (trim($original) !== '') {
-                    $this->updateCameraPreviewMedia($entityId, $original);
-                }
-                return true;
-            }
+        if ($currentDomain === HACameraDefinitions::DOMAIN || $currentDomain === HAImageDefinitions::DOMAIN) {
             $value = $this->parseAttributePayload($payload);
             if ($value !== null) {
                 $this->storeEntityAttribute($entityId, $attribute, $value);
                 $this->updateEntityCache($entityId, null, [$attribute => $value]);
                 $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                $this->updateCameraAttributeValues($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                $attributes = $this->entities[$entityId]['attributes'] ?? [];
+                if ($currentDomain === HACameraDefinitions::DOMAIN) {
+                    $this->updateCameraAttributeValues($entityId, is_array($attributes) ? $attributes : []);
+                } else {
+                    $this->updateImageAttributeValues($entityId, is_array($attributes) ? $attributes : []);
+                }
             }
             return true;
         }

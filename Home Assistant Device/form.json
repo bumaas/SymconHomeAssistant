@@ -55,7 +55,8 @@
               {"caption": "Fan (fan)", "value": "fan"},
               {"caption": "Humidifier (humidifier)", "value": "humidifier"},
               {"caption": "Media Player (media_player)", "value": "media_player"},
-              {"caption": "Camera (camera)", "value": "camera"}
+              {"caption": "Camera (camera)", "value": "camera"},
+              {"caption": "Image (image)", "value": "image"}
             ]
           },
           "add":     "light"

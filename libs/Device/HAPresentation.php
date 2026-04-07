@@ -65,6 +65,16 @@ trait HAPresentationTrait
             }
         }
 
+        if ($domain === HAImageDefinitions::DOMAIN) {
+            return $this->filterPresentation([
+                                                 'PRESENTATION'    => VARIABLE_PRESENTATION_DATE_TIME,
+                                                 'DATE'            => 1, //Jahr, Monat, Tag
+                                                 'DAY_OF_THE_WEEK' => false,
+                                                 'MONTH_TEXT'      => false,
+                                                 'TIME'            => 2 //Stunden, Minuten, Sekunden
+                                             ]);
+        }
+
         if ($domain === HALockDefinitions::DOMAIN) {
             return $this->getLockPresentation($attributes);
         }
@@ -1014,6 +1024,7 @@ trait HAPresentationTrait
         return in_array($domain, [
             HAMediaPlayerDefinitions::DOMAIN,
             HACameraDefinitions::DOMAIN,
+            HAImageDefinitions::DOMAIN,
             HAVacuumDefinitions::DOMAIN,
             HALawnMowerDefinitions::DOMAIN,
             HAFanDefinitions::DOMAIN,

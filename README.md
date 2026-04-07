@@ -34,31 +34,32 @@ Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
 
 **Unterstützte Domains**
 
-| Domain          | Status      | Hinweise | Offen |
-| --------------- | ----------- | -------- | ----- |
-| `light`         | voll        | Attribute + schreibbar | - |
-| `switch`        | voll        | schaltbar | - |
-| `binary_sensor` | voll        | `device_class` + Icons | - |
-| `number`        | voll        | Slider/Min/Max/Step, REST `set_value` | - |
-| `sensor`        | voll        | Units/Suffix, `enum` als Enumeration | - |
-| `select`        | voll        | Enumeration | - |
-| `climate`       | voll        | Heizen/Kühlen steuerbar: Solltemperatur, Modus (z. B. Heizen/Kühlen), Preset-, Lüfter- und Swing-Modus sowie Ein/Aus und Zielfeuchte | - |
-| `lock`          | voll        | REST `lock`/`unlock`/`open`, Hauptvariable Wertanzeige, Aktion als Enumeration | Code-Handling bei `open` (falls erforderlich) |
-| `cover`         | teilweise   | Position/Tilt, REST `open/close/stop` + `set_position` | Device-Class-Spezifika/weitere Attribute |
-| `event`         | teilweise   | Enumeration aus `event_type` | Weitere Event-Attribute |
-| `fan`           | teilweise   | Status (On/Off), Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`) | Weitere Dienste/Features je Modell |
-| `humidifier`    | teilweise   | Status (On/Off), Attribute (`target_humidity`, `current_humidity`, `mode`, `action`) | Weitere Dienste/Features je Modell |
-| `vacuum`        | teilweise   | REST `start`/`stop`/`pause`/`return_to_base`, `clean_spot`, `locate`, `fan_speed` | Weitere Dienste/Features je Modell |
-| `lawn_mower`    | teilweise   | Status + Aktionen `start_mowing`/`pause`/`dock` | Weitere Dienste/Features je Modell |
-| `media_player`  | teilweise   | Status, Aktionen, Attribute, Cover als Medienobjekt | Weitere Dienste/Features je Modell |
-| `camera`        | teilweise   | Status + Kamera-Bild als Medienobjekt (`camera_proxy`) | Kamera-Aktionen/Services |
-| `button`        | voll        | `press` als Aktion | - |
-| `input_button`  | voll        | `press` als Aktion | - |
+| Domain          | Status    | Hinweise                                                                                                                             | Offen                                         |
+|-----------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------|
+| `light`         | voll      | Attribute + schreibbar                                                                                                               | -                                             |
+| `switch`        | voll      | schaltbar                                                                                                                            | -                                             |
+| `binary_sensor` | voll      | `device_class` + Icons                                                                                                               | -                                             |
+| `number`        | voll      | Slider/Min/Max/Step, REST `set_value`                                                                                                | -                                             |
+| `sensor`        | voll      | Units/Suffix, `enum` als Enumeration                                                                                                 | -                                             |
+| `select`        | voll      | Enumeration                                                                                                                          | -                                             |
+| `climate`       | voll      | Heizen/Kühlen steuerbar: Solltemperatur, Modus (z. B. Heizen/Kühlen), Preset-, Lüfter- und Swing-Modus sowie Ein/Aus und Zielfeuchte | -                                             |
+| `lock`          | voll      | REST `lock`/`unlock`/`open`, Hauptvariable Wertanzeige, Aktion als Enumeration                                                       | Code-Handling bei `open` (falls erforderlich) |
+| `cover`         | teilweise | Position/Tilt, REST `open/close/stop` + `set_position`                                                                               | Device-Class-Spezifika/weitere Attribute      |
+| `event`         | teilweise | Enumeration aus `event_type`                                                                                                         | Weitere Event-Attribute                       |
+| `fan`           | teilweise | Status (On/Off), Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`)                                                | Weitere Dienste/Features je Modell            |
+| `humidifier`    | teilweise | Status (On/Off), Attribute (`target_humidity`, `current_humidity`, `mode`, `action`)                                                | Weitere Dienste/Features je Modell            |
+| `vacuum`        | teilweise | REST `start`/`stop`/`pause`/`return_to_base`, `clean_spot`, `locate`, `fan_speed`                                                   | Weitere Dienste/Features je Modell            |
+| `lawn_mower`    | teilweise | Status + Aktionen `start_mowing`/`pause`/`dock`                                                                                      | Weitere Dienste/Features je Modell            |
+| `media_player`  | teilweise | Status, Aktionen, Attribute, Cover als Medienobjekt                                                                                  | Weitere Dienste/Features je Modell            |
+| `camera`        | teilweise | Status + Kamera-Bild als Medienobjekt; Vorschau wird stabil über `camera_proxy/<entity_id>` geladen                                 | Kamera-Aktionen/Services                      |
+| `image`         | teilweise | Bild-Entität als Medienobjekt; Status wird als Zeitstempel mit Datum/Uhrzeit dargestellt                                            | Weitere image-spezifische Attribute           |
+| `button`        | voll      | `press` als Aktion                                                                                                                   | -                                             |
+| `input_button`  | voll      | `press` als Aktion                                                                                                                   | -                                             |
 
 ## 2. Voraussetzungen
 
-- Symcon ab Version 8.2
-- MQTT Broker in Home Assistant und eine MQTT Client Instanz in Symcon oder alternativ ein Symcon MQTT Server
+- Symcon ab Version 9.0
+- MQTT Broker in Home Assistant und eine MQTT Client-Instanz in Symcon oder alternativ ein Symcon MQTT Server
 - Home Assistant mit aktivierter MQTT Integration (Statestream)
 - Optional: mDNS/DNS-SD (Discovery)
 - Long-Lived Access Token (REST)
@@ -99,8 +100,12 @@ mqtt_statestream:
 
 Die Variablen werden in den jeweiligen Device-Instanzen pro Entität angelegt. Details siehe `Home Assistant Device`.
 
-## 7. Anhang
+Hinweise:
 
+- `camera` legt zusätzlich eine Bild-Vorschau als Medienobjekt an.
+- `image` legt ebenfalls eine Bild-Vorschau als Medienobjekt an; die Hauptvariable enthält den letzten Bild-Zeitstempel als Integer mit Datum/Uhrzeit-Darstellung.
+
+## 7. Anhang
 
 **Überblick (Ablaufdiagramm)**
 
@@ -123,8 +128,8 @@ Home Assistant Device / Configurator
 
 **Hinweise zur Fehlersuche**
 
-- Wenn im Splitter `Kein aktiver MQTT Parent gefunden` steht: Parent-Verbindung im Splitter, MQTT-Client-Status und Subscription in Symcon pruefen (`homeassistant/#`).
-- Wenn es im Datenfluss hakt: mit Hilfe des [MQTT Explorer](https://mqtt-explorer.com/) kann komfortabel geprüft werden, ob der MQTT-Server mit Daten versorgt wird (Topic, Payload, Attribute).
+- Wenn im Splitter `Kein aktiver MQTT Parent gefunden` steht: Parent-Verbindung im Splitter, MQTT-Client-Status und Subscription in Symcon prüfen (`homeassistant/#`).
+- Wenn es im Datenfluss hakt: Mithilfe des [MQTT Explorer](https://mqtt-explorer.com/) kann komfortabel geprüft werden, ob der MQTT-Server mit Daten versorgt wird (Topic, Payload, Attribute).
 - IP-Adressen und Ports prüfen: MQTT standardmäßig `1883` (TLS `8883`), Home Assistant REST standardmäßig `8123`.
 - MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.
 
@@ -136,8 +141,8 @@ Home Assistant Device / Configurator
 
 ### GUIDs der Module
 
-| Modul                        | Typ          | GUID |
-| --------------------------- | ------------ | -------------------------------------- |
+| Modul                       | Typ          | GUID                                     |
+|-----------------------------|--------------|------------------------------------------|
 | Home Assistant Discovery    | Discovery    | `{C36FEFA4-4732-CBD6-0216-A1DB30D036CF}` |
 | Home Assistant Configurator | Configurator | `{B9830F89-98E6-106C-CD6C-A3AD76FD5AE9}` |
 | Home Assistant Splitter     | Splitter     | `{0A4C4B31-2F59-4D21-8F62-3A12A0A0F3E1}` |

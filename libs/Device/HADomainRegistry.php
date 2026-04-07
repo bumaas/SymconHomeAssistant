@@ -79,6 +79,9 @@ trait HADomainRegistryTrait
             ],
             HACameraDefinitions::DOMAIN => [
                 fn(array $entity) => $this->maintainCameraAttributeVariables($entity)
+            ],
+            HAImageDefinitions::DOMAIN => [
+                fn(array $entity) => $this->maintainImageAttributeVariables($entity)
             ]
         ];
     }
@@ -279,6 +282,22 @@ trait HADomainRegistryTrait
                     $this->setValueWithDebug($ident, $parsed[self::KEY_STATE]);
                 }
                 $this->updateCameraAttributeValues($entityId, is_array($attributes) ? $attributes : []);
+                if (is_array($attributes) && $attributes !== []) {
+                    $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
+                    $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+                } else {
+                    $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
+                }
+            },
+            HAImageDefinitions::DOMAIN => function (string $entityId, string $ident, array $parsed): void {
+                $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
+                if (is_array($attributes) && $attributes !== []) {
+                    $attributes = $this->storeEntityAttributes($entityId, $attributes);
+                }
+                if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
+                    $this->updateImageStateValue($ident, $parsed[self::KEY_STATE]);
+                }
+                $this->updateImageAttributeValues($entityId, is_array($attributes) ? $attributes : []);
                 if (is_array($attributes) && $attributes !== []) {
                     $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
