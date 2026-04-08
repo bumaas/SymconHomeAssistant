@@ -9,6 +9,7 @@ require_once __DIR__ . '/../libs/HACommonIncludes.php';
 class HomeAssistantConfigurator extends IPSModuleStrict
 {
     use ModuleDebugTrait;
+    use HARestParentClientTrait;
     use HASupportedFeaturesTrait;
 
     // ... Caches ...
@@ -180,6 +181,11 @@ EOT;
     {
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
 
+        if (!$this->hasCompatibleSplitterParent()) {
+            $this->debugExpert(__FUNCTION__, 'Parent ist nicht Home Assistant Splitter');
+            return json_encode($form, JSON_THROW_ON_ERROR);
+        }
+
         // Do not start a new search if a search is currently active
         if (!json_decode($this->GetBuffer(self::BUFFER_REFRESH_ACTIVE), false, 512, JSON_THROW_ON_ERROR)) {
             $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(true, JSON_THROW_ON_ERROR));
@@ -253,6 +259,11 @@ EOT;
     public function RequestAction($Ident, $Value): void
     {
         if ($Ident === 'refresh_cache') {
+            if (!$this->hasCompatibleSplitterParent()) {
+                $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
+                $this->debugExpert(__FUNCTION__, 'Parent ist nicht Home Assistant Splitter');
+                return;
+            }
             $this->UpdateCacheFromHA();
 
             $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
@@ -831,50 +842,4 @@ EOT;
         $postData = json_encode(['template' => $template], JSON_THROW_ON_ERROR);
         return $this->sendRestRequestToParent('/api/template', $postData);
     }
-
-    private function sendRestRequestToParent(string $endpoint, ?string $postData): ?array
-    {
-        $payload = json_encode([
-                                   'DataID'   => HAIds::DATA_DEVICE_TO_SPLITTER,
-                                   'Endpoint' => $endpoint,
-                                   'Method'   => $postData !== null ? 'POST' : 'GET',
-                                   'Body'     => $postData
-                               ],
-                               JSON_THROW_ON_ERROR);
-
-        $responseJson = $this->SendDataToParent($payload);
-        if ($responseJson === '') {
-            $this->debugExpert('REST', 'Empty response from parent');
-            return null;
-        }
-
-        try {
-            $response = json_decode($responseJson, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            $this->debugExpert('REST', 'Invalid response: ' . $e->getMessage());
-            return null;
-        }
-        if (!is_array($response)) {
-            $this->debugExpert('REST', 'Invalid response: ' . $responseJson);
-            return null;
-        }
-        if (isset($response['Error'])) {
-            $this->debugExpert('REST', 'Parent error: ' . json_encode($response, JSON_THROW_ON_ERROR));
-            return null;
-        }
-
-        $body = (string)($response['Response'] ?? '');
-        try {
-            $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            $this->debugExpert('REST', 'Non-JSON response: ' . $e->getMessage());
-            return null;
-        }
-        if (!is_array($decoded)) {
-            $this->debugExpert('REST', 'Non-JSON response: ' . $body);
-            return null;
-        }
-        return $decoded;
-    }
-
 }

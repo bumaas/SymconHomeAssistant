@@ -51,6 +51,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     use HAAttributeActionMappingTrait;
     use HASupportedFeaturesTrait;
     use HADiagnosticsTrait;
+    use HARestParentClientTrait;
 
     private const string KEY_STATE      = 'state';
     private const string KEY_ATTRIBUTES = 'attributes';
@@ -73,8 +74,6 @@ class HomeAssistantDevice extends IPSModuleStrict
     private array $topicMapping    = [];
 
     private array $entities        = [];
-
-    private array $entityPositions = [];
 
     private bool $hasMultipleStatusEntities = false;
 
@@ -119,7 +118,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     {
         // Wenn sich die Verbindung ändert, die Konfiguration neu laden.
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT) {
-            $this->debugExpert('MessageSink', 'Verbindungsstatus geÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤ndert. Aktualisiere...');
+            $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...');
             $this->ApplyChanges();
         }
     }
@@ -136,7 +135,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             $this->debugExpert('ApplyChanges', 'Kein Parent verbunden');
             return;
         }
-        if (!$this->hasCompatibleParent()) {
+        if (!$this->hasCompatibleSplitterParent()) {
             $this->SetStatus(201);
             $this->debugExpert('ApplyChanges', 'Parent ist nicht Home Assistant Splitter');
             return;
@@ -350,7 +349,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     }
 
     /**
-     * Verarbeitet SchaltvorgÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤nge aus dem Webfront
+     * Verarbeitet Schaltvorgänge
      */
     public function RequestAction(string $Ident, $Value): void
     {
@@ -385,7 +384,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             if ($domain === null && str_contains($entityId, '.')) {
                 [$domain] = explode('.', $entityId, 2);
             }
-            $this->debugExpert('RequestAction', 'Entity aufgelÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶st', ['EntityID' => $entityId, 'Domain' => $domain]);
+            $this->debugExpert('RequestAction', 'Entity aufgelöst', ['EntityID' => $entityId, 'Domain' => $domain]);
 
             if (!$this->isEntityWritable($domain ?? '', $entity['attributes'] ?? [])) {
                 $this->debugExpert('RequestAction', 'Variable ist nicht schreibbar', ['EntityID' => $entityId], true);
@@ -429,7 +428,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             HAHumidifierDefinitions::DOMAIN,
             HAMediaPlayerDefinitions::DOMAIN
         ], true)) {
-            $this->debugExpert(__FUNCTION__, 'Attribut-Domain nicht unterstÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¼tzt', ['Attribute' => $attribute, 'Domain' => $attributeInfo['domain']], true);
+            $this->debugExpert(__FUNCTION__, 'Attribut-Domain nicht unterstützt', ['Attribute' => $attribute, 'Domain' => $attributeInfo['domain']], true);
             return;
         }
         if ($payload === '') {
@@ -438,7 +437,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         $topic = $this->getSetTopicForEntity($entityId);
         if ($topic === '') {
-            $this->debugExpert('Action', 'Kein Set-Topic fÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¼r Entity | EntityID=' . $entityId, [], true);
+            $this->debugExpert('Action', 'Kein Set-Topic für Entity | EntityID=' . $entityId, [], true);
             return;
         }
         $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $payload, [], true);
@@ -588,7 +587,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         $previousEntities      = $this->entities;
         $this->entities        = [];
         $this->topicMapping    = [];
-        $this->entityPositions = [];
         $filterTopics          = [];
         $positionIndex         = 0;
         $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
@@ -606,7 +604,6 @@ class HomeAssistantDevice extends IPSModuleStrict
             $positionIndex++;
             $basePosition                                = $positionIndex * 10;
             $entity['position_base']                     = $basePosition;
-            $this->entityPositions[$entity['entity_id']] = $basePosition;
             if (isset($previousEntities[$entity['entity_id']]['attributes'])
                 && is_array($previousEntities[$entity['entity_id']]['attributes'])) {
                 $existingAttributes = $previousEntities[$entity['entity_id']]['attributes'];
@@ -684,7 +681,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     }
 
     /**
-     * Erstellt oder aktualisiert die Symcon Variable fÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¼r eine EntitÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤t
+     * Erstellt oder aktualisiert die Symcon Variable für eine Entität
      */
     // Hauptvariable einer Entität anlegen oder aktualisieren.
     private function maintainEntityVariable(array $entity): void
@@ -905,7 +902,7 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         $this->debugExpert(
             'Select',
-            'UngÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¼ltige Option',
+            'Ungültige Option',
             [
                 'Value'   => trim((string)$value),
                 'Options' => HASelectDefinitions::normalizeOptions($options)
@@ -1186,71 +1183,35 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
     }
 
-    private function sendRestRequestToParent(string $endpoint, ?string $postData): ?array
-    {
-        if (!$this->HasActiveParent()) {
-            $this->debugExpert('REST', 'No active parent');
-            return null;
-        }
-
-        $payload = json_encode([
-                                   'DataID'   => HAIds::DATA_DEVICE_TO_SPLITTER,
-                                   'Endpoint' => $endpoint,
-                                   'Method'   => $postData !== null ? 'POST' : 'GET',
-                                   'Body'     => $postData
-                               ],
-                               JSON_THROW_ON_ERROR);
-
-        $responseJson = $this->SendDataToParent($payload);
-        if ($responseJson === '') {
-            $this->debugExpert('REST', 'Empty response from parent');
-            return null;
-        }
-
-        try {
-            $response = json_decode($responseJson, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            $this->debugExpert('REST', 'Invalid response: ' . $e->getMessage());
-            return null;
-        }
-        if (!is_array($response)) {
-            $this->debugExpert('REST', 'Invalid response: ' . $responseJson);
-            return null;
-        }
-        if (isset($response['Error'])) {
-            $this->debugExpert('REST', 'Parent error: ' . json_encode($response, JSON_THROW_ON_ERROR));
-            return null;
-        }
-
-        $body = (string)($response['Response'] ?? '');
-        try {
-            $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            $this->debugExpert('REST', 'Non-JSON response: ' . $e->getMessage());
-            return null;
-        }
-        if (!is_array($decoded)) {
-            $this->debugExpert('REST', 'Non-JSON response: ' . $body);
-            return null;
-        }
-        return $decoded;
-    }
-
-    private function sendServiceRequestToParent(string $domain, string $service, array $data): bool
-    {
-        $endpoint = '/api/services/' . rawurlencode($domain) . '/' . rawurlencode($service);
-        $payload = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        return $this->sendRestRequestToParent($endpoint, $payload) !== null;
-    }
-
-
     private function setValueWithDebug(string $ident, mixed $value): void
     {
         $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] ?? '';
         if ($caller !== 'UpdateMediaPlayerProgress' || $this->shouldLogMediaPlayerProgress($ident)) {
-            $this->debugExpert('SetValue', $caller, ['Ident' => $ident, 'Value' => $value], true);
+            $this->debugExpert('SetValue', $caller, [
+                'Ident' => $ident,
+                'Value' => $value,
+                'ValueType' => get_debug_type($value)
+            ], true);
         }
-        $this->SetValue($ident, $value);
+        $variableId = @$this->GetIDForIdent($ident);
+        if ($variableId === false) {
+            return;
+        }
+
+        $type = IPS_GetVariable($variableId)['VariableType'];
+        if (($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT)
+            && !is_numeric($value)
+            && !is_bool($value)) {
+            $this->debugExpert('SetValue', 'Type mismatch', [
+                'Ident' => $ident,
+                'Value' => $value,
+                'ValueType' => get_debug_type($value),
+                'TargetType' => $type
+            ], true);
+            return;
+        }
+
+        $this->SetValue($ident, $this->castVariableValue($value, $type));
     }
 
     private function shouldLogMediaPlayerProgress(string $ident): bool
@@ -1275,20 +1236,6 @@ class HomeAssistantDevice extends IPSModuleStrict
         return true;
     }
 
-
-
-
-    private function hasCompatibleParent(): bool
-    {
-        $instance = IPS_GetInstance($this->InstanceID);
-        $parentId = (int)($instance['ConnectionID'] ?? 0);
-        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
-            return false;
-        }
-        $parent   = IPS_GetInstance($parentId);
-        $moduleId = (string)($parent['ModuleInfo']['ModuleID'] ?? '');
-        return $moduleId === HAIds::MODULE_SPLITTER;
-    }
 
     private function updateFormFieldSafe(string $name, string $property, mixed $value): void
     {

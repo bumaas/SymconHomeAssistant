@@ -686,7 +686,7 @@ trait HADomainAttributeMaintenanceTrait
     // Entity-Positionen werden zentral vorab berechnet und hier nur gelesen.
     private function getEntityPosition(string $entityId): int
     {
-        return (int)($this->entityPositions[$entityId] ?? 10);
+        return (int)($this->entities[$entityId]['position_base'] ?? 10);
     }
 
     private function shouldCreateFanAttribute(string $attribute, array $meta, array $attributes): bool

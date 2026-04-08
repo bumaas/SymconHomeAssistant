@@ -138,7 +138,7 @@ trait HADomainSpecialActionsTrait
             'OPTIONS'      => $this->getPresentationOptions($fanSpeedList)
         ];
 
-        $this->MaintainVariable($ident, $this->Translate('LÃƒÂ¼fterstufe'), VARIABLETYPE_STRING, $presentation, $position, true);
+        $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, $presentation, $position, true);
         $this->EnableAction($ident);
     }
 
@@ -194,7 +194,7 @@ trait HADomainSpecialActionsTrait
         if ($this->isLockOpenSupported($attributes)) {
             $options[] = [
                 'Value' => HALockDefinitions::ACTION_OPEN,
-                'Caption' => $this->Translate('Ãƒâ€“ffnen'),
+                'Caption' => $this->Translate('Öffnen'),
                 'IconActive' => false,
                 'IconValue' => '',
                 'Color' => -1
