@@ -39,15 +39,6 @@ trait HAPresentationTrait
 
         if ($domain === HASensorDefinitions::DOMAIN) {
             $deviceClass = $attributes['device_class'] ?? '';
-            if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_ENUM) {
-                $options = $this->getPresentationOptions($attributes['options'] ?? null);
-                if ($options !== null) {
-                    return $this->filterPresentation([
-                                                         'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                                     'OPTIONS'      => $options
-                                                 ]);
-                }
-            }
             if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
                 return $this->filterPresentation([
                                                      'PRESENTATION'   => VARIABLE_PRESENTATION_DATE_TIME,
@@ -61,6 +52,13 @@ trait HAPresentationTrait
                 return $this->filterPresentation([
                                                      'PRESENTATION'   => VARIABLE_PRESENTATION_DURATION,
                                                      'FORMAT'         => 3
+                                                 ]);
+            }
+            $sensorOptions = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
+            if ($type === VARIABLETYPE_STRING && $sensorOptions !== []) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                                     'OPTIONS'      => $this->getValuePresentationOptions($sensorOptions)
                                                  ]);
             }
         }
