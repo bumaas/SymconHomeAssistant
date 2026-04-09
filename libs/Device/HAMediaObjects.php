@@ -41,7 +41,7 @@ trait HAMediaObjectsTrait
             $entityId,
             self::CAMERA_PREVIEW_SUFFIX,
             $basePosition,
-            $this->Translate('Preview'),
+            $this->getCameraPreviewMediaName($entityId),
             'CameraPreview',
             'ha_camera_preview'
         );
@@ -119,6 +119,7 @@ trait HAMediaObjectsTrait
             $entityId,
             $absoluteUrl,
             self::CAMERA_PREVIEW_SUFFIX,
+            $this->getCameraPreviewMediaName($entityId),
             'CameraPreview',
             'ha_camera_preview'
         );
@@ -155,13 +156,14 @@ trait HAMediaObjectsTrait
         string $entityId,
         string $absoluteUrl,
         string $suffix,
+        string $name,
         string $debugCategory,
         string $filePrefix
     ): void {
         $ident = $this->sanitizeIdent($entityId) . $suffix;
         $mediaId = @$this->GetIDForIdent($ident);
         if ($mediaId === false) {
-            if (!$this->ensureEntityPreviewMedia($entityId, $suffix, 0, $this->Translate('Preview'), $debugCategory, $filePrefix)) {
+            if (!$this->ensureEntityPreviewMedia($entityId, $suffix, 0, $name, $debugCategory, $filePrefix)) {
                 return;
             }
             $mediaId = @$this->GetIDForIdent($ident);
@@ -178,6 +180,30 @@ trait HAMediaObjectsTrait
         $this->ensureEntityPreviewMediaFile($mediaId, $ident, $absoluteUrl, $filePrefix);
         IPS_SetMediaContent($mediaId, base64_encode($content));
         $this->debugExpert($debugCategory, 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
+    }
+
+    private function getCameraPreviewMediaName(string $entityId): string
+    {
+        $baseName = $this->getEntityFriendlyName($entityId);
+        if ($baseName === null) {
+            return $this->Translate('Preview');
+        }
+        return $baseName . ' (' . $this->Translate('Preview') . ')';
+    }
+
+    private function getCameraStreamMediaName(string $entityId): string
+    {
+        return $this->getEntityFriendlyName($entityId) ?? $this->Translate('Stream');
+    }
+
+    private function getEntityFriendlyName(string $entityId): ?string
+    {
+        $name = $this->entities[$entityId]['name'] ?? null;
+        if (!is_string($name)) {
+            return null;
+        }
+        $name = trim($name);
+        return $name !== '' ? $name : null;
     }
 
     private function ensureEntityPreviewMediaFile(int $mediaId, string $ident, string $url, string $filePrefix): void

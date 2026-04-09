@@ -159,6 +159,7 @@ trait HADomainAttributeMaintenanceTrait
             $entityId,
             $previewUrl,
             self::IMAGE_PREVIEW_SUFFIX,
+            $this->Translate('Preview'),
             'ImagePreview',
             'ha_image_preview'
         );
@@ -207,7 +208,14 @@ trait HADomainAttributeMaintenanceTrait
 
     private function syncCameraStreamMeta(int $mediaId, int $basePosition): void
     {
-        IPS_SetName($mediaId, $this->Translate('Stream'));
+        $ident = IPS_GetObject($mediaId)['ObjectIdent'] ?? '';
+        $entityId = '';
+        if (is_string($ident) && str_ends_with($ident, self::CAMERA_STREAM_SUFFIX)) {
+            $entityId = substr($ident, 0, -strlen(self::CAMERA_STREAM_SUFFIX));
+        }
+        $resolvedEntityId = $entityId !== '' ? $this->getEntityIdByIdent($entityId) : null;
+        $name = $resolvedEntityId !== null ? $this->getCameraStreamMediaName($resolvedEntityId) : $this->Translate('Stream');
+        IPS_SetName($mediaId, $name);
         IPS_SetPosition($mediaId, $basePosition + 21);
         IPS_SetParent($mediaId, $this->InstanceID);
     }

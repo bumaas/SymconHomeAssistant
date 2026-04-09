@@ -988,9 +988,6 @@ trait HAPresentationTrait
 
     private function getEntityVariableName(string $domain, array $entity): string
     {
-        if ($domain === HALockDefinitions::DOMAIN) {
-            return $this->Translate('Lock');
-        }
         if ($domain === HAClimateDefinitions::DOMAIN) {
             $attributes = $entity['attributes'] ?? [];
             if (is_array($attributes)) {
@@ -1020,6 +1017,7 @@ trait HAPresentationTrait
     private function isStatusDomain(string $domain): bool
     {
         return in_array($domain, [
+            HALockDefinitions::DOMAIN,
             HAMediaPlayerDefinitions::DOMAIN,
             HACameraDefinitions::DOMAIN,
             HAImageDefinitions::DOMAIN,
