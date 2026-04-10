@@ -449,151 +449,120 @@ trait HADomainAttributeMaintenanceTrait
             return;
         }
 
-        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
-        foreach (HALightDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!$this->shouldCreateLightAttribute($key, $attributes)) {
-                continue;
+        $basePosition = $this->getEntityPosition((string)$entity['entity_id']);
+        $this->maintainStandardAttributeVariables(
+            $entity,
+            HALightDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attribute, array $_meta, array $entityAttributes): bool => $this->shouldCreateLightAttribute($attribute, $entityAttributes),
+            fn(string $attribute, array $entityAttributes, array $meta): array => $this->getLightAttributePresentation($attribute, $entityAttributes, $meta),
+            fn(string $attribute, int $positionBase): int => $this->getLightAttributePosition($attribute, $positionBase),
+            function (string $attribute, array $entityAttributes, string $ident) {
+                $this->syncAttributeActionState($ident, $this->isWritableLightAttribute($attribute, $entityAttributes));
+            },
+            $basePosition,
+            fn(string $attribute, array $_meta, array $entityAttributes): bool => $attribute !== 'color_mode' && !$this->isWritableLightAttribute($attribute, $entityAttributes),
+            function (string $attribute, array $meta, string $entityId, array $entityAttributes) {
+                $ident = $this->getAttributeVariableIdent($entityId, $attribute);
+                $this->debugExpert('LightVars', 'Variable angelegt', [
+                    'Ident' => $ident,
+                    'Name' => $this->Translate((string)$meta['caption']),
+                    'Presentation' => $this->getLightAttributePresentation($attribute, $entityAttributes, $meta)
+                ]);
             }
-            if ($key !== 'color_mode' && !$this->isWritableLightAttribute($key, $attributes)) {
-                continue;
-            }
-
-            $ident        = $baseIdent . '_' . $key;
-            $name         = $this->Translate((string)$meta['caption']);
-            $basePosition = $this->getEntityPosition($entity['entity_id']);
-            $position     = $this->getLightAttributePosition($key, $basePosition);
-            $presentation = $this->getLightAttributePresentation($key, $attributes, $meta);
-            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-            $this->debugExpert('LightVars', 'Variable angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-            $this->syncAttributeActionState($ident, $this->isWritableLightAttribute($key, $attributes));
-        }
+        );
     }
 
     // Erstellt Light-Attribute bei nachgelieferten Attributen aus Laufzeitdaten.
     private function ensureLightAttributeVariable(string $entityId, string $attribute): bool
     {
-        $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if ($meta === null) {
-            return false;
-        }
-
-        $entity = $this->entities[$entityId] ?? [
-            'entity_id' => $entityId,
-            'name'      => $entityId
-        ];
-
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        if (@$this->GetIDForIdent($ident) !== false) {
-            return true;
-        }
-
-        $attributes   = $entity['attributes'] ?? null;
-        $attributesArray = is_array($attributes) ? $attributes : [];
-        if (!$this->shouldCreateLightAttribute($attribute, $attributesArray)) {
-            return false;
-        }
-        $name         = $this->Translate((string)$meta['caption']);
-        $basePosition = 0;
-        $position     = $this->getLightAttributePosition($attribute, $basePosition);
-        $presentation = $this->getLightAttributePresentation($attribute, $attributesArray, $meta);
-        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        $this->debugExpert('LightVars', 'Variable nachträglich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-        $this->syncAttributeActionState($ident, $this->isWritableLightAttribute($attribute, $attributesArray));
-        return true;
+        return $this->ensureStandardAttributeVariable(
+            $entityId,
+            $attribute,
+            HALightDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attributeName, array $_meta, array $entityAttributes): bool => $this->shouldCreateLightAttribute($attributeName, $entityAttributes),
+            fn(string $attributeName, array $entityAttributes, array $meta): array => $this->getLightAttributePresentation($attributeName, $entityAttributes, $meta),
+            fn(string $attributeName, int $positionBase): int => $this->getLightAttributePosition($attributeName, $positionBase),
+            function (string $attributeName, array $entityAttributes, string $ident) {
+                $this->syncAttributeActionState($ident, $this->isWritableLightAttribute($attributeName, $entityAttributes));
+            },
+            0,
+            ['name' => $entityId],
+            null,
+            null,
+            function (string $attributeName, array $meta, string $resolvedEntityId, array $entityAttributes) {
+                $ident = $this->getAttributeVariableIdent($resolvedEntityId, $attributeName);
+                $this->debugExpert('LightVars', 'Variable nachträglich angelegt', [
+                    'Ident' => $ident,
+                    'Name' => $this->Translate((string)$meta['caption']),
+                    'Presentation' => $this->getLightAttributePresentation($attributeName, $entityAttributes, $meta)
+                ]);
+            }
+        );
     }
     private function updateLightAttributeValues(string $entityId, array $attributes): void
     {
-        foreach (HALightDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!array_key_exists($key, $attributes)) {
-                continue;
-            }
-
-            $ident = $this->sanitizeIdent($entityId . '_' . $key);
-            $varId = @$this->GetIDForIdent($ident);
-            if ($varId === false) {
-                continue;
-            }
-
-            $value = $attributes[$key];
-            if ($key === 'rgb_color') {
-                $value = $this->formatRgbColorStorageValue($value);
-            } elseif (is_array($value)) {
-                $value = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            }
-            $value = $this->castVariableValue($value, $meta['type']);
-            $this->setValueWithDebug($ident, $value);
-        }
-        $this->refreshDomainAttributePresentations(HALightDefinitions::DOMAIN, $entityId, $attributes);
+        $this->updateStandardAttributeValues(
+            $entityId,
+            $attributes,
+            HALightDefinitions::ATTRIBUTE_DEFINITIONS,
+            function (string $attribute, mixed $value, array $meta): mixed {
+                if ($attribute === 'rgb_color') {
+                    $value = $this->formatRgbColorStorageValue($value);
+                } elseif (is_array($value)) {
+                    $value = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                }
+                return $this->castVariableValue($value, $meta['type']);
+            },
+            null,
+            HALightDefinitions::DOMAIN
+        );
     }
 
     // Lock-Zusatzattribute spiegeln optionale HA-Metadaten wie Auslöser und Codeformat.
     private function maintainLockAttributeVariables(array $entity): void
     {
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            return;
-        }
+        $basePosition = $this->getEntityPosition((string)($entity['entity_id'] ?? ''));
 
-        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
-        $basePosition = $this->getEntityPosition($entity['entity_id']);
-        foreach (HALockDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!array_key_exists($key, $attributes)) {
-                continue;
-            }
-
-            $ident = $baseIdent . '_' . $key;
-            $name = $this->Translate((string) $meta['caption']);
-            $position = $this->getLockAttributePosition($key, $basePosition);
-            $presentation = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION];
-            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-            $this->DisableAction($ident);
-        }
+        $this->maintainStandardAttributeVariables(
+            $entity,
+            HALockDefinitions::ATTRIBUTE_DEFINITIONS,
+            static fn(string $attribute, array $_meta, array $attributes): bool => array_key_exists($attribute, $attributes),
+            static fn(string $_attribute, array $_attributes, array $_meta): array => ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION],
+            fn(string $attribute, int $positionBase): int => $this->getLockAttributePosition($attribute, $positionBase),
+            function (string $_attribute, array $_attributes, string $ident) {
+                $this->syncAttributeActionState($ident, false);
+            },
+            $basePosition
+        );
     }
 
     private function ensureLockAttributeVariable(string $entityId, string $attribute): bool
     {
-        $meta = HALockDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if ($meta === null) {
-            return false;
-        }
+        $basePosition = $this->getEntityPosition($entityId);
 
-        $entity = $this->entities[$entityId] ?? [
-            'entity_id' => $entityId,
-            'name'      => $entityId
-        ];
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes) || !array_key_exists($attribute, $attributes)) {
-            return false;
-        }
-
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        if (@$this->GetIDForIdent($ident) !== false) {
-            return true;
-        }
-
-        $name = $this->Translate((string) $meta['caption']);
-        $position = $this->getLockAttributePosition($attribute, $this->getEntityPosition($entityId));
-        $presentation = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION];
-        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        $this->DisableAction($ident);
-        return true;
+        return $this->ensureStandardAttributeVariable(
+            $entityId,
+            $attribute,
+            HALockDefinitions::ATTRIBUTE_DEFINITIONS,
+            static fn(string $attributeName, array $_meta, array $attributes): bool => array_key_exists($attributeName, $attributes),
+            static fn(string $_attributeName, array $_attributes, array $_meta): array => ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION],
+            fn(string $attributeName, int $positionBase): int => $this->getLockAttributePosition($attributeName, $positionBase),
+            function (string $_attributeName, array $_attributes, string $ident) {
+                $this->syncAttributeActionState($ident, false);
+            },
+            $basePosition,
+            ['name' => $entityId, 'attributes' => []]
+        );
     }
 
     private function updateLockAttributeValues(string $entityId, array $attributes): void
     {
-        foreach (HALockDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!array_key_exists($key, $attributes)) {
-                continue;
-            }
-
-            $ident = $this->sanitizeIdent($entityId . '_' . $key);
-            if (@$this->GetIDForIdent($ident) === false) {
-                continue;
-            }
-
-            $value = $this->castVariableValue($attributes[$key], $meta['type']);
-            $this->setValueWithDebug($ident, $value);
-        }
+        $this->updateStandardAttributeValues(
+            $entityId,
+            $attributes,
+            HALockDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type'])
+        );
     }
 
     // Climate erzeugt Attribute auch dann, wenn nur die Optionslisten vorhanden sind.
@@ -605,81 +574,65 @@ trait HADomainAttributeMaintenanceTrait
             return;
         }
 
-        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
-
-        foreach (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!$this->shouldCreateClimateAttribute($key, $meta, $attributes)) {
-                continue;
-            }
-
-            $ident        = $baseIdent . '_' . $key;
-            $name         = $this->Translate((string)$meta['caption']);
-            $basePosition = $this->getEntityPosition($entity['entity_id']);
-            $position     = $this->getClimateAttributePosition($key, $basePosition);
-            $presentation = $this->getClimateAttributePresentation($key, $attributes);
-            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-            $this->syncAttributeActionState($ident, $this->isWritableClimateAttribute($key, $attributes));
-            $this->debugExpert('ClimateVars', 'Variable angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-        }
+        $basePosition = $this->getEntityPosition((string)$entity['entity_id']);
+        $this->maintainStandardAttributeVariables(
+            $entity,
+            HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attribute, array $meta, array $entityAttributes): bool => $this->shouldCreateClimateAttribute($attribute, $meta, $entityAttributes),
+            fn(string $attribute, array $entityAttributes, array $_meta): array => $this->getClimateAttributePresentation($attribute, $entityAttributes),
+            fn(string $attribute, int $positionBase): int => $this->getClimateAttributePosition($attribute, $positionBase),
+            function (string $attribute, array $entityAttributes, string $ident) {
+                $this->syncAttributeActionState($ident, $this->isWritableClimateAttribute($attribute, $entityAttributes));
+            },
+            $basePosition
+        );
     }
 
     // Climate-Attribute kÃ¶nnen erst nach dem ersten State vollstÃ¤ndig beurteilbar sein.
     private function ensureClimateAttributeVariable(string $entityId, string $attribute): bool
     {
-        $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if ($meta === null) {
-            return false;
-        }
-
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        if (@$this->GetIDForIdent($ident) !== false) {
-            return true;
-        }
-
-        $entity = $this->entities[$entityId] ?? [
-            'entity_id' => $entityId,
-            'name'      => $entityId
-        ];
-
-        $attributes   = $entity['attributes'] ?? [];
-        $name         = $this->Translate((string)$meta['caption']);
         $basePosition = $this->getEntityPosition($entityId);
-        $position     = $this->getClimateAttributePosition($attribute, $basePosition);
-        $presentation = $this->getClimateAttributePresentation($attribute, is_array($attributes) ? $attributes : []);
-        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        $this->syncAttributeActionState($ident, $this->isWritableClimateAttribute($attribute, is_array($attributes) ? $attributes : []));
-        $this->debugExpert('ClimateVars', 'Variable nachtrÃ¤glich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-        return true;
+
+        return $this->ensureStandardAttributeVariable(
+            $entityId,
+            $attribute,
+            HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attributeName, array $meta, array $entityAttributes): bool => $this->shouldCreateClimateAttribute($attributeName, $meta, $entityAttributes),
+            fn(string $attributeName, array $entityAttributes, array $_meta): array => $this->getClimateAttributePresentation($attributeName, $entityAttributes),
+            fn(string $attributeName, int $positionBase): int => $this->getClimateAttributePosition($attributeName, $positionBase),
+            function (string $attributeName, array $entityAttributes, string $ident) {
+                $this->syncAttributeActionState($ident, $this->isWritableClimateAttribute($attributeName, $entityAttributes));
+            },
+            $basePosition,
+            ['name' => $entityId],
+            static function (string $attributeName, array $attributes): array {
+                if (!array_key_exists($attributeName, $attributes)) {
+                    $attributes[$attributeName] = null;
+                }
+                return $attributes;
+            }
+        );
     }
 
     // FÃ¼r HVAC-Mode wird notfalls der Hauptzustand als Fallback verwendet.
     private function updateClimateAttributeValues(string $entityId, array $attributes): void
     {
-        foreach (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            $hasAttributeValue = array_key_exists($key, $attributes);
-            if (!$hasAttributeValue && $key !== HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
-                continue;
+        $attributesWithFallback = $attributes;
+        if (!array_key_exists(HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $attributesWithFallback)) {
+            $state = $this->entities[$entityId][self::KEY_STATE] ?? null;
+            if (is_string($state) && $state !== '') {
+                $attributesWithFallback[HAClimateDefinitions::ATTRIBUTE_HVAC_MODE] = $state;
             }
-
-            $ident = $this->sanitizeIdent($entityId . '_' . $key);
-            $varId = @$this->GetIDForIdent($ident);
-            if ($varId === false) {
-                continue;
-            }
-
-            if ($hasAttributeValue) {
-                $value = $this->castVariableValue($attributes[$key], $meta['type']);
-            } else {
-                $state = $this->entities[$entityId][self::KEY_STATE] ?? null;
-                if (is_string($state) && $state !== '') {
-                    $value = $this->castVariableValue($state, $meta['type']);
-                } else {
-                    continue;
-                }
-            }
-            $this->setValueWithDebug($ident, $value);
         }
-        $this->refreshDomainAttributePresentations(HAClimateDefinitions::DOMAIN, $entityId, $attributes);
+
+        $this->updateStandardAttributeValues(
+            $entityId,
+            $attributesWithFallback,
+            HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type']),
+            null,
+            HAClimateDefinitions::DOMAIN
+        );
     }
 
     // Climate bleibt bei einer einfachen, festen Reihenfolge entlang der Definitionsliste.
@@ -727,75 +680,69 @@ trait HADomainAttributeMaintenanceTrait
             $attributes = [];
         }
 
-        foreach ($this->getMaintainedCoverAttributes($attributes) as $key) {
-            $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$key] ?? null;
-            if (!is_array($meta)) {
-                continue;
-            }
-            if (!$this->shouldCreateCoverAttribute($key, $meta, $attributes)) {
-                continue;
-            }
-            $this->ensureCoverAttributeVariable($entity['entity_id'], $key);
-        }
+        $basePosition = $this->getEntityPosition((string)($entity['entity_id'] ?? ''));
+        $this->maintainStandardAttributeVariables(
+            $entity,
+            $this->getMaintainedCoverAttributeDefinitions($attributes),
+            fn(string $attribute, array $meta, array $entityAttributes): bool => $this->shouldCreateCoverAttribute($attribute, $meta, $entityAttributes),
+            fn(string $_attribute, array $_entityAttributes, array $meta): array => $this->getCoverAttributePresentation($meta),
+            fn(string $attribute, int $positionBase): int => $this->getCoverAttributePosition($attribute, $positionBase),
+            function (string $attribute, array $entityAttributes, string $ident) {
+                $this->syncAttributeActionState($ident, $this->isWritableCoverAttribute($attribute, $entityAttributes));
+            },
+            $basePosition
+        );
     }
 
     private function ensureCoverAttributeVariable(string $entityId, string $attribute): bool
     {
-        $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if ($meta === null) {
-            return false;
-        }
-
         $entity = $this->entities[$entityId] ?? [
-            'entity_id' => $entityId,
+            'entity_id'  => $entityId,
             'attributes' => []
         ];
         $attributes = $entity['attributes'] ?? [];
         if (!is_array($attributes)) {
             $attributes = [];
         }
-        if (!$this->shouldCreateCoverAttribute($attribute, $meta, $attributes)) {
-            return false;
-        }
 
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        if (@$this->GetIDForIdent($ident) !== false) {
-            return true;
-        }
-
-        $name         = $meta['caption'];
         $basePosition = $this->getEntityPosition($entityId);
-        $position     = $this->getCoverAttributePosition($attribute, $basePosition);
-        $presentation = $this->getCoverAttributePresentation($meta);
-        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        $this->debugExpert('CoverVars', 'Variable nachtrÃ¤glich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-        $this->syncAttributeActionState($ident, $this->isWritableCoverAttribute($attribute, $attributes));
-        return true;
+        return $this->ensureStandardAttributeVariable(
+            $entityId,
+            $attribute,
+            $this->getMaintainedCoverAttributeDefinitions($attributes),
+            fn(string $attributeName, array $meta, array $entityAttributes): bool => $this->shouldCreateCoverAttribute($attributeName, $meta, $entityAttributes),
+            fn(string $_attributeName, array $_entityAttributes, array $meta): array => $this->getCoverAttributePresentation($meta),
+            fn(string $attributeName, int $positionBase): int => $this->getCoverAttributePosition($attributeName, $positionBase),
+            function (string $attributeName, array $entityAttributes, string $ident) {
+                $this->syncAttributeActionState($ident, $this->isWritableCoverAttribute($attributeName, $entityAttributes));
+            },
+            $basePosition,
+            ['attributes' => []]
+        );
     }
 
     // Cover spiegelt Positionsattribute auf Zusatzvariablen und Hauptwert.
     private function updateCoverAttributeValues(string $entityId, array $attributes, string $state = ''): void
     {
-        foreach ($this->getMaintainedCoverAttributes($attributes) as $key) {
-            $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$key] ?? null;
-            if (!is_array($meta)) {
-                continue;
+        $definitions = $this->getMaintainedCoverAttributeDefinitions($attributes);
+        $attributeValues = [];
+        foreach (array_keys($definitions) as $attribute) {
+            $rawValue = $this->getCoverAttributeValue($attributes, $attribute);
+            if (is_numeric($rawValue)) {
+                $attributeValues[$attribute] = $rawValue;
             }
-
-            $ident = $this->sanitizeIdent($entityId . '_' . $key);
-            if (@$this->GetIDForIdent($ident) === false) {
-                continue;
-            }
-
-            $rawValue = $this->getCoverAttributeValue($attributes, $key);
-            if (!is_numeric($rawValue)) {
-                continue;
-            }
-
-            $value = $this->castVariableValue($rawValue, $meta['type']);
-            $this->setValueWithDebug($ident, $value);
-            $this->syncAttributeActionState($ident, $this->isWritableCoverAttribute($key, $attributes));
         }
+
+        $this->updateStandardAttributeValues(
+            $entityId,
+            $attributeValues,
+            $definitions,
+            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type']),
+            function (string $attribute, mixed $_value, mixed $_rawValue, array $_meta, array $_attributeValues) use ($entityId, $attributes) {
+                $ident = $this->getAttributeVariableIdent($entityId, $attribute);
+                $this->syncAttributeActionState($ident, $this->isWritableCoverAttribute($attribute, $attributes));
+            }
+        );
 
         $mainValue = $this->resolveCoverMainValue($attributes, $state);
         if ($mainValue === null) {
@@ -841,6 +788,17 @@ trait HADomainAttributeMaintenanceTrait
         }
 
         return [HACoverDefinitions::ATTRIBUTE_TILT_POSITION];
+    }
+
+    // Cover pflegt nur die aktuell im Entity-Kontext relevanten Zusatzattribute.
+    private function getMaintainedCoverAttributeDefinitions(array $attributes = []): array
+    {
+        $keys = $this->getMaintainedCoverAttributes($attributes);
+        if ($keys === []) {
+            return [];
+        }
+
+        return array_intersect_key(HACoverDefinitions::ATTRIBUTE_DEFINITIONS, array_flip($keys));
     }
 
     private function getCoverAttributeValue(array $attributes, string $attribute): mixed
