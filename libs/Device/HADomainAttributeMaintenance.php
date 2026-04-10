@@ -329,7 +329,7 @@ trait HADomainAttributeMaintenanceTrait
             return false;
         }
 
-        // Modus-Attribute sind nur sinnvoll, wenn HA die zugehörigen Optionen liefert.
+        // Modus-Attribute sind nur sinnvoll, wenn HA die passenden Optionen liefert.
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
             return $this->getClimateSelectableValues($entityAttributes, HAClimateDefinitions::ATTRIBUTE_HVAC_MODES) !== [];
         }
@@ -377,7 +377,7 @@ trait HADomainAttributeMaintenanceTrait
         return $hasAttribute;
     }
 
-    // Light-Attribute hängen stark von Features und Color-Modes ab.
+    // Light-Attribute hÃ¤ngen stark von Features und Color-Modes ab.
     private function isWritableLightAttribute(string $attribute, array $entityAttributes = []): bool
     {
         $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
@@ -422,7 +422,7 @@ trait HADomainAttributeMaintenanceTrait
             return $modes !== [] || (is_string($currentMode) && trim($currentMode) !== '');
         }
 
-        // Light-Fähigkeiten kommen oft nur über Features und Color-Modes, nicht über den aktuellen State.
+        // Light-FÃ¤higkeiten kommen oft nur Ã¼ber Features und Color-Modes, nicht Ã¼ber den aktuellen State.
         return $this->checkSupportedFeatures($meta, $attributes)
             && $this->checkSupportedColorModes($meta, $attributes)
             && (($meta['writable'] ?? false) === true);
@@ -478,7 +478,7 @@ trait HADomainAttributeMaintenanceTrait
             null,
             function (string $attributeName, array $meta, string $resolvedEntityId, array $entityAttributes) {
                 $ident = $this->getAttributeVariableIdent($resolvedEntityId, $attributeName);
-                $this->debugExpert('LightVars', 'Variable nachträglich angelegt', [
+                $this->debugExpert('LightVars', 'Variable nachtrÃ¤glich angelegt', [
                     'Ident' => $ident,
                     'Name' => $this->Translate((string)$meta['caption']),
                     'Presentation' => $this->getLightAttributePresentation($attributeName, $entityAttributes, $meta)
@@ -505,7 +505,7 @@ trait HADomainAttributeMaintenanceTrait
         );
     }
 
-    // Lock-Zusatzattribute spiegeln optionale HA-Metadaten wie Auslöser und Codeformat.
+    // Lock-Zusatzattribute spiegeln optionale HA-Metadaten wie AuslÃ¶ser und Codeformat.
     private function maintainLockAttributeVariables(array $entity): void
     {
         $basePosition = $this->getEntityPosition((string)($entity['entity_id'] ?? ''));
@@ -1503,7 +1503,6 @@ trait HADomainAttributeMaintenanceTrait
         return false;
     }
 }
-
 
 
 

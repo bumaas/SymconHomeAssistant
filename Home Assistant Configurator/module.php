@@ -402,7 +402,7 @@ EOT;
             }
             if (isset($this->entities[$entity['entity_id']])) {
                 $cached = $this->entities[$entity['entity_id']];
-                // Name und Attribute vom Cache Ã¼bernehmen/aktualisieren
+                // Name und Attribute vom Cache übernehmen/aktualisieren
                 $finalEntity = array_merge($finalEntity, [
                     'attributes' => $cached['attributes'] ?? []
                 ]);
@@ -429,7 +429,7 @@ EOT;
                 $finalEntity['attributes'] = '{}';
             }
 
-                // AufrÃ¤umen: Diese Daten sind jetzt redundant, da im Device global gespeichert
+                // Aufräumen: Diese Daten sind jetzt redundant, da im Device global gespeichert
                 unset($finalEntity['area'], $finalEntity['device']);
 
             $entitiesForConfig[] = $finalEntity;
@@ -458,7 +458,7 @@ EOT;
                     'DeviceID'     => $dev['device_id'],
                     'DeviceArea'   => $dev['area'],
                     'DeviceName'   => $dev['name'],
-                    // Bereinigte Liste Ã¼bergeben
+                    // Bereinigte Liste übergeben
                     'DeviceConfig' => json_encode($entitiesForConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
                 ],
                 'name'          => $dev['name']
@@ -488,7 +488,7 @@ EOT;
             }
             // Show additional instances with the same DeviceID (misconfiguration).
             foreach (array_slice($instanceIds, 1) as $instanceId) {
-                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('Doppelte GerÃ¤te-ID'));
+                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('Doppelte Geräte-ID'));
             }
         }
     }
@@ -535,11 +535,11 @@ EOT;
     }
 
     /**
-     * Bereinigt die EntitÃ¤ts-Namen eines GerÃ¤ts, indem ein fÃ¼hrendes Bereichs-PrÃ¤fix entfernt wird.
+     * Bereinigt die Entitäts-Namen eines Geräts, indem ein führendes Bereichs-Präfix entfernt wird.
      *
-     * @param array $dev Das gruppierte GerÃ¤t inklusive seiner EntitÃ¤ten.
+     * @param array $dev Das gruppierte Gerät inklusive seiner Entitäten.
      *
-     * @return array Liste der bereinigten EntitÃ¤ten.
+     * @return array Liste der bereinigten Entitäten.
      */
     private function getCleanedEntities(array $dev): array
     {
@@ -582,28 +582,28 @@ EOT;
     }
 
     /**
-     * Erstellt eine kompakte Zusammenfassung der EntitÃ¤ten fÃ¼r die Anzeige im Konfigurator.
+     * Erstellt eine kompakte Zusammenfassung der Entitäten für die Anzeige im Konfigurator.
      *
-     * Bei bis zu <ENTITY_SUMMARY_MAX_NAMES> EntitÃ¤ten werden deren Namen aufgelistet, bei mehr EntitÃ¤ten
+     * Bei bis zu <ENTITY_SUMMARY_MAX_NAMES> Entitäten werden deren Namen aufgelistet, bei mehr Entitäten
      * wird lediglich die Gesamtzahl ausgegeben.
      *
-     * @param array $entities Liste der (bereinigten) EntitÃ¤ten.
+     * @param array $entities Liste der (bereinigten) Entitäten.
      *
-     * @return string Zusammenfassender Text fÃ¼r die Spalte 'EntitÃ¤ten'.
+     * @return string Zusammenfassender Text für die Spalte 'Entitäten'.
      */
     private function generateEntitySummary(array $entities): string
     {
         if (count($entities) <= self::ENTITY_SUMMARY_MAX_NAMES) {
             return implode(', ', array_column($entities, 'name'));
         }
-        return count($entities) . ' EntitÃ¤ten';
+        return count($entities) . ' Entitäten';
     }
 
     /**
-     * Aktualisiert den internen Cache der Home Assistant EntitÃ¤ten.
+     * Aktualisiert den internen Cache der Home Assistant Entitäten.
      *
-     * Neu: FÃ¼hrt nur noch EINEN Request aus, der gefilterte EntitÃ¤ten inklusive
-     * aller GerÃ¤te-Metadaten zurÃ¼ckliefert.
+     * Neu: Führt nur noch EINEN Request aus, der gefilterte Entitäten inklusive
+     * aller Geräte-Metadaten zurückliefert.
      */
     private function UpdateCacheFromHA(): void
     {
@@ -638,9 +638,9 @@ EOT;
             $this->debugExpert(__FUNCTION__, 'Domain-Filter inaktiv. Lade alle Domains.');
             $entityIds = $this->fetchEntityIdsForAllDomains();
             if ($entityIds === null) {
-                $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs) fÃ¼r alle Domains');
+                $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs) für alle Domains');
             } elseif ($entityIds === []) {
-                $this->debugExpert(__FUNCTION__, 'Keine Entities fÃ¼r alle Domains');
+                $this->debugExpert(__FUNCTION__, 'Keine Entities für alle Domains');
             } else {
                 $this->loadEntitiesByIds($entityIds, $newEntities);
             }
@@ -718,7 +718,7 @@ EOT;
                 }
                 unset($entity['supported_features']);
                 if ($entity['device_name'] === 'Unbekannt' || $entity['device_id'] === 'none') {
-                    $entity['device'] = ucfirst($entity['domain']) . ' (Ohne GerÃ¤t)';
+                    $entity['device'] = ucfirst($entity['domain']) . ' (Ohne Gerät)';
                 } else {
                     $entity['device'] = $entity['device_name'];
                 }
@@ -766,20 +766,20 @@ EOT;
     }
 
     /**
-     * Transformiert die Rohdaten einer Home Assistant EntitÃ¤t in ein internes Format.
+     * Transformiert die Rohdaten einer Home Assistant Entität in ein internes Format.
      *
-     * Dabei werden GerÃ¤teinformationen (Name, ID, Bereich) zugeordnet und ein
-     * Anzeigename fÃ¼r das GerÃ¤t generiert, falls die EntitÃ¤t keinem spezifischen
-     * GerÃ¤t zugeordnet ist.
+     * Dabei werden Geräteinformationen (Name, ID, Bereich) zugeordnet und ein
+     * Anzeigename für das Gerät generiert, falls die Entität keinem spezifischen
+     * Gerät zugeordnet ist.
      *
-     * @param array      $state      Die Zustandsdaten der EntitÃ¤t aus der HA-API.
-     * @param array|null $deviceInfo Optionale GerÃ¤te-Metadaten (Name, ID, Bereich).
+     * @param array      $state      Die Zustandsdaten der Entität aus der HA-API.
+     * @param array|null $deviceInfo Optionale Geräte-Metadaten (Name, ID, Bereich).
      *
-     * @return array Die gemappten EntitÃ¤tsdaten fÃ¼r den Cache und den Konfigurator.
+     * @return array Die gemappten Entitätsdaten für den Cache und den Konfigurator.
      */
 
     /**
-     * Sortiert die aktuell geladenen EntitÃ¤ten nach Bereich, GerÃ¤t und Namen
+     * Sortiert die aktuell geladenen Entitäten nach Bereich, Gerät und Namen
      * und gibt diese zur Kontrolle im Debug-Log aus.
      *
      * @return void
@@ -801,7 +801,7 @@ EOT;
         });
 
         foreach ($debugList as $entity) {
-            // Attribute fÃ¼r die Debug-Ausgabe als String formatieren
+            // Attribute für die Debug-Ausgabe als String formatieren
             $attributes = json_encode($entity['attributes'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $this->debugExpert(
                 __FUNCTION__,

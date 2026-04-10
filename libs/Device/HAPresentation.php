@@ -751,7 +751,7 @@ trait HAPresentationTrait
         $isPercentage = false;
         $displaySuffix = $presentationSuffix;
         if ($this->isIntensitySliderRange((float)$min, (float)$max) && trim($suffix) === '' && $digits === 0) {
-            $usageType = 2; // Intensitaet
+            $usageType = 2; // Intensität
             $isPercentage = true;
             $displaySuffix = $this->formatPresentationSuffix('%');
         }
