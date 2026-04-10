@@ -25,19 +25,6 @@ trait HADomainAttributeMaintenanceTrait
         return $hasAttribute;
     }
 
-    // Der State-Cache dient als Fallback für Attribute mit unvollständigen MQTT-Updates.
-    private function getCachedEntityState(string $entityId): ?string
-    {
-        $cache = $this->decodeJsonArray($this->ReadAttributeString('EntityStateCache'), __FUNCTION__);
-        if ($cache === null || !isset($cache[$entityId]) || !is_array($cache[$entityId])) {
-            return null;
-        }
-        $state = $cache[$entityId][self::KEY_STATE] ?? null;
-        if (!is_string($state) || trim($state) === '') {
-            return null;
-        }
-        return $state;
-    }
 
     // Media-Player bündelt viele abgeleitete Attribute und zusätzliche Medienobjekte.
     private function maintainMediaPlayerAttributeVariables(array $entity): void
@@ -1501,24 +1488,14 @@ trait HADomainAttributeMaintenanceTrait
             }
         }
 
-        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), __FUNCTION__);
-        if (is_array($configData)) {
-            foreach ($configData as $row) {
-                $row = $this->normalizeEntity($row, __FUNCTION__);
-                if ($row === null) {
-                    continue;
-                }
-                if (($row['create_var'] ?? true) === false) {
-                    continue;
-                }
-                $domain = $row['domain'] ?? $this->getEntityDomain($row['entity_id']);
-                if ($domain !== $config['domain']) {
-                    continue;
-                }
-                foreach ($config['suffixes'] as $suffix) {
-                    if ($matchesSuffix($row['entity_id'], $suffix)) {
-                        return true;
-                    }
+        foreach ($this->getConfiguredEntities(__FUNCTION__) as $row) {
+            $domain = $row['domain'] ?? $this->getEntityDomain($row['entity_id']);
+            if ($domain !== $config['domain']) {
+                continue;
+            }
+            foreach ($config['suffixes'] as $suffix) {
+                if ($matchesSuffix($row['entity_id'], $suffix)) {
+                    return true;
                 }
             }
         }

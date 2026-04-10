@@ -211,8 +211,8 @@ class HomeAssistantDevice extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function UpdateMediaPlayerProgress(): void
     {
-        $cache = $this->decodeJsonArray($this->ReadAttributeString('EntityStateCache'), __FUNCTION__);
-        if ($cache === null || $cache === []) {
+        $cache = $this->readEntityStateCache();
+        if ($cache === []) {
             return;
         }
 

@@ -124,19 +124,31 @@ trait HAEntityNormalizationTrait
         return $resolved;
     }
 
-    // Sucht die normalisierte Konfigurationszeile für eine Entity-ID.
-    private function findConfiguredEntityById(string $entityId): ?array
+    // Konfigurations-Entities werden einmal zentral normalisiert und gefiltert.
+    private function getConfiguredEntities(string $context): array
     {
-        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), __FUNCTION__);
+        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), $context);
         if ($configData === null) {
-            return null;
+            return [];
         }
 
+        $configuredEntities = [];
         foreach ($configData as $row) {
-            $row = $this->normalizeEntity($row, __FUNCTION__);
+            $row = $this->normalizeEntity($row, $context);
             if ($row === null || (($row['create_var'] ?? true) === false)) {
                 continue;
             }
+
+            $configuredEntities[] = $row;
+        }
+
+        return $configuredEntities;
+    }
+
+    // Sucht die passende Konfigurationszeile zu einer Entity-ID.
+    private function findConfiguredEntityById(string $entityId): ?array
+    {
+        foreach ($this->getConfiguredEntities(__FUNCTION__) as $row) {
             if (($row['entity_id'] ?? '') === $entityId) {
                 return $row;
             }

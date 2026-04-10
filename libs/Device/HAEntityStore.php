@@ -10,16 +10,7 @@ trait HAEntityStoreTrait
             return true;
         }
 
-        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), __FUNCTION__);
-        if ($configData === null) {
-            return false;
-        }
-
-        foreach ($configData as $row) {
-            $row = $this->normalizeEntity($row, __FUNCTION__);
-            if ($row === null || (($row['create_var'] ?? true) === false)) {
-                continue;
-            }
+        foreach ($this->getConfiguredEntities(__FUNCTION__) as $row) {
             if (($row['entity_id'] ?? '') === $entityId) {
                 return true;
             }
@@ -51,18 +42,7 @@ trait HAEntityStoreTrait
             return $entity;
         }
 
-        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), 'findEntityByIdent');
-        if ($configData === null) {
-            return null;
-        }
-        foreach ($configData as $row) {
-            $row = $this->normalizeEntity($row, 'findEntityByIdent');
-            if ($row === null) {
-                continue;
-            }
-            if (($row['create_var'] ?? true) === false) {
-                continue;
-            }
+        foreach ($this->getConfiguredEntities(__FUNCTION__) as $row) {
             if ($this->sanitizeIdent($row['entity_id']) !== $ident) {
                 continue;
             }
@@ -99,88 +79,118 @@ trait HAEntityStoreTrait
         return null;
     }
 
+    // Runtime-Entities erhalten bei Bedarf nur Minimalmetadaten.
+    private function ensureStoredEntity(string $entityId): void
+    {
+        if (isset($this->entities[$entityId])) {
+            return;
+        }
+
+        $this->entities[$entityId] = [
+            'entity_id' => $entityId,
+            'domain'    => $this->getEntityDomain($entityId),
+            'name'      => $entityId
+        ];
+    }
+
+    private function getStoredEntityAttributes(string $entityId): array
+    {
+        $attributes = $this->entities[$entityId]['attributes'] ?? [];
+        return is_array($attributes) ? $attributes : [];
+    }
+
     private function storeEntityAttributes(string $entityId, array $attributes): array
     {
-        if (!isset($this->entities[$entityId])) {
-            $this->entities[$entityId] = [
-                'entity_id' => $entityId,
-                'domain'    => $this->getEntityDomain($entityId),
-                'name'      => $entityId
-            ];
-        }
+        $this->ensureStoredEntity($entityId);
 
         $domain = $this->getEntityDomain($entityId);
         if ($domain !== '') {
             $attributes = $this->filterAttributesByDomain($domain, $attributes, __FUNCTION__);
         }
 
-        $existing = $this->entities[$entityId]['attributes'] ?? [];
-        if (!is_array($existing)) {
-            $existing = [];
-        }
-
+        $existing = $this->getStoredEntityAttributes($entityId);
         $this->entities[$entityId]['attributes'] = array_merge($existing, $attributes);
         return $attributes;
     }
 
     private function storeEntityAttribute(string $entityId, string $attribute, mixed $value): void
     {
-        if (!isset($this->entities[$entityId])) {
-            $this->entities[$entityId] = [
-                'entity_id' => $entityId,
-                'domain'    => $this->getEntityDomain($entityId),
-                'name'      => $entityId
-            ];
-        }
-
-        $existing = $this->entities[$entityId]['attributes'] ?? [];
-        if (!is_array($existing)) {
-            $existing = [];
-        }
-
+        $this->ensureStoredEntity($entityId);
+        $existing = $this->getStoredEntityAttributes($entityId);
         $merged = $existing;
         $merged[$attribute] = $value;
         $this->storeEntityAttributes($entityId, $merged);
     }
 
-    private function updateEntityCache(string $entityId, mixed $state, ?array $attributes): void
+    // Der State-Cache wird im Store zentral gelesen und geschrieben.
+    private function readEntityStateCache(): array
     {
-        $cache = json_decode($this->ReadAttributeString('EntityStateCache'), true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($cache)) {
-            $cache = [];
+        $raw = $this->ReadAttributeString('EntityStateCache');
+        if ($raw === '') {
+            return [];
         }
 
-        $entry = $cache[$entityId] ?? [];
-        if ($state !== null) {
-            $entry[self::KEY_STATE] = $state;
+        try {
+            $cache = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
         }
-        if (is_array($attributes)) {
-            $existing            = isset($entry[self::KEY_ATTRIBUTES]) && is_array($entry[self::KEY_ATTRIBUTES]) ? $entry[self::KEY_ATTRIBUTES] : [];
-            $entry[self::KEY_ATTRIBUTES] = array_merge($existing, $attributes);
-        }
-        $entry['ts']      = time();
-        $cache[$entityId] = $entry;
 
+        return is_array($cache) ? $cache : [];
+    }
+
+    private function writeEntityStateCache(array $cache): void
+    {
         $this->WriteAttributeString('EntityStateCache', json_encode($cache, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $this->updateDiagnosticsLabels();
     }
 
-    private function updateEntityRawStateCache(string $entityId, mixed $rawState): void
+    private function getEntityStateCacheEntry(string $entityId, ?array $cache = null): array
     {
-        $cache = json_decode($this->ReadAttributeString('EntityStateCache'), true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($cache)) {
-            $cache = [];
+        $cache ??= $this->readEntityStateCache();
+        $entry = $cache[$entityId] ?? [];
+        return is_array($entry) ? $entry : [];
+    }
+
+    private function getCachedEntityStringValue(string $entityId, string $key): ?string
+    {
+        $entry = $this->getEntityStateCacheEntry($entityId);
+        $value = $entry[$key] ?? null;
+        if (!is_string($value) || trim($value) === '') {
+            return null;
         }
 
-        $entry = $cache[$entityId] ?? [];
+        return $value;
+    }
+
+    private function updateEntityCache(string $entityId, mixed $state, ?array $attributes): void
+    {
+        $cache = $this->readEntityStateCache();
+        $entry = $this->getEntityStateCacheEntry($entityId, $cache);
+        if ($state !== null) {
+            $entry[self::KEY_STATE] = $state;
+        }
+        if (is_array($attributes)) {
+            $existing = isset($entry[self::KEY_ATTRIBUTES]) && is_array($entry[self::KEY_ATTRIBUTES]) ? $entry[self::KEY_ATTRIBUTES] : [];
+            $entry[self::KEY_ATTRIBUTES] = array_merge($existing, $attributes);
+        }
+        $entry['ts'] = time();
+        $cache[$entityId] = $entry;
+
+        $this->writeEntityStateCache($cache);
+    }
+
+    private function updateEntityRawStateCache(string $entityId, mixed $rawState): void
+    {
+        $cache = $this->readEntityStateCache();
+        $entry = $this->getEntityStateCacheEntry($entityId, $cache);
         if (is_string($rawState) && trim($rawState) !== '') {
             $entry['raw_state'] = $rawState;
         }
         $entry['ts'] = time();
         $cache[$entityId] = $entry;
 
-        $this->WriteAttributeString('EntityStateCache', json_encode($cache, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $this->updateDiagnosticsLabels();
+        $this->writeEntityStateCache($cache);
     }
 
     private function updateEntityPresentation(string $entityId, array $attributes): void
@@ -199,10 +209,7 @@ trait HAEntityStoreTrait
             return;
         }
 
-        $existing = $this->entities[$entityId]['attributes'] ?? [];
-        if (!is_array($existing)) {
-            $existing = [];
-        }
+        $existing = $this->getStoredEntityAttributes($entityId);
         $mergedAttributes = array_merge($existing, $attributes);
         $cachedAttributes = $this->getCachedEntityAttributes($entityId);
         if ($cachedAttributes !== []) {
@@ -254,42 +261,20 @@ trait HAEntityStoreTrait
 
     private function getCachedEntityAttributes(string $entityId): array
     {
-        $raw = $this->ReadAttributeString('EntityStateCache');
-        if ($raw === '') {
-            return [];
-        }
-        try {
-            $cache = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
-        }
-        if (!is_array($cache) || !isset($cache[$entityId]) || !is_array($cache[$entityId])) {
-            return [];
-        }
-        $attrs = $cache[$entityId][self::KEY_ATTRIBUTES] ?? null;
+        $entry = $this->getEntityStateCacheEntry($entityId);
+        $attrs = $entry[self::KEY_ATTRIBUTES] ?? null;
         return is_array($attrs) ? $attrs : [];
+    }
+
+    // Der State-Cache dient als Fallback bei partiellen MQTT-Updates.
+    private function getCachedEntityState(string $entityId): ?string
+    {
+        return $this->getCachedEntityStringValue($entityId, self::KEY_STATE);
     }
 
     private function getCachedEntityRawState(string $entityId): ?string
     {
-        $raw = $this->ReadAttributeString('EntityStateCache');
-        if ($raw === '') {
-            return null;
-        }
-        try {
-            $cache = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return null;
-        }
-        if (!is_array($cache) || !isset($cache[$entityId]) || !is_array($cache[$entityId])) {
-            return null;
-        }
-
-        $state = $cache[$entityId]['raw_state'] ?? null;
-        if (!is_string($state) || trim($state) === '') {
-            return null;
-        }
-        return $state;
+        return $this->getCachedEntityStringValue($entityId, 'raw_state');
     }
 
     private function updateAvailabilityValue(string $entityId, mixed $rawState): void

@@ -428,19 +428,7 @@ trait HAAttributeActionMappingTrait
     // Fallback für Attribute, die erst beim Schreiben wieder einer Konfigurations-Entität zugeordnet werden müssen.
     private function findEntityByBaseIdentInConfig(string $baseIdent): ?array
     {
-        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), 'findEntityByBaseIdentInConfig');
-        if ($configData === null) {
-            return null;
-        }
-
-        foreach ($configData as $row) {
-            $row = $this->normalizeEntity($row, 'findEntityByBaseIdentInConfig');
-            if ($row === null) {
-                continue;
-            }
-            if (($row['create_var'] ?? true) === false) {
-                continue;
-            }
+        foreach ($this->getConfiguredEntities(__FUNCTION__) as $row) {
             $entityId = $row['entity_id'];
             if ($this->sanitizeIdent($entityId) !== $baseIdent) {
                 continue;
