@@ -45,7 +45,7 @@ Wenn im Splitter "Kein aktiver MQTT Parent gefunden" steht:
 2. Beim MQTT Client muss eine Subscription gesetzt sein, z. B. homeassistant/# (oder testweise #).
 3. Der Splitter muss genau mit dieser MQTT Instanz verbunden sein.
 4. MQTTBaseTopic im Splitter muss zum mqtt_statestream.base_topic in Home Assistant passen.
-5. Dass im MQTT Explorer nicht sofort alle Entitäten sichtbar sind, ist normal: viele Topics erscheinen erst bei Zustandsaenderungen.
+5. Dass im MQTT Explorer nicht sofort alle Entitäten sichtbar sind, ist normal: viele Topics erscheinen erst bei Zustandsänderungen.
 
 ## 4. Funktionsreferenz
 

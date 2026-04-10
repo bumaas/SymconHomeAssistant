@@ -36,7 +36,7 @@ final class HALightDefinitions
             'writable' => true,
             'requires_color_modes' => ['brightness', 'color_temp', 'hs', 'xy', 'rgb', 'rgbw', 'rgbww', 'white']
         ],
-        'color_mode'             => ['caption' => 'Color Mode', 'type' => VARIABLETYPE_STRING, 'profile' => '', 'suffix' => 'mode', 'writable' => false],
+        'color_mode'             => ['caption' => 'Color Mode', 'type' => VARIABLETYPE_STRING, 'profile' => '', 'suffix' => '', 'writable' => false],
         'color_temp'             => [
             'caption' => 'Color Temp (Mired)',
             'type' => VARIABLETYPE_INTEGER,
@@ -113,13 +113,22 @@ final class HALightDefinitions
     ];
 
     public const array ATTRIBUTE_REFRESH_TRIGGERS = [
-        'brightness' => ['supported_features'],
-        'color_temp' => ['supported_features', 'min_mireds', 'max_mireds'],
-        'color_temp_kelvin' => ['supported_features', 'min_color_temp_kelvin', 'max_color_temp_kelvin']
+        'brightness' => ['supported_color_modes'],
+        'color_temp' => ['supported_color_modes', 'min_mireds', 'max_mireds'],
+        'color_temp_kelvin' => ['supported_color_modes', 'min_color_temp_kelvin', 'max_color_temp_kelvin'],
+        'color_mode' => ['supported_color_modes'],
+        'effect' => ['supported_features', 'effect_list'],
+        'flash' => ['supported_features'],
+        'hs_color' => ['supported_color_modes'],
+        'rgb_color' => ['supported_color_modes'],
+        'rgbw_color' => ['supported_color_modes'],
+        'rgbww_color' => ['supported_color_modes'],
+        'transition' => ['supported_features'],
+        'xy_color' => ['supported_color_modes']
     ];
 
     public const array ACTION_STATE_REFRESH_TRIGGERS = [
-        '*' => ['supported_features']
+        '*' => ['supported_features', 'effect_list', 'supported_color_modes']
     ];
 
     public const array ALLOWED_ATTRIBUTES = [

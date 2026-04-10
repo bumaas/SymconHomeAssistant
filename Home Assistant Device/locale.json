@@ -220,6 +220,24 @@
       "Cover state: opening": "Öffnet",
       "Cover state: closing": "Schließt",
       "Light (light)": "Licht (light)",
+      "Brightness": "Helligkeit",
+      "Color Mode": "Farbmodus",
+      "Color Temp (Mired)": "Farbtemperatur (Mired)",
+      "Color Temp K": "Farbtemperatur K",
+      "Effect": "Effekt",
+      "Flash": "Blitz",
+      "HS Color": "HS-Farbe",
+      "RGB Color": "RGB-Farbe",
+      "RGBW Color": "RGBW-Farbe",
+      "RGBWW Color": "RGBWW-Farbe",
+      "Transition": "Übergang",
+      "XY Color": "XY-Farbe",
+      "Unknown": "Unbekannt",
+      "On/Off": "Ein/Aus",
+      "Color Temperature": "Farbtemperatur",
+      "White": "Weiß",
+      "short": "Kurz",
+      "long": "Lang",
       "Switch (switch)": "Schalter (switch)",
       "Sensor (sensor)": "Sensor (sensor)",
       "Binary Sensor (binary_sensor)": "Binär Sensor (binary_sensor)",
@@ -242,5 +260,4 @@
     }
   }
 }
-
 

@@ -221,6 +221,17 @@ trait HAAttributeHandlersTrait
                 $this->storeEntityAttribute($entityId, $attribute, $value);
                 $this->updateEntityCache($entityId, null, [$attribute => $value]);
                 $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                // Capability-Topics können neue Light-Variablen erst nach der Initialanlage sichtbar machen.
+                if (in_array($attribute, ['supported_features', 'supported_color_modes', 'effect_list'], true)) {
+                    $entity = $this->entities[$entityId] ?? null;
+                    if (is_array($entity)) {
+                        $this->maintainLightAttributeVariables($entity);
+                        $storedAttributes = $entity['attributes'] ?? [];
+                        if (is_array($storedAttributes)) {
+                            $this->updateLightAttributeValues($entityId, $storedAttributes);
+                        }
+                    }
+                }
             }
             return true;
         }

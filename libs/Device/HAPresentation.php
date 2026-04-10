@@ -738,6 +738,12 @@ trait HAPresentationTrait
                                                  ]);
             }
         }
+        if ($attribute === 'flash') {
+            return $this->filterPresentation([
+                                                 'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+                                                 'OPTIONS'      => $this->getPresentationOptions(['short', 'long'])
+                                             ]);
+        }
 
         return $this->filterPresentation([
                                              'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,

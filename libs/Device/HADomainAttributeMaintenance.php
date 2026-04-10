@@ -410,7 +410,7 @@ trait HADomainAttributeMaintenanceTrait
         return $hasAttribute;
     }
 
-    // Light-Attribute hÃ¤ngen stark von Features und Color-Modes ab.
+    // Light-Attribute hängen stark von Features und Color-Modes ab.
     private function isWritableLightAttribute(string $attribute, array $entityAttributes = []): bool
     {
         $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
@@ -423,7 +423,7 @@ trait HADomainAttributeMaintenanceTrait
 
         if (!empty($entityAttributes)) {
             if (!$this->checkSupportedFeatures($meta, $entityAttributes)) {
-                if ($attribute !== 'effect' || !is_array($entityAttributes['effect_list'] ?? null) || $entityAttributes['effect_list'] === []) {
+                if ($attribute !== 'effect' || HASelectDefinitions::normalizeOptions($entityAttributes['effect_list'] ?? null) === []) {
                     return false;
                 }
             }
@@ -433,6 +433,32 @@ trait HADomainAttributeMaintenanceTrait
         }
 
         return true;
+    }
+
+    private function shouldCreateLightAttribute(string $attribute, array $attributes): bool
+    {
+        if (array_key_exists($attribute, $attributes)) {
+            return true;
+        }
+
+        $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta)) {
+            return false;
+        }
+
+        if ($attribute === 'effect' && HASelectDefinitions::normalizeOptions($attributes['effect_list'] ?? null) !== []) {
+            return true;
+        }
+        if ($attribute === 'color_mode') {
+            $modes = HASelectDefinitions::normalizeOptions($attributes['supported_color_modes'] ?? null);
+            $currentMode = $attributes['color_mode'] ?? null;
+            return $modes !== [] || (is_string($currentMode) && trim($currentMode) !== '');
+        }
+
+        // Light-Fähigkeiten kommen oft nur über Features und Color-Modes, nicht über den aktuellen State.
+        return $this->checkSupportedFeatures($meta, $attributes)
+            && $this->checkSupportedColorModes($meta, $attributes)
+            && (($meta['writable'] ?? false) === true);
     }
 
     // Light-Attribute werden nur angelegt, wenn sie im aktuellen Entity-Kontext sinnvoll sind.
@@ -445,10 +471,10 @@ trait HADomainAttributeMaintenanceTrait
 
         $baseIdent = $this->sanitizeIdent($entity['entity_id']);
         foreach (HALightDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!array_key_exists($key, $attributes)) {
+            if (!$this->shouldCreateLightAttribute($key, $attributes)) {
                 continue;
             }
-            if (!$this->isWritableLightAttribute($key, $attributes)) {
+            if ($key !== 'color_mode' && !$this->isWritableLightAttribute($key, $attributes)) {
                 continue;
             }
 
@@ -459,7 +485,11 @@ trait HADomainAttributeMaintenanceTrait
             $presentation = $this->getLightAttributePresentation($key, $attributes, $meta);
             $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
             $this->debugExpert('LightVars', 'Variable angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-            $this->EnableAction($ident);
+            if ($this->isWritableLightAttribute($key, $attributes)) {
+                $this->EnableAction($ident);
+            } else {
+                $this->DisableAction($ident);
+            }
         }
     }
 
@@ -482,19 +512,23 @@ trait HADomainAttributeMaintenanceTrait
         }
 
         $attributes   = $entity['attributes'] ?? null;
-        $name         = $meta['caption'];
+        $attributesArray = is_array($attributes) ? $attributes : [];
+        if (!$this->shouldCreateLightAttribute($attribute, $attributesArray)) {
+            return false;
+        }
+        $name         = $this->Translate((string)$meta['caption']);
         $basePosition = 0;
         $position     = $this->getLightAttributePosition($attribute, $basePosition);
-        $presentation = $this->getLightAttributePresentation($attribute, is_array($attributes) ? $attributes : [], $meta);
+        $presentation = $this->getLightAttributePresentation($attribute, $attributesArray, $meta);
         $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        $this->debugExpert('LightVars', 'Variable nachtrÃ¤glich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-        if (is_array($attributes) && $this->isWritableLightAttribute($attribute, $attributes)) {
+        $this->debugExpert('LightVars', 'Variable nachträglich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
+        if ($this->isWritableLightAttribute($attribute, $attributesArray)) {
             $this->EnableAction($ident);
+        } else {
+            $this->DisableAction($ident);
         }
         return true;
     }
-
-    // Light-Werte werden vor dem Schreiben fÃ¼r Symcon normalisiert.
     private function updateLightAttributeValues(string $entityId, array $attributes): void
     {
         foreach (HALightDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
@@ -1290,7 +1324,10 @@ trait HADomainAttributeMaintenanceTrait
         if ($domain === HALightDefinitions::DOMAIN && $attribute === '*') {
             foreach (HALightDefinitions::ATTRIBUTE_DEFINITIONS as $key => $_meta) {
                 $ident = $this->sanitizeIdent($entityId . '_' . $key);
-                if (@$this->GetIDForIdent($ident) === false) {
+                if (!$this->shouldCreateLightAttribute($key, $attributes)) {
+                    continue;
+                }
+                if (@$this->GetIDForIdent($ident) === false && !$this->ensureLightAttributeVariable($entityId, $key)) {
                     continue;
                 }
                 if ($this->isWritableLightAttribute($key, $attributes)) {
@@ -1572,3 +1609,6 @@ trait HADomainAttributeMaintenanceTrait
         return false;
     }
 }
+
+
+
