@@ -448,7 +448,7 @@ EOT;
             }
 
                 // Aufräumen: Diese Daten sind jetzt redundant, da im Device global gespeichert
-                unset($finalEntity['device_id'], $finalEntity['area'], $finalEntity['device']);
+                unset($finalEntity['area'], $finalEntity['device']);
 
             $entitiesForConfig[] = $finalEntity;
         }

@@ -159,7 +159,7 @@ trait HADomainAttributeMaintenanceTrait
             $entityId,
             $previewUrl,
             self::IMAGE_PREVIEW_SUFFIX,
-            $this->Translate('Preview'),
+            $this->getImagePreviewMediaName($entityId),
             'ImagePreview',
             'ha_image_preview'
         );

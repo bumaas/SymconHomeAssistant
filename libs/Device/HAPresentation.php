@@ -1004,6 +1004,15 @@ trait HAPresentationTrait
                 }
             }
         }
+        if ($domain === HAImageDefinitions::DOMAIN) {
+            if ($this->isEntityBoundToDevice($entity)) {
+                $name = trim((string)($entity['name'] ?? ''));
+                if ($name !== '') {
+                    return $name . ' (' . $this->Translate('Last Update') . ')';
+                }
+            }
+            return $this->Translate('Last Update');
+        }
         if ($this->isStatusDomain($domain)) {
             if (!$this->hasMultipleStatusEntities) {
                 return $this->Translate('Status');
@@ -1026,6 +1035,12 @@ trait HAPresentationTrait
             HAFanDefinitions::DOMAIN,
             HAHumidifierDefinitions::DOMAIN
         ], true);
+    }
+
+    private function isEntityBoundToDevice(array $entity): bool
+    {
+        $deviceId = trim((string)($entity['device_id'] ?? ''));
+        return $deviceId !== '' && strtolower($deviceId) !== 'none';
     }
 
     private function getClimateAttributePresentation(string $attribute, array $attributes): array

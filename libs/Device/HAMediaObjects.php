@@ -41,7 +41,7 @@ trait HAMediaObjectsTrait
             $entityId,
             self::CAMERA_PREVIEW_SUFFIX,
             $basePosition,
-            $this->getCameraPreviewMediaName($entityId),
+            $this->getEntityPreviewMediaName($entityId),
             'CameraPreview',
             'ha_camera_preview'
         );
@@ -53,7 +53,7 @@ trait HAMediaObjectsTrait
             $entityId,
             self::IMAGE_PREVIEW_SUFFIX,
             $basePosition,
-            $this->Translate('Preview'),
+            $this->getImagePreviewMediaName($entityId),
             'ImagePreview',
             'ha_image_preview'
         );
@@ -119,7 +119,7 @@ trait HAMediaObjectsTrait
             $entityId,
             $absoluteUrl,
             self::CAMERA_PREVIEW_SUFFIX,
-            $this->getCameraPreviewMediaName($entityId),
+            $this->getEntityPreviewMediaName($entityId),
             'CameraPreview',
             'ha_camera_preview'
         );
@@ -182,7 +182,12 @@ trait HAMediaObjectsTrait
         $this->debugExpert($debugCategory, 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
     }
 
-    private function getCameraPreviewMediaName(string $entityId): string
+    private function getCameraStreamMediaName(string $entityId): string
+    {
+        return $this->getEntityFriendlyName($entityId) ?? $this->Translate('Stream');
+    }
+
+    private function getEntityPreviewMediaName(string $entityId): string
     {
         $baseName = $this->getEntityFriendlyName($entityId);
         if ($baseName === null) {
@@ -191,9 +196,12 @@ trait HAMediaObjectsTrait
         return $baseName . ' (' . $this->Translate('Preview') . ')';
     }
 
-    private function getCameraStreamMediaName(string $entityId): string
+    private function getImagePreviewMediaName(string $entityId): string
     {
-        return $this->getEntityFriendlyName($entityId) ?? $this->Translate('Stream');
+        if (!$this->isEntityIdBoundToDevice($entityId)) {
+            return $this->Translate('Image');
+        }
+        return $this->getEntityFriendlyName($entityId) ?? $this->Translate('Image');
     }
 
     private function getEntityFriendlyName(string $entityId): ?string
@@ -204,6 +212,12 @@ trait HAMediaObjectsTrait
         }
         $name = trim($name);
         return $name !== '' ? $name : null;
+    }
+
+    private function isEntityIdBoundToDevice(string $entityId): bool
+    {
+        $deviceId = trim((string)($this->entities[$entityId]['device_id'] ?? ''));
+        return $deviceId !== '' && strtolower($deviceId) !== 'none';
     }
 
     private function ensureEntityPreviewMediaFile(int $mediaId, string $ident, string $url, string $filePrefix): void
