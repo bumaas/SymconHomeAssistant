@@ -16,7 +16,7 @@ final class HASelectDefinitions
         }
         $normalizedOptions = self::normalizeOptions($options);
         if ($normalizedOptions === []) {
-            return $text;
+            return null;
         }
         if (in_array($text, $normalizedOptions, true)) {
             return $text;

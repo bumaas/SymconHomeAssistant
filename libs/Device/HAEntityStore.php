@@ -217,6 +217,9 @@ trait HAEntityStoreTrait
         $name = $this->getEntityVariableName($domain, $entity);
 
         $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
+        if ($domain === HASelectDefinitions::DOMAIN) {
+            $this->applyDomainActionState($domain, $ident, $entity);
+        }
 
         if ($domain === HALockDefinitions::DOMAIN) {
             $this->DisableAction($ident);

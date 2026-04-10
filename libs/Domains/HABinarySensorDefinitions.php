@@ -13,6 +13,7 @@ final class HABinarySensorDefinitions
     public const array DEVICE_CLASS_MAP = [
         'battery' => ['Batterie niedrig', 'Batterie ok', 'battery-exclamation'],
         'battery_charging' => ['lädt', 'lädt nicht', 'battery-bolt'],
+        'co' => ['CO erkannt', 'kein CO', 'triangle-exclamation'],
         'cold' => ['kalt', 'normal', 'snowflake'],
         'connectivity' => ['verbunden', 'getrennt', 'wifi'],
         'door' => ['offen', 'geschlossen', 'door-open'],

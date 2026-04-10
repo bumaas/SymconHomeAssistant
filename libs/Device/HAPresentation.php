@@ -39,6 +39,15 @@ trait HAPresentationTrait
 
         if ($domain === HASensorDefinitions::DOMAIN) {
             $deviceClass = $attributes['device_class'] ?? '';
+            if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_DATE) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION'    => VARIABLE_PRESENTATION_DATE_TIME,
+                                                     'DATE'            => 1,
+                                                     'DAY_OF_THE_WEEK' => false,
+                                                     'MONTH_TEXT'      => false,
+                                                     'TIME'            => 0
+                                                 ]);
+            }
             if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
                 return $this->filterPresentation([
                                                      'PRESENTATION'   => VARIABLE_PRESENTATION_DATE_TIME,

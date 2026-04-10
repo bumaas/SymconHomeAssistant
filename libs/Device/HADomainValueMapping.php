@@ -18,7 +18,8 @@ trait HADomainValueMappingTrait
             } else {
                 $deviceClass = '';
             }
-            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
+            if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_DATE
+                || $deviceClass === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
                 $parsed = $this->parseTimestampValue($valueData);
                 if ($parsed === null) {
                     $normalizedValue = strtolower(trim($valueData));
@@ -30,7 +31,7 @@ trait HADomainValueMappingTrait
                 return $parsed;
             }
             if ($deviceClass === HASensorDefinitions::DEVICE_CLASS_DURATION) {
-                return (int)$valueData;
+                return $this->convertSensorDurationValue($valueData, $attributes);
             }
             if (is_numeric($valueData)) {
                 return (float)$valueData;
@@ -129,12 +130,38 @@ trait HADomainValueMappingTrait
         }
 
         return match (true) {
+            $deviceClass === HASensorDefinitions::DEVICE_CLASS_DATE,
             $deviceClass === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP,
             $deviceClass === HASensorDefinitions::DEVICE_CLASS_DURATION => VARIABLETYPE_INTEGER,
             array_key_exists('unit_of_measurement', $attributes),
             array_key_exists('state_class', $attributes) => VARIABLETYPE_FLOAT,
             default => VARIABLETYPE_STRING,
         };
+    }
+
+    // Symcon duration values are stored in seconds; HA duration sensors carry an explicit unit.
+    private function convertSensorDurationValue(string $valueData, array $attributes): int
+    {
+        $value = trim($valueData);
+        if (!is_numeric($value)) {
+            return 0;
+        }
+
+        $seconds = (float)$value;
+        $unit = trim((string)($attributes['unit_of_measurement'] ?? $attributes['native_unit_of_measurement'] ?? ''));
+        $unit = strtolower($unit);
+
+        $factor = match ($unit) {
+            'd' => 86400,
+            'h' => 3600,
+            'min' => 60,
+            'ms' => 0.001,
+            'µs', 'μs', 'us' => 0.000001,
+            's', '' => 1,
+            default => 1,
+        };
+
+        return (int)round($seconds * $factor);
     }
 
     private function inferNumberVariableType(array $attributes): int

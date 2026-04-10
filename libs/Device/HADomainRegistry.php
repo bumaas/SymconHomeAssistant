@@ -49,8 +49,24 @@ trait HADomainRegistryTrait
                     $this->EnableAction($ident);
                 }
             },
+            HASelectDefinitions::DOMAIN => function (string $ident, array $entity): void {
+                if ($this->isSelectWritable($entity['attributes'] ?? [])) {
+                    $this->EnableAction($ident);
+                } else {
+                    $this->DisableAction($ident);
+                }
+            },
             HAHumidifierDefinitions::DOMAIN => fn(string $ident, array $entity) => $this->EnableAction($ident)
         ];
+    }
+
+    private function isSelectWritable(mixed $attributes): bool
+    {
+        if (!is_array($attributes)) {
+            return false;
+        }
+
+        return HASelectDefinitions::normalizeOptions($attributes['options'] ?? null) !== [];
     }
 
     private function getDomainExtraMaintainers(): array
