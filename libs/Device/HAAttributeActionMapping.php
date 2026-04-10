@@ -7,17 +7,14 @@ trait HAAttributeActionMappingTrait
     // Media-Player-Attribute brauchen teils zusätzliche Laufzeitbedingungen.
     private function isWritableMediaPlayerAttribute(string $attribute, array $entityAttributes = []): bool
     {
-        $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if (!is_array($meta)) {
+        $meta = $this->getWritableAttributeMeta(HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
+        if ($meta === null) {
             return false;
         }
-        if (!($meta['writable'] ?? false)) {
+        if ($entityAttributes !== [] && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
             return false;
         }
-        if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
-            return false;
-        }
-        if (!empty($entityAttributes) && !$this->hasMediaPlayerSelectableValues($attribute, $entityAttributes)) {
+        if ($entityAttributes !== [] && !$this->hasMediaPlayerSelectableValues($attribute, $entityAttributes)) {
             return false;
         }
         if ($attribute === 'media_position') {
@@ -46,14 +43,11 @@ trait HAAttributeActionMappingTrait
 
     private function isWritableCoverAttribute(string $attribute, array $entityAttributes = []): bool
     {
-        $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+        $meta = $this->getWritableAttributeMeta(HACoverDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
+        if ($meta === null || $entityAttributes === []) {
             return false;
         }
-        if (empty($entityAttributes)) {
-            return false;
-        }
-        if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
+        if (!$this->checkSupportedFeatures($meta, $entityAttributes)) {
             return false;
         }
         return true;
@@ -62,17 +56,13 @@ trait HAAttributeActionMappingTrait
     // Ordnet eine schreibbare Attributvariable wieder ihrer Entität und Domain zu.
     private function resolveAttributeByIdent(string $ident): ?array
     {
-        $resolvers = [
-            [HALightDefinitions::DOMAIN, HALightDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableLightAttribute($attribute, $attributes)],
-            [HACoverDefinitions::DOMAIN, HACoverDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableCoverAttribute($attribute, $attributes)],
-            [HAFanDefinitions::DOMAIN, HAFanDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableFanAttribute($attribute, $attributes)],
-            [HAClimateDefinitions::DOMAIN, HAClimateDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableClimateAttribute($attribute, $attributes)],
-            [HAHumidifierDefinitions::DOMAIN, HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableHumidifierAttribute($attribute, $attributes)],
-            [HAMediaPlayerDefinitions::DOMAIN, HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableMediaPlayerAttribute($attribute, $attributes)]
-        ];
-
-        foreach ($resolvers as [$domain, $definitions, $validator]) {
-            $resolved = $this->resolveDomainAttributeByIdent($ident, $domain, $definitions, $validator);
+        foreach ($this->getAttributeIdentResolvers() as $resolver) {
+            $resolved = $this->resolveDomainAttributeByIdent(
+                $ident,
+                $resolver['domain'],
+                $resolver['definitions'],
+                $resolver['validator']
+            );
             if ($resolved !== null) {
                 return $resolved;
             }
@@ -81,8 +71,44 @@ trait HAAttributeActionMappingTrait
         return null;
     }
 
+    private function getAttributeIdentResolvers(): array
+    {
+        return [
+            [
+                'domain' => HALightDefinitions::DOMAIN,
+                'definitions' => HALightDefinitions::ATTRIBUTE_DEFINITIONS,
+                'validator' => 'isWritableLightAttribute'
+            ],
+            [
+                'domain' => HACoverDefinitions::DOMAIN,
+                'definitions' => HACoverDefinitions::ATTRIBUTE_DEFINITIONS,
+                'validator' => 'isWritableCoverAttribute'
+            ],
+            [
+                'domain' => HAFanDefinitions::DOMAIN,
+                'definitions' => HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
+                'validator' => 'isWritableFanAttribute'
+            ],
+            [
+                'domain' => HAClimateDefinitions::DOMAIN,
+                'definitions' => HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
+                'validator' => 'isWritableClimateAttribute'
+            ],
+            [
+                'domain' => HAHumidifierDefinitions::DOMAIN,
+                'definitions' => HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
+                'validator' => 'isWritableHumidifierAttribute'
+            ],
+            [
+                'domain' => HAMediaPlayerDefinitions::DOMAIN,
+                'definitions' => HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS,
+                'validator' => 'isWritableMediaPlayerAttribute'
+            ]
+        ];
+    }
+
     // Bei gleichen Attributnamen über mehrere Domains hinweg wird nur bei echtem Treffer zurückgegeben.
-    private function resolveDomainAttributeByIdent(string $ident, string $domain, array $definitions, ?callable $validator): ?array
+    private function resolveDomainAttributeByIdent(string $ident, string $domain, array $definitions, ?string $validatorMethod): ?array
     {
         foreach ($definitions as $attribute => $meta) {
             if (!($meta['writable'] ?? false)) {
@@ -107,7 +133,7 @@ trait HAAttributeActionMappingTrait
             if ($resolvedDomain !== $domain) {
                 continue;
             }
-            if ($validator !== null && !$validator($attribute, $context['attributes'])) {
+            if ($validatorMethod !== null && !$this->{$validatorMethod}($attribute, $context['attributes'])) {
                 continue;
             }
 
@@ -151,22 +177,36 @@ trait HAAttributeActionMappingTrait
         ];
     }
 
+    private function getWritableAttributeMeta(array $definitions, string $attribute): ?array
+    {
+        $meta = $definitions[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return null;
+        }
+
+        return $meta;
+    }
+
+    private function encodeAttributePayload(string $key, mixed $value): string
+    {
+        return json_encode([$key => $value], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
     // Light-Payloads werden pro Attribut in das erwartete HA-Format gebracht.
     private function buildLightAttributePayload(string $attribute, mixed $value): string
     {
-        $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+        if ($this->getWritableAttributeMeta(HALightDefinitions::ATTRIBUTE_DEFINITIONS, $attribute) === null) {
             return '';
         }
         $payloadValue = $this->parseLightAttributeValue($attribute, $value);
-        return json_encode([$attribute => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return $this->encodeAttributePayload($attribute, $payloadValue);
     }
 
     // Cover nutzt teils andere Payload-Schlüssel als den Attributnamen.
     private function buildCoverAttributePayload(string $attribute, mixed $value): string
     {
-        $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+        $meta = $this->getWritableAttributeMeta(HACoverDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
+        if ($meta === null) {
             return '';
         }
         $payloadKey = $meta['payload_key'] ?? '';
@@ -174,14 +214,13 @@ trait HAAttributeActionMappingTrait
             return '';
         }
         $payloadValue = $this->parseCoverAttributeValue($value);
-        return json_encode([$payloadKey => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return $this->encodeAttributePayload($payloadKey, $payloadValue);
     }
 
     // Climate unterscheidet zwischen numerischen Zielwerten und textuellen Modi.
     private function buildClimateAttributePayload(string $attribute, mixed $value): string
     {
-        $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+        if ($this->getWritableAttributeMeta(HAClimateDefinitions::ATTRIBUTE_DEFINITIONS, $attribute) === null) {
             return '';
         }
 
@@ -194,18 +233,17 @@ trait HAAttributeActionMappingTrait
         if ($payloadValue === '') {
             return '';
         }
-        return json_encode([$attribute => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return $this->encodeAttributePayload($attribute, $payloadValue);
     }
 
     // Media-Player-Attribute werden vor dem Senden auf HA-konforme Werte normalisiert.
     private function buildMediaPlayerAttributePayload(string $attribute, mixed $value): string
     {
-        $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+        if ($this->getWritableAttributeMeta(HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS, $attribute) === null) {
             return '';
         }
         $payloadValue = $this->parseMediaPlayerAttributeValue($attribute, $value);
-        return json_encode([$attribute => $payloadValue], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return $this->encodeAttributePayload($attribute, $payloadValue);
     }
 
     // Cover-Level bleiben immer im gültigen Bereich von 0 bis 100.
