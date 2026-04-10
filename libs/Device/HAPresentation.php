@@ -1053,7 +1053,7 @@ trait HAPresentationTrait
             $domainLabel = strtoupper($domain);
             return $this->Translate('Status') . ' (' . $domainLabel . ')';
         }
-        return $entity['name'] ?? $entity['entity_id'];
+        return $this->getDefaultEntityVariableName($domain, $entity);
     }
 
     private function getButtonVariableName(array $entity): string
@@ -1078,6 +1078,58 @@ trait HAPresentationTrait
         }
 
         return $entity['entity_id'] ?? 'Press';
+    }
+
+    private function getDefaultEntityVariableName(string $domain, array $entity): string
+    {
+        $name = trim((string)($entity['name'] ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+
+        if (in_array($domain, [
+            HABinarySensorDefinitions::DOMAIN,
+            HANumberDefinitions::DOMAIN,
+            HASensorDefinitions::DOMAIN
+        ], true)) {
+            $fallback = $this->getDeviceClassFallbackName($entity);
+            if ($fallback !== null) {
+                return $fallback;
+            }
+        }
+
+        return $entity['entity_id'] ?? '';
+    }
+
+    // HA derives unnamed entities of several domains from the device_class.
+    private function getDeviceClassFallbackName(array $entity): ?string
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            return null;
+        }
+
+        $deviceClass = strtolower(trim((string)($attributes['device_class'] ?? '')));
+        if ($deviceClass === '') {
+            return null;
+        }
+
+        $specialCaptions = [
+            'co' => 'CO',
+            'co2' => 'CO2',
+            'pm1' => 'PM1',
+            'pm10' => 'PM10',
+            'pm25' => 'PM2.5',
+            'aqi' => 'AQI',
+            'uv_index' => 'UV Index',
+        ];
+        if (isset($specialCaptions[$deviceClass])) {
+            return $this->Translate($specialCaptions[$deviceClass]);
+        }
+
+        $caption = str_replace('_', ' ', $deviceClass);
+        $caption = ucwords($caption);
+        return $this->Translate($caption);
     }
 
     private function getCoverVariableName(array $entity): string
