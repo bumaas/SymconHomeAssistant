@@ -29,7 +29,8 @@ trait HAAttributeHandlersTrait
             && $currentDomain !== HAImageDefinitions::DOMAIN
             && $currentDomain !== HAFanDefinitions::DOMAIN
             && $currentDomain !== HAHumidifierDefinitions::DOMAIN
-            && $currentDomain !== HALockDefinitions::DOMAIN) {
+            && $currentDomain !== HALockDefinitions::DOMAIN
+            && $currentDomain !== HAVacuumDefinitions::DOMAIN) {
             $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
@@ -141,6 +142,20 @@ trait HAAttributeHandlersTrait
                     'update_presentation_defined' => true
                 ]
             );
+        }
+        if ($currentDomain === HAVacuumDefinitions::DOMAIN) {
+            $value = $this->parseAttributePayload($payload);
+            if ($value !== null) {
+                $this->storeEntityAttribute($entityId, $attribute, $value);
+                $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+
+                $storedAttributes = $this->entities[$entityId]['attributes'] ?? [];
+                if (is_array($storedAttributes)) {
+                    $this->updateVacuumFanSpeedValue($entityId, $storedAttributes);
+                }
+            }
+            return true;
         }
         if ($currentDomain === HAMediaPlayerDefinitions::DOMAIN) {
             if ($attribute === 'entity_picture') {
