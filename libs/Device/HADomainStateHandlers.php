@@ -82,11 +82,14 @@ trait HADomainStateHandlersTrait
 
     private function handleStateTopicCover(string $ident, string $entityId, string $payload): bool
     {
-        return $this->handleStateTopicWithLevel(
+        return $this->handleStateTopicWithAttributes(
             $ident,
             $entityId,
             $payload,
-            fn(string $state): ?float => $this->normalizeCoverStateToLevel($state)
+            fn(string $state, array $attributes): ?float => $this->resolveCoverMainValue($attributes, $state),
+            function (string $id, array $attributes, string $state): void {
+                $this->updateCoverAttributeValues($id, $attributes, $state);
+            }
         );
     }
 

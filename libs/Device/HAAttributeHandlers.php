@@ -67,27 +67,7 @@ trait HAAttributeHandlersTrait
         }
 
         if ($currentDomain === HACoverDefinitions::DOMAIN) {
-            return $this->handleAttributeTopicWithDefinitions(
-                $entityId,
-                $attribute,
-                $payload,
-                HACoverDefinitions::ATTRIBUTE_DEFINITIONS,
-                fn(string $id, string $attr): bool => $this->ensureCoverAttributeVariable($id, $attr),
-                [
-                    'store_unknown' => true,
-                    'update_presentation_unknown' => true,
-                    'store_defined' => true,
-                    'update_presentation_defined' => true,
-                    'post_set' => function (string $id, string $attr, mixed $value): void {
-                        if ($attr === HACoverDefinitions::ATTRIBUTE_POSITION || $attr === HACoverDefinitions::ATTRIBUTE_POSITION_ALT) {
-                            $mainIdent = $this->sanitizeIdent($id);
-                            if (@$this->GetIDForIdent($mainIdent) !== false) {
-                                $this->setEntityMainValue($id, $mainIdent, (float)$value);
-                            }
-                        }
-                    }
-                ]
-            );
+            return $this->handleCoverAttributeTopic($entityId, $attribute, $payload);
         }
         if ($currentDomain === HAClimateDefinitions::DOMAIN) {
             $climateAliases = [
@@ -342,6 +322,44 @@ trait HAAttributeHandlersTrait
         if (is_callable($postSet)) {
             $postSet($entityId, $attribute, $value);
         }
+        return true;
+    }
+
+    private function handleCoverAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        if (!array_key_exists($attribute, HACoverDefinitions::ATTRIBUTE_DEFINITIONS)) {
+            $value = $this->parseAttributePayload($payload);
+            if ($value !== null) {
+                $this->storeEntityAttribute($entityId, $attribute, $value);
+                $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+            }
+            return true;
+        }
+
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+            return true;
+        }
+
+        $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta)) {
+            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+            return false;
+        }
+
+        $casted = $this->castVariableValue($value, $meta['type']);
+        $this->storeEntityAttribute($entityId, $attribute, $casted);
+        $this->updateEntityCache($entityId, null, [$attribute => $casted]);
+        $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+
+        $attributes = $this->entities[$entityId]['attributes'] ?? [];
+        if (is_array($attributes)) {
+            $state = $this->getCachedEntityRawState($entityId) ?? $this->getCachedEntityState($entityId) ?? '';
+            $this->updateCoverAttributeValues($entityId, $attributes, $state);
+        }
+
         return true;
     }
 

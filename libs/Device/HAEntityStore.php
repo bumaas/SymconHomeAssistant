@@ -235,6 +235,9 @@ trait HAEntityStoreTrait
         if ($domain === HAHumidifierDefinitions::DOMAIN) {
             $this->maintainHumidifierAttributeVariables($entity);
         }
+        if ($domain === HACoverDefinitions::DOMAIN) {
+            $this->maintainCoverAttributeVariables($entity);
+        }
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
             $this->maintainMediaPlayerActionVariable($entity);
             $this->maintainMediaPlayerPowerVariable($entity);

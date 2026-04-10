@@ -943,6 +943,25 @@ class HomeAssistantDevice extends IPSModuleStrict
                || (($supported & HAFanDefinitions::FEATURE_TURN_OFF) === HAFanDefinitions::FEATURE_TURN_OFF);
     }
 
+    private function isCoverMainWritable(mixed $attributes): bool
+    {
+        if (!is_array($attributes)) {
+            return true;
+        }
+
+        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
+        if ($supported === 0) {
+            return true;
+        }
+
+        if (($supported & HACoverDefinitions::FEATURE_SET_POSITION) === HACoverDefinitions::FEATURE_SET_POSITION) {
+            return true;
+        }
+
+        return (($supported & HACoverDefinitions::FEATURE_OPEN) === HACoverDefinitions::FEATURE_OPEN)
+               || (($supported & HACoverDefinitions::FEATURE_CLOSE) === HACoverDefinitions::FEATURE_CLOSE);
+    }
+
     private function isEntityWritable(string $domain, mixed $attributes): bool
     {
         if (!$this->isWriteable($domain)) {
@@ -953,6 +972,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         }
         if ($domain === HAFanDefinitions::DOMAIN) {
             return $this->isFanToggleSupported($attributes);
+        }
+        if ($domain === HACoverDefinitions::DOMAIN) {
+            return $this->isCoverMainWritable($attributes);
         }
         return true;
     }
@@ -1156,10 +1178,7 @@ class HomeAssistantDevice extends IPSModuleStrict
                         $this->updateMediaPlayerPowerValue($entityId, $rawState);
                     }
                 } elseif ($domain === HACoverDefinitions::DOMAIN) {
-                    $value = $this->extractCoverPosition($coverAttributes);
-                    if ($value === null) {
-                        $value = $this->normalizeCoverStateToLevel($rawState);
-                    }
+                    $value = $this->resolveCoverMainValue($coverAttributes, $rawState);
                     if ($value !== null) {
                         $this->setEntityMainValue($entityId, $ident, $value, $rawState);
                     }
@@ -1180,7 +1199,7 @@ class HomeAssistantDevice extends IPSModuleStrict
             $this->updateLightAttributeValues($entityId, $attributes);
         }
         if ($domain === HACoverDefinitions::DOMAIN) {
-            $this->updateCoverAttributeValues($entityId, $attributes);
+            $this->updateCoverAttributeValues($entityId, $attributes, $rawState);
         }
         if ($domain === HAClimateDefinitions::DOMAIN) {
             $this->updateClimateAttributeValues($entityId, $attributes);

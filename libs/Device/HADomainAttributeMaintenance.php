@@ -633,10 +633,41 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Cover-Attribute sind klein genug, um direkt am Hauptwert zu hängen.
+    private function maintainCoverAttributeVariables(array $entity): void
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        foreach ($this->getMaintainedCoverAttributes($attributes) as $key) {
+            $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$key] ?? null;
+            if (!is_array($meta)) {
+                continue;
+            }
+            if (!$this->shouldCreateCoverAttribute($key, $meta, $attributes)) {
+                continue;
+            }
+            $this->ensureCoverAttributeVariable($entity['entity_id'], $key);
+        }
+    }
+
     private function ensureCoverAttributeVariable(string $entityId, string $attribute): bool
     {
         $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
         if ($meta === null) {
+            return false;
+        }
+
+        $entity = $this->entities[$entityId] ?? [
+            'entity_id' => $entityId,
+            'attributes' => []
+        ];
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+        if (!$this->shouldCreateCoverAttribute($attribute, $meta, $attributes)) {
             return false;
         }
 
@@ -651,30 +682,58 @@ trait HADomainAttributeMaintenanceTrait
         $presentation = $this->getCoverAttributePresentation($meta);
         $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
         $this->debugExpert('CoverVars', 'Variable nachträglich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-        if (($meta['writable'] ?? false) === true) {
+        if ($this->isWritableCoverAttribute($attribute, $attributes)) {
             $this->EnableAction($ident);
+        } else {
+            $this->DisableAction($ident);
         }
         return true;
     }
 
-    // Die Hauptvariable von Cover zeigt immer die erkannte Position.
-    private function updateCoverAttributeValues(string $entityId, array $attributes): void
+    // Cover spiegelt Positionsattribute auf Zusatzvariablen und Hauptwert.
+    private function updateCoverAttributeValues(string $entityId, array $attributes, string $state = ''): void
     {
-        $position = $this->extractCoverPosition($attributes);
-        if ($position === null) {
+        foreach ($this->getMaintainedCoverAttributes($attributes) as $key) {
+            $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$key] ?? null;
+            if (!is_array($meta)) {
+                continue;
+            }
+
+            $ident = $this->sanitizeIdent($entityId . '_' . $key);
+            if (@$this->GetIDForIdent($ident) === false) {
+                continue;
+            }
+
+            $rawValue = $this->getCoverAttributeValue($attributes, $key);
+            if (!is_numeric($rawValue)) {
+                continue;
+            }
+
+            $value = $this->castVariableValue($rawValue, $meta['type']);
+            $this->setValueWithDebug($ident, $value);
+            if ($this->isWritableCoverAttribute($key, $attributes)) {
+                $this->EnableAction($ident);
+            } else {
+                $this->DisableAction($ident);
+            }
+        }
+
+        $mainValue = $this->resolveCoverMainValue($attributes, $state);
+        if ($mainValue === null) {
             return;
         }
+
         $ident = $this->sanitizeIdent($entityId);
         if (@$this->GetIDForIdent($ident) === false) {
             return;
         }
-        $this->setEntityMainValue($entityId, $ident, $position);
+        $this->setEntityMainValue($entityId, $ident, $mainValue, $state);
     }
 
     // Cover verwendet die Reihenfolge der Attributdefinitionen.
     private function getCoverAttributePosition(string $attribute, int $basePosition): int
     {
-        $ordered = array_keys(HACoverDefinitions::ATTRIBUTE_DEFINITIONS);
+        $ordered = $this->getMaintainedCoverAttributes();
         $index   = array_search($attribute, $ordered, true);
         if ($index === false) {
             return $basePosition + 200;
@@ -683,6 +742,66 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Einige Integrationen liefern alternative Positionsschlüssel.
+    private function shouldCreateCoverAttribute(string $attribute, array $meta, array $attributes): bool
+    {
+        $hasAttribute = is_numeric($this->getCoverAttributeValue($attributes, $attribute));
+        $isPrimaryAttribute = in_array($attribute, $this->getMaintainedCoverAttributes($attributes), true);
+        if (($meta['writable'] ?? false) === true) {
+            if (!$hasAttribute && !$isPrimaryAttribute) {
+                return false;
+            }
+            return $hasAttribute || $this->isWritableCoverAttribute($attribute, $attributes);
+        }
+        return $hasAttribute;
+    }
+
+    private function getMaintainedCoverAttributes(array $attributes = []): array
+    {
+        if (!$this->shouldShowCoverTiltAttribute($attributes)) {
+            return [];
+        }
+
+        return [HACoverDefinitions::ATTRIBUTE_TILT_POSITION];
+    }
+
+    private function getCoverAttributeValue(array $attributes, string $attribute): mixed
+    {
+        return match ($attribute) {
+            HACoverDefinitions::ATTRIBUTE_TILT_POSITION => $attributes[HACoverDefinitions::ATTRIBUTE_TILT_POSITION]
+                ?? $attributes[HACoverDefinitions::ATTRIBUTE_TILT_POSITION_ALT]
+                ?? null,
+            HACoverDefinitions::ATTRIBUTE_POSITION => $attributes[HACoverDefinitions::ATTRIBUTE_POSITION]
+                ?? $attributes[HACoverDefinitions::ATTRIBUTE_POSITION_ALT]
+                ?? null,
+            default => $attributes[$attribute] ?? null,
+        };
+    }
+
+    private function shouldShowCoverTiltAttribute(array $attributes): bool
+    {
+        $deviceClass = strtolower(trim((string)($attributes['device_class'] ?? '')));
+        if (in_array($deviceClass, [
+            HACoverDefinitions::DEVICE_CLASS_GARAGE,
+            HACoverDefinitions::DEVICE_CLASS_GATE,
+            HACoverDefinitions::DEVICE_CLASS_DOOR,
+            HACoverDefinitions::DEVICE_CLASS_WINDOW,
+            HACoverDefinitions::DEVICE_CLASS_DAMPER
+        ], true)) {
+            return false;
+        }
+
+        if (in_array($deviceClass, [
+            HACoverDefinitions::DEVICE_CLASS_CURTAIN,
+            HACoverDefinitions::DEVICE_CLASS_SHADE,
+            HACoverDefinitions::DEVICE_CLASS_AWNING,
+            ''
+        ], true)) {
+            return is_numeric($this->getCoverAttributeValue($attributes, HACoverDefinitions::ATTRIBUTE_TILT_POSITION));
+        }
+
+        return true;
+    }
+
     private function extractCoverPosition(array $attributes): ?float
     {
         $candidates = [
@@ -696,6 +815,17 @@ trait HADomainAttributeMaintenanceTrait
             }
         }
         return null;
+    }
+
+    // Cover bevorzugt numerische Positionsattribute vor textuellen Statuswerten.
+    private function resolveCoverMainValue(array $attributes, string $state): ?float
+    {
+        $position = $this->extractCoverPosition($attributes);
+        if ($position !== null) {
+            return $position;
+        }
+
+        return $this->normalizeCoverStateToLevel($state);
     }
 
     // Textzustände werden auf eine Prozentposition abgebildet, wenn kein Zahlenwert vorliegt.

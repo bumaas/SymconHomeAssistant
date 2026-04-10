@@ -541,7 +541,7 @@ trait HAPresentationTrait
         }
         $deviceClass = trim($deviceClass);
 
-        $hasPosition = $this->extractCoverPosition($attributes) !== null;
+        $hasPosition = $this->extractCoverPosition($attributes) !== null || $this->isCoverPositionSupported($attributes);
         if ($hasPosition && HACoverDefinitions::usesShutterPresentation($deviceClass)) {
             return $this->filterPresentation([
                                                  'CLOSE_INSIDE_VALUE' => 0,
@@ -581,6 +581,12 @@ trait HAPresentationTrait
                                              'PRESENTATION' => HACoverDefinitions::PRESENTATION,
                                              'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
                                          ]);
+    }
+
+    private function isCoverPositionSupported(array $attributes): bool
+    {
+        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
+        return ($supported & HACoverDefinitions::FEATURE_SET_POSITION) === HACoverDefinitions::FEATURE_SET_POSITION;
     }
 
     private function getClimatePresentation(array $attributes): array
@@ -990,6 +996,9 @@ trait HAPresentationTrait
             }
             return $this->Translate('Last Update');
         }
+        if ($domain === HACoverDefinitions::DOMAIN) {
+            return $this->getCoverVariableName($entity);
+        }
         if ($domain === HAEventDefinitions::DOMAIN) {
             return $this->getEventStateVariableName($entity);
         }
@@ -1001,6 +1010,24 @@ trait HAPresentationTrait
             return $this->Translate('Status') . ' (' . $domainLabel . ')';
         }
         return $entity['name'] ?? $entity['entity_id'];
+    }
+
+    private function getCoverVariableName(array $entity): string
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $deviceClass = strtolower(trim((string)($attributes['device_class'] ?? '')));
+        return match ($deviceClass) {
+            HACoverDefinitions::DEVICE_CLASS_GARAGE,
+            HACoverDefinitions::DEVICE_CLASS_GATE,
+            HACoverDefinitions::DEVICE_CLASS_DOOR,
+            HACoverDefinitions::DEVICE_CLASS_WINDOW => $this->Translate('Opening'),
+            HACoverDefinitions::DEVICE_CLASS_DAMPER => $this->Translate('Positioning'),
+            default => $this->Translate('Position'),
+        };
     }
 
     private function isStatusDomain(string $domain): bool

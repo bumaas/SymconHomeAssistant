@@ -37,6 +37,13 @@ trait HADomainRegistryTrait
                     $this->EnableAction($ident);
                 }
             },
+            HACoverDefinitions::DOMAIN => function (string $ident, array $entity): void {
+                if ($this->isCoverMainWritable($entity['attributes'] ?? [])) {
+                    $this->EnableAction($ident);
+                } else {
+                    $this->DisableAction($ident);
+                }
+            },
             HAFanDefinitions::DOMAIN => function (string $ident, array $entity): void {
                 if ($this->isFanToggleSupported($entity['attributes'] ?? [])) {
                     $this->EnableAction($ident);
@@ -55,6 +62,9 @@ trait HADomainRegistryTrait
             HAClimateDefinitions::DOMAIN => [
                 fn(array $entity) => $this->maintainClimateAttributeVariables($entity),
                 fn(array $entity) => $this->maintainClimatePowerVariable($entity)
+            ],
+            HACoverDefinitions::DOMAIN => [
+                fn(array $entity) => $this->maintainCoverAttributeVariables($entity)
             ],
             HAFanDefinitions::DOMAIN => [
                 fn(array $entity) => $this->maintainFanAttributeVariables($entity)
@@ -171,27 +181,27 @@ trait HADomainRegistryTrait
                     if ($attributes !== []) {
                         $storedAttributes = $this->storeEntityAttributes($entityId, $attributes);
                     }
-                    $position = $this->extractCoverPosition($storedAttributes ?? $attributes);
-                    if ($position !== null) {
-                        $this->setEntityMainValue($entityId, $ident, $position, $parsed[self::KEY_STATE]);
-                        $this->updateEntityCache($entityId, $position, $storedAttributes ?? $attributes);
+                    $mainValue = $this->resolveCoverMainValue($storedAttributes ?? $attributes, (string)($parsed[self::KEY_STATE] ?? ''));
+                    if ($mainValue !== null) {
+                        $this->setEntityMainValue($entityId, $ident, $mainValue, $parsed[self::KEY_STATE]);
+                        $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $storedAttributes ?? $attributes);
                         $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-                        $this->updateCoverAttributeValues($entityId, $storedAttributes ?? $attributes);
+                        $this->updateCoverAttributeValues($entityId, $storedAttributes ?? $attributes, (string)($parsed[self::KEY_STATE] ?? ''));
                         return;
                     }
                 }
 
-                $level = $this->normalizeCoverStateToLevel((string)$parsed[self::KEY_STATE]);
+                $level = $this->resolveCoverMainValue([], (string)$parsed[self::KEY_STATE]);
                 if ($level !== null) {
                     $this->setEntityMainValue($entityId, $ident, $level, $parsed[self::KEY_STATE]);
-                    $this->updateEntityCache($entityId, $level, is_array($attributes ?? null) ? $attributes : null);
+                    $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], is_array($attributes ?? null) ? $attributes : null);
                 }
                 if (!empty($parsed[self::KEY_ATTRIBUTES])) {
                     if ($storedAttributes === null) {
                         $storedAttributes = $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
                     }
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
-                    $this->updateCoverAttributeValues($entityId, $storedAttributes);
+                    $this->updateCoverAttributeValues($entityId, $storedAttributes, (string)($parsed[self::KEY_STATE] ?? ''));
                 }
             },
             HALockDefinitions::DOMAIN => function (string $entityId, string $ident, array $parsed): void {

@@ -57,15 +57,24 @@ final class HACoverDefinitions
         return in_array($deviceClass, self::SHUTTER_PRESENTATION_CLASSES, true);
     }
 
+    public const int FEATURE_OPEN = 1;
+    public const int FEATURE_CLOSE = 2;
+    public const int FEATURE_SET_POSITION = 4;
+    public const int FEATURE_STOP = 8;
+    public const int FEATURE_OPEN_TILT = 16;
+    public const int FEATURE_CLOSE_TILT = 32;
+    public const int FEATURE_SET_TILT_POSITION = 64;
+    public const int FEATURE_STOP_TILT = 128;
+
     public const array SUPPORTED_FEATURES = [
-        1 => 'Cover feature: Open',
-        2 => 'Cover feature: Close',
-        4 => 'Cover feature: Set Position',
-        8 => 'Cover feature: Stop',
-        16 => 'Cover feature: Open Tilt',
-        32 => 'Cover feature: Close Tilt',
-        64 => 'Cover feature: Set Tilt Position',
-        128 => 'Cover feature: Stop Tilt'
+        self::FEATURE_OPEN => 'Cover feature: Open',
+        self::FEATURE_CLOSE => 'Cover feature: Close',
+        self::FEATURE_SET_POSITION => 'Cover feature: Set Position',
+        self::FEATURE_STOP => 'Cover feature: Stop',
+        self::FEATURE_OPEN_TILT => 'Cover feature: Open Tilt',
+        self::FEATURE_CLOSE_TILT => 'Cover feature: Close Tilt',
+        self::FEATURE_SET_TILT_POSITION => 'Cover feature: Set Tilt Position',
+        self::FEATURE_STOP_TILT => 'Cover feature: Stop Tilt'
     ];
 
     public const array ATTRIBUTE_DEFINITIONS = [
@@ -74,28 +83,32 @@ final class HACoverDefinitions
             'type' => VARIABLETYPE_FLOAT,
             'suffix' => '%',
             'payload_key' => self::PAYLOAD_POSITION,
-            'writable' => true
+            'writable' => true,
+            'requires_features' => [self::FEATURE_SET_POSITION]
         ],
         self::ATTRIBUTE_TILT_POSITION => [
             'caption' => 'Tilt Position',
             'type' => VARIABLETYPE_FLOAT,
             'suffix' => '%',
             'payload_key' => self::PAYLOAD_TILT_POSITION,
-            'writable' => true
+            'writable' => true,
+            'requires_features' => [self::FEATURE_SET_TILT_POSITION]
         ],
         self::ATTRIBUTE_POSITION_ALT => [
             'caption' => 'Position',
             'type' => VARIABLETYPE_FLOAT,
             'suffix' => '%',
             'payload_key' => self::PAYLOAD_POSITION,
-            'writable' => true
+            'writable' => true,
+            'requires_features' => [self::FEATURE_SET_POSITION]
         ],
         self::ATTRIBUTE_TILT_POSITION_ALT => [
             'caption' => 'Tilt Position',
             'type' => VARIABLETYPE_FLOAT,
             'suffix' => '%',
             'payload_key' => self::PAYLOAD_TILT_POSITION,
-            'writable' => true
+            'writable' => true,
+            'requires_features' => [self::FEATURE_SET_TILT_POSITION]
         ]
     ];
 

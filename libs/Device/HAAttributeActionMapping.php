@@ -26,12 +26,27 @@ trait HAAttributeActionMappingTrait
         return true;
     }
 
+    private function isWritableCoverAttribute(string $attribute, array $entityAttributes = []): bool
+    {
+        $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return false;
+        }
+        if (empty($entityAttributes)) {
+            return false;
+        }
+        if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
+            return false;
+        }
+        return true;
+    }
+
     // Ordnet eine schreibbare Attributvariable wieder ihrer Entität und Domain zu.
     private function resolveAttributeByIdent(string $ident): ?array
     {
         $resolvers = [
             [HALightDefinitions::DOMAIN, HALightDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableLightAttribute($attribute, $attributes)],
-            [HACoverDefinitions::DOMAIN, HACoverDefinitions::ATTRIBUTE_DEFINITIONS, null],
+            [HACoverDefinitions::DOMAIN, HACoverDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableCoverAttribute($attribute, $attributes)],
             [HAFanDefinitions::DOMAIN, HAFanDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableFanAttribute($attribute, $attributes)],
             [HAClimateDefinitions::DOMAIN, HAClimateDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableClimateAttribute($attribute, $attributes)],
             [HAHumidifierDefinitions::DOMAIN, HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS, fn(string $attribute, array $attributes): bool => $this->isWritableHumidifierAttribute($attribute, $attributes)],
