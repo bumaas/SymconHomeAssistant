@@ -53,6 +53,12 @@ trait HADomainSpecialActionsTrait
         return $this->sanitizeIdent($entityId) . self::VACUUM_FAN_SPEED_SUFFIX;
     }
 
+    private function supportsVacuumFanSpeed(array $attributes): bool
+    {
+        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
+        return ($supported & HAVacuumDefinitions::FEATURE_FAN_SPEED) === HAVacuumDefinitions::FEATURE_FAN_SPEED;
+    }
+
     private function getLawnMowerActionIdent(string $entityId): string
     {
         return $this->sanitizeIdent($entityId) . self::LAWN_MOWER_ACTION_SUFFIX;
@@ -129,7 +135,7 @@ trait HADomainSpecialActionsTrait
 
         $ident = $this->getVacuumFanSpeedIdent($entityId);
         $fanSpeedList = $attributes['fan_speed_list'] ?? null;
-        if (!is_array($fanSpeedList) || $fanSpeedList === []) {
+        if (!$this->supportsVacuumFanSpeed($attributes) || !is_array($fanSpeedList) || $fanSpeedList === []) {
             $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, '', 0, false);
             return;
         }
@@ -313,6 +319,11 @@ trait HADomainSpecialActionsTrait
 
         $entityId = $entity['entity_id'] ?? '';
         if ($entityId === '') {
+            return true;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes) || !$this->supportsVacuumFanSpeed($attributes)) {
             return true;
         }
 
