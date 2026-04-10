@@ -69,7 +69,7 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - Neue oder geänderte Textdateien liegen in `UTF-8` ohne BOM mit `LF`-Zeilenenden.
 - In menschenlesbaren deutschen Texten werden echte Umlaute verwendet. Transliterationen wie `ae`, `oe` oder `ue` bleiben nur dort zulässig, wo technische Gründe dagegen sprechen, zum Beispiel in Idents, Dateinamen oder ASCII-gebundenen Formaten.
 - Normalisierung kommt vor Domain-Logik. Domain-Code soll nicht erneut Aliase oder Konfigurationsbesonderheiten auflösen.
-- Präsentationslogik bleibt möglichst seiteneffektfrei. Variablen- und Medienerzeugung gehört in die Maintenance-Traits.
+- Präsentationslogik bleibt möglichst seiteneffektfrei. Variablen- und Medienerzeugung gehören in die Maintenance-Traits.
 - Feature- und Schreibbarkeitslogik orientiert sich an den Domain-Definitionen, nicht an verstreuten Literalwerten.
 - Echte Sonderfälle bleiben explizit. Wenn eine Domain fachlich anders arbeitet, ist eine kleine spezialisierte Methode besser als ein überdehnter Generic-Helper.
 
