@@ -35,242 +35,294 @@ trait HAAttributeHandlersTrait
             ];
         }
 
-        if ($currentDomain === HAEventDefinitions::DOMAIN) {
-            if ($attribute === HAEventDefinitions::ATTRIBUTE_EVENT_TYPES) {
-                $value = $this->parseAttributePayload($payload);
-                if ($value !== null) {
-                    $this->storeEntityAttribute($entityId, $attribute, $value);
-                    $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                }
-                return true;
-            }
-            if ($attribute !== HAEventDefinitions::ATTRIBUTE_EVENT_TYPE) {
-                return true;
-            }
-            $value = $this->parseAttributePayload($payload);
-            if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-            }
+        $handler = $this->getAttributeTopicDomainHandlerMethod($currentDomain);
+        if ($handler === null) {
+            $this->debugExpert('AttributeTopic', 'Kein Handler für Domain', ['EntityID' => $entityId, 'Domain' => $currentDomain]);
+            return false;
+        }
+
+        return $this->{$handler}($entityId, $attribute, $payload);
+    }
+
+    private function getAttributeTopicDomainHandlerMethod(string $domain): ?string
+    {
+        $handlers = [
+            HAEventDefinitions::DOMAIN => 'handleEventAttributeTopic',
+            HACoverDefinitions::DOMAIN => 'handleCoverAttributeTopic',
+            HAClimateDefinitions::DOMAIN => 'handleClimateAttributeTopic',
+            HAFanDefinitions::DOMAIN => 'handleFanAttributeTopic',
+            HAHumidifierDefinitions::DOMAIN => 'handleHumidifierAttributeTopic',
+            HALockDefinitions::DOMAIN => 'handleLockAttributeTopic',
+            HAVacuumDefinitions::DOMAIN => 'handleVacuumAttributeTopic',
+            HALawnMowerDefinitions::DOMAIN => 'handleLawnMowerAttributeTopic',
+            HAMediaPlayerDefinitions::DOMAIN => 'handleMediaPlayerAttributeTopic',
+            HACameraDefinitions::DOMAIN => 'handleCameraAttributeTopic',
+            HAImageDefinitions::DOMAIN => 'handleImageAttributeTopic',
+            HASelectDefinitions::DOMAIN => 'handleSelectAttributeTopic',
+            HALightDefinitions::DOMAIN => 'handleLightAttributeTopic'
+        ];
+
+        return $handlers[$domain] ?? null;
+    }
+
+    private function handleEventAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        if (!in_array($attribute, [HAEventDefinitions::ATTRIBUTE_EVENT_TYPES, HAEventDefinitions::ATTRIBUTE_EVENT_TYPE], true)) {
             return true;
         }
 
-        if ($currentDomain === HACoverDefinitions::DOMAIN) {
-            return $this->handleCoverAttributeTopic($entityId, $attribute, $payload);
+        $value = $this->parseAttributePayload($payload);
+        if ($value !== null) {
+            $this->storeAttributeTopicValue($entityId, $attribute, $value);
         }
-        if ($currentDomain === HAClimateDefinitions::DOMAIN) {
-            $climateAliases = [
-                'temperature' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
-                'target_temp_low' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_LOW,
-                'target_temp_high' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_HIGH,
-                'target_temp_step' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP
-            ];
-            $mappedAttribute = $climateAliases[$attribute] ?? $attribute;
-            $handled = $this->handleAttributeTopicWithDefinitions(
-                $entityId,
-                $attribute,
-                $payload,
-                HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
-                fn(string $id, string $attr): bool => $this->ensureClimateAttributeVariable($id, $attr),
-                [
-                    'attribute_alias' => $climateAliases,
-                    'store_unknown' => true,
-                    'store_defined' => true,
-                    'update_presentation_unknown' => true,
-                    'update_presentation_defined' => true
-                ]
-            );
-            if ($handled) {
-                $this->updateClimateMainValueFromAttributes($entityId, $mappedAttribute);
-            }
-            return $handled;
-        }
-        if ($currentDomain === HAFanDefinitions::DOMAIN) {
-            return $this->handleAttributeTopicWithDefinitions(
-                $entityId,
-                $attribute,
-                $payload,
-                HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
-                fn(string $id, string $attr): bool => $this->ensureFanAttributeVariable($id, $attr),
-                [
-                    'store_unknown' => true,
-                    'update_presentation_unknown' => true
-                ]
-            );
-        }
-        if ($currentDomain === HAHumidifierDefinitions::DOMAIN) {
-            $result = $this->handleAttributeTopicWithDefinitions(
-                $entityId,
-                $attribute,
-                $payload,
-                HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
-                fn(string $id, string $attr): bool => $this->ensureHumidifierAttributeVariable($id, $attr),
-                [
-                    'attribute_alias' => ['humidity' => HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY],
-                    'store_unknown' => true,
-                    'store_defined' => true,
-                    'update_presentation_unknown' => true,
-                    'update_presentation_defined' => true
-                ]
-            );
-            return $result;
-        }
-        if ($currentDomain === HALockDefinitions::DOMAIN) {
-            return $this->handleAttributeTopicWithDefinitions(
-                $entityId,
-                $attribute,
-                $payload,
-                HALockDefinitions::ATTRIBUTE_DEFINITIONS,
-                fn(string $id, string $attr): bool => $this->ensureLockAttributeVariable($id, $attr),
-                [
-                    'store_unknown' => true,
-                    'store_defined' => true,
-                    'update_presentation_unknown' => true,
-                    'update_presentation_defined' => true
-                ]
-            );
-        }
-        if ($currentDomain === HAVacuumDefinitions::DOMAIN) {
-            $value = $this->parseAttributePayload($payload);
-            if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                if (in_array($attribute, [self::KEY_SUPPORTED_FEATURES, 'fan_speed_list'], true)) {
-                    $this->refreshVacuumCapabilityVariables($entityId);
-                }
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
 
-                $storedAttributes = $this->entities[$entityId]['attributes'] ?? [];
-                if (is_array($storedAttributes)) {
-                    $this->updateVacuumFanSpeedValue($entityId, $storedAttributes);
-                }
-            }
-            return true;
-        }
-        if ($currentDomain === HALawnMowerDefinitions::DOMAIN) {
-            $value = $this->parseAttributePayload($payload);
-            if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                if ($attribute === self::KEY_SUPPORTED_FEATURES) {
-                    $this->refreshLawnMowerCapabilityVariables($entityId);
-                }
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-            }
-            return true;
-        }
-        if ($currentDomain === HAMediaPlayerDefinitions::DOMAIN) {
-            if ($attribute === 'entity_picture') {
-                $attribute = 'media_image_url';
-            }
+        return true;
+    }
 
-            if ($attribute === 'media_image_url') {
-                $value = $this->parseAttributePayload($payload);
-                if ($value === null) {
-                    $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                    return true;
-                }
-                $original = (string)$value;
-                $absolute = $this->makeMediaImageUrlAbsolute($original);
-                if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
-                    $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                    return false;
-                }
-                $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-                if ($meta === null) {
-                    $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
-                    return false;
-                }
-                $casted = $this->castVariableValue($original, $meta['type']);
-                $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-                $this->setValueWithDebug($ident, $casted);
-                $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $casted]);
-                $this->storeEntityAttribute($entityId, $attribute, $casted);
-                $this->updateEntityCache($entityId, null, [$attribute => $casted]);
-                if ($absolute !== '') {
-                    $this->updateMediaPlayerCoverMedia($entityId, $absolute);
-                }
-                return true;
-            }
-
-            if ($attribute === 'repeat') {
-                if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
-                    $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                    return false;
-                }
-                $value = $this->parseAttributePayload($payload);
-                if ($value === null) {
-                    $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-                    return true;
-                }
-                $value = $this->mapMediaPlayerRepeatToValue($value);
-                $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-                $this->setValueWithDebug($ident, $value);
-                $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                return true;
-            }
-
-            return $this->handleAttributeTopicWithDefinitions(
-                $entityId,
-                $attribute,
-                $payload,
-                HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS,
-                fn(string $id, string $attr): bool => $this->ensureMediaPlayerAttributeVariable($id, $attr),
-                [
-                    'store_unknown' => true,
-                    'update_presentation_unknown' => true
-                ]
-            );
+    private function handleClimateAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        $climateAliases = [
+            'temperature' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+            'target_temp_low' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_LOW,
+            'target_temp_high' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_HIGH,
+            'target_temp_step' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP
+        ];
+        $mappedAttribute = $climateAliases[$attribute] ?? $attribute;
+        $handled = $this->handleAttributeTopicWithDefinitions(
+            $entityId,
+            $attribute,
+            $payload,
+            HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $id, string $attr): bool => $this->ensureClimateAttributeVariable($id, $attr),
+            [
+                'attribute_alias' => $climateAliases,
+                'store_unknown' => true,
+                'store_defined' => true,
+                'update_presentation_unknown' => true,
+                'update_presentation_defined' => true
+            ]
+        );
+        if ($handled) {
+            $this->updateClimateMainValueFromAttributes($entityId, $mappedAttribute);
         }
-        if ($currentDomain === HACameraDefinitions::DOMAIN || $currentDomain === HAImageDefinitions::DOMAIN) {
-            $value = $this->parseAttributePayload($payload);
-            if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                $attributes = $this->entities[$entityId]['attributes'] ?? [];
-                if ($currentDomain === HACameraDefinitions::DOMAIN) {
-                    if ($attribute === self::KEY_SUPPORTED_FEATURES) {
-                        $entity = $this->entities[$entityId] ?? null;
-                        if (is_array($entity)) {
-                            $this->maintainCameraPowerVariable($entity);
-                        }
-                    }
-                    $this->updateCameraAttributeValues($entityId, is_array($attributes) ? $attributes : []);
-                } else {
-                    $this->updateImageAttributeValues($entityId, is_array($attributes) ? $attributes : []);
-                }
-            }
-            return true;
-        }
-        if ($currentDomain === HASelectDefinitions::DOMAIN) {
-            $value = $this->parseAttributePayload($payload);
-            if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-            }
+
+        return $handled;
+    }
+
+    private function handleFanAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        return $this->handleAttributeTopicWithDefinitions(
+            $entityId,
+            $attribute,
+            $payload,
+            HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $id, string $attr): bool => $this->ensureFanAttributeVariable($id, $attr),
+            [
+                'store_unknown' => true,
+                'update_presentation_unknown' => true
+            ]
+        );
+    }
+
+    private function handleHumidifierAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        return $this->handleAttributeTopicWithDefinitions(
+            $entityId,
+            $attribute,
+            $payload,
+            HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $id, string $attr): bool => $this->ensureHumidifierAttributeVariable($id, $attr),
+            [
+                'attribute_alias' => ['humidity' => HAHumidifierDefinitions::ATTRIBUTE_TARGET_HUMIDITY],
+                'store_unknown' => true,
+                'store_defined' => true,
+                'update_presentation_unknown' => true,
+                'update_presentation_defined' => true
+            ]
+        );
+    }
+
+    private function handleLockAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        return $this->handleAttributeTopicWithDefinitions(
+            $entityId,
+            $attribute,
+            $payload,
+            HALockDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $id, string $attr): bool => $this->ensureLockAttributeVariable($id, $attr),
+            [
+                'store_unknown' => true,
+                'store_defined' => true,
+                'update_presentation_unknown' => true,
+                'update_presentation_defined' => true
+            ]
+        );
+    }
+
+    private function handleVacuumAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
             return true;
         }
 
+        $this->storeAttributeTopicValue($entityId, $attribute, $value, false);
+        if (in_array($attribute, [self::KEY_SUPPORTED_FEATURES, 'fan_speed_list'], true)) {
+            $this->refreshVacuumCapabilityVariables($entityId);
+        }
+        $this->refreshAttributeTopicPresentation($entityId);
+        $this->updateVacuumFanSpeedValue($entityId, $this->getStoredAttributeTopicAttributes($entityId));
+        return true;
+    }
+
+    private function handleLawnMowerAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            return true;
+        }
+
+        $this->storeAttributeTopicValue($entityId, $attribute, $value, false);
+        if ($attribute === self::KEY_SUPPORTED_FEATURES) {
+            $this->refreshLawnMowerCapabilityVariables($entityId);
+        }
+        $this->refreshAttributeTopicPresentation($entityId);
+        return true;
+    }
+
+    private function handleMediaPlayerAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        if ($attribute === 'entity_picture') {
+            $attribute = 'media_image_url';
+        }
+
+        if ($attribute === 'media_image_url') {
+            return $this->handleMediaPlayerImageAttributeTopic($entityId, $attribute, $payload);
+        }
+
+        if ($attribute === 'repeat') {
+            return $this->handleMediaPlayerRepeatAttributeTopic($entityId, $attribute, $payload);
+        }
+
+        return $this->handleAttributeTopicWithDefinitions(
+            $entityId,
+            $attribute,
+            $payload,
+            HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $id, string $attr): bool => $this->ensureMediaPlayerAttributeVariable($id, $attr),
+            [
+                'store_unknown' => true,
+                'update_presentation_unknown' => true
+            ]
+        );
+    }
+
+    private function handleMediaPlayerImageAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+            return true;
+        }
+
+        $original = (string)$value;
+        $absolute = $this->makeMediaImageUrlAbsolute($original);
+        if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
+            $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+            return false;
+        }
+        $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if ($meta === null) {
+            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+            return false;
+        }
+
+        $casted = $this->castVariableValue($original, $meta['type']);
+        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        $this->setValueWithDebug($ident, $casted);
+        $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $casted]);
+        $this->storeEntityAttribute($entityId, $attribute, $casted);
+        $this->updateEntityCache($entityId, null, [$attribute => $casted]);
+        if ($absolute !== '') {
+            $this->updateMediaPlayerCoverMedia($entityId, $absolute);
+        }
+
+        return true;
+    }
+
+    private function handleMediaPlayerRepeatAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
+            $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+            return false;
+        }
+
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+            return true;
+        }
+
+        $value = $this->mapMediaPlayerRepeatToValue($value);
+        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        $this->setValueWithDebug($ident, $value);
+        $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+        $this->updateEntityCache($entityId, null, [$attribute => $value]);
+        return true;
+    }
+
+    private function handleCameraAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            return true;
+        }
+
+        $this->storeAttributeTopicValue($entityId, $attribute, $value);
+        if ($attribute === self::KEY_SUPPORTED_FEATURES) {
+            $entity = $this->entities[$entityId] ?? null;
+            if (is_array($entity)) {
+                $this->maintainCameraPowerVariable($entity);
+            }
+        }
+        $this->updateCameraAttributeValues($entityId, $this->getStoredAttributeTopicAttributes($entityId));
+        return true;
+    }
+
+    private function handleImageAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            return true;
+        }
+
+        $this->storeAttributeTopicValue($entityId, $attribute, $value);
+        $this->updateImageAttributeValues($entityId, $this->getStoredAttributeTopicAttributes($entityId));
+        return true;
+    }
+
+    private function handleSelectAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        $value = $this->parseAttributePayload($payload);
+        if ($value !== null) {
+            $this->storeAttributeTopicValue($entityId, $attribute, $value);
+        }
+
+        return true;
+    }
+
+    private function handleLightAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
         if (!array_key_exists($attribute, HALightDefinitions::ATTRIBUTE_DEFINITIONS)) {
             $value = $this->parseAttributePayload($payload);
             if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
-                // Capability-Topics können neue Light-Variablen erst nach der Initialanlage sichtbar machen.
+                $this->storeAttributeTopicValue($entityId, $attribute, $value);
+                // Capability updates can add light variables after initial creation.
                 if (in_array($attribute, ['supported_features', 'supported_color_modes', 'effect_list'], true)) {
                     $entity = $this->entities[$entityId] ?? null;
                     if (is_array($entity)) {
                         $this->maintainLightAttributeVariables($entity);
-                        $storedAttributes = $entity['attributes'] ?? [];
-                        if (is_array($storedAttributes)) {
-                            $this->updateLightAttributeValues($entityId, $storedAttributes);
-                        }
+                        $this->updateLightAttributeValues($entityId, $this->getStoredAttributeTopicAttributes($entityId));
                     }
                 }
             }
@@ -337,7 +389,7 @@ trait HAAttributeHandlersTrait
                 $this->storeEntityAttribute($entityId, $attribute, $value);
                 $this->updateEntityCache($entityId, null, [$attribute => $value]);
                 if ($updatePresentationUnknown) {
-                    $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                    $this->refreshAttributeTopicPresentation($entityId);
                 }
             }
             return true;
@@ -369,7 +421,7 @@ trait HAAttributeHandlersTrait
         }
         $this->updateEntityCache($entityId, null, [$attribute => $value]);
         if ($updatePresentationDefined) {
-            $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+            $this->refreshAttributeTopicPresentation($entityId);
         }
         if (is_callable($postSet)) {
             $postSet($entityId, $attribute, $value);
@@ -382,9 +434,7 @@ trait HAAttributeHandlersTrait
         if (!array_key_exists($attribute, HACoverDefinitions::ATTRIBUTE_DEFINITIONS)) {
             $value = $this->parseAttributePayload($payload);
             if ($value !== null) {
-                $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, null, [$attribute => $value]);
-                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+                $this->storeAttributeTopicValue($entityId, $attribute, $value);
             }
             return true;
         }
@@ -404,15 +454,35 @@ trait HAAttributeHandlersTrait
         $casted = $this->castVariableValue($value, $meta['type']);
         $this->storeEntityAttribute($entityId, $attribute, $casted);
         $this->updateEntityCache($entityId, null, [$attribute => $casted]);
-        $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
+        $this->refreshAttributeTopicPresentation($entityId);
 
-        $attributes = $this->entities[$entityId]['attributes'] ?? [];
-        if (is_array($attributes)) {
+        $attributes = $this->getStoredAttributeTopicAttributes($entityId);
+        if ($attributes !== []) {
             $state = $this->getCachedEntityRawState($entityId) ?? $this->getCachedEntityState($entityId) ?? '';
             $this->updateCoverAttributeValues($entityId, $attributes, $state);
         }
 
         return true;
+    }
+
+    private function storeAttributeTopicValue(string $entityId, string $attribute, mixed $value, bool $refreshPresentation = true): void
+    {
+        $this->storeEntityAttribute($entityId, $attribute, $value);
+        $this->updateEntityCache($entityId, null, [$attribute => $value]);
+        if ($refreshPresentation) {
+            $this->refreshAttributeTopicPresentation($entityId);
+        }
+    }
+
+    private function refreshAttributeTopicPresentation(string $entityId): void
+    {
+        $this->updateEntityPresentation($entityId, $this->getStoredAttributeTopicAttributes($entityId));
+    }
+
+    private function getStoredAttributeTopicAttributes(string $entityId): array
+    {
+        $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? [];
+        return is_array($attributes) ? $attributes : [];
     }
 
     private function updateClimateMainValueFromAttributes(string $entityId, string $attribute): void
@@ -438,15 +508,3 @@ trait HAAttributeHandlersTrait
         $this->setEntityMainValue($entityId, $mainIdent, $mainValue);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
