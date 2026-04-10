@@ -42,69 +42,49 @@ trait HADomainAttributeMaintenanceTrait
     // Media-Player bündelt viele abgeleitete Attribute und zusätzliche Medienobjekte.
     private function maintainMediaPlayerAttributeVariables(array $entity): void
     {
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
-        foreach (HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if ($this->isMediaPlayerAttributeShadowed($key)) {
-                continue;
-            }
-            if (!$this->shouldCreateMediaPlayerAttribute($key, $meta, $attributes)) {
-                continue;
-            }
-            $ident        = $baseIdent . '_' . $key;
-            $name         = $this->Translate((string)$meta['caption']);
-            $basePosition = 0;
-            $position     = $this->getMediaPlayerAttributePosition($key, $basePosition);
-            $presentation = $this->getMediaPlayerAttributePresentation($key, $attributes, $meta);
-            $exists = @$this->GetIDForIdent($ident) !== false;
-            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-            if (!$exists) {
-                $this->applyMediaPlayerAttributeActionState($key, $attributes, $presentation, $ident);
-            }
-            if ($key === 'media_image_url') {
-                $this->maintainMediaPlayerCoverMedia($entity['entity_id'], $basePosition);
-            }
-        }
+        $this->maintainStandardAttributeVariables(
+            $entity,
+            HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attribute, array $meta, array $attributes): bool => $this->shouldCreateMediaPlayerAttribute($attribute, $meta, $attributes),
+            fn(string $attribute, array $attributes, array $meta): array => $this->getMediaPlayerAttributePresentation($attribute, $attributes, $meta),
+            fn(string $attribute, int $basePosition): int => $this->getMediaPlayerAttributePosition($attribute, $basePosition),
+            function (string $attribute, array $attributes, string $ident, array $presentation, array $_meta): void {
+                $this->applyMediaPlayerAttributeActionState($attribute, $attributes, $presentation, $ident);
+            },
+            0,
+            fn(string $attribute, array $_meta, array $_attributes): bool => $this->isMediaPlayerAttributeShadowed($attribute),
+            function (string $attribute, array $_meta, string $entityId, array $_attributes, int $basePosition): void {
+                if ($attribute === 'media_image_url') {
+                    $this->maintainMediaPlayerCoverMedia($entityId, $basePosition);
+                }
+            },
+            false
+        );
     }
 
     // Erstellt fehlende Media-Player-Attribute lazily bei Bedarf.
     private function ensureMediaPlayerAttributeVariable(string $entityId, string $attribute): bool
     {
-        $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if ($meta === null) {
-            return false;
-        }
-        if ($this->isMediaPlayerAttributeShadowed($attribute)) {
-            return false;
-        }
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        if (@$this->GetIDForIdent($ident) !== false) {
-            return true;
-        }
-
-        $entity = $this->entities[$entityId] ?? [
-            'entity_id' => $entityId,
-            'name'      => $entityId
-        ];
-
-        $attributes   = $entity['attributes'] ?? [];
-        if (!$this->shouldCreateMediaPlayerAttribute($attribute, $meta, is_array($attributes) ? $attributes : [])) {
-            return false;
-        }
-        $name         = $this->Translate((string)$meta['caption']);
-        $basePosition = 0;
-        $position     = $this->getMediaPlayerAttributePosition($attribute, $basePosition);
-        $presentation = $this->getMediaPlayerAttributePresentation($attribute, is_array($attributes) ? $attributes : [], $meta);
-        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        $this->applyMediaPlayerAttributeActionState($attribute, is_array($attributes) ? $attributes : [], $presentation, $ident);
-        if ($attribute === 'media_image_url') {
-            $this->maintainMediaPlayerCoverMedia($entityId, $basePosition);
-        }
-        return true;
+        return $this->ensureStandardAttributeVariable(
+            $entityId,
+            $attribute,
+            HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attributeName, array $meta, array $attributes): bool => $this->shouldCreateMediaPlayerAttribute($attributeName, $meta, $attributes),
+            fn(string $attributeName, array $attributes, array $meta): array => $this->getMediaPlayerAttributePresentation($attributeName, $attributes, $meta),
+            fn(string $attributeName, int $basePosition): int => $this->getMediaPlayerAttributePosition($attributeName, $basePosition),
+            function (string $attributeName, array $attributes, string $ident, array $presentation, array $_meta): void {
+                $this->applyMediaPlayerAttributeActionState($attributeName, $attributes, $presentation, $ident);
+            },
+            0,
+            ['name' => $entityId],
+            null,
+            fn(string $attributeName, array $_meta, array $_attributes): bool => $this->isMediaPlayerAttributeShadowed($attributeName),
+            function (string $attributeName, array $_meta, string $resolvedEntityId, array $_attributes, int $basePosition): void {
+                if ($attributeName === 'media_image_url') {
+                    $this->maintainMediaPlayerCoverMedia($resolvedEntityId, $basePosition);
+                }
+            }
+        );
     }
 
     // Kamera-Variablen bestehen hauptsächlich aus den zugehörigen Medienobjekten.
@@ -485,11 +465,7 @@ trait HADomainAttributeMaintenanceTrait
             $presentation = $this->getLightAttributePresentation($key, $attributes, $meta);
             $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
             $this->debugExpert('LightVars', 'Variable angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-            if ($this->isWritableLightAttribute($key, $attributes)) {
-                $this->EnableAction($ident);
-            } else {
-                $this->DisableAction($ident);
-            }
+            $this->syncAttributeActionState($ident, $this->isWritableLightAttribute($key, $attributes));
         }
     }
 
@@ -522,11 +498,7 @@ trait HADomainAttributeMaintenanceTrait
         $presentation = $this->getLightAttributePresentation($attribute, $attributesArray, $meta);
         $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
         $this->debugExpert('LightVars', 'Variable nachtr�glich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-        if ($this->isWritableLightAttribute($attribute, $attributesArray)) {
-            $this->EnableAction($ident);
-        } else {
-            $this->DisableAction($ident);
-        }
+        $this->syncAttributeActionState($ident, $this->isWritableLightAttribute($attribute, $attributesArray));
         return true;
     }
     private function updateLightAttributeValues(string $entityId, array $attributes): void
@@ -646,11 +618,7 @@ trait HADomainAttributeMaintenanceTrait
             $position     = $this->getClimateAttributePosition($key, $basePosition);
             $presentation = $this->getClimateAttributePresentation($key, $attributes);
             $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-            if ($this->isWritableClimateAttribute($key, $attributes)) {
-                $this->EnableAction($ident);
-            } else {
-                $this->DisableAction($ident);
-            }
+            $this->syncAttributeActionState($ident, $this->isWritableClimateAttribute($key, $attributes));
             $this->debugExpert('ClimateVars', 'Variable angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
         }
     }
@@ -679,11 +647,7 @@ trait HADomainAttributeMaintenanceTrait
         $position     = $this->getClimateAttributePosition($attribute, $basePosition);
         $presentation = $this->getClimateAttributePresentation($attribute, is_array($attributes) ? $attributes : []);
         $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        if ($this->isWritableClimateAttribute($attribute, is_array($attributes) ? $attributes : [])) {
-            $this->EnableAction($ident);
-        } else {
-            $this->DisableAction($ident);
-        }
+        $this->syncAttributeActionState($ident, $this->isWritableClimateAttribute($attribute, is_array($attributes) ? $attributes : []));
         $this->debugExpert('ClimateVars', 'Variable nachträglich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
         return true;
     }
@@ -805,11 +769,7 @@ trait HADomainAttributeMaintenanceTrait
         $presentation = $this->getCoverAttributePresentation($meta);
         $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
         $this->debugExpert('CoverVars', 'Variable nachträglich angelegt', ['Ident' => $ident, 'Name' => $name, 'Presentation' => $presentation]);
-        if ($this->isWritableCoverAttribute($attribute, $attributes)) {
-            $this->EnableAction($ident);
-        } else {
-            $this->DisableAction($ident);
-        }
+        $this->syncAttributeActionState($ident, $this->isWritableCoverAttribute($attribute, $attributes));
         return true;
     }
 
@@ -834,11 +794,7 @@ trait HADomainAttributeMaintenanceTrait
 
             $value = $this->castVariableValue($rawValue, $meta['type']);
             $this->setValueWithDebug($ident, $value);
-            if ($this->isWritableCoverAttribute($key, $attributes)) {
-                $this->EnableAction($ident);
-            } else {
-                $this->DisableAction($ident);
-            }
+            $this->syncAttributeActionState($ident, $this->isWritableCoverAttribute($key, $attributes));
         }
 
         $mainValue = $this->resolveCoverMainValue($attributes, $state);
@@ -1012,86 +968,56 @@ trait HADomainAttributeMaintenanceTrait
 
     private function applyFanAttributeActionState(string $attribute, array $attributes, string $ident): void
     {
-        if ($this->isWritableFanAttribute($attribute, $attributes)) {
-            $this->EnableAction($ident);
-        } else {
-            $this->DisableAction($ident);
-        }
+        $this->syncAttributeActionState($ident, $this->isWritableFanAttribute($attribute, $attributes));
     }
 
     private function maintainFanAttributeVariables(array $entity): void
     {
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
-        foreach (HAFanDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!$this->shouldCreateFanAttribute($key, $meta, $attributes)) {
-                continue;
+        $this->maintainStandardAttributeVariables(
+            $entity,
+            HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attribute, array $meta, array $attributes): bool => $this->shouldCreateFanAttribute($attribute, $meta, $attributes),
+            fn(string $attribute, array $attributes, array $meta): array => $this->getFanAttributePresentation($attribute, $attributes, $meta),
+            fn(string $attribute, int $basePosition): int => $this->getFanAttributePosition($attribute, $basePosition),
+            function (string $attribute, array $attributes, string $ident, array $_presentation, array $_meta): void {
+                $this->applyFanAttributeActionState($attribute, $attributes, $ident);
             }
-            $ident        = $baseIdent . '_' . $key;
-            $name         = $this->Translate((string)$meta['caption']);
-            $basePosition = 0;
-            $position     = $this->getFanAttributePosition($key, $basePosition);
-            $presentation = $this->getFanAttributePresentation($key, $attributes, $meta);
-            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-            $this->applyFanAttributeActionState($key, $attributes, $ident);
-        }
+        );
     }
 
     private function ensureFanAttributeVariable(string $entityId, string $attribute): bool
     {
-        $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if ($meta === null) {
-            return false;
-        }
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        if (@$this->GetIDForIdent($ident) !== false) {
-            return true;
-        }
-
-        $entity = $this->entities[$entityId] ?? [
-            'entity_id' => $entityId,
-            'name'      => $entityId
-        ];
-
-        $attributes = $entity['attributes'] ?? [];
-        $attributesWith = is_array($attributes) ? $attributes : [];
-        if (!array_key_exists($attribute, $attributesWith)) {
-            $attributesWith[$attribute] = null;
-        }
-        if (!$this->shouldCreateFanAttribute($attribute, $meta, $attributesWith)) {
-            return false;
-        }
-        $name         = $this->Translate((string)$meta['caption']);
-        $basePosition = 0;
-        $position     = $this->getFanAttributePosition($attribute, $basePosition);
-        $presentation = $this->getFanAttributePresentation($attribute, is_array($attributes) ? $attributes : [], $meta);
-        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        $this->applyFanAttributeActionState($attribute, is_array($attributes) ? $attributes : [], $ident);
-        return true;
+        return $this->ensureStandardAttributeVariable(
+            $entityId,
+            $attribute,
+            HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attributeName, array $meta, array $attributes): bool => $this->shouldCreateFanAttribute($attributeName, $meta, $attributes),
+            fn(string $attributeName, array $attributes, array $meta): array => $this->getFanAttributePresentation($attributeName, $attributes, $meta),
+            fn(string $attributeName, int $basePosition): int => $this->getFanAttributePosition($attributeName, $basePosition),
+            function (string $attributeName, array $attributes, string $ident, array $_presentation, array $_meta): void {
+                $this->applyFanAttributeActionState($attributeName, $attributes, $ident);
+            },
+            0,
+            ['name' => $entityId],
+            static function (string $attributeName, array $attributes): array {
+                if (!array_key_exists($attributeName, $attributes)) {
+                    $attributes[$attributeName] = null;
+                }
+                return $attributes;
+            }
+        );
     }
 
     private function updateFanAttributeValues(string $entityId, array $attributes): void
     {
-        foreach (HAFanDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!array_key_exists($key, $attributes)) {
-                continue;
-            }
-
-            $ident = $this->sanitizeIdent($entityId . '_' . $key);
-            $varId = @$this->GetIDForIdent($ident);
-            if ($varId === false) {
-                continue;
-            }
-
-            $value = $attributes[$key];
-            $value = $this->castVariableValue($value, $meta['type']);
-            $this->setValueWithDebug($ident, $value);
-        }
-        $this->refreshDomainAttributePresentations(HAFanDefinitions::DOMAIN, $entityId, $attributes);
+        $this->updateStandardAttributeValues(
+            $entityId,
+            $attributes,
+            HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type']),
+            null,
+            HAFanDefinitions::DOMAIN
+        );
     }
 
     private function buildFanAttributePayload(string $attribute, mixed $value): string
@@ -1158,86 +1084,56 @@ trait HADomainAttributeMaintenanceTrait
 
     private function applyHumidifierAttributeActionState(string $attribute, array $attributes, string $ident): void
     {
-        if ($this->isWritableHumidifierAttribute($attribute, $attributes)) {
-            $this->EnableAction($ident);
-        } else {
-            $this->DisableAction($ident);
-        }
+        $this->syncAttributeActionState($ident, $this->isWritableHumidifierAttribute($attribute, $attributes));
     }
 
     private function maintainHumidifierAttributeVariables(array $entity): void
     {
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
-        foreach (HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!$this->shouldCreateHumidifierAttribute($key, $meta, $attributes)) {
-                continue;
+        $this->maintainStandardAttributeVariables(
+            $entity,
+            HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attribute, array $meta, array $attributes): bool => $this->shouldCreateHumidifierAttribute($attribute, $meta, $attributes),
+            fn(string $attribute, array $attributes, array $meta): array => $this->getHumidifierAttributePresentation($attribute, $attributes, $meta),
+            fn(string $attribute, int $basePosition): int => $this->getHumidifierAttributePosition($attribute, $basePosition),
+            function (string $attribute, array $attributes, string $ident, array $_presentation, array $_meta): void {
+                $this->applyHumidifierAttributeActionState($attribute, $attributes, $ident);
             }
-            $ident        = $baseIdent . '_' . $key;
-            $name         = $this->Translate((string)$meta['caption']);
-            $basePosition = 0;
-            $position     = $this->getHumidifierAttributePosition($key, $basePosition);
-            $presentation = $this->getHumidifierAttributePresentation($key, $attributes, $meta);
-            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-            $this->applyHumidifierAttributeActionState($key, $attributes, $ident);
-        }
+        );
     }
 
     private function ensureHumidifierAttributeVariable(string $entityId, string $attribute): bool
     {
-        $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if ($meta === null) {
-            return false;
-        }
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        if (@$this->GetIDForIdent($ident) !== false) {
-            return true;
-        }
-
-        $entity = $this->entities[$entityId] ?? [
-            'entity_id' => $entityId,
-            'name'      => $entityId
-        ];
-
-        $attributes = $entity['attributes'] ?? [];
-        $attributesWith = is_array($attributes) ? $attributes : [];
-        if (!array_key_exists($attribute, $attributesWith)) {
-            $attributesWith[$attribute] = null;
-        }
-        if (!$this->shouldCreateHumidifierAttribute($attribute, $meta, $attributesWith)) {
-            return false;
-        }
-        $name         = $this->Translate((string)$meta['caption']);
-        $basePosition = 0;
-        $position     = $this->getHumidifierAttributePosition($attribute, $basePosition);
-        $presentation = $this->getHumidifierAttributePresentation($attribute, $attributesWith, $meta);
-        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
-        $this->applyHumidifierAttributeActionState($attribute, $attributesWith, $ident);
-        return true;
+        return $this->ensureStandardAttributeVariable(
+            $entityId,
+            $attribute,
+            HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $attributeName, array $meta, array $attributes): bool => $this->shouldCreateHumidifierAttribute($attributeName, $meta, $attributes),
+            fn(string $attributeName, array $attributes, array $meta): array => $this->getHumidifierAttributePresentation($attributeName, $attributes, $meta),
+            fn(string $attributeName, int $basePosition): int => $this->getHumidifierAttributePosition($attributeName, $basePosition),
+            function (string $attributeName, array $attributes, string $ident, array $_presentation, array $_meta): void {
+                $this->applyHumidifierAttributeActionState($attributeName, $attributes, $ident);
+            },
+            0,
+            ['name' => $entityId],
+            static function (string $attributeName, array $attributes): array {
+                if (!array_key_exists($attributeName, $attributes)) {
+                    $attributes[$attributeName] = null;
+                }
+                return $attributes;
+            }
+        );
     }
 
     private function updateHumidifierAttributeValues(string $entityId, array $attributes): void
     {
-        foreach (HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!array_key_exists($key, $attributes)) {
-                continue;
-            }
-
-            $ident = $this->sanitizeIdent($entityId . '_' . $key);
-            $varId = @$this->GetIDForIdent($ident);
-            if ($varId === false) {
-                continue;
-            }
-
-            $value = $attributes[$key];
-            $value = $this->castVariableValue($value, $meta['type']);
-            $this->setValueWithDebug($ident, $value);
-        }
-        $this->refreshDomainAttributePresentations(HAHumidifierDefinitions::DOMAIN, $entityId, $attributes);
+        $this->updateStandardAttributeValues(
+            $entityId,
+            $attributes,
+            HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type']),
+            null,
+            HAHumidifierDefinitions::DOMAIN
+        );
     }
 
     private function buildHumidifierAttributePayload(string $attribute, mixed $value): string
@@ -1323,61 +1219,64 @@ trait HADomainAttributeMaintenanceTrait
         string $attribute,
         array $attributes
     ): void {
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        if (@$this->GetIDForIdent($ident) === false) {
-            return;
-        }
         $basePosition = $this->getEntityPosition($entityId);
 
         switch ($domain) {
             case HAFanDefinitions::DOMAIN: {
-                $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-                if (!is_array($meta)) {
-                    return;
-                }
-                $presentation = $this->getFanAttributePresentation($attribute, $attributes, $meta);
-                $position = $this->getFanAttributePosition($attribute, 0);
-                $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                $this->refreshStandardAttributePresentationIfExists(
+                    $entityId,
+                    $attribute,
+                    $attributes,
+                    HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
+                    fn(string $attributeName, array $attributeData, array $meta): array => $this->getFanAttributePresentation($attributeName, $attributeData, $meta),
+                    fn(string $attributeName, int $positionBase): int => $this->getFanAttributePosition($attributeName, $positionBase)
+                );
                 return;
             }
             case HAHumidifierDefinitions::DOMAIN: {
-                $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-                if (!is_array($meta)) {
-                    return;
-                }
-                $presentation = $this->getHumidifierAttributePresentation($attribute, $attributes, $meta);
-                $position = $this->getHumidifierAttributePosition($attribute, 0);
-                $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                $this->refreshStandardAttributePresentationIfExists(
+                    $entityId,
+                    $attribute,
+                    $attributes,
+                    HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
+                    fn(string $attributeName, array $attributeData, array $meta): array => $this->getHumidifierAttributePresentation($attributeName, $attributeData, $meta),
+                    fn(string $attributeName, int $positionBase): int => $this->getHumidifierAttributePosition($attributeName, $positionBase)
+                );
                 return;
             }
             case HAMediaPlayerDefinitions::DOMAIN: {
-                $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-                if (!is_array($meta)) {
-                    return;
-                }
-                $presentation = $this->getMediaPlayerAttributePresentation($attribute, $attributes, $meta);
-                $position = $this->getMediaPlayerAttributePosition($attribute, 0);
-                $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                $this->refreshStandardAttributePresentationIfExists(
+                    $entityId,
+                    $attribute,
+                    $attributes,
+                    HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS,
+                    fn(string $attributeName, array $attributeData, array $meta): array => $this->getMediaPlayerAttributePresentation($attributeName, $attributeData, $meta),
+                    fn(string $attributeName, int $positionBase): int => $this->getMediaPlayerAttributePosition($attributeName, $positionBase)
+                );
                 return;
             }
             case HALightDefinitions::DOMAIN: {
-                $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-                if (!is_array($meta)) {
-                    return;
-                }
-                $presentation = $this->getLightAttributePresentation($attribute, $attributes, $meta);
-                $position = $this->getLightAttributePosition($attribute, $basePosition);
-                $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                $this->refreshStandardAttributePresentationIfExists(
+                    $entityId,
+                    $attribute,
+                    $attributes,
+                    HALightDefinitions::ATTRIBUTE_DEFINITIONS,
+                    fn(string $attributeName, array $attributeData, array $meta): array => $this->getLightAttributePresentation($attributeName, $attributeData, $meta),
+                    fn(string $attributeName, int $positionBase): int => $this->getLightAttributePosition($attributeName, $positionBase),
+                    $basePosition
+                );
                 return;
             }
             case HAClimateDefinitions::DOMAIN: {
-                $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-                if (!is_array($meta)) {
-                    return;
-                }
-                $presentation = $this->getClimateAttributePresentation($attribute, $attributes);
-                $position = $this->getClimateAttributePosition($attribute, $basePosition);
-                $this->refreshAttributePresentation($ident, (string)$meta['caption'], $meta['type'], $presentation, $position);
+                $this->refreshStandardAttributePresentationIfExists(
+                    $entityId,
+                    $attribute,
+                    $attributes,
+                    HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
+                    fn(string $attributeName, array $attributeData, array $_meta): array => $this->getClimateAttributePresentation($attributeName, $attributeData),
+                    fn(string $attributeName, int $positionBase): int => $this->getClimateAttributePosition($attributeName, $positionBase),
+                    $basePosition
+                );
                 return;
             }
             default:
@@ -1400,11 +1299,7 @@ trait HADomainAttributeMaintenanceTrait
                 if (@$this->GetIDForIdent($ident) === false && !$this->ensureLightAttributeVariable($entityId, $key)) {
                     continue;
                 }
-                if ($this->isWritableLightAttribute($key, $attributes)) {
-                    $this->EnableAction($ident);
-                } else {
-                    $this->DisableAction($ident);
-                }
+                $this->syncAttributeActionState($ident, $this->isWritableLightAttribute($key, $attributes));
             }
             return;
         }
@@ -1423,11 +1318,7 @@ trait HADomainAttributeMaintenanceTrait
             return;
         }
         if ($domain === HAClimateDefinitions::DOMAIN) {
-            if ($this->isWritableClimateAttribute($attribute, $attributes)) {
-                $this->EnableAction($ident);
-            } else {
-                $this->DisableAction($ident);
-            }
+            $this->syncAttributeActionState($ident, $this->isWritableClimateAttribute($attribute, $attributes));
             return;
         }
         if ($domain === HAMediaPlayerDefinitions::DOMAIN && $attribute === 'media_position') {
@@ -1442,29 +1333,23 @@ trait HADomainAttributeMaintenanceTrait
 
     private function updateMediaPlayerAttributeValues(string $entityId, array $attributes): void
     {
-        foreach (HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
-            if (!array_key_exists($key, $attributes)) {
-                continue;
-            }
-
-            $ident = $this->sanitizeIdent($entityId . '_' . $key);
-            $varId = @$this->GetIDForIdent($ident);
-            if ($varId === false) {
-                continue;
-            }
-
-            $value = $attributes[$key];
-            if ($key === 'repeat') {
-                $value = $this->mapMediaPlayerRepeatToValue($value);
-            } else {
-                $value = $this->castVariableValue($value, $meta['type']);
-            }
-            $this->setValueWithDebug($ident, $value);
-            if ($key === 'media_image_url' && is_string($value)) {
-                $this->updateMediaPlayerCoverMedia($entityId, $value);
-            }
-        }
-        $this->refreshDomainAttributePresentations(HAMediaPlayerDefinitions::DOMAIN, $entityId, $attributes);
+        $this->updateStandardAttributeValues(
+            $entityId,
+            $attributes,
+            HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS,
+            function (string $attribute, mixed $value, array $meta): mixed {
+                if ($attribute === 'repeat') {
+                    return $this->mapMediaPlayerRepeatToValue($value);
+                }
+                return $this->castVariableValue($value, $meta['type']);
+            },
+            function (string $attribute, mixed $value) use ($entityId) {
+                if ($attribute === 'media_image_url' && is_string($value)) {
+                    $this->updateMediaPlayerCoverMedia($entityId, $value);
+                }
+            },
+            HAMediaPlayerDefinitions::DOMAIN
+        );
     }
 
     private function applyMediaPlayerAttributeActionState(
@@ -1480,11 +1365,7 @@ trait HADomainAttributeMaintenanceTrait
         } else {
             $useAction = $this->isWritableMediaPlayerAttribute($attribute, $attributes);
         }
-        if ($useAction) {
-            $this->EnableAction($ident);
-        } else {
-            $this->DisableAction($ident);
-        }
+        $this->syncAttributeActionState($ident, $useAction);
     }
     private function getMediaPlayerAttributePosition(string $attribute, int $basePosition): int
     {

@@ -10,6 +10,7 @@ require_once __DIR__ . '/../libs/Device/HADomainRegistry.php';
 require_once __DIR__ . '/../libs/Device/HADomainStateHandlers.php';
 require_once __DIR__ . '/../libs/Device/HAAttributeHandlers.php';
 require_once __DIR__ . '/../libs/Device/HAPresentation.php';
+require_once __DIR__ . '/../libs/Device/HAStandardAttributeMaintenance.php';
 require_once __DIR__ . '/../libs/Device/HADomainAttributeMaintenance.php';
 require_once __DIR__ . '/../libs/Device/HADomainSpecialActions.php';
 require_once __DIR__ . '/../libs/Device/HADomainValueMapping.php';
@@ -41,6 +42,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     use HAAttributeHandlersTrait;
     use HADomainRegistryTrait;
     use HAPresentationTrait;
+    use HAStandardAttributeMaintenanceTrait;
     use HADomainAttributeMaintenanceTrait;
     use HADomainSpecialActionsTrait;
     use HADomainValueMappingTrait;
