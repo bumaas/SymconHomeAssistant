@@ -91,6 +91,11 @@ trait HADomainRegistryTrait
         }
     }
 
+    private function shouldApplyDomainActionStateOnExisting(string $domain): bool
+    {
+        return $domain === HASelectDefinitions::DOMAIN;
+    }
+
     private function getDomainExtraMaintainerMethods(string $domain): array
     {
         $maintainers = [

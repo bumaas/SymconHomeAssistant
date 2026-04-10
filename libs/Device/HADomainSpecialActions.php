@@ -234,18 +234,6 @@ trait HADomainSpecialActionsTrait
         $this->EnableAction($ident);
     }
 
-    // Vacuum capability topics may arrive after the main entity was created.
-    private function refreshVacuumCapabilityVariables(string $entityId): void
-    {
-        $entity = $this->entities[$entityId] ?? null;
-        if (!is_array($entity)) {
-            return;
-        }
-
-        $this->maintainVacuumActionVariable($entity);
-        $this->maintainVacuumFanSpeedVariable($entity);
-    }
-
     private function maintainLawnMowerActionVariable(array $entity): void
     {
         $entityId = $entity['entity_id'] ?? '';
@@ -262,17 +250,6 @@ trait HADomainSpecialActionsTrait
         $ident = $this->getLawnMowerActionIdent($entityId);
         $position = $this->getEntityPosition($entityId) + 5;
         $this->maintainEnumerationTriggerVariable($ident, $this->Translate('Aktion'), $position, $options, true);
-    }
-
-    // Lawn mower capability topics may arrive after the main entity was created.
-    private function refreshLawnMowerCapabilityVariables(string $entityId): void
-    {
-        $entity = $this->entities[$entityId] ?? null;
-        if (!is_array($entity)) {
-            return;
-        }
-
-        $this->maintainLawnMowerActionVariable($entity);
     }
 
     private function supportsCameraPower(array $attributes): bool

@@ -692,29 +692,7 @@ class HomeAssistantDevice extends IPSModuleStrict
     // Hauptvariable einer Entität anlegen oder aktualisieren.
     private function maintainEntityVariable(array $entity): void
     {
-        $ident  = $this->sanitizeIdent($entity['entity_id']);
-        $domain = $entity['domain'];
-        $name       = $this->getEntityVariableName($domain, $entity);
-        $exists     = @$this->GetIDForIdent($ident) !== false;
-        $descriptor = $this->describeEntityMainVariable($entity);
-
-        $type         = $this->getVariableType($domain, $entity['attributes'] ?? []);
-        $position     = $this->getEntityPosition($entity['entity_id']);
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
-            $position = $this->getMediaPlayerOrderPosition(0, 'status');
-        } else {
-            $linkedPosition = $this->getMediaPlayerLinkedPosition($entity['entity_id'], $domain);
-            if ($linkedPosition !== null) {
-                $position = $linkedPosition;
-            }
-        }
-        $presentation = $this->getEntityPresentation($domain, $entity, $type);
-
-        $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
-        $this->initializeVariableDescriptorValue($ident, $descriptor, $exists);
-
-        $this->applyDomainActionState($domain, $ident, $entity);
-        $this->applyDomainExtraMaintenance($domain, $entity);
+        $this->syncEntityPresentation($entity, true);
     }
 
     /**

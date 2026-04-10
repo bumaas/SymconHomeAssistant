@@ -167,9 +167,6 @@ trait HAAttributeHandlersTrait
         }
 
         $this->storeAttributeTopicValue($entityId, $attribute, $value, false);
-        if (in_array($attribute, [self::KEY_SUPPORTED_FEATURES, 'fan_speed_list'], true)) {
-            $this->refreshVacuumCapabilityVariables($entityId);
-        }
         $this->refreshAttributeTopicPresentation($entityId);
         $this->updateVacuumFanSpeedValue($entityId, $this->getStoredAttributeTopicAttributes($entityId));
         return true;
@@ -183,9 +180,6 @@ trait HAAttributeHandlersTrait
         }
 
         $this->storeAttributeTopicValue($entityId, $attribute, $value, false);
-        if ($attribute === self::KEY_SUPPORTED_FEATURES) {
-            $this->refreshLawnMowerCapabilityVariables($entityId);
-        }
         $this->refreshAttributeTopicPresentation($entityId);
         return true;
     }
@@ -279,13 +273,6 @@ trait HAAttributeHandlersTrait
         }
 
         $this->storeAttributeTopicValue($entityId, $attribute, $value);
-        if ($attribute === self::KEY_SUPPORTED_FEATURES) {
-            $entity = $this->entities[$entityId] ?? null;
-            if (is_array($entity)) {
-                $this->maintainCameraPowerVariable($entity);
-            }
-        }
-        $this->updateCameraAttributeValues($entityId, $this->getStoredAttributeTopicAttributes($entityId));
         return true;
     }
 
@@ -297,7 +284,6 @@ trait HAAttributeHandlersTrait
         }
 
         $this->storeAttributeTopicValue($entityId, $attribute, $value);
-        $this->updateImageAttributeValues($entityId, $this->getStoredAttributeTopicAttributes($entityId));
         return true;
     }
 
@@ -319,11 +305,7 @@ trait HAAttributeHandlersTrait
                 $this->storeAttributeTopicValue($entityId, $attribute, $value);
                 // Capability updates can add light variables after initial creation.
                 if (in_array($attribute, ['supported_features', 'supported_color_modes', 'effect_list'], true)) {
-                    $entity = $this->entities[$entityId] ?? null;
-                    if (is_array($entity)) {
-                        $this->maintainLightAttributeVariables($entity);
-                        $this->updateLightAttributeValues($entityId, $this->getStoredAttributeTopicAttributes($entityId));
-                    }
+                    $this->updateLightAttributeValues($entityId, $this->getStoredAttributeTopicAttributes($entityId));
                 }
             }
             return true;

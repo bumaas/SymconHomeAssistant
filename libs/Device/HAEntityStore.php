@@ -193,6 +193,54 @@ trait HAEntityStoreTrait
         $this->writeEntityStateCache($cache);
     }
 
+    private function getEntityMainVariablePosition(array $entity, string $domain): int
+    {
+        $entityId = (string)($entity['entity_id'] ?? '');
+        $position = $this->getEntityPosition($entityId);
+        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
+            return $this->getMediaPlayerOrderPosition(0, 'status');
+        }
+
+        $linkedPosition = $this->getMediaPlayerLinkedPosition($entityId, $domain);
+        if ($linkedPosition !== null) {
+            return $linkedPosition;
+        }
+
+        return $position;
+    }
+
+    // Initiale Anlage und Refresh teilen sich einen Pfad für Hauptvariable und Domain-Extras.
+    private function syncEntityPresentation(array $entity, bool $initializeDescriptorValue = false): void
+    {
+        $entityId = (string)($entity['entity_id'] ?? '');
+        if ($entityId === '') {
+            return;
+        }
+
+        $domain = (string)($entity['domain'] ?? $this->getEntityDomain($entityId));
+        if ($domain === '') {
+            return;
+        }
+
+        $ident = $this->sanitizeIdent($entityId);
+        $exists = @$this->GetIDForIdent($ident) !== false;
+        $type = $this->getVariableType($domain, $entity['attributes'] ?? []);
+        $presentation = $this->getEntityPresentation($domain, $entity, $type);
+        $position = $this->getEntityMainVariablePosition($entity, $domain);
+        $name = $this->getEntityVariableName($domain, $entity);
+
+        $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
+        if ($initializeDescriptorValue) {
+            $descriptor = $this->describeEntityMainVariable($entity);
+            $this->initializeVariableDescriptorValue($ident, $descriptor, $exists);
+        }
+
+        if (!$exists || $this->shouldApplyDomainActionStateOnExisting($domain)) {
+            $this->applyDomainActionState($domain, $ident, $entity);
+        }
+        $this->applyDomainExtraMaintenance($domain, $entity);
+    }
+
     private function updateEntityPresentation(string $entityId, array $attributes): void
     {
         if (!isset($this->entities[$entityId])) {
@@ -218,43 +266,7 @@ trait HAEntityStoreTrait
         $this->entities[$entityId]['attributes'] = $mergedAttributes;
         $entity = $this->entities[$entityId];
         $entity['attributes'] = $mergedAttributes;
-        $type = $this->getVariableType($domain, $entity['attributes']);
-        $presentation = $this->getEntityPresentation($domain, $entity, $type);
-        $position = $this->getEntityPosition($entityId);
-        $name = $this->getEntityVariableName($domain, $entity);
-
-        $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
-        // Bestehende Hauptvariablen behalten ihren Action-Status, auch wenn sich Capabilities später ändern.
-
-        if ($domain === HALockDefinitions::DOMAIN) {
-            $this->DisableAction($ident);
-            $this->maintainLockActionVariable($entity);
-            $this->maintainLockAttributeVariables($entity);
-        }
-        if ($domain === HAVacuumDefinitions::DOMAIN) {
-            $this->maintainVacuumActionVariable($entity);
-            $this->maintainVacuumFanSpeedVariable($entity);
-        }
-        if ($domain === HALawnMowerDefinitions::DOMAIN) {
-            $this->maintainLawnMowerActionVariable($entity);
-        }
-        if ($domain === HAFanDefinitions::DOMAIN) {
-            $this->maintainFanAttributeVariables($entity);
-        }
-        if ($domain === HAHumidifierDefinitions::DOMAIN) {
-            $this->maintainHumidifierAttributeVariables($entity);
-        }
-        if ($domain === HACoverDefinitions::DOMAIN) {
-            $this->maintainCoverAttributeVariables($entity);
-        }
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
-            $this->maintainMediaPlayerActionVariable($entity);
-            $this->maintainMediaPlayerPowerVariable($entity);
-            $this->maintainMediaPlayerAttributeVariables($entity);
-        }
-        if ($domain === HAEventDefinitions::DOMAIN) {
-            $this->maintainEventAttributeVariables($entity);
-        }
+        $this->syncEntityPresentation($entity);
     }
 
     private function getCachedEntityAttributes(string $entityId): array
