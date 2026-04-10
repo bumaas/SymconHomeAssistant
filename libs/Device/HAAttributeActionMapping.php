@@ -17,6 +17,9 @@ trait HAAttributeActionMappingTrait
         if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
             return false;
         }
+        if (!empty($entityAttributes) && !$this->hasMediaPlayerSelectableValues($attribute, $entityAttributes)) {
+            return false;
+        }
         if ($attribute === 'media_position') {
             $duration = $entityAttributes['media_duration'] ?? null;
             if (!is_numeric($duration) || (float) $duration <= 0.0) {
@@ -24,6 +27,21 @@ trait HAAttributeActionMappingTrait
             }
         }
         return true;
+    }
+
+    // Listenbasierte Media-Player-Attribute werden nur mit belastbaren HA-Optionen schreibbar.
+    private function hasMediaPlayerSelectableValues(string $attribute, array $entityAttributes): bool
+    {
+        return match ($attribute) {
+            'source' => $this->getMediaPlayerSelectableValues($entityAttributes, 'source_list') !== [],
+            'sound_mode' => $this->getMediaPlayerSelectableValues($entityAttributes, 'sound_mode_list') !== [],
+            default => true,
+        };
+    }
+
+    private function getMediaPlayerSelectableValues(array $entityAttributes, string $listAttribute): array
+    {
+        return HASelectDefinitions::normalizeOptions($entityAttributes[$listAttribute] ?? null);
     }
 
     private function isWritableCoverAttribute(string $attribute, array $entityAttributes = []): bool

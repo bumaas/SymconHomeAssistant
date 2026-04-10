@@ -19,7 +19,7 @@ trait HADomainAttributeMaintenanceTrait
         }
 
         if (($meta['writable'] ?? false) === true) {
-            return $hasAttribute || $this->checkSupportedFeatures($meta, $attributes);
+            return $hasAttribute || $this->isWritableMediaPlayerAttribute($attribute, $attributes);
         }
 
         return $hasAttribute;
@@ -321,6 +321,7 @@ trait HADomainAttributeMaintenanceTrait
     {
         return preg_match('#^rtsps?://#i', trim($url)) === 1;
     }
+
     private function isWritableFanAttribute(string $attribute, array $entityAttributes = []): bool
     {
         $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
@@ -330,7 +331,25 @@ trait HADomainAttributeMaintenanceTrait
         if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
             return false;
         }
+        if (!empty($entityAttributes) && !$this->hasFanSelectableValues($attribute, $entityAttributes)) {
+            return false;
+        }
         return true;
+    }
+
+    // Listenbasierte Fan-Attribute werden nur mit belastbaren HA-Optionen schreibbar.
+    private function hasFanSelectableValues(string $attribute, array $entityAttributes): bool
+    {
+        return match ($attribute) {
+            'preset_mode' => $this->getFanSelectableValues($entityAttributes, 'preset_modes') !== [],
+            'direction' => $this->getFanSelectableValues($entityAttributes, 'direction_list') !== [],
+            default => true,
+        };
+    }
+
+    private function getFanSelectableValues(array $entityAttributes, string $listAttribute): array
+    {
+        return HASelectDefinitions::normalizeOptions($entityAttributes[$listAttribute] ?? null);
     }
 
     private function isWritableClimateAttribute(string $attribute, array $entityAttributes = []): bool
@@ -882,7 +901,7 @@ trait HADomainAttributeMaintenanceTrait
         }
 
         if (($meta['writable'] ?? false) === true) {
-            return $hasAttribute || $this->checkSupportedFeatures($meta, $attributes);
+            return $hasAttribute || $this->isWritableFanAttribute($attribute, $attributes);
         }
         return $hasAttribute;
     }
@@ -1000,7 +1019,24 @@ trait HADomainAttributeMaintenanceTrait
         if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
             return false;
         }
+        if (!empty($entityAttributes) && !$this->hasHumidifierSelectableValues($attribute, $entityAttributes)) {
+            return false;
+        }
         return true;
+    }
+
+    // Listenbasierte Humidifier-Attribute werden nur mit belastbaren HA-Optionen schreibbar.
+    private function hasHumidifierSelectableValues(string $attribute, array $entityAttributes): bool
+    {
+        return match ($attribute) {
+            HAHumidifierDefinitions::ATTRIBUTE_MODE => $this->getHumidifierSelectableValues($entityAttributes, 'available_modes') !== [],
+            default => true,
+        };
+    }
+
+    private function getHumidifierSelectableValues(array $entityAttributes, string $listAttribute): array
+    {
+        return HASelectDefinitions::normalizeOptions($entityAttributes[$listAttribute] ?? null);
     }
 
     private function shouldCreateHumidifierAttribute(string $attribute, array $meta, array $attributes): bool
@@ -1011,18 +1047,14 @@ trait HADomainAttributeMaintenanceTrait
         }
 
         if (($meta['writable'] ?? false) === true) {
-            return $hasAttribute || $this->checkSupportedFeatures($meta, $attributes);
+            return $hasAttribute || $this->isWritableHumidifierAttribute($attribute, $attributes);
         }
         return $hasAttribute;
     }
 
     private function applyHumidifierAttributeActionState(string $attribute, array $attributes, string $ident): void
     {
-        // Mode bleibt schreibbar, solange HA eine belastbare Modusliste liefert.
-        $hasModes = $attribute === 'mode'
-            && is_array($attributes['available_modes'] ?? null)
-            && $attributes['available_modes'] !== [];
-        if ($hasModes || $this->isWritableHumidifierAttribute($attribute, $attributes)) {
+        if ($this->isWritableHumidifierAttribute($attribute, $attributes)) {
             $this->EnableAction($ident);
         } else {
             $this->DisableAction($ident);
@@ -1336,7 +1368,8 @@ trait HADomainAttributeMaintenanceTrait
     ): void {
         $presentationId = $presentation['PRESENTATION'] ?? '';
         if ($attribute === 'media_position') {
-            $useAction = $presentationId === VARIABLE_PRESENTATION_SLIDER;
+            $useAction = $presentationId === VARIABLE_PRESENTATION_SLIDER
+                && $this->isWritableMediaPlayerAttribute($attribute, $attributes);
         } else {
             $useAction = $this->isWritableMediaPlayerAttribute($attribute, $attributes);
         }

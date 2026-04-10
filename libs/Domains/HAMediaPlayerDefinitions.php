@@ -220,6 +220,41 @@ final class HAMediaPlayerDefinitions
             'type' => VARIABLETYPE_STRING,
             'writable' => false
         ],
+        'media_channel' => [
+            'caption' => 'Channel',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => false
+        ],
+        'media_series_title' => [
+            'caption' => 'Series Title',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => false
+        ],
+        'media_episode' => [
+            'caption' => 'Episode',
+            'type' => VARIABLETYPE_INTEGER,
+            'writable' => false
+        ],
+        'media_season' => [
+            'caption' => 'Season',
+            'type' => VARIABLETYPE_INTEGER,
+            'writable' => false
+        ],
+        'media_track' => [
+            'caption' => 'Track',
+            'type' => VARIABLETYPE_INTEGER,
+            'writable' => false
+        ],
+        'media_content_type' => [
+            'caption' => 'Content Type',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => false
+        ],
+        'media_content_id' => [
+            'caption' => 'Content ID',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => false
+        ],
         'media_duration' => [
             'caption' => 'Duration',
             'type' => VARIABLETYPE_INTEGER,
@@ -266,7 +301,9 @@ final class HAMediaPlayerDefinitions
     ];
 
     public const array ACTION_STATE_REFRESH_TRIGGERS = [
-        'media_position' => ['media_duration']
+        'media_position' => ['media_duration'],
+        'source' => ['source_list', 'supported_features'],
+        'sound_mode' => ['sound_mode_list', 'supported_features']
     ];
 
     public const array ATTRIBUTE_ORDER = [
@@ -286,7 +323,14 @@ final class HAMediaPlayerDefinitions
         'media_artist',
         'media_album_artist',
         'media_album_name',
+        'media_channel',
+        'media_series_title',
+        'media_season',
+        'media_episode',
+        'media_track',
         'media_title',
+        'media_content_type',
+        'media_content_id',
         'media_playlist',
         'cross_fade',
         'loudness',

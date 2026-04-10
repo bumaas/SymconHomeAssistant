@@ -263,6 +263,13 @@ trait HAPresentationTrait
         }
 
         if ($attribute === 'media_position') {
+            if (!$this->isWritableMediaPlayerAttribute($attribute, $attributes)) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                                     'DIGITS'       => 0,
+                                                     'SUFFIX'       => $this->formatPresentationSuffix('s')
+                                                 ]);
+            }
             $min       = (float)($meta['min'] ?? 0);
             $maxValue  = $attributes['media_duration'] ?? null;
             $max       = (is_numeric($maxValue) && ($maxValue > 0)) ? (float)$maxValue : 100;
@@ -305,7 +312,7 @@ trait HAPresentationTrait
 
         if ($attribute === 'source') {
             $options = $this->getPresentationOptions(
-                is_array($attributes['source_list'] ?? null) ? $attributes['source_list'] : null
+                HASelectDefinitions::normalizeOptions($attributes['source_list'] ?? null)
             );
             if ($options !== null) {
                 return $this->filterPresentation([
@@ -317,7 +324,7 @@ trait HAPresentationTrait
 
         if ($attribute === 'sound_mode') {
             $options = $this->getPresentationOptions(
-                is_array($attributes['sound_mode_list'] ?? null) ? $attributes['sound_mode_list'] : null
+                HASelectDefinitions::normalizeOptions($attributes['sound_mode_list'] ?? null)
             );
             if ($options !== null) {
                 return $this->filterPresentation([
@@ -395,7 +402,7 @@ trait HAPresentationTrait
 
         if ($attribute === 'preset_mode') {
             $options = $this->getPresentationOptions(
-                is_array($attributes['preset_modes'] ?? null) ? $attributes['preset_modes'] : null
+                HASelectDefinitions::normalizeOptions($attributes['preset_modes'] ?? null)
             );
             if ($options !== null) {
                 return $this->filterPresentation([
@@ -407,7 +414,7 @@ trait HAPresentationTrait
 
         if ($attribute === 'direction' || $attribute === 'current_direction') {
             $options = $this->getPresentationOptions(
-                is_array($attributes['direction_list'] ?? null) ? $attributes['direction_list'] : null
+                HASelectDefinitions::normalizeOptions($attributes['direction_list'] ?? null)
             );
             if ($options !== null) {
                 return $this->filterPresentation([
@@ -455,7 +462,7 @@ trait HAPresentationTrait
 
         if ($attribute === 'mode') {
             $options = $this->getPresentationOptions(
-                is_array($attributes['available_modes'] ?? null) ? $attributes['available_modes'] : null
+                HASelectDefinitions::normalizeOptions($attributes['available_modes'] ?? null)
             );
             if ($options !== null) {
                 return $this->filterPresentation([
@@ -466,6 +473,13 @@ trait HAPresentationTrait
         }
 
         if ($attribute === 'action') {
+            $options = $this->getHumidifierActionValueOptions($attributes);
+            if ($options !== null) {
+                return $this->filterPresentation([
+                                                     'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                                                     'OPTIONS'      => $options
+                                                 ]);
+            }
             return $this->filterPresentation([
                                                  'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION
                                              ]);
@@ -476,6 +490,18 @@ trait HAPresentationTrait
                                              'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
                                              'SUFFIX'       => $this->formatPresentationSuffix((string)$suffix)
                                          ]);
+    }
+
+    private function getHumidifierActionValueOptions(array $attributes): ?string
+    {
+        $options = ['off', 'idle', 'humidifying', 'drying', 'tank_full'];
+        $current = $attributes[HAHumidifierDefinitions::ATTRIBUTE_ACTION] ?? null;
+        if (is_string($current) && trim($current) !== '') {
+            $options[] = trim($current);
+        }
+
+        $normalized = HASelectDefinitions::normalizeOptions($options);
+        return $this->getValuePresentationOptions($normalized);
     }
 
     private function getLockPresentation(array $attributes): array
