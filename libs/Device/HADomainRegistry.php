@@ -146,7 +146,7 @@ trait HADomainRegistryTrait
                     if ($mainValue !== null) {
                         $this->setEntityMainValue($entityId, $ident, $mainValue, $state);
                     }
-                    $this->updateEntityCache($entityId, $mainValue, $attributes);
+                    $this->updateEntityCache($entityId, is_string($state) && $state !== '' ? $state : null, $attributes);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
                     $this->updateClimateAttributeValues($entityId, $attributes);
                     if (is_string($state) && $state !== '') {

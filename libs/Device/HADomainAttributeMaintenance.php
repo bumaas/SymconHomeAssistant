@@ -362,29 +362,29 @@ trait HADomainAttributeMaintenanceTrait
             return false;
         }
 
-        // Modus-Attribute sind nur sinnvoll, wenn HA die zugehÃ¶rigen Optionen liefert.
+        // Modus-Attribute sind nur sinnvoll, wenn HA die zugehörigen Optionen liefert.
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
-            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_HVAC_MODES] ?? null;
-            return is_array($modes) && $modes !== [];
+            return $this->getClimateSelectableValues($entityAttributes, HAClimateDefinitions::ATTRIBUTE_HVAC_MODES) !== [];
         }
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_PRESET_MODE) {
-            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_PRESET_MODES] ?? null;
-            return is_array($modes) && $modes !== [];
+            return $this->getClimateSelectableValues($entityAttributes, HAClimateDefinitions::ATTRIBUTE_PRESET_MODES) !== [];
         }
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_FAN_MODE) {
-            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_FAN_MODES] ?? null;
-            return is_array($modes) && $modes !== [];
+            return $this->getClimateSelectableValues($entityAttributes, HAClimateDefinitions::ATTRIBUTE_FAN_MODES) !== [];
         }
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_MODE) {
-            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_SWING_MODES] ?? null;
-            return is_array($modes) && $modes !== [];
+            return $this->getClimateSelectableValues($entityAttributes, HAClimateDefinitions::ATTRIBUTE_SWING_MODES) !== [];
         }
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE) {
-            $modes = $entityAttributes[HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES] ?? null;
-            return is_array($modes) && $modes !== [];
+            return $this->getClimateSelectableValues($entityAttributes, HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES) !== [];
         }
 
         return true;
+    }
+
+    private function getClimateSelectableValues(array $entityAttributes, string $listAttribute): array
+    {
+        return HASelectDefinitions::normalizeOptions($entityAttributes[$listAttribute] ?? null);
     }
 
     private function shouldCreateClimateAttribute(string $attribute, array $meta, array $attributes): bool

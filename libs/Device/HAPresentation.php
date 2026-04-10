@@ -1180,11 +1180,13 @@ trait HAPresentationTrait
                 $min = $attributes[HAClimateDefinitions::ATTRIBUTE_MIN_HUMIDITY] ?? 0;
                 $max = $attributes[HAClimateDefinitions::ATTRIBUTE_MAX_HUMIDITY] ?? 100;
                 if (is_numeric($min) && is_numeric($max)) {
+                    $step = $attributes['target_humidity_step'] ?? 1;
                     return $this->filterPresentation([
                                                          'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
                                                          'MIN'          => (float)$min,
                                                          'MAX'          => (float)$max,
-                                                         'STEP_SIZE'    => 1,
+                                                         'STEP_SIZE'    => is_numeric($step) ? (float)$step : 1,
+                                                         'DIGITS'       => $digitsOverride ?? $this->getNumericDigits($attributes, $step, $attributes[$attribute] ?? null),
                                                          'SUFFIX'       => $this->formatPresentationSuffix('%')
                                                      ]);
                 }
@@ -1266,18 +1268,13 @@ trait HAPresentationTrait
 
     private function getClimatePresentationOptions(array|string|null $options): ?string
     {
-        if (is_string($options)) {
-            $trimmed = trim($options);
-            if ($trimmed !== '') {
-                $options = [$trimmed];
-            }
-        }
-        if (!is_array($options) || count($options) === 0) {
+        $normalized = HASelectDefinitions::normalizeOptions($options);
+        if ($normalized === []) {
             return null;
         }
 
         $formatted = [];
-        foreach ($options as $value) {
+        foreach ($normalized as $value) {
             $text = is_scalar($value) ? (string)$value : '';
             if ($text === '') {
                 continue;
