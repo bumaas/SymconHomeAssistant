@@ -5,9 +5,9 @@ declare(strict_types=1);
 final class HAEventDefinitions
 {
     public const string DOMAIN = 'event';
-    public const string STATE_SUFFIX = 'event_type';
-    public const int VARIABLE_TYPE = VARIABLETYPE_STRING;
-    public const string PRESENTATION = VARIABLE_PRESENTATION_VALUE_PRESENTATION;
+    public const string STATE_SUFFIX = 'state';
+    public const int VARIABLE_TYPE = VARIABLETYPE_INTEGER;
+    public const string PRESENTATION = VARIABLE_PRESENTATION_DATE_TIME;
     public const string ATTRIBUTE_EVENT_TYPE = 'event_type';
     public const string ATTRIBUTE_EVENT_TYPES = 'event_types';
 

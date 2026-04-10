@@ -134,6 +134,44 @@ trait HADomainAttributeMaintenanceTrait
         $this->updateImageAttributeValues($entity['entity_id'], $attributes);
     }
 
+    // Event trennt Zeitstempel und Ereignistyp in zwei eigene Symcon-Variablen.
+    private function maintainEventAttributeVariables(array $entity): void
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $hasEventType = array_key_exists(HAEventDefinitions::ATTRIBUTE_EVENT_TYPE, $attributes);
+        $hasEventTypes = array_key_exists(HAEventDefinitions::ATTRIBUTE_EVENT_TYPES, $attributes);
+        if (!$hasEventType && !$hasEventTypes) {
+            return;
+        }
+
+        $ident = $this->getEventTypeIdent($entityId);
+        $position = $this->getEntityPosition($entityId) + 1;
+        $presentation = $this->getEventTypePresentation($attributes);
+        $name = $this->getEventTypeVariableName($entity);
+        $this->MaintainVariable($ident, $name, VARIABLETYPE_STRING, $presentation, $position, true);
+
+        $eventType = $attributes[HAEventDefinitions::ATTRIBUTE_EVENT_TYPE] ?? null;
+        if (!is_scalar($eventType)) {
+            return;
+        }
+
+        $value = trim((string)$eventType);
+        if ($value === '') {
+            return;
+        }
+
+        $this->setValueWithDebug($ident, $value);
+    }
+
     // Kamera-Updates pflegen Vorschau und optional den RTSP-Stream.
     private function updateCameraAttributeValues(string $entityId, array $attributes): void
     {
@@ -178,6 +216,11 @@ trait HADomainAttributeMaintenanceTrait
         }
 
         $this->setValueWithDebug($ident, $value);
+    }
+
+    private function getEventTypeIdent(string $entityId): string
+    {
+        return $this->sanitizeIdent($entityId) . self::EVENT_TYPE_SUFFIX;
     }
 
     private function maintainCameraStreamMedia(string $entityId, int $basePosition): void
@@ -625,7 +668,7 @@ trait HADomainAttributeMaintenanceTrait
         if (@$this->GetIDForIdent($ident) === false) {
             return;
         }
-        $this->setValueWithDebug($ident, $position);
+        $this->setEntityMainValue($entityId, $ident, $position);
     }
 
     // Cover verwendet die Reihenfolge der Attributdefinitionen.

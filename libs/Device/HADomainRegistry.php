@@ -82,6 +82,9 @@ trait HADomainRegistryTrait
             ],
             HAImageDefinitions::DOMAIN => [
                 fn(array $entity) => $this->maintainImageAttributeVariables($entity)
+            ],
+            HAEventDefinitions::DOMAIN => [
+                fn(array $entity) => $this->maintainEventAttributeVariables($entity)
             ]
         ];
     }
@@ -100,10 +103,21 @@ trait HADomainRegistryTrait
     {
         return [
             HAEventDefinitions::DOMAIN => function (string $entityId, string $ident, array $parsed): void {
+                $state = $parsed[self::KEY_STATE] ?? '';
+                $value = null;
+                if (is_string($state) && $state !== '') {
+                    $value = $this->convertValueByDomain(HAEventDefinitions::DOMAIN, $state);
+                    $this->setEntityMainValue($entityId, $ident, $value, $state);
+                }
                 if (!empty($parsed[self::KEY_ATTRIBUTES])) {
                     $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
-                    $this->updateEntityCache($entityId, null, $parsed[self::KEY_ATTRIBUTES]);
+                    $this->updateEntityCache($entityId, $state !== '' ? $state : null, $parsed[self::KEY_ATTRIBUTES]);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+                    return;
+                }
+
+                if ($state !== '') {
+                    $this->updateEntityCache($entityId, $state, null);
                 }
             },
             HAClimateDefinitions::DOMAIN => function (string $entityId, string $ident, array $parsed): void {
@@ -120,7 +134,7 @@ trait HADomainRegistryTrait
                     $this->maintainClimatePowerVariable($this->entities[$entityId] ?? ['entity_id' => $entityId, 'attributes' => $attributes]);
                     $mainValue = $this->extractClimateMainValue($attributes);
                     if ($mainValue !== null) {
-                        $this->setValueWithDebug($ident, $mainValue);
+                        $this->setEntityMainValue($entityId, $ident, $mainValue, $state);
                     }
                     $this->updateEntityCache($entityId, $mainValue, $attributes);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
@@ -133,9 +147,13 @@ trait HADomainRegistryTrait
 
                 if (is_numeric($parsed[self::KEY_STATE])) {
                     $value = (float)$parsed[self::KEY_STATE];
-                    $this->setValueWithDebug($ident, $value);
+                    $this->setEntityMainValue($entityId, $ident, $value, $parsed[self::KEY_STATE]);
                     $this->updateEntityCache($entityId, $value, null);
                 } elseif (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
+                    if ($this->isIndeterminateEntityState($parsed[self::KEY_STATE])) {
+                        $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
+                        return;
+                    }
                     $this->storeEntityAttribute($entityId, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $parsed[self::KEY_STATE]);
                     $this->updateEntityCache($entityId, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $parsed[self::KEY_STATE]]);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
@@ -155,7 +173,7 @@ trait HADomainRegistryTrait
                     }
                     $position = $this->extractCoverPosition($storedAttributes ?? $attributes);
                     if ($position !== null) {
-                        $this->setValueWithDebug($ident, $position);
+                        $this->setEntityMainValue($entityId, $ident, $position, $parsed[self::KEY_STATE]);
                         $this->updateEntityCache($entityId, $position, $storedAttributes ?? $attributes);
                         $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
                         $this->updateCoverAttributeValues($entityId, $storedAttributes ?? $attributes);
@@ -165,7 +183,7 @@ trait HADomainRegistryTrait
 
                 $level = $this->normalizeCoverStateToLevel((string)$parsed[self::KEY_STATE]);
                 if ($level !== null) {
-                    $this->setValueWithDebug($ident, $level);
+                    $this->setEntityMainValue($entityId, $ident, $level, $parsed[self::KEY_STATE]);
                     $this->updateEntityCache($entityId, $level, is_array($attributes ?? null) ? $attributes : null);
                 }
                 if (!empty($parsed[self::KEY_ATTRIBUTES])) {
@@ -183,7 +201,7 @@ trait HADomainRegistryTrait
                 }
                 $displayState = $this->resolveLockDisplayState((string)$parsed[self::KEY_STATE], is_array($attributes) ? $attributes : null);
                 if ($displayState !== null) {
-                    $this->setValueWithDebug($ident, $displayState);
+                    $this->setEntityMainValue($entityId, $ident, $displayState, $parsed[self::KEY_STATE]);
                 }
                 if (is_array($attributes) && $attributes !== []) {
                     $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
@@ -198,7 +216,7 @@ trait HADomainRegistryTrait
                     $attributes = $this->storeEntityAttributes($entityId, $attributes);
                 }
                 if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                    $this->setValueWithDebug($ident, $parsed[self::KEY_STATE]);
+                    $this->setEntityMainValue($entityId, $ident, $parsed[self::KEY_STATE], $parsed[self::KEY_STATE]);
                 }
                 $this->updateVacuumFanSpeedValue($entityId, $attributes);
                 if (is_array($attributes) && $attributes !== []) {
@@ -214,7 +232,7 @@ trait HADomainRegistryTrait
                     $attributes = $this->storeEntityAttributes($entityId, $attributes);
                 }
                 if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                    $this->setValueWithDebug($ident, $parsed[self::KEY_STATE]);
+                    $this->setEntityMainValue($entityId, $ident, $parsed[self::KEY_STATE], $parsed[self::KEY_STATE]);
                 }
                 if (is_array($attributes) && $attributes !== []) {
                     $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
@@ -229,7 +247,12 @@ trait HADomainRegistryTrait
                     $attributes = $this->storeEntityAttributes($entityId, $attributes);
                 }
                 if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                    $this->setValueWithDebug($ident, $this->convertValueByDomain(HAFanDefinitions::DOMAIN, $parsed[self::KEY_STATE], is_array($attributes) ? $attributes : []));
+                    $this->setEntityMainValue(
+                        $entityId,
+                        $ident,
+                        $this->convertValueByDomain(HAFanDefinitions::DOMAIN, $parsed[self::KEY_STATE], is_array($attributes) ? $attributes : []),
+                        $parsed[self::KEY_STATE]
+                    );
                 }
                 $this->updateFanAttributeValues($entityId, is_array($attributes) ? $attributes : []);
                 if (is_array($attributes) && $attributes !== []) {
@@ -245,7 +268,12 @@ trait HADomainRegistryTrait
                     $attributes = $this->storeEntityAttributes($entityId, $attributes);
                 }
                 if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                    $this->setValueWithDebug($ident, $this->convertValueByDomain(HAHumidifierDefinitions::DOMAIN, $parsed[self::KEY_STATE], is_array($attributes) ? $attributes : []));
+                    $this->setEntityMainValue(
+                        $entityId,
+                        $ident,
+                        $this->convertValueByDomain(HAHumidifierDefinitions::DOMAIN, $parsed[self::KEY_STATE], is_array($attributes) ? $attributes : []),
+                        $parsed[self::KEY_STATE]
+                    );
                 }
                 $this->updateHumidifierAttributeValues($entityId, is_array($attributes) ? $attributes : []);
                 if (is_array($attributes) && $attributes !== []) {
@@ -262,7 +290,7 @@ trait HADomainRegistryTrait
                 }
                 if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
                     $state = $parsed[self::KEY_STATE];
-                    $this->setValueWithDebug($ident, $state);
+                    $this->setEntityMainValue($entityId, $ident, $state, $state);
                     $this->updateMediaPlayerPowerValue($entityId, $state);
                 }
                 $this->updateMediaPlayerAttributeValues($entityId, is_array($attributes) ? $attributes : []);
@@ -279,7 +307,7 @@ trait HADomainRegistryTrait
                     $attributes = $this->storeEntityAttributes($entityId, $attributes);
                 }
                 if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
-                    $this->setValueWithDebug($ident, $parsed[self::KEY_STATE]);
+                    $this->setEntityMainValue($entityId, $ident, $parsed[self::KEY_STATE], $parsed[self::KEY_STATE]);
                 }
                 $this->updateCameraAttributeValues($entityId, is_array($attributes) ? $attributes : []);
                 if (is_array($attributes) && $attributes !== []) {

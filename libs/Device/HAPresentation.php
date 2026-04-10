@@ -606,35 +606,12 @@ trait HAPresentationTrait
 
     private function getEventPresentation(array $attributes): array
     {
-        $eventTypes = $attributes[HAEventDefinitions::ATTRIBUTE_EVENT_TYPES] ?? null;
-        if (!is_array($eventTypes)) {
-            $eventTypes = [];
-        }
-
-        $options = [];
-        foreach ($eventTypes as $eventType) {
-            if (!is_scalar($eventType)) {
-                continue;
-            }
-            $eventType  = (string)$eventType;
-            $captionKey = HAEventDefinitions::EVENT_TYPE_TRANSLATION_KEYS[$eventType] ?? $eventType;
-            $options[]  = [
-                'Value'               => $eventType,
-                'Caption'             => $this->Translate($captionKey),
-                'IconActive'          => false,
-                'IconValue'           => '',
-                'ColorActive'         => false,
-                'ColorValue'          => -1,
-                'ContentColorActive'  => false,
-                'ContentColorValue'   => -1,
-                'ColorDisplay'        => -1,
-                'ContentColorDisplay' => -1
-            ];
-        }
-
         return $this->filterPresentation([
-                                             'PRESENTATION' => HAEventDefinitions::PRESENTATION,
-                                             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+                                             'PRESENTATION'    => VARIABLE_PRESENTATION_DATE_TIME,
+                                             'DATE'            => 1,
+                                             'DAY_OF_THE_WEEK' => false,
+                                             'MONTH_TEXT'      => false,
+                                             'TIME'            => 2
                                          ]);
     }
 
@@ -1013,6 +990,9 @@ trait HAPresentationTrait
             }
             return $this->Translate('Last Update');
         }
+        if ($domain === HAEventDefinitions::DOMAIN) {
+            return $this->getEventStateVariableName($entity);
+        }
         if ($this->isStatusDomain($domain)) {
             if (!$this->hasMultipleStatusEntities) {
                 return $this->Translate('Status');
@@ -1035,6 +1015,64 @@ trait HAPresentationTrait
             HAFanDefinitions::DOMAIN,
             HAHumidifierDefinitions::DOMAIN
         ], true);
+    }
+
+    private function getEventStateVariableName(array $entity): string
+    {
+        $baseName = trim((string)($entity['name'] ?? ''));
+        if ($baseName === '') {
+            return $this->Translate('Last Event');
+        }
+
+        return $baseName . ' (' . $this->Translate('Last Event') . ')';
+    }
+
+    private function getEventTypeVariableName(array $entity): string
+    {
+        $baseName = trim((string)($entity['name'] ?? ''));
+        if ($baseName === '') {
+            return $this->Translate('Event Type');
+        }
+
+        return $baseName . ' (' . $this->Translate('Event Type') . ')';
+    }
+
+    private function getEventTypePresentation(array $attributes): array
+    {
+        $eventTypes = $attributes[HAEventDefinitions::ATTRIBUTE_EVENT_TYPES] ?? null;
+        if (!is_array($eventTypes) || $eventTypes === []) {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION
+            ];
+        }
+
+        $options = [];
+        foreach ($eventTypes as $eventType) {
+            if (!is_scalar($eventType)) {
+                continue;
+            }
+            $value = (string)$eventType;
+            $captionKey = HAEventDefinitions::EVENT_TYPE_TRANSLATION_KEYS[$value] ?? $value;
+            $options[] = [
+                'Value'       => $value,
+                'Caption'     => $this->Translate($captionKey),
+                'IconActive'  => false,
+                'IconValue'   => '',
+                'ColorActive' => false,
+                'ColorValue'  => -1
+            ];
+        }
+
+        if ($options === []) {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION
+            ];
+        }
+
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
+        ]);
     }
 
     private function isEntityBoundToDevice(array $entity): bool

@@ -165,6 +165,24 @@ trait HAEntityStoreTrait
         $this->updateDiagnosticsLabels();
     }
 
+    private function updateEntityRawStateCache(string $entityId, mixed $rawState): void
+    {
+        $cache = json_decode($this->ReadAttributeString('EntityStateCache'), true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($cache)) {
+            $cache = [];
+        }
+
+        $entry = $cache[$entityId] ?? [];
+        if (is_string($rawState) && trim($rawState) !== '') {
+            $entry['raw_state'] = $rawState;
+        }
+        $entry['ts'] = time();
+        $cache[$entityId] = $entry;
+
+        $this->WriteAttributeString('EntityStateCache', json_encode($cache, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $this->updateDiagnosticsLabels();
+    }
+
     private function updateEntityPresentation(string $entityId, array $attributes): void
     {
         if (!isset($this->entities[$entityId])) {
@@ -222,6 +240,9 @@ trait HAEntityStoreTrait
             $this->maintainMediaPlayerPowerVariable($entity);
             $this->maintainMediaPlayerAttributeVariables($entity);
         }
+        if ($domain === HAEventDefinitions::DOMAIN) {
+            $this->maintainEventAttributeVariables($entity);
+        }
     }
 
     private function getCachedEntityAttributes(string $entityId): array
@@ -240,6 +261,114 @@ trait HAEntityStoreTrait
         }
         $attrs = $cache[$entityId][self::KEY_ATTRIBUTES] ?? null;
         return is_array($attrs) ? $attrs : [];
+    }
+
+    private function getCachedEntityRawState(string $entityId): ?string
+    {
+        $raw = $this->ReadAttributeString('EntityStateCache');
+        if ($raw === '') {
+            return null;
+        }
+        try {
+            $cache = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+        if (!is_array($cache) || !isset($cache[$entityId]) || !is_array($cache[$entityId])) {
+            return null;
+        }
+
+        $state = $cache[$entityId]['raw_state'] ?? null;
+        if (!is_string($state) || trim($state) === '') {
+            return null;
+        }
+        return $state;
+    }
+
+    private function updateAvailabilityValue(string $entityId, mixed $rawState): void
+    {
+        if (!is_string($rawState) || trim($rawState) === '') {
+            return;
+        }
+
+        $this->updateUnavailableEntitiesJsonVariable();
+    }
+
+    private function shouldShowUnavailableEntitiesJson(): bool
+    {
+        return @$this->ReadPropertyBoolean(self::PROP_SHOW_UNAVAILABLE_ENTITIES_JSON);
+    }
+
+    private function getUnavailableEntitiesJsonIdent(): string
+    {
+        return self::UNAVAILABLE_ENTITIES_JSON_IDENT;
+    }
+
+    private function maintainUnavailableEntitiesJsonVariable(): void
+    {
+        $ident = $this->getUnavailableEntitiesJsonIdent();
+        if (!$this->shouldShowUnavailableEntitiesJson()) {
+            $this->MaintainVariable(
+                $ident,
+                $this->Translate('Unavailable entities JSON'),
+                VARIABLETYPE_STRING,
+                ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION],
+                10000,
+                false
+            );
+            return;
+        }
+
+        $this->MaintainVariable(
+            $ident,
+            $this->Translate('Unavailable entities JSON'),
+            VARIABLETYPE_STRING,
+            ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION],
+            10000,
+            true
+        );
+    }
+
+    private function updateUnavailableEntitiesJsonVariable(): void
+    {
+        if (!$this->shouldShowUnavailableEntitiesJson()) {
+            return;
+        }
+
+        $jsonIdent = $this->getUnavailableEntitiesJsonIdent();
+        if (@$this->GetIDForIdent($jsonIdent) === false) {
+            return;
+        }
+
+        $entries = [];
+        foreach ($this->entities as $entityId => $entity) {
+            if (($entity['create_var'] ?? true) === false) {
+                continue;
+            }
+
+            $rawState = $this->getCachedEntityRawState($entityId) ?? $this->getCachedEntityState($entityId);
+            // Die Expertenliste zeigt nur auffällige Zustände statt aller Entities.
+            if (!is_string($rawState) || !$this->isIndeterminateEntityState($rawState)) {
+                continue;
+            }
+
+            $entityIdent = $this->sanitizeIdent($entityId);
+            $objectId = @$this->GetIDForIdent($entityIdent);
+            if ($objectId === false) {
+                continue;
+            }
+
+            $entries[$entityId] = [
+                'entity_id'    => (int)$objectId,
+                'state'        => $rawState,
+                'available'    => !$this->isUnavailableEntityState($rawState)
+            ];
+        }
+
+        $this->setValueWithDebug(
+            $jsonIdent,
+            json_encode($entries, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
     }
 
     private function updateDiagnosticsLabels(): void

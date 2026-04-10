@@ -7,11 +7,9 @@ trait HADomainValueMappingTrait
     private function convertValueByDomain(string $domain, string $valueData, array $attributes = []): string|bool|float|int|null
     {
         $domain = $this->normalizeDomainAlias($domain);
-        $normalized = strtoupper(trim($valueData));
-        if ($normalized === 'UNAVAILABLE' || $normalized === 'UNKNOWN') {
-            if ($domain === HASelectDefinitions::DOMAIN || $domain === HAButtonDefinitions::DOMAIN) {
-                return null;
-            }
+        $normalizedState = $this->normalizeEntityStateToken($valueData);
+        if ($normalizedState === 'unavailable' || $normalizedState === 'unknown') {
+            return null;
         }
         if ($domain === HASensorDefinitions::DOMAIN) {
             $deviceClass = $attributes['device_class'] ?? '';
@@ -42,12 +40,13 @@ trait HADomainValueMappingTrait
 
         return match ($domain) {
             HAButtonDefinitions::DOMAIN => -1,
+            HAEventDefinitions::DOMAIN,
             HAImageDefinitions::DOMAIN => $this->parseTimestampValue($valueData),
             HALightDefinitions::DOMAIN,
             HASwitchDefinitions::DOMAIN,
             HABinarySensorDefinitions::DOMAIN,
             HAFanDefinitions::DOMAIN,
-            HAHumidifierDefinitions::DOMAIN => $normalized === 'ON',
+            HAHumidifierDefinitions::DOMAIN => strtoupper(trim($valueData)) === 'ON',
             HAClimateDefinitions::DOMAIN => (float)$valueData,
             HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER
                 ? (int)$valueData

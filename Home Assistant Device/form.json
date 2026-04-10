@@ -123,6 +123,11 @@
           "caption": "Enable extended debug output"
         },
         {
+          "type":    "CheckBox",
+          "name":    "ShowUnavailableEntitiesJson",
+          "caption": "Show unavailable entities JSON"
+        },
+        {
           "type":    "NumberSpinner",
           "name":    "OutputBufferSize",
           "caption": "Output buffer (MB)",

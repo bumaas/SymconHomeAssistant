@@ -60,15 +60,8 @@ trait HAAttributeHandlersTrait
             $value = $this->parseAttributePayload($payload);
             if ($value !== null) {
                 $this->storeEntityAttribute($entityId, $attribute, $value);
-                $this->updateEntityCache($entityId, (string)$value, [$attribute => $value]);
-                $ident = $this->sanitizeIdent($entityId);
-                $varId = @$this->GetIDForIdent($ident);
-                if ($varId === false) {
-                    $this->debugExpert('AttributeTopic', 'Variable nicht gefunden', ['Ident' => $ident]);
-                    return false;
-                }
-                $this->setValueWithDebug($ident, (string)$value);
-                $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
+                $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
             }
             return true;
         }
@@ -89,7 +82,7 @@ trait HAAttributeHandlersTrait
                         if ($attr === HACoverDefinitions::ATTRIBUTE_POSITION || $attr === HACoverDefinitions::ATTRIBUTE_POSITION_ALT) {
                             $mainIdent = $this->sanitizeIdent($id);
                             if (@$this->GetIDForIdent($mainIdent) !== false) {
-                                $this->setValueWithDebug($mainIdent, (float)$value);
+                                $this->setEntityMainValue($id, $mainIdent, (float)$value);
                             }
                         }
                     }
@@ -372,7 +365,7 @@ trait HAAttributeHandlersTrait
         if (@$this->GetIDForIdent($mainIdent) === false) {
             return;
         }
-        $this->setValueWithDebug($mainIdent, $mainValue);
+        $this->setEntityMainValue($entityId, $mainIdent, $mainValue);
     }
 }
 

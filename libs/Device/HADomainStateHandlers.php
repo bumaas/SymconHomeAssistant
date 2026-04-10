@@ -30,11 +30,13 @@ trait HADomainStateHandlersTrait
             return false;
         }
 
+        // Vor der Domainlogik den Rohzustand sichern, damit Folge-Updates Availability und Guards korrekt sehen.
+        $parsedState = $this->parseEntityPayload($payload);
+        $rawState = (string)($parsedState[self::KEY_STATE] ?? '');
+        $this->updateEntityRawStateCache($entityId, $rawState);
+        $this->updateAvailabilityValue($entityId, $rawState);
+
         $ident = $this->sanitizeIdent($domain . '_' . $entity);
-        if ($domain === HAEventDefinitions::DOMAIN) {
-            $this->debugExpert(__FUNCTION__, 'Event-State ignoriert', ['EntityID' => $entityId]);
-            return true;
-        }
 
         $handlers = [
             HACoverDefinitions::DOMAIN => fn() => $this->handleStateTopicCover($ident, $entityId, $payload),
@@ -68,7 +70,7 @@ trait HADomainStateHandlersTrait
         );
         $skipSetValue = $this->shouldSkipStateSetValue($ident, $value);
         if ($value !== null && !$skipSetValue) {
-            $this->setValueWithDebug($ident, $value);
+            $this->setEntityMainValue($entityId, $ident, $value, $parsed[self::KEY_STATE]);
         }
         $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $parsed[self::KEY_ATTRIBUTES] ?? null);
 
@@ -225,7 +227,7 @@ trait HADomainStateHandlersTrait
                 ? $stateValueResolver($stateValue, $attributes)
                 : $stateValue;
             if ($value !== null && !$this->shouldSkipStateSetValue($ident, $value)) {
-                $this->setValueWithDebug($ident, $value);
+                $this->setEntityMainValue($entityId, $ident, $value, $stateValue);
             }
         }
 
@@ -277,7 +279,7 @@ trait HADomainStateHandlersTrait
         if (!$this->ensureStateVariable($ident)) {
             return false;
         }
-        $this->setValueWithDebug($ident, $level);
+        $this->setEntityMainValue($entityId, $ident, $level, $payload);
         $this->updateEntityCache($entityId, $level, null);
         return true;
     }
@@ -293,11 +295,15 @@ trait HADomainStateHandlersTrait
                 return false;
             }
             $value = (float)$payload;
-            $this->setValueWithDebug($ident, $value);
+            $this->setEntityMainValue($entityId, $ident, $value, $payload);
             $this->updateEntityCache($entityId, $value, null);
             return true;
         }
         if ($payload === '') {
+            return true;
+        }
+        if ($this->isIndeterminateEntityState($payload)) {
+            $this->updateEntityCache($entityId, $payload, null);
             return true;
         }
         $this->storeEntityAttribute($entityId, $attribute, $payload);
