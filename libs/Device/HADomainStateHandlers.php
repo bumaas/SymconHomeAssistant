@@ -127,7 +127,10 @@ trait HADomainStateHandlersTrait
             $entityId,
             $payload,
             null,
-            fn(string $id, array $attributes, string $state) => $this->updateVacuumFanSpeedValue($id, $attributes)
+            function (string $id, array $attributes, string $state): void {
+                $this->refreshVacuumCapabilityVariables($id);
+                $this->updateVacuumFanSpeedValue($id, $attributes);
+            }
         );
     }
 

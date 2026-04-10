@@ -97,11 +97,12 @@ trait HADomainSpecialActionsTrait
         }
 
         $options = $this->getVacuumActionOptions($attributes);
+        $ident = $this->getVacuumActionIdent($entityId);
         if ($options === []) {
+            $this->MaintainVariable($ident, $this->Translate('Aktion'), VARIABLETYPE_INTEGER, '', 0, false);
             return;
         }
 
-        $ident = $this->getVacuumActionIdent($entityId);
         $exists = @$this->GetIDForIdent($ident) !== false;
         $position = $this->getEntityPosition($entityId) + 5;
         $presentation = [
@@ -126,12 +127,13 @@ trait HADomainSpecialActionsTrait
             return;
         }
 
+        $ident = $this->getVacuumFanSpeedIdent($entityId);
         $fanSpeedList = $attributes['fan_speed_list'] ?? null;
         if (!is_array($fanSpeedList) || $fanSpeedList === []) {
+            $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, '', 0, false);
             return;
         }
 
-        $ident = $this->getVacuumFanSpeedIdent($entityId);
         $position = $this->getEntityPosition($entityId) + 6;
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -140,6 +142,18 @@ trait HADomainSpecialActionsTrait
 
         $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, $presentation, $position, true);
         $this->EnableAction($ident);
+    }
+
+    // Vacuum capability topics may arrive after the main entity was created.
+    private function refreshVacuumCapabilityVariables(string $entityId): void
+    {
+        $entity = $this->entities[$entityId] ?? null;
+        if (!is_array($entity)) {
+            return;
+        }
+
+        $this->maintainVacuumActionVariable($entity);
+        $this->maintainVacuumFanSpeedVariable($entity);
     }
 
     private function maintainLawnMowerActionVariable(array $entity): void

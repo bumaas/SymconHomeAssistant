@@ -148,6 +148,9 @@ trait HAAttributeHandlersTrait
             if ($value !== null) {
                 $this->storeEntityAttribute($entityId, $attribute, $value);
                 $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                if (in_array($attribute, [self::KEY_SUPPORTED_FEATURES, 'fan_speed_list'], true)) {
+                    $this->refreshVacuumCapabilityVariables($entityId);
+                }
                 $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
 
                 $storedAttributes = $this->entities[$entityId]['attributes'] ?? [];

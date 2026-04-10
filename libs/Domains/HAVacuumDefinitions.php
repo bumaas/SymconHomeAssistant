@@ -15,15 +15,13 @@ final class HAVacuumDefinitions
     public const int ACTION_CLEAN_SPOT = 4;
     public const int ACTION_LOCATE = 5;
 
-    // Home Assistant VacuumEntityFeature (current bitset)
-    public const int FEATURE_TURN_ON = 1;
-    public const int FEATURE_TURN_OFF = 2;
+    // Home Assistant StateVacuumEntity feature bitset.
     public const int FEATURE_PAUSE = 4;
     public const int FEATURE_STOP = 8;
     public const int FEATURE_RETURN_HOME = 16;
     public const int FEATURE_FAN_SPEED = 32;
+    // TODO: Remove legacy battery flag after Home Assistant drops it completely.
     public const int FEATURE_BATTERY = 64;
-    public const int FEATURE_STATUS = 128;
     public const int FEATURE_SEND_COMMAND = 256;
     public const int FEATURE_LOCATE = 512;
     public const int FEATURE_CLEAN_SPOT = 1024;
@@ -41,14 +39,11 @@ final class HAVacuumDefinitions
     ];
 
     public const array SUPPORTED_FEATURES = [
-        self::FEATURE_TURN_ON => 'Vacuum feature: Turn On',
-        self::FEATURE_TURN_OFF => 'Vacuum feature: Turn Off',
         self::FEATURE_PAUSE => 'Vacuum feature: Pause',
         self::FEATURE_STOP => 'Vacuum feature: Stop',
         self::FEATURE_RETURN_HOME => 'Vacuum feature: Return Home',
         self::FEATURE_FAN_SPEED => 'Vacuum feature: Fan Speed',
         self::FEATURE_BATTERY => 'Vacuum feature: Battery',
-        self::FEATURE_STATUS => 'Vacuum feature: Status',
         self::FEATURE_SEND_COMMAND => 'Vacuum feature: Send Command',
         self::FEATURE_LOCATE => 'Vacuum feature: Locate',
         self::FEATURE_CLEAN_SPOT => 'Vacuum feature: Clean Spot',
