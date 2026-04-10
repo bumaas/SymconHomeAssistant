@@ -175,11 +175,12 @@ trait HADomainSpecialActionsTrait
         }
 
         $options = $this->getLawnMowerActionOptions($attributes);
+        $ident = $this->getLawnMowerActionIdent($entityId);
         if ($options === []) {
+            $this->MaintainVariable($ident, $this->Translate('Aktion'), VARIABLETYPE_INTEGER, '', 0, false);
             return;
         }
 
-        $ident = $this->getLawnMowerActionIdent($entityId);
         $exists = @$this->GetIDForIdent($ident) !== false;
         $position = $this->getEntityPosition($entityId) + 5;
         $presentation = [
@@ -190,6 +191,17 @@ trait HADomainSpecialActionsTrait
         $this->MaintainVariable($ident, $this->Translate('Aktion'), VARIABLETYPE_INTEGER, $presentation, $position, true);
         $this->initializeVariableDescriptorValue($ident, $this->createTriggerVariableDescriptor(), $exists);
         $this->EnableAction($ident);
+    }
+
+    // Lawn mower capability topics may arrive after the main entity was created.
+    private function refreshLawnMowerCapabilityVariables(string $entityId): void
+    {
+        $entity = $this->entities[$entityId] ?? null;
+        if (!is_array($entity)) {
+            return;
+        }
+
+        $this->maintainLawnMowerActionVariable($entity);
     }
 
     private function getLockActionOptions(array $attributes): array

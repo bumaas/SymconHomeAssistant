@@ -141,7 +141,9 @@ trait HADomainStateHandlersTrait
             $entityId,
             $payload,
             null,
-            null
+            function (string $id, array $attributes, string $state): void {
+                $this->refreshLawnMowerCapabilityVariables($id);
+            }
         );
     }
 

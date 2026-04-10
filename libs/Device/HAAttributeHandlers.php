@@ -30,7 +30,8 @@ trait HAAttributeHandlersTrait
             && $currentDomain !== HAFanDefinitions::DOMAIN
             && $currentDomain !== HAHumidifierDefinitions::DOMAIN
             && $currentDomain !== HALockDefinitions::DOMAIN
-            && $currentDomain !== HAVacuumDefinitions::DOMAIN) {
+            && $currentDomain !== HAVacuumDefinitions::DOMAIN
+            && $currentDomain !== HALawnMowerDefinitions::DOMAIN) {
             $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
@@ -157,6 +158,18 @@ trait HAAttributeHandlersTrait
                 if (is_array($storedAttributes)) {
                     $this->updateVacuumFanSpeedValue($entityId, $storedAttributes);
                 }
+            }
+            return true;
+        }
+        if ($currentDomain === HALawnMowerDefinitions::DOMAIN) {
+            $value = $this->parseAttributePayload($payload);
+            if ($value !== null) {
+                $this->storeEntityAttribute($entityId, $attribute, $value);
+                $this->updateEntityCache($entityId, null, [$attribute => $value]);
+                if ($attribute === self::KEY_SUPPORTED_FEATURES) {
+                    $this->refreshLawnMowerCapabilityVariables($entityId);
+                }
+                $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
             }
             return true;
         }
