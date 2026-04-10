@@ -14,187 +14,160 @@ trait HAPresentationTrait
             $attributes = [];
         }
 
-        if ($domain === HABinarySensorDefinitions::DOMAIN) {
-            return $this->getBinarySensorPresentation($attributes);
+        $presentation = $this->getDomainEntityPresentation($domain, $entity, $attributes, $type);
+        if ($presentation !== null) {
+            return $presentation;
         }
 
-        if ($domain === HALightDefinitions::DOMAIN) {
-            return [
-                'PRESENTATION' => HALightDefinitions::PRESENTATION
-            ];
+        $presentation = $this->getTypeFallbackEntityPresentation($domain, $attributes, $type);
+        if ($presentation !== null) {
+            return $presentation;
         }
 
-        if ($domain === HASwitchDefinitions::DOMAIN) {
-            return [
-                'PRESENTATION' => HASwitchDefinitions::PRESENTATION
-            ];
+        return $this->getDefaultEntityValuePresentation($attributes, $type);
+    }
+
+    // Split the main dispatcher into domain-specific, type fallback and default paths.
+    private function getDomainEntityPresentation(string $domain, array $entity, array $attributes, int $type): ?array
+    {
+        return match ($domain) {
+            HABinarySensorDefinitions::DOMAIN => $this->getBinarySensorPresentation($attributes),
+            HALightDefinitions::DOMAIN => $this->getStaticPresentation(HALightDefinitions::PRESENTATION),
+            HASwitchDefinitions::DOMAIN => $this->getStaticPresentation(HASwitchDefinitions::PRESENTATION),
+            HANumberDefinitions::DOMAIN => $this->getNumberPresentation($attributes),
+            HAClimateDefinitions::DOMAIN => $this->getClimatePresentation($attributes),
+            HASensorDefinitions::DOMAIN => $this->getSensorEntityPresentation($attributes, $type),
+            HAImageDefinitions::DOMAIN => $this->getDateTimeValuePresentation(2),
+            HALockDefinitions::DOMAIN => $this->getLockPresentation($attributes),
+            HAVacuumDefinitions::DOMAIN => $this->getVacuumPresentation(),
+            HALawnMowerDefinitions::DOMAIN => $this->getLawnMowerPresentation(),
+            HAFanDefinitions::DOMAIN => $this->getFanPresentation(),
+            HAHumidifierDefinitions::DOMAIN => $this->getHumidifierPresentation(),
+            HAButtonDefinitions::DOMAIN => $this->getButtonPresentation($entity),
+            HAMediaPlayerDefinitions::DOMAIN => $this->getMediaPlayerPresentation(),
+            HACoverDefinitions::DOMAIN => $this->getCoverPresentation($attributes),
+            HAEventDefinitions::DOMAIN => $this->getEventPresentation($attributes),
+            default => null
+        };
+    }
+
+    private function getSensorEntityPresentation(array $attributes, int $type): ?array
+    {
+        $deviceClass = $attributes['device_class'] ?? '';
+        if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_DATE) {
+            return $this->getDateTimeValuePresentation(0);
+        }
+        if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
+            return $this->getDateTimeValuePresentation(2);
+        }
+        if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_DURATION) {
+            return $this->getDurationValuePresentation(3);
         }
 
-        if ($domain === HANumberDefinitions::DOMAIN) {
-            return $this->getNumberPresentation($attributes);
-        }
-
-        if ($domain === HAClimateDefinitions::DOMAIN) {
-            return $this->getClimatePresentation($attributes);
-        }
-
-        if ($domain === HASensorDefinitions::DOMAIN) {
-            $deviceClass = $attributes['device_class'] ?? '';
-            if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_DATE) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION'    => VARIABLE_PRESENTATION_DATE_TIME,
-                                                     'DATE'            => 1,
-                                                     'DAY_OF_THE_WEEK' => false,
-                                                     'MONTH_TEXT'      => false,
-                                                     'TIME'            => 0
-                                                 ]);
-            }
-            if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_TIMESTAMP) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION'   => VARIABLE_PRESENTATION_DATE_TIME,
-                                                     'DATE'           => 1, //Jahr, Monat, Tag
-                                                     'DAY_OF_THE_WEEK' => false,
-                                                     'MONTH_TEXT'     => false,
-                                                     'TIME'           => 2 //Stunden, Minuten, Sekunden
-                                                 ]);
-            }
-            if (is_string($deviceClass) && trim($deviceClass) === HASensorDefinitions::DEVICE_CLASS_DURATION) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION'   => VARIABLE_PRESENTATION_DURATION,
-                                                     'FORMAT'         => 3
-                                                 ]);
-            }
-            $sensorOptions = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
-            if ($type === VARIABLETYPE_STRING && $sensorOptions !== []) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-                                                     'OPTIONS'      => $this->getValuePresentationOptions($sensorOptions)
-                                                 ]);
-            }
-        }
-
-        if ($domain === HAImageDefinitions::DOMAIN) {
+        $sensorOptions = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
+        if ($type === VARIABLETYPE_STRING && $sensorOptions !== []) {
             return $this->filterPresentation([
-                                                 'PRESENTATION'    => VARIABLE_PRESENTATION_DATE_TIME,
-                                                 'DATE'            => 1, //Jahr, Monat, Tag
-                                                 'DAY_OF_THE_WEEK' => false,
-                                                 'MONTH_TEXT'      => false,
-                                                 'TIME'            => 2 //Stunden, Minuten, Sekunden
-                                             ]);
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                'OPTIONS' => $this->getValuePresentationOptions($sensorOptions)
+            ]);
         }
 
-        if ($domain === HALockDefinitions::DOMAIN) {
-            return $this->getLockPresentation($attributes);
-        }
+        return null;
+    }
 
-        if ($domain === HAVacuumDefinitions::DOMAIN) {
-            return $this->getVacuumPresentation();
-        }
-
-        if ($domain === HALawnMowerDefinitions::DOMAIN) {
-            return $this->getLawnMowerPresentation();
-        }
-
-        if ($domain === HAFanDefinitions::DOMAIN) {
-            return $this->getFanPresentation();
-        }
-
-        if ($domain === HAHumidifierDefinitions::DOMAIN) {
-            return $this->getHumidifierPresentation();
-        }
-
-        if ($domain === HAButtonDefinitions::DOMAIN) {
-            return $this->getButtonPresentation($entity);
-        }
-
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
-            return $this->getMediaPlayerPresentation();
-        }
-
-        if ($domain === HACoverDefinitions::DOMAIN) {
-            return $this->getCoverPresentation($attributes);
-        }
-
-        if ($domain === HAEventDefinitions::DOMAIN) {
-            return $this->getEventPresentation($attributes);
-        }
-
+    private function getTypeFallbackEntityPresentation(string $domain, array $attributes, int $type): ?array
+    {
         if ($type === VARIABLETYPE_BOOLEAN) {
-            return [
-                'PRESENTATION' => VARIABLE_PRESENTATION_SWITCH
-            ];
+            return $this->getStaticPresentation(VARIABLE_PRESENTATION_SWITCH);
         }
 
         if ($domain === HASelectDefinitions::DOMAIN) {
             $options = HASelectDefinitions::normalizeOptions($attributes['options'] ?? null);
             if ($options !== []) {
                 return $this->filterPresentation([
-                                                     'PRESENTATION' => HASelectDefinitions::PRESENTATION,
-                                                     'OPTIONS'      => $this->getPresentationOptions($options)
-                                                 ]);
+                    'PRESENTATION' => HASelectDefinitions::PRESENTATION,
+                    'OPTIONS' => $this->getPresentationOptions($options)
+                ]);
             }
         }
 
-        if ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT) {
-            if ($this->isWriteable($domain)) {
-                $slider = $this->getNumericSliderPresentation($attributes);
-                if ($slider !== null) {
-                    return $slider;
-                }
+        if (($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT) && $this->isWriteable($domain)) {
+            $slider = $this->getNumericSliderPresentation($attributes);
+            if ($slider !== null) {
+                return $slider;
             }
         }
 
+        return null;
+    }
+
+    private function getDefaultEntityValuePresentation(array $attributes, int $type): array
+    {
         $suffix = $this->getPresentationSuffix($attributes);
         return $this->filterPresentation([
-                                             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-                                             'DIGITS'       => ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT)
-                                                 ? $this->getNumericDigits($attributes) : null,
-                                             'SUFFIX'       => $this->formatPresentationSuffix($suffix)
-                                         ]);
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'DIGITS' => ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT)
+                ? $this->getNumericDigits($attributes) : null,
+            'SUFFIX' => $this->formatPresentationSuffix($suffix)
+        ]);
+    }
+
+    private function getStaticPresentation(int $presentation): array
+    {
+        return [
+            'PRESENTATION' => $presentation
+        ];
+    }
+
+    private function getDateTimeValuePresentation(int $time): array
+    {
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME,
+            'DATE' => 1,
+            'DAY_OF_THE_WEEK' => false,
+            'MONTH_TEXT' => false,
+            'TIME' => $time
+        ]);
+    }
+
+    private function getDurationValuePresentation(int $format): array
+    {
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_DURATION,
+            'FORMAT' => $format
+        ]);
     }
 
     private function getVacuumPresentation(): array
     {
-        $options = [];
-        foreach (HAVacuumDefinitions::STATE_OPTIONS as $value => $meta) {
-            $caption   = (string)($meta['caption'] ?? $value);
-            $icon      = (string)($meta['icon'] ?? '');
-            $options[] = [
-                'Value'       => $value,
-                'Caption'     => $this->Translate($caption),
-                'IconActive'  => $icon !== '',
-                'IconValue'   => $icon,
-                'ColorActive' => false,
-                'ColorValue'  => -1
-            ];
-        }
-
-        return $this->filterPresentation([
-                                             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-                                             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
-                                         ]);
+        return $this->getMetaStateValuePresentation(HAVacuumDefinitions::STATE_OPTIONS);
     }
 
     private function getLawnMowerPresentation(): array
     {
+        return $this->getMetaStateValuePresentation(HALawnMowerDefinitions::STATE_OPTIONS);
+    }
+
+    private function getMetaStateValuePresentation(array $stateOptions): array
+    {
         $options = [];
-        foreach (HALawnMowerDefinitions::STATE_OPTIONS as $value => $meta) {
-            $caption   = (string)($meta['caption'] ?? $value);
-            $icon      = (string)($meta['icon'] ?? '');
+        foreach ($stateOptions as $value => $meta) {
+            $caption = (string)($meta['caption'] ?? $value);
+            $icon = (string)($meta['icon'] ?? '');
             $options[] = [
-                'Value'       => $value,
-                'Caption'     => $this->Translate($caption),
-                'IconActive'  => $icon !== '',
-                'IconValue'   => $icon,
+                'Value' => $value,
+                'Caption' => $this->Translate($caption),
+                'IconActive' => $icon !== '',
+                'IconValue' => $icon,
                 'ColorActive' => false,
-                'ColorValue'  => -1
+                'ColorValue' => -1
             ];
         }
 
         return $this->filterPresentation([
-                                             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-                                             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
-                                         ]);
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
+        ]);
     }
 
     private function getButtonPresentation(array $entity): array
@@ -648,13 +621,7 @@ trait HAPresentationTrait
 
     private function getEventPresentation(array $attributes): array
     {
-        return $this->filterPresentation([
-                                             'PRESENTATION'    => VARIABLE_PRESENTATION_DATE_TIME,
-                                             'DATE'            => 1,
-                                             'DAY_OF_THE_WEEK' => false,
-                                             'MONTH_TEXT'      => false,
-                                             'TIME'            => 2
-                                         ]);
+        return $this->getDateTimeValuePresentation(2);
     }
 
     private function getLightAttributePresentation(string $attribute, array $attributes, array $meta): array
