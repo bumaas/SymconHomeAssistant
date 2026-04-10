@@ -112,7 +112,7 @@ trait HAPresentationTrait
         ]);
     }
 
-    private function getStaticPresentation(int $presentation): array
+    private function getStaticPresentation(string|int $presentation): array
     {
         return [
             'PRESENTATION' => $presentation

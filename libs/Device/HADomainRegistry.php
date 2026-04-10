@@ -423,12 +423,6 @@ trait HADomainRegistryTrait
         $this->updateEntityPresentation($entityId, $this->getStoredEntityAttributes($entityId));
     }
 
-    private function getStoredEntityAttributes(string $entityId): array
-    {
-        $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? [];
-        return is_array($attributes) ? $attributes : [];
-    }
-
     private function buildDomainAttributePayload(string $domain, string $attribute, mixed $value): string
     {
         $builder = $this->getDomainAttributePayloadBuilderMethod($domain);

@@ -5,7 +5,7 @@ declare(strict_types=1);
 trait HAStandardAttributeMaintenanceTrait
 {
     // Definition-based attribute domains share one creation and refresh pipeline.
-    private function getEntityAttributesArray(mixed $attributes): array
+    private function normalizeAttributesArray(mixed $attributes): array
     {
         return is_array($attributes) ? $attributes : [];
     }
@@ -82,7 +82,7 @@ trait HAStandardAttributeMaintenanceTrait
             return;
         }
 
-        $attributes = $this->getEntityAttributesArray($entity['attributes'] ?? []);
+        $attributes = $this->normalizeAttributesArray($entity['attributes'] ?? []);
         foreach ($definitions as $attribute => $meta) {
             if (!is_array($meta)) {
                 continue;
@@ -129,9 +129,9 @@ trait HAStandardAttributeMaintenanceTrait
         }
 
         $entity = $this->getStoredEntityDefinition($entityId, $entityDefaults);
-        $attributes = $this->getEntityAttributesArray($entity['attributes'] ?? []);
+        $attributes = $this->normalizeAttributesArray($entity['attributes'] ?? []);
         if ($prepareAttributes !== null) {
-            $attributes = $this->getEntityAttributesArray($prepareAttributes($attribute, $attributes, $meta));
+            $attributes = $this->normalizeAttributesArray($prepareAttributes($attribute, $attributes, $meta));
         }
         if ($shouldSkip !== null && $shouldSkip($attribute, $meta, $attributes)) {
             return false;
