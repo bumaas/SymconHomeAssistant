@@ -109,14 +109,14 @@ trait HADomainSpecialActionsTrait
     // Shared helper for integer trigger variables with enum presentation.
     private function maintainEnumerationTriggerVariable(string $ident, string $caption, int $position, array $options, bool $hideWhenEmpty): void
     {
+        $exists = @$this->GetIDForIdent($ident) !== false;
         if ($options === []) {
-            if ($hideWhenEmpty) {
+            if ($hideWhenEmpty && !$exists) {
                 $this->MaintainVariable($ident, $caption, VARIABLETYPE_INTEGER, '', 0, false);
             }
             return;
         }
 
-        $exists = @$this->GetIDForIdent($ident) !== false;
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
             'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
@@ -216,8 +216,11 @@ trait HADomainSpecialActionsTrait
 
         $ident = $this->getVacuumFanSpeedIdent($entityId);
         $fanSpeedList = $attributes['fan_speed_list'] ?? null;
+        $exists = @$this->GetIDForIdent($ident) !== false;
         if (!$this->supportsVacuumFanSpeed($attributes) || !is_array($fanSpeedList) || $fanSpeedList === []) {
-            $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, '', 0, false);
+            if (!$exists) {
+                $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, '', 0, false);
+            }
             return;
         }
 
@@ -286,8 +289,11 @@ trait HADomainSpecialActionsTrait
 
         $ident = $this->getCameraPowerIdent($entityId);
         $attributes = $entity['attributes'] ?? [];
+        $exists = @$this->GetIDForIdent($ident) !== false;
         if (!is_array($attributes) || !$this->supportsCameraPower($attributes)) {
-            $this->MaintainVariable($ident, $this->Translate('Power'), VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], 1, false);
+            if (!$exists) {
+                $this->MaintainVariable($ident, $this->Translate('Power'), VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], 1, false);
+            }
             return;
         }
 
@@ -781,11 +787,14 @@ trait HADomainSpecialActionsTrait
 
         $ident = $this->getClimatePowerIdent($entityId);
         $attributes = $entity['attributes'] ?? [];
+        $exists = @$this->GetIDForIdent($ident) !== false;
         if (!is_array($attributes)) {
             $attributes = [];
         }
         if (!$this->supportsClimatePower($attributes)) {
-            $this->MaintainVariable($ident, $this->Translate('Power'), VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], 1, false);
+            if (!$exists) {
+                $this->MaintainVariable($ident, $this->Translate('Power'), VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], 1, false);
+            }
             return;
         }
 

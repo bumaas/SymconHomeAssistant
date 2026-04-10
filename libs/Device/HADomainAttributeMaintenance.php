@@ -455,7 +455,8 @@ trait HADomainAttributeMaintenanceTrait
                     'Name' => $this->Translate((string)$meta['caption']),
                     'Presentation' => $this->getLightAttributePresentation($attribute, $entityAttributes, $meta)
                 ]);
-            }
+            },
+            false
         );
     }
 
@@ -571,7 +572,10 @@ trait HADomainAttributeMaintenanceTrait
             function (string $attribute, array $entityAttributes, string $ident) {
                 $this->syncAttributeActionState($ident, $this->isWritableClimateAttribute($attribute, $entityAttributes));
             },
-            $basePosition
+            $basePosition,
+            null,
+            null,
+            false
         );
     }
 
@@ -677,7 +681,10 @@ trait HADomainAttributeMaintenanceTrait
             function (string $attribute, array $entityAttributes, string $ident) {
                 $this->syncAttributeActionState($ident, $this->isWritableCoverAttribute($attribute, $entityAttributes));
             },
-            $basePosition
+            $basePosition,
+            null,
+            null,
+            false
         );
     }
 
@@ -724,11 +731,7 @@ trait HADomainAttributeMaintenanceTrait
             $entityId,
             $attributeValues,
             $definitions,
-            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type']),
-            function (string $attribute, mixed $_value, mixed $_rawValue, array $_meta, array $_attributeValues) use ($entityId, $attributes) {
-                $ident = $this->getAttributeVariableIdent($entityId, $attribute);
-                $this->syncAttributeActionState($ident, $this->isWritableCoverAttribute($attribute, $attributes));
-            }
+            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type'])
         );
 
         $mainValue = $this->resolveCoverMainValue($attributes, $state);
@@ -926,7 +929,11 @@ trait HADomainAttributeMaintenanceTrait
             fn(string $attribute, int $basePosition): int => $this->getFanAttributePosition($attribute, $basePosition),
             function (string $attribute, array $attributes, string $ident, array $_presentation, array $_meta): void {
                 $this->applyFanAttributeActionState($attribute, $attributes, $ident);
-            }
+            },
+            0,
+            null,
+            null,
+            false
         );
     }
 
@@ -1042,7 +1049,11 @@ trait HADomainAttributeMaintenanceTrait
             fn(string $attribute, int $basePosition): int => $this->getHumidifierAttributePosition($attribute, $basePosition),
             function (string $attribute, array $attributes, string $ident, array $_presentation, array $_meta): void {
                 $this->applyHumidifierAttributeActionState($attribute, $attributes, $ident);
-            }
+            },
+            0,
+            null,
+            null,
+            false
         );
     }
 
@@ -1110,7 +1121,7 @@ trait HADomainAttributeMaintenanceTrait
         $this->MaintainVariable($ident, $this->Translate($caption), $type, $presentation, $position, true);
     }
 
-    // Präsentationen und Actions werden nur bei relevanten Attributänderungen nachgezogen.
+    // Capability-Updates dürfen bestehende Action-Flags nicht nachträglich umschalten.
     private function refreshDomainAttributePresentations(string $domain, string $entityId, array $attributes): void
     {
         $attributeTriggers = $this->getDomainAttributeRefreshTriggers($domain);
@@ -1125,7 +1136,7 @@ trait HADomainAttributeMaintenanceTrait
             if (!$this->hasAnyAttributeKey($attributes, $triggerKeys)) {
                 continue;
             }
-            $this->refreshDomainActionState($domain, $entityId, $attribute, $attributes);
+            $this->ensureDomainActionVariable($domain, $entityId, $attribute, $attributes);
         }
     }
 
@@ -1228,8 +1239,8 @@ trait HADomainAttributeMaintenanceTrait
         }
     }
 
-    // Die Refresh-Logik hält Profil, Darstellung und EnableAction synchron.
-    private function refreshDomainActionState(
+    // Late Capability-Topics dürfen fehlende Variablen anlegen, aber bestehende Action-Flags nicht ändern.
+    private function ensureDomainActionVariable(
         string $domain,
         string $entityId,
         string $attribute,
@@ -1238,41 +1249,33 @@ trait HADomainAttributeMaintenanceTrait
         if ($domain === HALightDefinitions::DOMAIN && $attribute === '*') {
             foreach (HALightDefinitions::ATTRIBUTE_DEFINITIONS as $key => $_meta) {
                 $ident = $this->sanitizeIdent($entityId . '_' . $key);
-                if (!$this->shouldCreateLightAttribute($key, $attributes)) {
+                if ($this->attributeVariableExists($ident) || !$this->shouldCreateLightAttribute($key, $attributes)) {
                     continue;
                 }
-                if (@$this->GetIDForIdent($ident) === false && !$this->ensureLightAttributeVariable($entityId, $key)) {
-                    continue;
-                }
-                $this->syncAttributeActionState($ident, $this->isWritableLightAttribute($key, $attributes));
+                $this->ensureLightAttributeVariable($entityId, $key);
             }
             return;
         }
 
         $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
-        if (@$this->GetIDForIdent($ident) === false) {
+        if ($this->attributeVariableExists($ident)) {
             return;
         }
 
-        if ($domain === HAHumidifierDefinitions::DOMAIN && $attribute === 'mode') {
-            $this->applyHumidifierAttributeActionState('mode', $attributes, $ident);
+        if ($domain === HAHumidifierDefinitions::DOMAIN) {
+            $this->ensureHumidifierAttributeVariable($entityId, $attribute);
             return;
         }
         if ($domain === HAFanDefinitions::DOMAIN) {
-            $this->applyFanAttributeActionState($attribute, $attributes, $ident);
+            $this->ensureFanAttributeVariable($entityId, $attribute);
             return;
         }
         if ($domain === HAClimateDefinitions::DOMAIN) {
-            $this->syncAttributeActionState($ident, $this->isWritableClimateAttribute($attribute, $attributes));
+            $this->ensureClimateAttributeVariable($entityId, $attribute);
             return;
         }
-        if ($domain === HAMediaPlayerDefinitions::DOMAIN && $attribute === 'media_position') {
-            $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS['media_position'] ?? null;
-            if (!is_array($meta)) {
-                return;
-            }
-            $presentation = $this->getMediaPlayerAttributePresentation('media_position', $attributes, $meta);
-            $this->applyMediaPlayerAttributeActionState('media_position', $attributes, $presentation, $ident);
+        if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
+            $this->ensureMediaPlayerAttributeVariable($entityId, $attribute);
         }
     }
 
@@ -1503,6 +1506,4 @@ trait HADomainAttributeMaintenanceTrait
         return false;
     }
 }
-
-
 

@@ -224,9 +224,7 @@ trait HAEntityStoreTrait
         $name = $this->getEntityVariableName($domain, $entity);
 
         $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
-        if ($domain === HASelectDefinitions::DOMAIN) {
-            $this->applyDomainActionState($domain, $ident, $entity);
-        }
+        // Bestehende Hauptvariablen behalten ihren Action-Status, auch wenn sich Capabilities später ändern.
 
         if ($domain === HALockDefinitions::DOMAIN) {
             $this->DisableAction($ident);
