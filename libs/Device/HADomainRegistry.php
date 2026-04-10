@@ -105,6 +105,7 @@ trait HADomainRegistryTrait
                 fn(array $entity) => $this->maintainMediaPlayerAttributeVariables($entity)
             ],
             HACameraDefinitions::DOMAIN => [
+                fn(array $entity) => $this->maintainCameraPowerVariable($entity),
                 fn(array $entity) => $this->maintainCameraAttributeVariables($entity)
             ],
             HAImageDefinitions::DOMAIN => [
@@ -336,7 +337,9 @@ trait HADomainRegistryTrait
                 }
                 if (is_string($parsed[self::KEY_STATE]) && $parsed[self::KEY_STATE] !== '') {
                     $this->setEntityMainValue($entityId, $ident, $parsed[self::KEY_STATE], $parsed[self::KEY_STATE]);
+                    $this->updateCameraPowerValue($entityId, $parsed[self::KEY_STATE]);
                 }
+                $this->maintainCameraPowerVariable($this->entities[$entityId] ?? ['entity_id' => $entityId, 'attributes' => $attributes]);
                 $this->updateCameraAttributeValues($entityId, is_array($attributes) ? $attributes : []);
                 if (is_array($attributes) && $attributes !== []) {
                     $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);

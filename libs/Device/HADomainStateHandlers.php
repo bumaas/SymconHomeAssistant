@@ -202,7 +202,16 @@ trait HADomainStateHandlersTrait
             $entityId,
             $payload,
             null,
-            fn(string $id, array $attributes, string $state) => $this->updateCameraAttributeValues($id, $attributes)
+            function (string $id, array $attributes, string $state): void {
+                $entity = $this->entities[$id] ?? null;
+                if (is_array($entity)) {
+                    $this->maintainCameraPowerVariable($entity);
+                }
+                if ($state !== '') {
+                    $this->updateCameraPowerValue($id, $state);
+                }
+                $this->updateCameraAttributeValues($id, $attributes);
+            }
         );
     }
 

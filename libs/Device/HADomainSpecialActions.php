@@ -64,6 +64,11 @@ trait HADomainSpecialActionsTrait
         return $this->sanitizeIdent($entityId) . self::LAWN_MOWER_ACTION_SUFFIX;
     }
 
+    private function getCameraPowerIdent(string $entityId): string
+    {
+        return $this->sanitizeIdent($entityId) . '_camera_power';
+    }
+
     private function maintainLockActionVariable(array $entity): void
     {
         $entityId = $entity['entity_id'] ?? '';
@@ -202,6 +207,95 @@ trait HADomainSpecialActionsTrait
         }
 
         $this->maintainLawnMowerActionVariable($entity);
+    }
+
+    private function supportsCameraPower(array $attributes): bool
+    {
+        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
+        return ($supported & HACameraDefinitions::FEATURE_ON_OFF) === HACameraDefinitions::FEATURE_ON_OFF;
+    }
+
+    private function maintainCameraPowerVariable(array $entity): void
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return;
+        }
+
+        $ident = $this->getCameraPowerIdent($entityId);
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes) || !$this->supportsCameraPower($attributes)) {
+            $this->MaintainVariable($ident, $this->Translate('Power'), VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], 1, false);
+            return;
+        }
+
+        $position = $this->getEntityPosition($entityId) + 1;
+        $this->MaintainVariable(
+            $ident,
+            $this->Translate('Power'),
+            VARIABLETYPE_BOOLEAN,
+            ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH],
+            $position,
+            true
+        );
+        $this->EnableAction($ident);
+
+        $state = $entity[self::KEY_STATE] ?? $this->getCachedEntityState($entityId);
+        if (is_string($state) && $state !== '') {
+            $this->updateCameraPowerValue($entityId, $state);
+        }
+    }
+
+    private function updateCameraPowerValue(string $entityId, string $state): void
+    {
+        $ident = $this->getCameraPowerIdent($entityId);
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        $normalized = strtolower(trim($state));
+        if ($normalized === '' || $normalized === 'unknown' || $normalized === 'unavailable') {
+            return;
+        }
+
+        $this->setValueWithDebug($ident, $normalized !== 'off');
+    }
+
+    private function handleCameraPowerAction(string $ident, mixed $value): bool
+    {
+        if ($ident === '' || !str_ends_with($ident, '_camera_power')) {
+            return false;
+        }
+
+        $entity = $this->findEntityByIdentSuffix($ident, '_camera_power', HACameraDefinitions::DOMAIN);
+        if ($entity === null) {
+            return false;
+        }
+
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return true;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes) || !$this->supportsCameraPower($attributes)) {
+            return true;
+        }
+
+        $command = (bool)$value ? 'turn_on' : 'turn_off';
+        if ($this->sendServiceRequestToParent(HACameraDefinitions::DOMAIN, $command, ['entity_id' => $entityId])) {
+            $this->debugExpert('RequestAction', 'Camera power (REST)', ['EntityID' => $entityId, 'Command' => $command], true);
+            return true;
+        }
+
+        $topic = $this->getSetTopicForEntity($entityId);
+        if ($topic === '') {
+            return true;
+        }
+
+        $this->debugExpert('RequestAction', 'Camera power', ['EntityID' => $entityId, 'Command' => $command], true);
+        $this->sendMqttMessage($topic, $command);
+        return true;
     }
 
     private function getLockActionOptions(array $attributes): array

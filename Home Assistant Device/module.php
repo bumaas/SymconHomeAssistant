@@ -375,6 +375,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         if ($this->handleLawnMowerAction($Ident, $Value)) {
             return;
         }
+        if ($this->handleCameraPowerAction($Ident, $Value)) {
+            return;
+        }
         if ($this->handleMediaPlayerPowerAction($Ident, $Value)) {
             return;
         }

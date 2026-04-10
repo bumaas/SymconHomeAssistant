@@ -245,6 +245,12 @@ trait HAAttributeHandlersTrait
                 $this->updateEntityPresentation($entityId, $this->entities[$entityId]['attributes'] ?? []);
                 $attributes = $this->entities[$entityId]['attributes'] ?? [];
                 if ($currentDomain === HACameraDefinitions::DOMAIN) {
+                    if ($attribute === self::KEY_SUPPORTED_FEATURES) {
+                        $entity = $this->entities[$entityId] ?? null;
+                        if (is_array($entity)) {
+                            $this->maintainCameraPowerVariable($entity);
+                        }
+                    }
                     $this->updateCameraAttributeValues($entityId, is_array($attributes) ? $attributes : []);
                 } else {
                     $this->updateImageAttributeValues($entityId, is_array($attributes) ? $attributes : []);
