@@ -896,10 +896,27 @@ class HomeAssistantDevice extends IPSModuleStrict
             HASwitchDefinitions::DOMAIN => $value ? HASwitchDefinitions::STATE_ON : HASwitchDefinitions::STATE_OFF,
             HACoverDefinitions::DOMAIN => HACoverDefinitions::normalizeCommand($value),
             HALockDefinitions::DOMAIN => HALockDefinitions::normalizeCommand($value),
+            HANumberDefinitions::DOMAIN => $this->formatNumberPayload($value, $attributes),
             HASelectDefinitions::DOMAIN => $this->formatSelectPayload($value, $attributes),
             HAButtonDefinitions::DOMAIN => 'press',
             default => (string)$value,
         };
+    }
+
+    private function formatNumberPayload(mixed $value, array $attributes): string
+    {
+        if (!is_numeric($value)) {
+            $normalized = trim((string)$value);
+            if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
+                $this->debugExpert('Number', 'Ungültiger Wert', ['Value' => $value], true);
+                return '';
+            }
+            $value = str_replace(',', '.', $normalized);
+        }
+
+        return $this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER
+            ? (string)(int)$value
+            : (string)(float)$value;
     }
 
     private function formatSelectPayload(mixed $value, array $attributes): string
