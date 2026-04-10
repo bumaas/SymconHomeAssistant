@@ -198,7 +198,7 @@ trait HAPresentationTrait
 
     private function getButtonPresentation(array $entity): array
     {
-        $caption = $entity['name'] ?? $entity['entity_id'] ?? 'Press';
+        $caption = $this->getButtonVariableName($entity);
         $options = [[
             'Value'      => HAButtonDefinitions::ACTION_PRESS,
             'Caption'    => $this->Translate((string)$caption),
@@ -1040,6 +1040,9 @@ trait HAPresentationTrait
         if ($domain === HACoverDefinitions::DOMAIN) {
             return $this->getCoverVariableName($entity);
         }
+        if ($domain === HAButtonDefinitions::DOMAIN || $domain === HAInputButtonDefinitions::DOMAIN) {
+            return $this->getButtonVariableName($entity);
+        }
         if ($domain === HAEventDefinitions::DOMAIN) {
             return $this->getEventStateVariableName($entity);
         }
@@ -1051,6 +1054,30 @@ trait HAPresentationTrait
             return $this->Translate('Status') . ' (' . $domainLabel . ')';
         }
         return $entity['name'] ?? $entity['entity_id'];
+    }
+
+    private function getButtonVariableName(array $entity): string
+    {
+        $name = trim((string)($entity['name'] ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (is_array($attributes)) {
+            $deviceClass = strtolower(trim((string)($attributes['device_class'] ?? '')));
+            $caption = match ($deviceClass) {
+                'identify' => 'Identify',
+                'restart' => 'Restart',
+                'update' => 'Update',
+                default => '',
+            };
+            if ($caption !== '') {
+                return $this->Translate($caption);
+            }
+        }
+
+        return $entity['entity_id'] ?? 'Press';
     }
 
     private function getCoverVariableName(array $entity): string
