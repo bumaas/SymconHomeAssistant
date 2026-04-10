@@ -7,6 +7,7 @@ trait HAPresentationTrait
 
     private function getEntityPresentation(string $domain, array $entity, int $type): array
     {
+        $domain = HADomainCatalog::normalizeDomainAlias($domain);
         $this->debugExpert(__FUNCTION__, 'Input', ['Domain' => $domain, 'Type' => $type, 'Entity' => $entity], false);
         $attributes = $entity['attributes'] ?? [];
         if (!is_array($attributes)) {
@@ -102,7 +103,7 @@ trait HAPresentationTrait
             return $this->getHumidifierPresentation();
         }
 
-        if ($domain === HAButtonDefinitions::DOMAIN || $domain === HAInputButtonDefinitions::DOMAIN) {
+        if ($domain === HAButtonDefinitions::DOMAIN) {
             return $this->getButtonPresentation($entity);
         }
 
@@ -1012,6 +1013,7 @@ trait HAPresentationTrait
 
     private function getEntityVariableName(string $domain, array $entity): string
     {
+        $domain = HADomainCatalog::normalizeDomainAlias($domain);
         if ($domain === HAClimateDefinitions::DOMAIN) {
             $attributes = $entity['attributes'] ?? [];
             if (is_array($attributes)) {
@@ -1040,7 +1042,7 @@ trait HAPresentationTrait
         if ($domain === HACoverDefinitions::DOMAIN) {
             return $this->getCoverVariableName($entity);
         }
-        if ($domain === HAButtonDefinitions::DOMAIN || $domain === HAInputButtonDefinitions::DOMAIN) {
+        if ($domain === HAButtonDefinitions::DOMAIN) {
             return $this->getButtonVariableName($entity);
         }
         if ($domain === HAEventDefinitions::DOMAIN) {
@@ -1082,16 +1084,13 @@ trait HAPresentationTrait
 
     private function getDefaultEntityVariableName(string $domain, array $entity): string
     {
+        $domain = HADomainCatalog::normalizeDomainAlias($domain);
         $name = trim((string)($entity['name'] ?? ''));
         if ($name !== '') {
             return $name;
         }
 
-        if (in_array($domain, [
-            HABinarySensorDefinitions::DOMAIN,
-            HANumberDefinitions::DOMAIN,
-            HASensorDefinitions::DOMAIN
-        ], true)) {
+        if (HADomainCatalog::supportsDeviceClassNameFallback($domain)) {
             $fallback = $this->getDeviceClassFallbackName($entity);
             if ($fallback !== null) {
                 return $fallback;
@@ -1152,16 +1151,7 @@ trait HAPresentationTrait
 
     private function isStatusDomain(string $domain): bool
     {
-        return in_array($domain, [
-            HALockDefinitions::DOMAIN,
-            HAMediaPlayerDefinitions::DOMAIN,
-            HACameraDefinitions::DOMAIN,
-            HAImageDefinitions::DOMAIN,
-            HAVacuumDefinitions::DOMAIN,
-            HALawnMowerDefinitions::DOMAIN,
-            HAFanDefinitions::DOMAIN,
-            HAHumidifierDefinitions::DOMAIN
-        ], true);
+        return HADomainCatalog::isStatusDomain($domain);
     }
 
     private function getEventStateVariableName(array $entity): string

@@ -6,19 +6,7 @@ trait HASupportedFeaturesTrait
 {
     private function mapSupportedFeaturesByDomain(string $domain, int $mask, bool $stripPrefix = false): array
     {
-        $map = match ($domain) {
-            HALightDefinitions::DOMAIN => HALightDefinitions::SUPPORTED_FEATURES,
-            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::SUPPORTED_FEATURES,
-            HACoverDefinitions::DOMAIN => HACoverDefinitions::SUPPORTED_FEATURES,
-            HALockDefinitions::DOMAIN => HALockDefinitions::SUPPORTED_FEATURES,
-            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::SUPPORTED_FEATURES,
-            HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::SUPPORTED_FEATURES,
-            HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::SUPPORTED_FEATURES,
-            HACameraDefinitions::DOMAIN => HACameraDefinitions::SUPPORTED_FEATURES,
-            HAFanDefinitions::DOMAIN => HAFanDefinitions::SUPPORTED_FEATURES,
-            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::SUPPORTED_FEATURES,
-            default => []
-        };
+        $map = HADomainCatalog::getSupportedFeaturesMap($domain);
 
         if ($map === []) {
             return [];

@@ -19,19 +19,7 @@ trait HAAttributeHandlersTrait
         $entityId  = $domain . '.' . $entity;
 
         $currentDomain = $this->entities[$entityId]['domain'] ?? $domain;
-        if ($currentDomain !== HALightDefinitions::DOMAIN
-            && $currentDomain !== HASelectDefinitions::DOMAIN
-            && $currentDomain !== HAEventDefinitions::DOMAIN
-            && $currentDomain !== HACoverDefinitions::DOMAIN
-            && $currentDomain !== HAClimateDefinitions::DOMAIN
-            && $currentDomain !== HAMediaPlayerDefinitions::DOMAIN
-            && $currentDomain !== HACameraDefinitions::DOMAIN
-            && $currentDomain !== HAImageDefinitions::DOMAIN
-            && $currentDomain !== HAFanDefinitions::DOMAIN
-            && $currentDomain !== HAHumidifierDefinitions::DOMAIN
-            && $currentDomain !== HALockDefinitions::DOMAIN
-            && $currentDomain !== HAVacuumDefinitions::DOMAIN
-            && $currentDomain !== HALawnMowerDefinitions::DOMAIN) {
+        if (!HADomainCatalog::supportsAttributeTopics($currentDomain)) {
             $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }

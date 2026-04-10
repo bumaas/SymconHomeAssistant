@@ -86,9 +86,9 @@ trait HADomainValueMappingTrait
     {
         $domain = $this->normalizeDomainAlias($domain);
 
-        $staticTypes = $this->getStaticDomainVariableTypes();
-        if (array_key_exists($domain, $staticTypes)) {
-            return $staticTypes[$domain];
+        $staticType = HADomainCatalog::getMainVariableType($domain);
+        if ($staticType !== null) {
+            return $staticType;
         }
 
         return match ($domain) {
@@ -96,28 +96,6 @@ trait HADomainValueMappingTrait
             HASensorDefinitions::DOMAIN => $this->inferSensorVariableType($attributes),
             default => VARIABLETYPE_STRING,
         };
-    }
-
-    private function getStaticDomainVariableTypes(): array
-    {
-        return [
-            HALightDefinitions::DOMAIN => HALightDefinitions::VARIABLE_TYPE,
-            HABinarySensorDefinitions::DOMAIN => HABinarySensorDefinitions::VARIABLE_TYPE,
-            HASwitchDefinitions::DOMAIN => HASwitchDefinitions::VARIABLE_TYPE,
-            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
-            HALockDefinitions::DOMAIN => HALockDefinitions::VARIABLE_TYPE,
-            HASelectDefinitions::DOMAIN => HASelectDefinitions::VARIABLE_TYPE,
-            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::VARIABLE_TYPE,
-            HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::VARIABLE_TYPE,
-            HACoverDefinitions::DOMAIN => HACoverDefinitions::VARIABLE_TYPE,
-            HAEventDefinitions::DOMAIN => HAEventDefinitions::VARIABLE_TYPE,
-            HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::VARIABLE_TYPE,
-            HACameraDefinitions::DOMAIN => HACameraDefinitions::VARIABLE_TYPE,
-            HAImageDefinitions::DOMAIN => HAImageDefinitions::VARIABLE_TYPE,
-            HAButtonDefinitions::DOMAIN => HAButtonDefinitions::VARIABLE_TYPE,
-            HAFanDefinitions::DOMAIN => HAFanDefinitions::VARIABLE_TYPE,
-            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::VARIABLE_TYPE
-        ];
     }
 
     private function inferSensorVariableType(array $attributes): int
@@ -214,9 +192,6 @@ trait HADomainValueMappingTrait
 
     private function normalizeDomainAlias(string $domain): string
     {
-        if ($domain === HAInputButtonDefinitions::DOMAIN) {
-            return HAButtonDefinitions::DOMAIN;
-        }
-        return $domain;
+        return HADomainCatalog::normalizeDomainAlias($domain);
     }
 }
