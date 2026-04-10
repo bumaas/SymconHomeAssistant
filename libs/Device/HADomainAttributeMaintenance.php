@@ -554,6 +554,76 @@ trait HADomainAttributeMaintenanceTrait
         $this->refreshDomainAttributePresentations(HALightDefinitions::DOMAIN, $entityId, $attributes);
     }
 
+    // Lock-Zusatzattribute spiegeln optionale HA-Metadaten wie Auslöser und Codeformat.
+    private function maintainLockAttributeVariables(array $entity): void
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            return;
+        }
+
+        $baseIdent = $this->sanitizeIdent($entity['entity_id']);
+        $basePosition = $this->getEntityPosition($entity['entity_id']);
+        foreach (HALockDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
+            if (!array_key_exists($key, $attributes)) {
+                continue;
+            }
+
+            $ident = $baseIdent . '_' . $key;
+            $name = $this->Translate((string) $meta['caption']);
+            $position = $this->getLockAttributePosition($key, $basePosition);
+            $presentation = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION];
+            $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+            $this->DisableAction($ident);
+        }
+    }
+
+    private function ensureLockAttributeVariable(string $entityId, string $attribute): bool
+    {
+        $meta = HALockDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if ($meta === null) {
+            return false;
+        }
+
+        $entity = $this->entities[$entityId] ?? [
+            'entity_id' => $entityId,
+            'name'      => $entityId
+        ];
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes) || !array_key_exists($attribute, $attributes)) {
+            return false;
+        }
+
+        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        if (@$this->GetIDForIdent($ident) !== false) {
+            return true;
+        }
+
+        $name = $this->Translate((string) $meta['caption']);
+        $position = $this->getLockAttributePosition($attribute, $this->getEntityPosition($entityId));
+        $presentation = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION];
+        $this->MaintainVariable($ident, $name, $meta['type'], $presentation, $position, true);
+        $this->DisableAction($ident);
+        return true;
+    }
+
+    private function updateLockAttributeValues(string $entityId, array $attributes): void
+    {
+        foreach (HALockDefinitions::ATTRIBUTE_DEFINITIONS as $key => $meta) {
+            if (!array_key_exists($key, $attributes)) {
+                continue;
+            }
+
+            $ident = $this->sanitizeIdent($entityId . '_' . $key);
+            if (@$this->GetIDForIdent($ident) === false) {
+                continue;
+            }
+
+            $value = $this->castVariableValue($attributes[$key], $meta['type']);
+            $this->setValueWithDebug($ident, $value);
+        }
+    }
+
     // Climate erzeugt Attribute auch dann, wenn nur die Optionslisten vorhanden sind.
     private function maintainClimateAttributeVariables(array $entity): void
     {
@@ -1421,6 +1491,14 @@ trait HADomainAttributeMaintenanceTrait
         return $this->getMediaPlayerOrderPosition($basePosition, $attribute);
     }
 
+    private function getLockAttributePosition(string $attribute, int $basePosition): int
+    {
+        $index = array_search($attribute, HALockDefinitions::ATTRIBUTE_ORDER, true);
+        if ($index === false) {
+            return $basePosition + 90;
+        }
+        return $basePosition + 6 + $index;
+    }
     private function getMediaPlayerCoverPosition(int $basePosition): int
     {
         return $this->getMediaPlayerOrderPosition($basePosition, 'media_cover');
@@ -1609,6 +1687,7 @@ trait HADomainAttributeMaintenanceTrait
         return false;
     }
 }
+
 
 
 

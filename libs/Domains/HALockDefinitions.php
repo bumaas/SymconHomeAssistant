@@ -14,6 +14,24 @@ final class HALockDefinitions
     public const int ACTION_UNLOCK = 1;
     public const int ACTION_OPEN = 2;
 
+    public const array ATTRIBUTE_ORDER = [
+        'changed_by',
+        'code_format'
+    ];
+
+    public const array ATTRIBUTE_DEFINITIONS = [
+        'changed_by' => [
+            'caption' => 'Changed By',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => false
+        ],
+        'code_format' => [
+            'caption' => 'Code Format',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => false
+        ]
+    ];
+
     public const array STATE_OPTIONS = [
         'locked' => ['caption' => 'locked', 'command' => 'lock'],
         'unlocking' => ['caption' => 'unlocking', 'command' => null],

@@ -221,6 +221,7 @@ trait HAEntityStoreTrait
         if ($domain === HALockDefinitions::DOMAIN) {
             $this->DisableAction($ident);
             $this->maintainLockActionVariable($entity);
+            $this->maintainLockAttributeVariables($entity);
         }
         if ($domain === HAVacuumDefinitions::DOMAIN) {
             $this->maintainVacuumActionVariable($entity);

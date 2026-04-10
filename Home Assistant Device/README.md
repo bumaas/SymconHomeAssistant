@@ -58,7 +58,7 @@ Keine öffentlichen Funktionen.
 - `binary_sensor`: Präsentation und Icon anhand von `device_class`.
 - `number`: Präsentation nutzt `min`, `max`, `step` (bzw. `native_*`) auch bei `mode: box`.
 - `sensor`: `device_class: enum` mit `options` als Enumeration.
-- `lock`: Darstellung als Enumeration und optional `open` wenn unterstützt.
+- `lock`: Darstellung als Enumeration, optionale `open`-Aktion und Zusatzattribute `changed_by` / `code_format`.
 - `climate`: Solltemperatur (Hauptvariable), zusätzliche Attribute (`hvac_mode`, `hvac_action`, `preset_mode`, `fan_mode`, `swing_mode`, `swing_horizontal_mode`, `target_humidity`, `target_temperature_low/high`), schreibbar gemäß `supported_features`, zusätzliche `Power`-Variable bei Turn On/Off.
 - `media_player`: Status read-only, Attribute je `supported_features`, zusätzliche `Power`-Variable bei Turn On/Off.
 - `fan`: Status Ein/Aus; Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`).

@@ -73,7 +73,8 @@ trait HADomainRegistryTrait
                 fn(array $entity) => $this->maintainHumidifierAttributeVariables($entity)
             ],
             HALockDefinitions::DOMAIN => [
-                fn(array $entity) => $this->maintainLockActionVariable($entity)
+                fn(array $entity) => $this->maintainLockActionVariable($entity),
+                fn(array $entity) => $this->maintainLockAttributeVariables($entity)
             ],
             HAVacuumDefinitions::DOMAIN => [
                 fn(array $entity) => $this->maintainVacuumActionVariable($entity),
@@ -216,6 +217,7 @@ trait HADomainRegistryTrait
                 if (is_array($attributes) && $attributes !== []) {
                     $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], $attributes);
                     $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
+                    $this->updateLockAttributeValues($entityId, $attributes);
                 } else {
                     $this->updateEntityCache($entityId, $parsed[self::KEY_STATE], null);
                 }

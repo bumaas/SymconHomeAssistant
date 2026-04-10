@@ -1210,6 +1210,9 @@ class HomeAssistantDevice extends IPSModuleStrict
         if ($domain === HAHumidifierDefinitions::DOMAIN) {
             $this->updateHumidifierAttributeValues($entityId, $attributes);
         }
+        if ($domain === HALockDefinitions::DOMAIN) {
+            $this->updateLockAttributeValues($entityId, $attributes);
+        }
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
             $this->updateMediaPlayerAttributeValues($entityId, $attributes);
         }
