@@ -206,12 +206,28 @@ trait HAMediaObjectsTrait
 
     private function getEntityFriendlyName(string $entityId): ?string
     {
+        $friendlyName = $this->getEntityFriendlyAttributeName($entityId);
+        if ($friendlyName !== null) {
+            return $friendlyName;
+        }
+
         $name = $this->entities[$entityId]['name'] ?? null;
         if (!is_string($name)) {
             return null;
         }
         $name = trim($name);
         return $name !== '' ? $name : null;
+    }
+
+    private function getEntityFriendlyAttributeName(string $entityId): ?string
+    {
+        $attributes = $this->entities[$entityId]['attributes'] ?? null;
+        if (!is_array($attributes)) {
+            return null;
+        }
+
+        $friendlyName = trim((string)($attributes['friendly_name'] ?? ''));
+        return $friendlyName !== '' ? $friendlyName : null;
     }
 
     private function isEntityIdBoundToDevice(string $entityId): bool

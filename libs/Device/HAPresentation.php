@@ -1030,7 +1030,12 @@ trait HAPresentationTrait
     private function getImageEntityVariableName(array $entity): string
     {
         if ($this->isEntityBoundToDevice($entity)) {
-            return $this->formatEntityNameWithSuffix($entity, 'Last Update');
+            $baseName = $this->getImageEntityBaseName($entity);
+            if ($baseName === '') {
+                return $this->Translate('Last Update');
+            }
+
+            return $baseName . ' (' . $this->Translate('Last Update') . ')';
         }
 
         return $this->Translate('Last Update');
@@ -1161,6 +1166,17 @@ trait HAPresentationTrait
     private function getEntityName(array $entity): string
     {
         return trim((string)($entity['name'] ?? ''));
+    }
+
+    private function getImageEntityBaseName(array $entity): string
+    {
+        $attributes = $this->getEntityAttributesArray($entity);
+        $friendlyName = trim((string)($attributes['friendly_name'] ?? ''));
+        if ($friendlyName !== '') {
+            return $friendlyName;
+        }
+
+        return $this->getEntityName($entity);
     }
 
     private function getEntityId(array $entity): string
