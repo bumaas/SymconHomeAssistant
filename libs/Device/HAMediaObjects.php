@@ -232,8 +232,7 @@ trait HAMediaObjectsTrait
 
     private function isEntityIdBoundToDevice(string $entityId): bool
     {
-        $deviceId = trim((string)($this->entities[$entityId]['device_id'] ?? ''));
-        return $deviceId !== '' && strtolower($deviceId) !== 'none';
+        return $this->isCurrentInstanceDeviceBoundToEntity($entityId);
     }
 
     private function ensureEntityPreviewMediaFile(int $mediaId, string $ident, string $url, string $filePrefix): void

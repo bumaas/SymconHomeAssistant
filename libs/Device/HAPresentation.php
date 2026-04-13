@@ -1236,8 +1236,22 @@ trait HAPresentationTrait
 
     private function isEntityBoundToDevice(array $entity): bool
     {
-        $deviceId = trim((string)($entity['device_id'] ?? ''));
-        return $deviceId !== '' && strtolower($deviceId) !== 'none';
+        return $this->isCurrentInstanceDeviceBoundToEntity($this->getEntityId($entity));
+    }
+
+    // Helper-Instanzen tragen ihre Entity-ID als DeviceID, echte Geräte eine HA-Geräte-ID.
+    private function isCurrentInstanceDeviceBoundToEntity(string $entityId): bool
+    {
+        $deviceId = trim($this->ReadPropertyString(self::PROP_DEVICE_ID));
+        if ($deviceId === '' || strtolower($deviceId) === 'none') {
+            return false;
+        }
+
+        if ($entityId !== '' && strcasecmp($deviceId, $entityId) === 0) {
+            return false;
+        }
+
+        return !str_contains($deviceId, '.');
     }
 
     private function getClimateAttributePresentation(string $attribute, array $attributes): array
