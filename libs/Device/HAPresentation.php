@@ -1165,13 +1165,13 @@ trait HAPresentationTrait
 
     private function getEntityName(array $entity): string
     {
-        return trim((string)($entity['name'] ?? ''));
+        return $this->stripCurrentInstanceNamePrefix(trim((string)($entity['name'] ?? '')));
     }
 
     private function getImageEntityBaseName(array $entity): string
     {
         $attributes = $this->getEntityAttributesArray($entity);
-        $friendlyName = trim((string)($attributes['friendly_name'] ?? ''));
+        $friendlyName = $this->stripCurrentInstanceNamePrefix(trim((string)($attributes['friendly_name'] ?? '')));
         if ($friendlyName !== '') {
             return $friendlyName;
         }
@@ -1252,6 +1252,21 @@ trait HAPresentationTrait
         }
 
         return !str_contains($deviceId, '.');
+    }
+
+    private function stripCurrentInstanceNamePrefix(string $name): string
+    {
+        $instanceName = trim($this->ReadPropertyString(self::PROP_DEVICE_NAME));
+        if ($instanceName === '') {
+            return $name;
+        }
+
+        $prefix = $instanceName . ' ';
+        if (!str_starts_with($name, $prefix)) {
+            return $name;
+        }
+
+        return trim(substr($name, strlen($prefix)));
     }
 
     private function getClimateAttributePresentation(string $attribute, array $attributes): array

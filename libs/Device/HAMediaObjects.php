@@ -215,7 +215,7 @@ trait HAMediaObjectsTrait
         if (!is_string($name)) {
             return null;
         }
-        $name = trim($name);
+        $name = $this->stripCurrentInstanceNamePrefix(trim($name));
         return $name !== '' ? $name : null;
     }
 
@@ -226,7 +226,7 @@ trait HAMediaObjectsTrait
             return null;
         }
 
-        $friendlyName = trim((string)($attributes['friendly_name'] ?? ''));
+        $friendlyName = $this->stripCurrentInstanceNamePrefix(trim((string)($attributes['friendly_name'] ?? '')));
         return $friendlyName !== '' ? $friendlyName : null;
     }
 
