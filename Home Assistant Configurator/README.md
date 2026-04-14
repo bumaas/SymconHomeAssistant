@@ -54,3 +54,9 @@ Keine.
 2. Geräte nach Bereich sortieren.
 3. Gewünschte Geräte anlegen (Device-Instanzen).
 
+
+### Spenden
+
+Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fuehlen, aber wenn das Modul gefaellt, dann freue ich mich ueber eine Spende.
+
+<a href="https://www.paypal.me/bumaas" target="_blank"><img src="https://www.paypalobjects.com/de_DE/DE/i/btn/btn_donate_LG.gif" border="0" /></a>

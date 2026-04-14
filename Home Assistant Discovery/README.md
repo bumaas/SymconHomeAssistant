@@ -49,3 +49,9 @@ Keine.
 1. Instanz anlegen.
 2. Discovery läuft automatisch (kurzer Timer nach dem Öffnen der Konfiguration).
 3. Gefundene Instanzen werden angezeigt und können als Configurator erstellt werden.
+
+### Spenden
+
+Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fuehlen, aber wenn das Modul gefaellt, dann freue ich mich ueber eine Spende.
+
+<a href="https://www.paypal.me/bumaas" target="_blank"><img src="https://www.paypalobjects.com/de_DE/DE/i/btn/btn_donate_LG.gif" border="0" /></a>
