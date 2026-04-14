@@ -60,11 +60,11 @@ trait HARestParentClientTrait
         try {
             $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
-            $this->debugExpert('REST', 'Non-JSON response: ' . $e->getMessage());
+            $this->debugExpert('REST', 'Non-JSON response (exception): ' . $e->getMessage(), ['Body' => $body]);
             return null;
         }
         if (!is_array($decoded)) {
-            $this->debugExpert('REST', 'Non-JSON response: ' . $body);
+            $this->debugExpert('REST', 'Non-JSON response (no array): ' . $body);
             return null;
         }
         return $decoded;
