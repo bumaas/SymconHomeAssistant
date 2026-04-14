@@ -17,6 +17,6 @@ final class HANumberDefinitions
     // Map MQTT "set" payloads to HA number services/data.
     public static function buildRestServicePayload(mixed $value): array
     {
-        return ['set_value', ['value' => (float)$value]];
+        return HARestPayloadBuilder::buildSimpleValuePayload($value, 'set_value', 'value', 'float');
     }
 }

@@ -13,6 +13,6 @@ final class HAButtonDefinitions
     // Map MQTT "set" payloads to HA button services/data.
     public static function buildRestServicePayload(mixed $value): array
     {
-        return ['press', []];
+        return HARestPayloadBuilder::buildServiceOnlyPayload('press');
     }
 }

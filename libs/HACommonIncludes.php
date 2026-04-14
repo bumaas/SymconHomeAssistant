@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/HAIds.php';
 require_once __DIR__ . '/ModuleDebug.php';
 require_once __DIR__ . '/HARestParentClient.php';
+require_once __DIR__ . '/HARestPayloadBuilder.php';
 require_once __DIR__ . '/Domains/HALightDefinitions.php';
 require_once __DIR__ . '/Domains/HASwitchDefinitions.php';
 require_once __DIR__ . '/Domains/HASensorDefinitions.php';

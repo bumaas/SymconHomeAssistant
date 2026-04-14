@@ -13,6 +13,6 @@ final class HASwitchDefinitions
     // Map MQTT "set" payloads to HA switch services/data.
     public static function buildRestServicePayload(mixed $value): array
     {
-        return [$value ? 'turn_on' : 'turn_off', []];
+        return HARestPayloadBuilder::buildBooleanTogglePayload($value, 'turn_on', 'turn_off');
     }
 }

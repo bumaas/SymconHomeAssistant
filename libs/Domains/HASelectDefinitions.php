@@ -8,6 +8,12 @@ final class HASelectDefinitions
     public const int VARIABLE_TYPE = VARIABLETYPE_STRING;
     public const string PRESENTATION = VARIABLE_PRESENTATION_ENUMERATION;
 
+    // Map MQTT "set" payloads to HA select services/data.
+    public static function buildRestServicePayload(mixed $value): array
+    {
+        return HARestPayloadBuilder::buildSimpleValuePayload($value, 'select_option', 'option');
+    }
+
     public static function normalizeSelection(mixed $value, mixed $options): ?string
     {
         $text = trim((string)$value);

@@ -370,6 +370,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::buildRestServicePayload($value),
             HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::buildRestServicePayload($value),
             HASwitchDefinitions::DOMAIN => HASwitchDefinitions::buildRestServicePayload($value),
+            HASelectDefinitions::DOMAIN => HASelectDefinitions::buildRestServicePayload($value),
             HANumberDefinitions::DOMAIN => HANumberDefinitions::buildRestServicePayload($value),
             HAClimateDefinitions::DOMAIN => HAClimateDefinitions::buildRestServicePayload($value),
             default => ['', []],
