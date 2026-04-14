@@ -32,7 +32,8 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     {%- elif value is mapping -%}
     {%- set ns = namespace(items=[]) -%}
     {%- for k, v in value.items() -%}
-    {%- set ns.items = ns.items + [(k | to_json) ~ ':' ~ sanitize_json(v, depth + 1)] -%}
+    {# JSON-Objektschlüssel müssen Strings sein; einige HA-Attribute nutzen int-Keys. #}
+    {%- set ns.items = ns.items + [((k | string) | to_json) ~ ':' ~ sanitize_json(v, depth + 1)] -%}
     {%- endfor -%}
     {{ '{' ~ (ns.items | join(',')) ~ '}' }}
     {%- elif value is iterable and value is not string -%}
@@ -95,7 +96,8 @@ EOT;
     {%- elif value is mapping -%}
     {%- set ns = namespace(items=[]) -%}
     {%- for k, v in value.items() -%}
-    {%- set ns.items = ns.items + [(k | to_json) ~ ':' ~ sanitize_json(v, depth + 1)] -%}
+    {# JSON-Objektschlüssel müssen Strings sein; einige HA-Attribute nutzen int-Keys. #}
+    {%- set ns.items = ns.items + [((k | string) | to_json) ~ ':' ~ sanitize_json(v, depth + 1)] -%}
     {%- endfor -%}
     {{ '{' ~ (ns.items | join(',')) ~ '}' }}
     {%- elif value is iterable and value is not string -%}
