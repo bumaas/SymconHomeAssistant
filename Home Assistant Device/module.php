@@ -1140,8 +1140,8 @@ class HomeAssistantDevice extends IPSModuleStrict
         if ($caller !== 'UpdateMediaPlayerProgress' || $this->shouldLogMediaPlayerProgress($ident)) {
             $this->debugExpert('SetValue', $caller, [
                 'Ident' => $ident,
-                'Value' => $value,
-                'ValueType' => get_debug_type($value)
+                'ValueType' => get_debug_type($value),
+                'Value' => $value
             ], true);
         }
         $variableId = @$this->GetIDForIdent($ident);
@@ -1155,8 +1155,8 @@ class HomeAssistantDevice extends IPSModuleStrict
             && !is_bool($value)) {
             $this->debugExpert('SetValue', 'Type mismatch', [
                 'Ident' => $ident,
-                'Value' => $value,
                 'ValueType' => get_debug_type($value),
+                'Value' => $value,
                 'TargetType' => $type
             ], true);
             return;
@@ -1166,8 +1166,8 @@ class HomeAssistantDevice extends IPSModuleStrict
             && !is_numeric($value)) {
             $this->debugExpert('SetValue', 'Type mismatch', [
                 'Ident' => $ident,
-                'Value' => $value,
                 'ValueType' => get_debug_type($value),
+                'Value' => $value,
                 'TargetType' => $type
             ], true);
             return;
