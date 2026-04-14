@@ -156,3 +156,9 @@ Home Assistant Device / Configurator
 
 - In Home Assistant die MQTT-Integration möglichst über das offizielle Mosquitto Broker Add-on einrichten.
 - Im Splitter eine interne HA-URL verwenden (lokale IP/Host, Port 8123), nicht die externe Zugriff-URL.
+
+### Spenden
+
+Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fühlen, aber wenn das Modul gefällt, dann freue ich mich über eine Spende.
+
+<a href="https://www.paypal.me/bumaas" target="_blank"><img src="https://www.paypalobjects.com/de_DE/DE/i/btn/btn_donate_LG.gif" border="0" /></a>
