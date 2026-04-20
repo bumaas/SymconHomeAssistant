@@ -8,6 +8,7 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
   Sucht Home-Assistant-Instanzen per mDNS und legt bei Bedarf Configurator-Instanzen an.
 - `Home Assistant Configurator`
   Liest Geräte- und Entity-Daten aus Home Assistant, gruppiert sie zu Symcon-Geräten und erzeugt daraus `DeviceConfig`.
+  Für den Symcon-`create`-Block wird dabei nur eine stabile CreateConfig mit strukturellen Attributen erzeugt, damit volatile Live-Daten keine neuen Configurator-Einträge vortäuschen.
 - `Home Assistant Splitter`
   Ist der zentrale Transportknoten. Er verteilt MQTT-Nachrichten an Kinder und kapselt REST- sowie Bildabrufe.
 - `Home Assistant Device`
@@ -64,6 +65,7 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 ## 4. Architekturregeln
 
 - `DeviceConfig` als Roh-JSON darf nur dort direkt gelesen werden, wo die unveränderte Konfiguration gebraucht wird, zum Beispiel in `ApplyChanges()` oder beim Formularaufbau.
+- Der Configurator darf für den `create`-Block nur stabile Strukturattribute verwenden. Flüchtige Laufzeit- oder Prognosewerte gehören nicht in die CreateConfig, weil Symcon diesen Block für `Als gelesen markiert` wiedererkennt.
 - Für normale Lookup- und Fallback-Pfade müssen normalisierte Konfigurations-Entities über `getConfiguredEntities()` bezogen werden.
 - `EntityStateCache` wird nur über `HAEntityStoreTrait` gelesen oder geschrieben. Direkte JSON-Zugriffe außerhalb von Bootstrap-Code sollen vermieden werden.
 - Neue oder geänderte Textdateien liegen in `UTF-8` ohne BOM mit `LF`-Zeilenenden.
