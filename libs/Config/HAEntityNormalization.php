@@ -5,8 +5,11 @@ declare(strict_types=1);
 trait HAEntityNormalizationTrait
 {
     // Führt die rein fachliche Normalisierung einer Entität aus (Struktur, Aliase, Fixes).
-    private function normalizeEntityStructure(array $entity): array
+    private function normalizeEntityStructure(array $entity): ?array
     {
+        if (!isset($entity['entity_id']) || !is_string($entity['entity_id']) || trim($entity['entity_id']) === '') {
+            return null;
+        }
         $entity = $this->normalizeEntityDomain($entity);
         $entity = $this->normalizeEntityAttributes($entity);
         $entity = $this->syncDeviceClass($entity);

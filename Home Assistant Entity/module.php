@@ -202,7 +202,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
         $configuredEntities = [];
         foreach ($configData as $row) {
-            $row = $this->normalizeEntity($row, $context);
+            $row = $this->normalizeEntityStructure($row);
             if ($row === null || (($row['create_var'] ?? true) === false)) {
                 continue;
             }
@@ -246,7 +246,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
         $stateMap = [];
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !($entity['create_var'] ?? true)) {
                 continue;
             }
@@ -268,7 +268,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
     private function mergeStateAttributes(array $configData, array $stateMap): array
     {
         foreach ($configData as &$row) {
-            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !isset($entity['entity_id'])) {
                 continue;
             }

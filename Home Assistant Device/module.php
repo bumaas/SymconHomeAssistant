@@ -451,7 +451,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         if (is_array($config)) {
             foreach ($config as $row) {
-                $row = $this->normalizeEntity($row, __FUNCTION__);
+                $row = $this->normalizeEntityStructure($row);
                 if ($row === null) {
                     continue;
                 }
@@ -573,7 +573,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
 
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntity($row, 'processEntities');
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !($entity['create_var'] ?? true)) {
                 continue;
             }
@@ -614,7 +614,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     {
         $count = 0;
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !($entity['create_var'] ?? true)) {
                 continue;
             }
@@ -994,7 +994,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         foreach ($configData as $row) {
             // Konfigurationseintrag normalisieren und validieren.
-            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            $entity = $this->normalizeEntityStructure($row);
             $entityId = $entity['entity_id'] ?? '';
 
             // Nur aktivierte Entitäten mit gültiger ID initialisieren.
@@ -1018,7 +1018,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         $stateMap = [];
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !($entity['create_var'] ?? true)) {
                 continue;
             }
@@ -1037,7 +1037,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     private function mergeStateAttributes(array $configData, array $stateMap): array
     {
         foreach ($configData as &$row) {
-            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !isset($entity['entity_id'])) {
                 continue;
             }
@@ -1066,7 +1066,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     private function applyInitialStatesFromMap(array $configData, array $stateMap): void
     {
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !($entity['create_var'] ?? true)) {
                 continue;
             }

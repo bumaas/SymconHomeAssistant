@@ -151,7 +151,7 @@ trait HADeviceCoreTrait
         }
 
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !($entity['create_var'] ?? true)) {
                 continue;
             }
@@ -315,7 +315,7 @@ trait HADeviceCoreTrait
         $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
 
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntity($row, 'processEntities');
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !($entity['create_var'] ?? true)) {
                 continue;
             }
@@ -356,7 +356,7 @@ trait HADeviceCoreTrait
     {
         $count = 0;
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntity($row, __FUNCTION__);
+            $entity = $this->normalizeEntityStructure($row);
             if ($entity === null || !($entity['create_var'] ?? true)) {
                 continue;
             }
