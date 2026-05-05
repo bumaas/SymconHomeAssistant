@@ -21,6 +21,12 @@ final class HADomainCatalog
                 'main_writable' => true,
                 'variable_type' => HASwitchDefinitions::VARIABLE_TYPE
             ],
+            'input_boolean' => [
+                'alias' => HASwitchDefinitions::DOMAIN,
+                'configurator_default' => true,
+                'main_writable' => true,
+                'variable_type' => HASwitchDefinitions::VARIABLE_TYPE
+            ],
             HASensorDefinitions::DOMAIN => [
                 'configurator_default' => true,
                 'device_class_name_fallback' => true
@@ -39,6 +45,12 @@ final class HADomainCatalog
                 'supported_features' => HAClimateDefinitions::SUPPORTED_FEATURES
             ],
             HANumberDefinitions::DOMAIN => [
+                'configurator_default' => true,
+                'main_writable' => true,
+                'device_class_name_fallback' => true
+            ],
+            'input_number' => [
+                'alias' => HANumberDefinitions::DOMAIN,
                 'configurator_default' => true,
                 'main_writable' => true,
                 'device_class_name_fallback' => true
@@ -65,6 +77,13 @@ final class HADomainCatalog
                 'variable_type' => HAEventDefinitions::VARIABLE_TYPE
             ],
             HASelectDefinitions::DOMAIN => [
+                'configurator_default' => true,
+                'main_writable' => true,
+                'attribute_topics' => true,
+                'variable_type' => HASelectDefinitions::VARIABLE_TYPE
+            ],
+            'input_select' => [
+                'alias' => HASelectDefinitions::DOMAIN,
                 'configurator_default' => true,
                 'main_writable' => true,
                 'attribute_topics' => true,

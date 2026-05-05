@@ -54,7 +54,8 @@ Keine öffentlichen Funktionen.
 - `EnableExpertDebug`
   Aktiviert zusätzliche Debug-Ausgaben.
 - `ShowUnavailableEntitiesJson`
-  Blendet optional die Expertenvariable `Unavailable entities JSON` ein.
+  Blendet optional die Expertenvariable `Unavailable entities JSON` ein. Diese dient nur der Diagnose und enthält ausschließlich Entitäten, deren aktueller Zustand `unknown` oder `unavailable` ist.
+  Beispiel: `[{"entity_id":"light.test","state":"unavailable"}]`
 - `OutputBufferSize`
   Erhöht bei Bedarf den Ausgabepuffer für Bilddownloads über den Splitter.
 
@@ -70,7 +71,8 @@ Keine öffentlichen Funktionen.
   - Kamera-Stream
   - Image-Vorschau
   - Media-Player-Cover
-- Optional kann die Expertenvariable `Unavailable entities JSON` erzeugt werden. Sie enthält nur Entitäten mit `unknown` oder `unavailable`.
+- Optional kann die Expertenvariable `Unavailable entities JSON` erzeugt werden. Sie dient als kompakte Diagnoseübersicht für problematische Entitäten und enthält nur Einträge mit `unknown` oder `unavailable`.
+  Beispiel: `[{"entity_id":"light.test","state":"unavailable"}]`
 
 ## 7. Domain-spezifisches Verhalten
 

@@ -1,0 +1,9 @@
+Architektur-Harmonisierung und Konsolidierung der Entity-Normalisierung
+
+Dieses Update schließt den Umbau der Entity-Verarbeitung ab:
+- Zentrale Normalisierungslogik: Alle Module nutzen nun dieselbe Basis in libs/Config.
+- Erhöhte Stabilität: Strukturdaten und Laufzeitwerte werden sauber getrennt verarbeitet.
+- Verbesserte Diagnose: Neue Variable für nicht verfügbare Entitäten im JSON-Format.
+- Dokumentation: ARCHITEKTUR.md und READMEs wurden aktualisiert.
+
+Version 1.3

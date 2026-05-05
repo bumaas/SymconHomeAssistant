@@ -9,10 +9,14 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - `Home Assistant Configurator`
   Liest Geräte- und Entity-Daten aus Home Assistant, gruppiert sie zu Symcon-Geräten und erzeugt daraus `DeviceConfig`.
   Für den Symcon-`create`-Block wird dabei nur eine stabile CreateConfig mit strukturellen Attributen erzeugt, damit volatile Live-Daten keine neuen Configurator-Einträge vortäuschen.
+- `libs/Config`
+  Enthält die gemeinsame Aufbereitungsschicht für Configurator und spätere self-resolving Module. Loader lädt Rohdaten aus HA, Builder normalisiert die Entity-Konfiguration und Grouping bündelt Entities für die Geräteansicht.
 - `Home Assistant Splitter`
   Ist der zentrale Transportknoten. Er verteilt MQTT-Nachrichten an Kinder und kapselt REST- sowie Bildabrufe.
 - `Home Assistant Device`
   Ist das eigentliche Laufzeitmodell eines Home-Assistant-Geräts. Hier entstehen Variablen, Medienobjekte, Aktionen, Präsentationen und Domain-spezifische Logik.
+- `Home Assistant Entity`
+  Ist eine selbstauflösende Einzel-Entity-Instanz. Sie lädt ihre Konfiguration anhand der `EntityID` selbst aus Home Assistant nach und nutzt dafür denselben Runtime-Kern wie Device-Instanzen.
 
 ## 2. Laufzeitfluss im Device
 
@@ -27,8 +31,10 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 
 ## 3. Interne Schichten im Device
 
-- `HAEntityNormalizationTrait`
-  Normalisiert Konfigurations- und Laufzeitdaten, pflegt Alias-Mappings und liefert gefilterte Konfigurations-Entities.
+- `libs/Config/HAEntityNormalizationTrait`
+  Zentrale, fachliche Normalisierung von Entitäten (Struktur, Aliase, Features). Wird von Configurator und Device-Modulen genutzt.
+- `libs/Device/HADeviceEntityNormalizationTrait`
+  Laufzeit-Bridge, die Konfigurationsdaten mit Live-MQTT/REST-Attributen verheiratet.
 - `HAEntityStoreTrait`
   Verwaltet die Runtime-Entity-Liste, den `EntityStateCache`, Entity-Lookups und cachegestützte Präsentationsaktualisierungen.
 - `HADomainRegistryTrait`
@@ -59,6 +65,14 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
   Hält Diagnose- und Statusinformationen für Formular und Laufzeit aktuell.
 - `HAAttributeFilter`
   Entfernt nicht unterstützte Attribute vor der weiteren Domain-Verarbeitung.
+- `libs/Config/HAEntityConfigLoaderTrait`
+  Lädt Rohdaten und Templates aus Home Assistant und kapselt die dafür nötigen Template-Requests.
+- `libs/Config/HAEntityConfigBuilderTrait`
+  Baut aus Rohdaten eine stabile interne Entity-Konfiguration und filtert strukturrelevante Attribute.
+- `libs/Config/HAEntityGroupingTrait`
+  Gruppiert normalisierte Entities zu Geräten und bereitet Namen sowie Zusammenfassungen für die UI auf.
+- `libs/Device/HADeviceCoreTrait`
+  Kapselt den gemeinsamen Laufzeitkern für Device- und Entity-Instanzen, insbesondere MQTT/REST-Synchronisierung, Topic-Ableitung, Initialzustände und Action-Dispatch.
 - `libs/Domains/*Definitions.php`
   Sind die fachliche Quelle für Domain-Konstanten, Features, Zustände und Attributdefinitionen.
 
@@ -66,6 +80,8 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 
 - `DeviceConfig` als Roh-JSON darf nur dort direkt gelesen werden, wo die unveränderte Konfiguration gebraucht wird, zum Beispiel in `ApplyChanges()` oder beim Formularaufbau.
 - Der Configurator darf für den `create`-Block nur stabile Strukturattribute verwenden. Flüchtige Laufzeit- oder Prognosewerte gehören nicht in die CreateConfig, weil Symcon diesen Block für `Als gelesen markiert` wiedererkennt.
+- Gemeinsame Entity-Aufbereitung für Configurator und künftige self-resolving Instanzen gehört in `libs/Config`, nicht in modul-lokale Speziallogik.
+- Self-resolving Module wie `Home Assistant Entity` speichern nur stabile Identifikatoren in den Properties. Die eigentliche Entity-Konfiguration wird bei `ApplyChanges()` aus Home Assistant erneut aufgelöst.
 - Für normale Lookup- und Fallback-Pfade müssen normalisierte Konfigurations-Entities über `getConfiguredEntities()` bezogen werden.
 - `EntityStateCache` wird nur über `HAEntityStoreTrait` gelesen oder geschrieben. Direkte JSON-Zugriffe außerhalb von Bootstrap-Code sollen vermieden werden.
 - Neue oder geänderte Textdateien liegen in `UTF-8` ohne BOM mit `LF`-Zeilenenden.
@@ -79,7 +95,7 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 
 1. Domain-Datei in `libs/Domains` anlegen oder erweitern.
 2. Konstanten und Definitionen in `HACommonIncludes.php` und `HADomainCatalog.php` anbinden.
-3. Falls nötig Alias- oder Attributnormalisierung in `HAEntityNormalizationTrait` ergänzen.
+3. Falls nötig Alias- oder Attributnormalisierung in `libs/Config/HAEntityNormalizationTrait` ergänzen.
 4. Hauptzustand in `HADomainRegistryTrait` und `HADomainStateHandlersTrait` einhängen.
 5. Namen, Präsentation und Wertabbildung in `HAPresentationTrait`, `HADomainValueMappingTrait` und `HAVariableMappingTrait` ergänzen.
 6. Zusatzvariablen, Aktionen und Medienobjekte in den Maintenance- oder Special-Action-Traits ergänzen.

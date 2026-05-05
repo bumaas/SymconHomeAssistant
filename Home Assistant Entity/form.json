@@ -1,0 +1,154 @@
+{
+  "elements": [
+    {
+      "type": "ValidationTextBox",
+      "name": "EntityID",
+      "caption": "Entity ID"
+    },
+    {
+      "type": "Label",
+      "caption": "Dieses Modul konfiguriert sich automatisch basierend auf der angegebenen Entity ID aus Home Assistant."
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Expert",
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "EnableExpertDebug",
+          "caption": "Enable extended debug output"
+        },
+        {
+          "type": "CheckBox",
+          "name": "ShowUnavailableEntitiesJson",
+          "caption": "Show unavailable entities JSON"
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "OutputBufferSize",
+          "caption": "Output buffer (MB)",
+          "minimum": 0,
+          "maximum": 100,
+          "value": 10
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Resolved Configuration",
+      "items": [
+        {
+          "type": "ValidationTextBox",
+          "name": "ResolvedName",
+          "caption": "Resolved Name",
+          "readOnly": true
+        },
+        {
+          "type": "ValidationTextBox",
+          "name": "ResolvedDomain",
+          "caption": "Resolved Domain",
+          "readOnly": true
+        },
+        {
+          "type": "ValidationTextBox",
+          "name": "ResolvedDeviceClass",
+          "caption": "Resolved Device Class",
+          "readOnly": true
+        },
+        {
+          "type": "ValidationTextBox",
+          "name": "ResolvedDeviceID",
+          "caption": "Resolved Device ID",
+          "readOnly": true
+        },
+        {
+          "type": "ValidationTextBox",
+          "name": "ResolvedArea",
+          "caption": "Resolved Area",
+          "readOnly": true
+        },
+        {
+          "type": "ValidationTextBox",
+          "name": "ResolvedAttributeCount",
+          "caption": "Resolved Attribute Count",
+          "readOnly": true
+        },
+        {
+          "type": "List",
+          "name": "ResolvedAttributes",
+          "caption": "Resolved Attributes",
+          "rowCount": 10,
+          "add": false,
+          "delete": false,
+          "columns": [
+            {
+              "caption": "Key",
+              "name": "Key",
+              "width": "220px"
+            },
+            {
+              "caption": "Value",
+              "name": "Value",
+              "width": "auto"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Label",
+      "name": "CURRENT_FILTER",
+      "caption": "Aktueller Filter (Regex):",
+      "visible": false
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Diagnostics",
+      "expanded": false,
+      "items": [
+        {
+          "type": "Label",
+          "name": "DiagLastMQTT",
+          "caption": "Letzte MQTT-Message: nie"
+        },
+        {
+          "type": "Label",
+          "name": "DiagLastREST",
+          "caption": "Letzter REST-Abruf: nie"
+        },
+        {
+          "type": "Label",
+          "name": "DiagEntityCount",
+          "caption": "Entit\u00e4ten (aktiv): 0"
+        }
+      ]
+    },
+    {
+      "type": "Button",
+      "label": "Jetzt aktualisieren",
+      "onClick": "HAE_UpdateConfiguration($id);"
+    },
+    {
+      "type": "TestCenter"
+    }
+  ],
+  "status": [
+    {
+      "code": 201,
+      "icon": "error",
+      "caption": "Kein Parent verbunden"
+    },
+    {
+      "code": 210,
+      "icon": "error",
+      "caption": "Entity not found"
+    },
+    {
+      "code": 211,
+      "icon": "error",
+      "caption": "Entity invalid"
+    }
+  ]
+}

@@ -15,10 +15,11 @@ require_once __DIR__ . '/../libs/Device/HADomainAttributeMaintenance.php';
 require_once __DIR__ . '/../libs/Device/HADomainSpecialActions.php';
 require_once __DIR__ . '/../libs/Device/HADomainValueMapping.php';
 require_once __DIR__ . '/../libs/Device/HAMediaObjects.php';
-require_once __DIR__ . '/../libs/Device/HAEntityNormalization.php';
+require_once __DIR__ . '/../libs/Device/HADeviceEntityNormalization.php';
 require_once __DIR__ . '/../libs/Device/HAEntityStore.php';
 require_once __DIR__ . '/../libs/Device/HAVariableMapping.php';
 require_once __DIR__ . '/../libs/Device/HAAttributeActionMapping.php';
+require_once __DIR__ . '/../libs/Device/HADeviceCore.php';
 
 /**
  * @phpstan-type EntityAttributes array<string, mixed>
@@ -35,7 +36,7 @@ require_once __DIR__ . '/../libs/Device/HAAttributeActionMapping.php';
  * @phpstan-type StatePayload array{state?: string, attributes?: EntityAttributes}
  * @phpstan-type StateMap array<string, StatePayload>
  */
-class HomeAssistantDevice extends IPSModuleStrict
+class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 {
     use ModuleDebugTrait;
     use HADomainStateHandlersTrait;
@@ -48,46 +49,20 @@ class HomeAssistantDevice extends IPSModuleStrict
     use HADomainValueMappingTrait;
     use HAMediaObjectsTrait;
     use HAEntityNormalizationTrait;
+    use HADeviceEntityNormalizationTrait;
     use HAEntityStoreTrait;
     use HAVariableMappingTrait;
     use HAAttributeActionMappingTrait;
     use HASupportedFeaturesTrait;
     use HADiagnosticsTrait;
     use HARestParentClientTrait;
-
-    private const string KEY_STATE      = 'state';
-    private const string KEY_ATTRIBUTES = 'attributes';
-    private const string KEY_SUPPORTED_FEATURES = 'supported_features';
-    private const string LOCK_ACTION_SUFFIX = '_lock_action';
-    private const string VACUUM_ACTION_SUFFIX = '_vacuum_action';
-    private const string VACUUM_FAN_SPEED_SUFFIX = '_vacuum_fan_speed';
-    private const string LAWN_MOWER_ACTION_SUFFIX = '_lawn_mower_action';
-    private const string MEDIA_PLAYER_ACTION_SUFFIX = '_media_player_action';
-    private const string MEDIA_PLAYER_POWER_SUFFIX = '_power';
-    private const string CLIMATE_POWER_SUFFIX = '_power';
-    private const string MEDIA_PLAYER_COVER_SUFFIX = '_media_cover';
-    private const string CAMERA_STREAM_SUFFIX = '_camera_stream';
-    private const string CAMERA_PREVIEW_SUFFIX = '_camera_preview';
-    private const string IMAGE_PREVIEW_SUFFIX = '_image_preview';
-    private const string EVENT_TYPE_SUFFIX = '_event_type';
-    private const string UNAVAILABLE_ENTITIES_JSON_IDENT = 'unavailable_entities_json';
-    private const string TIMER_MEDIA_PLAYER_PROGRESS = 'MediaPlayerProgressTimer';
-    private const string BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG = 'MediaPlayerProgressDebug';
-    private const int MEDIA_PLAYER_PROGRESS_DEBUG_INTERVAL = 10;
+    use HADeviceCoreTrait;
 
     private array $topicMapping    = [];
 
     private array $entities        = [];
 
     private bool $hasMultipleStatusEntities = false;
-
-    private const string PROP_DEVICE_CONFIG = 'DeviceConfig';
-    private const string PROP_DEVICE_AREA = 'DeviceArea';
-    private const string PROP_DEVICE_NAME = 'DeviceName';
-    private const string PROP_DEVICE_ID = 'DeviceID';
-    private const string PROP_ENABLE_EXPERT_DEBUG = 'EnableExpertDebug';
-    private const string PROP_SHOW_UNAVAILABLE_ENTITIES_JSON = 'ShowUnavailableEntitiesJson';
-    private const string PROP_OUTPUT_BUFFER_SIZE = 'OutputBufferSize';
 
     public function Create(): void
     {

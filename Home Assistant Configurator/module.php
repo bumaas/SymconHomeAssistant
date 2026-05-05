@@ -11,148 +11,22 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     use ModuleDebugTrait;
     use HARestParentClientTrait;
     use HASupportedFeaturesTrait;
+    use HAEntityConfigLoaderTrait;
+    use HAEntityConfigBuilderTrait {
+        buildResolvedEntityConfig as private buildResolvedEntities;
+        buildStableCreateConfig as private buildStableResolvedCreateConfig;
+    }
+    use HAEntityGroupingTrait {
+        groupEntitiesToDevices as private groupResolvedEntitiesToDevices;
+        getCleanedEntities as private getResolvedCleanedEntities;
+        generateEntitySummary as private generateResolvedEntitySummary;
+    }
 
     // ... Caches ...
     private array $entities = [];
 
     private const string TIMER_CACHE_REFRESH = 'CacheRefreshTimer';
     private const string BUFFER_REFRESH_ACTIVE = 'CacheRefreshActive';
-
-    // Max. Anzahl an Entity-Namen in der Zusammenfassung (danach nur Anzahl).
-    private const int ENTITY_SUMMARY_MAX_NAMES = 10;
-    // Anzahl Entities pro Template-Request, um die HA-Output-Grenze einzuhalten.
-    private const int ENTITY_CHUNK_SIZE = 50;
-    private const array STABLE_GENERIC_ATTRIBUTE_KEYS = [
-        'device_class',
-        'supported_features',
-        'options',
-        'unit_of_measurement',
-        'native_unit_of_measurement',
-        'display_unit',
-        'unit',
-        'min',
-        'max',
-        'step',
-        'native_min_value',
-        'native_max_value',
-        'native_step',
-        'state_class',
-        'icon',
-        'entity_picture',
-        'entity_picture_local',
-        'url'
-    ];
-
-    private const string HA_FULL_DATA_TEMPLATE = <<<'EOT'
-[
-    {# Rekursive JSON-Sanitizer: wandelt Sets/Iterables in JSON-kompatible Listen um #}
-    {% macro sanitize_json(value, depth=0) -%}
-    {%- if depth > 4 -%}
-    {{ 'null' }}
-    {%- elif value is mapping -%}
-    {%- set ns = namespace(items=[]) -%}
-    {%- for k, v in value.items() -%}
-    {# JSON-Objektschlüssel müssen Strings sein; einige HA-Attribute nutzen int-Keys. #}
-    {%- set ns.items = ns.items + [((k | string) | to_json) ~ ':' ~ sanitize_json(v, depth + 1)] -%}
-    {%- endfor -%}
-    {{ '{' ~ (ns.items | join(',')) ~ '}' }}
-    {%- elif value is iterable and value is not string -%}
-    {%- set ns = namespace(items=[]) -%}
-    {%- for v in value -%}
-    {%- set ns.items = ns.items + [sanitize_json(v, depth + 1)] -%}
-    {%- endfor -%}
-    {{ '[' ~ (ns.items | join(',')) ~ ']' }}
-    {%- else -%}
-    {%- if value is string or value is number or value is boolean -%}
-    {{ value | to_json }}
-    {%- else -%}
-    {{ value | string | to_json }}
-    {%- endif -%}
-    {%- endif -%}
-    {%- endmacro %}
-
-    {% set domains = DOMAINS_PLACEHOLDER %}
-    {% for state in states if state.domain in domains %}
-    {
-        "entity_id": "{{ state.entity_id }}",
-        "domain": "{{ state.domain }}",
-        "name": "{{ state.attributes.friendly_name | default(state.name) }}",
-        "attributes": {{ sanitize_json(state.attributes) }},
-        "device": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }} ({{ area_name(state.entity_id) | default('Kein Bereich', true) }})",
-        "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }}",
-        "device_manufacturer": "{{ device_attr(state.entity_id, 'manufacturer') | default('', true) }}",
-        "device_model": "{{ device_attr(state.entity_id, 'model') | default('', true) }}",
-        "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
-        "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}",
-        "supported_features": {{ state.attributes.supported_features | default(0) | int }}
-    }{% if not loop.last %},{% endif %}
-    {% endfor %}
-]
-EOT;
-
-    private const string HA_ENTITY_ID_TEMPLATE = <<<'EOT'
-[
-    {% set domains = DOMAINS_PLACEHOLDER %}
-    {% for state in states if state.domain in domains %}
-    {{ state.entity_id | to_json }}{% if not loop.last %},{% endif %}
-    {% endfor %}
-]
-EOT;
-
-    private const string HA_ENTITY_ID_TEMPLATE_ALL = <<<'EOT'
-[
-    {% for state in states %}
-    {{ state.entity_id | to_json }}{% if not loop.last %},{% endif %}
-    {% endfor %}
-]
-EOT;
-
-    private const string HA_FULL_DATA_TEMPLATE_BY_ENTITY = <<<'EOT'
-[
-    {# Rekursive JSON-Sanitizer: wandelt Sets/Iterables in JSON-kompatible Listen um #}
-    {% macro sanitize_json(value, depth=0) -%}
-    {%- if depth > 4 -%}
-    {{ 'null' }}
-    {%- elif value is mapping -%}
-    {%- set ns = namespace(items=[]) -%}
-    {%- for k, v in value.items() -%}
-    {# JSON-Objektschlüssel müssen Strings sein; einige HA-Attribute nutzen int-Keys. #}
-    {%- set ns.items = ns.items + [((k | string) | to_json) ~ ':' ~ sanitize_json(v, depth + 1)] -%}
-    {%- endfor -%}
-    {{ '{' ~ (ns.items | join(',')) ~ '}' }}
-    {%- elif value is iterable and value is not string -%}
-    {%- set ns = namespace(items=[]) -%}
-    {%- for v in value -%}
-    {%- set ns.items = ns.items + [sanitize_json(v, depth + 1)] -%}
-    {%- endfor -%}
-    {{ '[' ~ (ns.items | join(',')) ~ ']' }}
-    {%- else -%}
-    {%- if value is string or value is number or value is boolean -%}
-    {{ value | to_json }}
-    {%- else -%}
-    {{ value | string | to_json }}
-    {%- endif -%}
-    {%- endif -%}
-    {%- endmacro %}
-
-    {% set entities = ENTITIES_PLACEHOLDER %}
-    {% for state in states if state.entity_id in entities %}
-    {
-        "entity_id": "{{ state.entity_id }}",
-        "domain": "{{ state.domain }}",
-        "name": "{{ state.attributes.friendly_name | default(state.name) }}",
-        "attributes": {{ sanitize_json(state.attributes) }},
-        "device": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }} ({{ area_name(state.entity_id) | default('Kein Bereich', true) }})",
-        "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }}",
-        "device_manufacturer": "{{ device_attr(state.entity_id, 'manufacturer') | default('', true) }}",
-        "device_model": "{{ device_attr(state.entity_id, 'model') | default('', true) }}",
-        "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
-        "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}",
-        "supported_features": {{ state.attributes.supported_features | default(0) | int }}
-    }{% if not loop.last %},{% endif %}
-    {% endfor %}
-]
-EOT;
 
     public function Create(): void
     {
@@ -236,7 +110,7 @@ EOT;
         unset($element);
 
         $entitiesForDisplay = $this->getFilteredEntitiesForDisplay($this->entities, $domainFilterEnabled, $domainsSimple);
-        $devices = $this->groupEntitiesToDevices($entitiesForDisplay);
+        $devices = $this->groupResolvedEntitiesToDevices($entitiesForDisplay);
         $values = $this->prepareConfiguratorValues($devices);
 
         $form['actions'][] = [
@@ -247,6 +121,7 @@ EOT;
             'add'      => false,
             'delete'   => true,
             'columns'  => [
+                ['caption' => 'Type', 'name' => 'Type', 'width' => '90px'],
                 ['caption' => 'Area', 'name' => 'Area', 'width' => '150px'],
                 ['caption' => 'Device', 'name' => 'name', 'width' => '250px'],
                 ['caption' => 'Manufacturer', 'name' => 'Manufacturer', 'width' => '200px'],
@@ -283,7 +158,7 @@ EOT;
         $domainFilterEnabled = $this->ReadPropertyBoolean('EnableDomainFilter');
         $domainsSimple = $this->getConfiguredDomainNames();
         $entitiesForDisplay = $this->getFilteredEntitiesForDisplay($this->entities, $domainFilterEnabled, $domainsSimple);
-        $devices = $this->groupEntitiesToDevices($entitiesForDisplay);
+        $devices = $this->groupResolvedEntitiesToDevices($entitiesForDisplay);
         $values = $this->prepareConfiguratorValues($devices);
         $this->UpdateFormField(
             'HomeAssistantDevices',
@@ -320,72 +195,67 @@ EOT;
         return $filtered;
     }
 
-    private function groupEntitiesToDevices(array $entities): array
-    {
-        $devices = [];
-        foreach ($entities as $entity) {
-            $isRealDevice    = $entity['device_id'] !== 'none';
-            $uniqueDeviceKey = $isRealDevice ? 'HA_DEV_' . $entity['device_id'] : 'HA_ENT_' . str_replace('.', '_', $entity['entity_id']);
-
-            if (!isset($devices[$uniqueDeviceKey])) {
-            $devices[$uniqueDeviceKey] = [
-                'ident'     => $uniqueDeviceKey,
-                'name'      => $isRealDevice ? $entity['device'] : $entity['name'],
-                'manufacturer' => $isRealDevice ? ($entity['device_manufacturer'] ?? '') : '',
-                'model'     => $isRealDevice ? ($entity['device_model'] ?? '') : '',
-                'device_id' => $isRealDevice ? $entity['device_id'] : $entity['entity_id'],
-                'area'      => $isRealDevice ? $entity['area'] : 'Sonstiges',
-                'entities'  => [],
-            ];
-            }
-            $devices[$uniqueDeviceKey]['entities'][] = [
-                'domain'    => $entity['domain'],
-                'name'      => $entity['name'],
-                'entity_id' => $entity['entity_id']
-            ];
-        }
-
-        uasort($devices, static fn($a, $b) => strcasecmp($a['area'] . '_' . $a['name'], $b['area'] . '_' . $b['name']));
-        return $devices;
-    }
-
     private function prepareConfiguratorValues(array $devices): array
     {
         $autoCreateVariables = $this->ReadPropertyBoolean('AutoCreateVariables');
 
         $instance = IPS_GetInstance($this->InstanceID);
         $configuratorParentId = (int)($instance['ConnectionID'] ?? 0);
-        [$mappedInstances, $blockedDeviceIds] = $this->buildDeviceInstanceMaps($configuratorParentId);
+        [$mappedDeviceInstances, $blockedDeviceIds] = $this->buildDeviceInstanceMaps($configuratorParentId);
+        [$mappedEntityInstances, $blockedEntityIds] = $this->buildEntityInstanceMaps($configuratorParentId);
 
         $values = [];
         $haDeviceIds = [];
+        $haEntityIds = [];
         foreach ($devices as $dev) {
             $this->debugExpert(__FUNCTION__, json_encode($dev, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
 
-            $instanceID = 0;
-            if (isset($dev['device_id'], $mappedInstances[$dev['device_id']]) && $dev['device_id'] !== 'none') {
-                $instanceID = $mappedInstances[$dev['device_id']][0] ?? 0;
-            }
+            $cleanedEntities = $this->getResolvedCleanedEntities($dev);
+            $cleanedNameById = array_column($cleanedEntities, 'name', 'entity_id');
 
-            // Devices bound to a different gateway are skipped.
-            $isBlocked = (($dev['device_id'] ?? 'none') !== 'none' && isset($blockedDeviceIds[$dev['device_id']]));
-            if ($isBlocked) {
+            if ($this->isEntityCandidate($dev)) {
+                $entityId = (string)($dev['device_id'] ?? '');
+                if ($entityId === '') {
+                    continue;
+                }
+
+                $haEntityIds[$entityId] = true;
+                $haDeviceIds[$entityId] = true;
+
+                if (!isset($blockedEntityIds[$entityId])) {
+                    $entityInstanceID = $mappedEntityInstances[$entityId][0] ?? 0;
+                    $values[] = $this->buildEntityRow($dev, $entityInstanceID, $cleanedEntities);
+                }
+
+                if (!isset($blockedDeviceIds[$entityId])) {
+                    $deviceInstanceID = $mappedDeviceInstances[$entityId][0] ?? 0;
+                    $entitiesForConfig = $this->buildEntitiesForConfig($dev, $cleanedNameById, $autoCreateVariables);
+                    $createEntitiesForConfig = $this->buildStableResolvedCreateConfig($entitiesForConfig);
+                    $values[] = $this->buildDeviceRow($dev, $deviceInstanceID, $cleanedEntities, $createEntitiesForConfig, false, 'Device (Legacy)');
+                }
                 continue;
             }
-            if (($dev['device_id'] ?? 'none') !== 'none') {
-                $haDeviceIds[$dev['device_id']] = true;
+
+            $deviceId = (string)($dev['device_id'] ?? '');
+            $instanceID = $mappedDeviceInstances[$deviceId][0] ?? 0;
+
+            if ($deviceId !== '' && isset($blockedDeviceIds[$deviceId])) {
+                continue;
+            }
+            if ($deviceId !== '') {
+                $haDeviceIds[$deviceId] = true;
             }
 
-            $cleanedEntities = $this->getCleanedEntities($dev);
-            $cleanedNameById = array_column($cleanedEntities, 'name', 'entity_id');
             $entitiesForConfig = $this->buildEntitiesForConfig($dev, $cleanedNameById, $autoCreateVariables);
-            $createEntitiesForConfig = $this->buildStableCreateConfig($entitiesForConfig);
+            $createEntitiesForConfig = $this->buildStableResolvedCreateConfig($entitiesForConfig);
 
             $values[] = $this->buildDeviceRow($dev, $instanceID, $cleanedEntities, $createEntitiesForConfig, false);
         }
 
-        $this->appendMissingDeviceRows($values, $mappedInstances, $haDeviceIds);
-        $this->appendDuplicateDeviceRows($values, $mappedInstances);
+        $this->appendMissingDeviceRows($values, $mappedDeviceInstances, $haDeviceIds);
+        $this->appendDuplicateDeviceRows($values, $mappedDeviceInstances);
+        $this->appendMissingEntityRows($values, $mappedEntityInstances, $haEntityIds);
+        $this->appendDuplicateEntityRows($values, $mappedEntityInstances);
         return $values;
     }
 
@@ -414,46 +284,62 @@ EOT;
         return [$mappedInstances, $blockedDeviceIds];
     }
 
+    private function buildEntityInstanceMaps(int $configuratorParentId): array
+    {
+        $existingInstances = IPS_GetInstanceListByModuleID(HAIds::MODULE_ENTITY);
+        $mappedInstances = [];
+        $blockedEntityIds = [];
+
+        foreach ($existingInstances as $id) {
+            $inst = IPS_GetInstance($id);
+            $parentId = (int)($inst['ConnectionID'] ?? 0);
+            $entityId = trim((string)@IPS_GetProperty($id, 'EntityID'));
+            if ($entityId === '') {
+                continue;
+            }
+
+            if ($configuratorParentId > 0 && $parentId !== $configuratorParentId) {
+                $blockedEntityIds[$entityId] = true;
+                continue;
+            }
+
+            $mappedInstances[$entityId][] = $id;
+        }
+
+        return [$mappedInstances, $blockedEntityIds];
+    }
+
     private function buildEntitiesForConfig(array $dev, array $cleanedNameById, bool $autoCreateVariables): array
     {
         $entitiesForConfig = [];
         foreach ($dev['entities'] as $entity) {
-            // Daten mergen (Cache + Aktuell)
-            $finalEntity = $entity;
-            if (isset($cleanedNameById[$entity['entity_id']])) {
-                $finalEntity['name'] = $cleanedNameById[$entity['entity_id']];
-            }
-            if (isset($this->entities[$entity['entity_id']])) {
-                $cached = $this->entities[$entity['entity_id']];
-                // Name und Attribute vom Cache übernehmen/aktualisieren
-                $finalEntity = array_merge($finalEntity, [
-                    'attributes' => $cached['attributes'] ?? []
-                ]);
+            $entityId = (string)($entity['entity_id'] ?? '');
+            $cached = $this->entities[$entityId] ?? null;
+
+            if ($cached !== null) {
+                $finalEntity = $cached;
+            } else {
+                $finalEntity = $entity;
             }
 
-            if (isset($finalEntity['attributes']['device_class'])
-                && (!isset($finalEntity['device_class'])
-                    || trim((string)$finalEntity['device_class']) === '')
-                && is_array($finalEntity['attributes'])
-                && is_string($finalEntity['attributes']['device_class'])) {
-                $finalEntity['device_class'] = trim($finalEntity['attributes']['device_class']);
+            if (isset($cleanedNameById[$entityId])) {
+                $finalEntity['name'] = $cleanedNameById[$entityId];
             }
+
             $finalEntity['create_var'] = $autoCreateVariables;
 
-            $this->enrichSupportedFeaturesList($finalEntity);
-
-            // Attribute zu String
+            // Ensure attributes are properly encoded for the DeviceConfig property
             if (isset($finalEntity['attributes']) && is_array($finalEntity['attributes'])) {
                 $finalEntity['attributes'] = json_encode(
                     $finalEntity['attributes'],
                     JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
                 );
-            } else {
+            } elseif (!isset($finalEntity['attributes']) || !is_string($finalEntity['attributes'])) {
                 $finalEntity['attributes'] = '{}';
             }
 
-                // Aufräumen: Diese Daten sind jetzt redundant, da im Device global gespeichert
-                unset($finalEntity['area'], $finalEntity['device']);
+            // Cleanup: These are redundant as they are handled globally or via properties
+            unset($finalEntity['area'], $finalEntity['device']);
 
             $entitiesForConfig[] = $finalEntity;
         }
@@ -461,16 +347,17 @@ EOT;
         return $entitiesForConfig;
     }
 
-    private function buildDeviceRow(array $dev, int $instanceID, array $cleanedEntities, array $entitiesForConfig, bool $isBlocked): array
+    private function buildDeviceRow(array $dev, int $instanceID, array $cleanedEntities, array $entitiesForConfig, bool $isBlocked, string $type = 'Device'): array
     {
         $row = [
             'instanceID' => $instanceID,
+            'Type'       => $type,
             'name'       => $dev['name'],
             'Area'       => $dev['area'],
             'Manufacturer' => $dev['manufacturer'] ?? '',
             'Model'      => $dev['model'] ?? '',
             'DeviceID'   => $dev['device_id'],
-            'Summary'    => $this->generateEntitySummary($cleanedEntities),
+            'Summary'    => $this->generateResolvedEntitySummary($cleanedEntities),
             'group'      => $dev['area']
         ];
         if (!$isBlocked) {
@@ -490,135 +377,45 @@ EOT;
         return $row;
     }
 
-    private function buildStableCreateConfig(array $entitiesForConfig): array
+    private function buildEntityRow(array $dev, int $instanceID, array $cleanedEntities): array
     {
-        $stableConfig = [];
+        $entityId = (string)($dev['device_id'] ?? '');
+        $entityName = (string)($dev['name'] ?? $entityId);
+        $area = (string)($dev['area'] ?? 'Sonstiges');
 
-        foreach ($entitiesForConfig as $entity) {
-            if (!is_array($entity)) {
-                continue;
-            }
+        $row = [
+            'instanceID' => $instanceID,
+            'Type' => 'Entity',
+            'name' => $entityName,
+            'Area' => $area,
+            'Manufacturer' => '',
+            'Model' => '',
+            'DeviceID' => $entityId,
+            'Summary' => $this->generateResolvedEntitySummary($cleanedEntities),
+            'group' => $area
+        ];
 
-            $stableEntity = [
-                'entity_id'   => (string)($entity['entity_id'] ?? ''),
-                'domain'      => (string)($entity['domain'] ?? ''),
-                'name'        => (string)($entity['name'] ?? ''),
-                'device_class'=> isset($entity['device_class']) ? trim((string)$entity['device_class']) : '',
-                'create_var'  => (bool)($entity['create_var'] ?? true)
-            ];
-
-            $attributes = $entity['attributes'] ?? [];
-            if (is_string($attributes)) {
-                try {
-                    $attributes = json_decode($attributes, true, 512, JSON_THROW_ON_ERROR);
-                } catch (JsonException) {
-                    $attributes = [];
-                }
-            }
-            if (!is_array($attributes)) {
-                $attributes = [];
-            }
-
-            $stableAttributes = $this->filterStableCreateAttributes(
-                (string)($stableEntity['domain'] ?: $this->deriveDomainFromEntityId($stableEntity['entity_id'])),
-                $attributes
-            );
-            if ($stableAttributes !== []) {
-                $stableEntity['attributes'] = $stableAttributes;
-            }
-
-            if ($stableEntity['device_class'] === '' && isset($stableAttributes['device_class']) && is_string($stableAttributes['device_class'])) {
-                $stableEntity['device_class'] = trim($stableAttributes['device_class']);
-            }
-            if ($stableEntity['device_class'] === '') {
-                unset($stableEntity['device_class']);
-            }
-
-            $stableConfig[] = $stableEntity;
-        }
-
-        usort($stableConfig, static function (array $left, array $right): int {
-            return strcmp((string)($left['entity_id'] ?? ''), (string)($right['entity_id'] ?? ''));
-        });
-
-        return $stableConfig;
-    }
-
-    private function filterStableCreateAttributes(string $domain, array $attributes): array
-    {
-        $allowed = array_fill_keys(self::STABLE_GENERIC_ATTRIBUTE_KEYS, true);
-
-        foreach ($this->getDomainStableAttributeKeys($domain) as $key) {
-            $allowed[$key] = true;
-        }
-
-        $filtered = [];
-        foreach ($attributes as $key => $value) {
-            if (!is_string($key) || !isset($allowed[$key])) {
-                continue;
-            }
-            if ($this->isEmptyStableAttributeValue($value)) {
-                continue;
-            }
-            $filtered[$key] = $value;
-        }
-
-        ksort($filtered);
-        return $filtered;
-    }
-
-    private function getDomainStableAttributeKeys(string $domain): array
-    {
-        return match ($domain) {
-            HALightDefinitions::DOMAIN => ['effect_list', 'supported_color_modes', 'min_mireds', 'max_mireds', 'min_color_temp_kelvin', 'max_color_temp_kelvin'],
-            HAClimateDefinitions::DOMAIN => [
-                HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES,
-                HAClimateDefinitions::ATTRIBUTE_HVAC_MODES,
-                HAClimateDefinitions::ATTRIBUTE_PRESET_MODES,
-                HAClimateDefinitions::ATTRIBUTE_FAN_MODES,
-                HAClimateDefinitions::ATTRIBUTE_SWING_MODES,
-                HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES,
-                HAClimateDefinitions::ATTRIBUTE_MIN_TEMP,
-                HAClimateDefinitions::ATTRIBUTE_MAX_TEMP,
-                HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP,
-                HAClimateDefinitions::ATTRIBUTE_MIN_HUMIDITY,
-                HAClimateDefinitions::ATTRIBUTE_MAX_HUMIDITY,
-                'target_humidity_step'
+        $row['create'] = [
+            'moduleID' => HAIds::MODULE_ENTITY,
+            'configuration' => [
+                'EntityID' => $entityId,
+                'DeviceID' => $entityId,
+                'DeviceArea' => $area,
+                'DeviceName' => $entityName
             ],
-            HASelectDefinitions::DOMAIN => ['options'],
-            HANumberDefinitions::DOMAIN => ['mode'],
-            HAFanDefinitions::DOMAIN => ['preset_modes', 'direction_list'],
-            HAHumidifierDefinitions::DOMAIN => ['available_modes', 'min_humidity', 'max_humidity', 'target_humidity_step'],
-            HAMediaPlayerDefinitions::DOMAIN => ['source_list', 'sound_mode_list', 'volume_step'],
-            HACameraDefinitions::DOMAIN => ['stream_source', 'rtsp_url', 'frontend_stream_type'],
-            HAImageDefinitions::DOMAIN => ['entity_picture', 'entity_picture_local', 'url'],
-            default => []
-        };
+            'name' => $entityName
+        ];
+
+        return $row;
     }
 
-    private function isEmptyStableAttributeValue(mixed $value): bool
+    private function isEntityCandidate(array $dev): bool
     {
-        if ($value === null) {
-            return true;
-        }
-        if (is_string($value)) {
-            return trim($value) === '';
-        }
-        if (is_array($value)) {
-            return $value === [];
+        if (!isset($dev['device_id']) || !is_string($dev['device_id'])) {
+            return false;
         }
 
-        return false;
-    }
-
-    private function deriveDomainFromEntityId(string $entityId): string
-    {
-        if ($entityId !== '' && str_contains($entityId, '.')) {
-            [$domain] = explode('.', $entityId, 2);
-            return $domain;
-        }
-
-        return '';
+        return str_contains($dev['device_id'], '.');
     }
 
     private function appendMissingDeviceRows(array &$values, array $mappedInstances, array $haDeviceIds): void
@@ -647,6 +444,30 @@ EOT;
         }
     }
 
+    private function appendMissingEntityRows(array &$values, array $mappedInstances, array $haEntityIds): void
+    {
+        foreach ($mappedInstances as $entityId => $instanceIds) {
+            if (isset($haEntityIds[$entityId])) {
+                continue;
+            }
+            foreach ($instanceIds as $instanceId) {
+                $values[] = $this->buildEntityStatusRow($instanceId, $entityId, $this->Translate('In Home Assistant nicht gefunden'));
+            }
+        }
+    }
+
+    private function appendDuplicateEntityRows(array &$values, array $mappedInstances): void
+    {
+        foreach ($mappedInstances as $entityId => $instanceIds) {
+            if (count($instanceIds) <= 1) {
+                continue;
+            }
+            foreach (array_slice($instanceIds, 1) as $instanceId) {
+                $values[] = $this->buildEntityStatusRow($instanceId, $entityId, $this->Translate('Doppelte Entity-ID'));
+            }
+        }
+    }
+
     private function buildStatusRow(int $instanceId, string $deviceId, string $summary): array
     {
         $deviceName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
@@ -655,6 +476,7 @@ EOT;
 
         return [
             'instanceID'   => $instanceId,
+            'Type'         => 'Device',
             'name'         => $deviceName !== '' ? $deviceName : IPS_GetName($instanceId),
             'Area'         => $area,
             'Manufacturer' => '',
@@ -662,6 +484,25 @@ EOT;
             'DeviceID'     => $deviceId,
             'Summary'      => $summary,
             'group'        => $area
+        ];
+    }
+
+    private function buildEntityStatusRow(int $instanceId, string $entityId, string $summary): array
+    {
+        $entityName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
+        $entityArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
+        $area = $entityArea !== '' ? $entityArea : 'Sonstiges';
+
+        return [
+            'instanceID' => $instanceId,
+            'Type' => 'Entity',
+            'name' => $entityName !== '' ? $entityName : IPS_GetName($instanceId),
+            'Area' => $area,
+            'Manufacturer' => '',
+            'Model' => '',
+            'DeviceID' => $entityId,
+            'Summary' => $summary,
+            'group' => $area
         ];
     }
 
@@ -688,198 +529,39 @@ EOT;
         }
     }
 
-    /**
-     * Bereinigt die Entitäts-Namen eines Geräts, indem ein führendes Bereichs-Präfix entfernt wird.
-     *
-     * @param array $dev Das gruppierte Gerät inklusive seiner Entitäten.
-     *
-     * @return array Liste der bereinigten Entitäten.
-     */
-    private function getCleanedEntities(array $dev): array
-    {
-        $cleaned      = [];
-        $devicePrefix = $dev['name'] . ' ';
-        $nameCounts   = [];
-
-        foreach ($dev['entities'] as $entity) {
-            $name = $entity['name'];
-            if (str_starts_with($name, $devicePrefix)) {
-                $name = substr($name, strlen($devicePrefix));
-            }
-            $nameCounts[$name] = ($nameCounts[$name] ?? 0) + 1;
-            $cleaned[]         = array_merge($entity, ['name' => $name]);
-        }
-
-        foreach ($cleaned as &$entity) {
-            if (($nameCounts[$entity['name']] ?? 0) > 1) {
-                $entityIdName = $entity['entity_id'];
-                $dotPos       = strpos($entityIdName, '.');
-                if ($dotPos !== false) {
-                    $entityIdName = substr($entityIdName, $dotPos + 1);
-                }
-                $entityIdName      = str_replace('_', ' ', $entityIdName);
-                $devicePrefixLower = strtolower($dev['name']) . ' ';
-                $entityIdNameLower = strtolower($entityIdName);
-                if (str_starts_with($entityIdNameLower, $devicePrefixLower)) {
-                    $entityIdName = substr($entityIdName, strlen($devicePrefixLower));
-                }
-                $entityIdName = trim($entityIdName);
-                if ($entityIdName !== '') {
-                    $entityIdName = ucwords(strtolower($entityIdName));
-                }
-                $entity['name'] = $entityIdName;
-            }
-        }
-        unset($entity);
-
-        return $cleaned;
-    }
-
-    /**
-     * Erstellt eine kompakte Zusammenfassung der Entitäten für die Anzeige im Konfigurator.
-     *
-     * Bei bis zu <ENTITY_SUMMARY_MAX_NAMES> Entitäten werden deren Namen aufgelistet, bei mehr Entitäten
-     * wird lediglich die Gesamtzahl ausgegeben.
-     *
-     * @param array $entities Liste der (bereinigten) Entitäten.
-     *
-     * @return string Zusammenfassender Text für die Spalte 'Entitäten'.
-     */
-    private function generateEntitySummary(array $entities): string
-    {
-        if (count($entities) <= self::ENTITY_SUMMARY_MAX_NAMES) {
-            return implode(', ', array_column($entities, 'name'));
-        }
-        return count($entities) . ' Entitäten';
-    }
-
-    /**
-     * Aktualisiert den internen Cache der Home Assistant Entitäten.
-     *
-     * Neu: Führt nur noch EINEN Request aus, der gefilterte Entitäten inklusive
-     * aller Geräte-Metadaten zurückliefert.
-     */
     private function UpdateCacheFromHA(): void
     {
-        $instance = IPS_GetInstance($this->InstanceID);
-        $parentID = $instance['ConnectionID'];
-        if ($parentID <= 0) {
+        if (!$this->hasCompatibleSplitterParent()) {
             return;
         }
 
         $newEntities = [];
         $domainFilterEnabled = $this->ReadPropertyBoolean('EnableDomainFilter');
-        $domainsSimple = $this->getConfiguredDomainNames();
+        $domainsSimple = $domainFilterEnabled ? $this->getConfiguredDomainNames() : null;
 
-        if ($domainFilterEnabled && $domainsSimple !== []) {
-            $domainChunks = array_chunk($domainsSimple, 1);
-            foreach ($domainChunks as $chunk) {
-                $this->debugExpert(__FUNCTION__, 'Request Domain', ['Domains' => $chunk]);
-                $entityIds = $this->fetchEntityIdsForDomains($chunk);
-                if ($entityIds === null) {
-                    $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs)', ['Domains' => $chunk]);
-                    continue;
-                }
-                if ($entityIds === []) {
-                    $this->debugExpert(__FUNCTION__, 'Keine Entities', ['Domains' => $chunk]);
-                    continue;
-                }
-                $this->loadEntitiesByIds($entityIds, $newEntities);
-            }
-        } elseif ($domainFilterEnabled) {
+        if ($domainFilterEnabled && ($domainsSimple === [])) {
             $this->debugExpert(__FUNCTION__, 'Domain-Filter aktiv, aber keine Domains gesetzt. Ergebnis bleibt leer.');
+            $rawEntities = [];
         } else {
-            $this->debugExpert(__FUNCTION__, 'Domain-Filter inaktiv. Lade alle Domains.');
-            $entityIds = $this->fetchEntityIdsForAllDomains();
-            if ($entityIds === null) {
-                $this->debugExpert(__FUNCTION__, 'API-Fehler (IDs) für alle Domains');
-            } elseif ($entityIds === []) {
-                $this->debugExpert(__FUNCTION__, 'Keine Entities für alle Domains');
-            } else {
-                $this->loadEntitiesByIds($entityIds, $newEntities);
-            }
+            $rawEntities = $this->fetchAllRawEntities($domainsSimple);
         }
 
-        if ($newEntities === []) {
+        if ($rawEntities === []) {
             $this->debugExpert(__FUNCTION__, 'No entities loaded. Cache cleared.');
             $this->entities = [];
             $this->WriteAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
             return;
         }
 
+        foreach ($this->buildResolvedEntities(array_values($rawEntities), true) as $resolved) {
+            if ($resolved !== null) {
+                $newEntities[$resolved['entity_id']] = $resolved;
+            }
+        }
+
         $this->entities = $newEntities;
         $this->WriteAttributeString('CachedEntities', json_encode($this->entities, JSON_THROW_ON_ERROR));
         $this->LogUpdatedEntities();
-    }
-
-    private function fetchEntityIdsForDomains(array $domains): ?array
-    {
-        if ($domains === []) {
-            return [];
-        }
-        $domainsJson = json_encode($domains, JSON_THROW_ON_ERROR);
-        $template = str_replace('DOMAINS_PLACEHOLDER', $domainsJson, self::HA_ENTITY_ID_TEMPLATE);
-        $result = $this->RenderHATemplate(trim($template));
-        if ($result === null) {
-            return null;
-        }
-        $ids = [];
-        foreach ($result as $item) {
-            if (is_string($item) && $item !== '') {
-                $ids[] = $item;
-            }
-        }
-        return $ids;
-    }
-
-    private function fetchEntityIdsForAllDomains(): ?array
-    {
-        $result = $this->RenderHATemplate(trim(self::HA_ENTITY_ID_TEMPLATE_ALL));
-        if ($result === null) {
-            return null;
-        }
-        $ids = [];
-        foreach ($result as $item) {
-            if (is_string($item) && $item !== '') {
-                $ids[] = $item;
-            }
-        }
-        return $ids;
-    }
-
-    private function loadEntitiesByIds(array $entityIds, array &$newEntities): void
-    {
-        $idChunks = array_chunk($entityIds, self::ENTITY_CHUNK_SIZE);
-        foreach ($idChunks as $idChunk) {
-            $rawEntities = $this->fetchEntitiesByIds($idChunk);
-            if ($rawEntities === null) {
-                $this->debugExpert(__FUNCTION__, 'API-Fehler (Entities)', ['Count' => count($idChunk)]);
-                continue;
-            }
-            if ($rawEntities === []) {
-                continue;
-            }
-            $this->debugExpert(__FUNCTION__, 'Entities geladen', ['Count' => count($rawEntities)]);
-
-            foreach ($rawEntities as $entity) {
-                if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
-                    $entity['attributes'] = [];
-                }
-                if (!isset($entity['attributes']['supported_features']) || !is_numeric($entity['attributes']['supported_features'])) {
-                    if (isset($entity['supported_features']) && is_numeric($entity['supported_features'])) {
-                        $entity['attributes']['supported_features'] = (int)$entity['supported_features'];
-                    }
-                }
-                unset($entity['supported_features']);
-                if ($entity['device_name'] === 'Unbekannt' || $entity['device_id'] === 'none') {
-                    $entity['device'] = ucfirst($entity['domain']) . ' (Ohne Gerät)';
-                } else {
-                    $entity['device'] = $entity['device_name'];
-                }
-
-                $newEntities[$entity['entity_id']] = $entity;
-            }
-        }
     }
 
     private function getConfiguredDomainRows(): array
@@ -908,29 +590,6 @@ EOT;
         }
         return array_keys($domains);
     }
-
-    private function fetchEntitiesByIds(array $entityIds): ?array
-    {
-        if ($entityIds === []) {
-            return [];
-        }
-        $entitiesJson = json_encode($entityIds, JSON_THROW_ON_ERROR);
-        $template = str_replace('ENTITIES_PLACEHOLDER', $entitiesJson, self::HA_FULL_DATA_TEMPLATE_BY_ENTITY);
-        return $this->RenderHATemplate(trim($template));
-    }
-
-    /**
-     * Transformiert die Rohdaten einer Home Assistant Entität in ein internes Format.
-     *
-     * Dabei werden Geräteinformationen (Name, ID, Bereich) zugeordnet und ein
-     * Anzeigename für das Gerät generiert, falls die Entität keinem spezifischen
-     * Gerät zugeordnet ist.
-     *
-     * @param array      $state      Die Zustandsdaten der Entität aus der HA-API.
-     * @param array|null $deviceInfo Optionale Geräte-Metadaten (Name, ID, Bereich).
-     *
-     * @return array Die gemappten Entitätsdaten für den Cache und den Konfigurator.
-     */
 
     /**
      * Sortiert die aktuell geladenen Entitäten nach Bereich, Gerät und Namen
@@ -973,9 +632,4 @@ EOT;
         }
     }
 
-    private function RenderHATemplate(string $template): ?array
-    {
-        $postData = json_encode(['template' => $template], JSON_THROW_ON_ERROR);
-        return $this->sendRestRequestToParent('/api/template', $postData);
-    }
 }
