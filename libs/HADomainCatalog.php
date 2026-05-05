@@ -192,6 +192,18 @@ final class HADomainCatalog
         return isset($matrix[$domain]);
     }
 
+    public static function getDomainSelectOptions(): array
+    {
+        $matrix = self::getMatrix();
+        $options = [];
+        foreach ($matrix as $domain => $meta) {
+            $caption = ucfirst(str_replace('_', ' ', (string)$domain)) . ' (' . $domain . ')';
+            $options[] = ['caption' => $caption, 'value' => $domain];
+        }
+        usort($options, fn ($a, $b) => strcmp($a['caption'], $b['caption']));
+        return $options;
+    }
+
     public static function isStatusDomain(string $domain): bool
     {
         return (bool)(self::getDefinition($domain)['status_domain'] ?? false);

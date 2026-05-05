@@ -448,6 +448,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->debugExpert(__FUNCTION__, 'config:', $config);
 
         $values = [];
+        $domainOptions = HADomainCatalog::getDomainSelectOptions();
 
         if (is_array($config)) {
             foreach ($config as $row) {
@@ -455,6 +456,14 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 if ($row === null) {
                     continue;
                 }
+
+                // Filter out entities with unsupported domains to satisfy the requirement
+                // that they should not appear in the Device instance configuration.
+                if (!HADomainCatalog::isDomainSupported($row['domain'] ?? '')) {
+                    $this->debugExpert(__FUNCTION__, 'Filtering out unsupported domain: ' . ($row['domain'] ?? 'unknown') . ' for entity: ' . ($row['entity_id'] ?? 'unknown'));
+                    continue;
+                }
+
                 // Standardwerte für fehlende Spalten ergänzen.
                 if (!isset($row['create_var'])) {
                     $row['create_var'] = true;
@@ -482,6 +491,13 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         foreach ($form['elements'] as &$element) {
             if (($element['name'] ?? '') === self::PROP_DEVICE_CONFIG) {
                 $element['values'] = $values;
+                // Update domain options dynamically from catalog
+                foreach ($element['columns'] as &$column) {
+                    if (($column['name'] ?? '') === 'domain') {
+                        $column['edit']['options'] = $domainOptions;
+                        break;
+                    }
+                }
                 break;
             }
         }
