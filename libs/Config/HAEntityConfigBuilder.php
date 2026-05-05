@@ -25,11 +25,11 @@ trait HAEntityConfigBuilderTrait
         'url'
     ];
 
-    private function buildResolvedEntityConfig(array $rawEntities, bool $autoCreateVariables = true): array
+    private function buildResolvedEntityConfig(array $rawEntities, bool $autoCreateVariables = true, bool $allowUnsupportedDomains = false): array
     {
         $resolved = [];
         foreach ($rawEntities as $rawEntity) {
-            $row = $this->buildResolvedEntityRow($rawEntity, $autoCreateVariables);
+            $row = $this->buildResolvedEntityRow($rawEntity, $autoCreateVariables, $allowUnsupportedDomains);
             if ($row === null) {
                 continue;
             }
@@ -40,7 +40,7 @@ trait HAEntityConfigBuilderTrait
         return $resolved;
     }
 
-    private function buildResolvedEntityRow(array $rawEntity, bool $autoCreateVariables = true): ?array
+    private function buildResolvedEntityRow(array $rawEntity, bool $autoCreateVariables = true, bool $allowUnsupportedDomains = false): ?array
     {
         $entityId = (string)($rawEntity['entity_id'] ?? '');
         if ($entityId === '') {
@@ -48,6 +48,11 @@ trait HAEntityConfigBuilderTrait
         }
 
         $domain = trim((string)($rawEntity['domain'] ?? $this->deriveDomainFromEntityId($entityId)));
+
+        if (!$allowUnsupportedDomains && !HADomainCatalog::isDomainSupported($domain)) {
+            return null;
+        }
+
         $attributes = $rawEntity['attributes'] ?? [];
         if (!is_array($attributes)) {
             $attributes = [];

@@ -185,6 +185,13 @@ final class HADomainCatalog
         return (bool)(self::getDefinition($domain)['main_writable'] ?? false);
     }
 
+    public static function isDomainSupported(string $domain): bool
+    {
+        $matrix = self::getMatrix();
+        $domain = trim($domain);
+        return isset($matrix[$domain]);
+    }
+
     public static function isStatusDomain(string $domain): bool
     {
         return (bool)(self::getDefinition($domain)['status_domain'] ?? false);

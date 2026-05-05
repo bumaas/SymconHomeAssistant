@@ -140,7 +140,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
-        $resolved = $this->buildResolvedEntityRow($raw, true);
+        $resolved = $this->buildResolvedEntityRow($raw, true, true);
         if ($resolved === null) {
             $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
             $this->SetSummary($entityId);
