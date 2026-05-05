@@ -22,7 +22,7 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 
 ## 1. Funktionsumfang
 
-- Module für Discovery, Konfiguration, Splitter und Device.
+- Module für Discovery, Konfiguration, Splitter, Device und Entity.
 - Anbindung von Home Assistant Entitäten per MQTT Statestream.
 - Optionaler REST-Zugriff für Steuerbefehle.
 - Mapping von Domains auf Symcon-Variablen.
@@ -33,6 +33,7 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 - [Home Assistant Configurator](Home%20Assistant%20Configurator/README.md)
 - [Home Assistant Splitter](Home%20Assistant%20Splitter/README.md)
 - [Home Assistant Device](Home%20Assistant%20Device/README.md)
+- [Home Assistant Entity](Home%20Assistant%20Entity/README.md)
 
 **Unterstützte Domains**
 
@@ -84,7 +85,7 @@ Keine öffentlichen Funktionen im Root-Modul. Siehe die jeweiligen Modul-READMEs
 2. Home Assistant Splitter anlegen und mit dem MQTT Client verbinden.
 3. Im Splitter `MQTTBaseTopic` setzen (typisch: `homeassistant`) sowie `HAUrl` und `HAToken` für REST.
 4. Home Assistant Discovery ausführen, um eine Configurator Instanz zu erstellen.
-5. Im Configurator gefundene Geräte auswählen und Device Instanzen erzeugen.
+5. Im Configurator gefundene Geräte oder Entitäten auswählen und Instanzen erzeugen.
 
 **Home Assistant mqtt_statestream**
 
@@ -100,7 +101,7 @@ mqtt_statestream:
 
 ## 6. Statusvariablen und Profile
 
-Die Variablen werden in den jeweiligen Device-Instanzen pro Entität angelegt. Details siehe `Home Assistant Device`.
+Die Variablen werden in den jeweiligen Instanzen pro Entität angelegt. Details siehe `Home Assistant Device` oder `Home Assistant Entity`.
 
 Hinweise:
 
@@ -125,7 +126,7 @@ Home Assistant Splitter
   |  verteilt an Device/Configurator
   |  optional REST für Set/Service-Calls
   v
-Home Assistant Device / Configurator
+Home Assistant Device / Entity / Configurator
 ```
 
 **Hinweise zur Fehlersuche**
@@ -149,6 +150,7 @@ Home Assistant Device / Configurator
 | Home Assistant Configurator | Configurator | `{B9830F89-98E6-106C-CD6C-A3AD76FD5AE9}` |
 | Home Assistant Splitter     | Splitter     | `{0A4C4B31-2F59-4D21-8F62-3A12A0A0F3E1}` |
 | Home Assistant Device       | Device       | `{72D6A284-1870-4E11-92D8-0402C8233C29}` |
+| Home Assistant Entity       | Device       | `{C27D957C-3761-497B-8A30-A223405E04F2}` |
 
 ### FAQ
 

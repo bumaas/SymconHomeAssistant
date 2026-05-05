@@ -1,7 +1,7 @@
 [![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant Configurator
 
-Listet Home Assistant Geräte und Entitäten und legt daraus Device-Instanzen in Symcon an.
+Listet Home Assistant Geräte und Entitäten und legt daraus Device- oder Entity-Instanzen in Symcon an.
 
 ## Dokumentation
 
@@ -19,7 +19,7 @@ Listet Home Assistant Geräte und Entitäten und legt daraus Device-Instanzen in
 
 - Lädt Entitäten per REST.
 - Gruppiert Geräte nach Bereich.
-- Erzeugt Device-Instanzen inkl. Konfiguration.
+- Erzeugt Device- oder Entity-Instanzen inkl. Konfiguration.
 
 ## 2. Voraussetzungen
 
@@ -52,7 +52,7 @@ Keine.
 
 1. Configurator öffnen, Entitäten werden per REST geladen.
 2. Geräte nach Bereich sortieren.
-3. Gewünschte Geräte anlegen (Device-Instanzen).
+3. Gewünschte Geräte oder Entitäten anlegen (Device- oder Entity-Instanzen).
 
 
 ### Spenden

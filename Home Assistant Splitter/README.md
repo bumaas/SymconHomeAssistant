@@ -1,7 +1,7 @@
 [![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant Splitter
 
-Verbindet MQTT mit den Device- und Configurator-Instanzen und bietet optional REST-basierte Steuerung für `*/set` Topics.
+Verbindet MQTT mit den Device-, Entity- und Configurator-Instanzen und bietet optional REST-basierte Steuerung für `*/set` Topics.
 
 ## Dokumentation
 
@@ -18,7 +18,7 @@ Verbindet MQTT mit den Device- und Configurator-Instanzen und bietet optional RE
 
 ## 1. Funktionsumfang
 
-- Verteilt MQTT-Daten an Device-Instanzen.
+- Verteilt MQTT-Daten an Device- und Entity-Instanzen.
 - Leitet REST-Requests vom Configurator an Home Assistant weiter.
 - Optional REST-Steuerung für `*/set` Topics.
 - REST-Steuerung für `light`, `switch`, `lock`, `cover`, `number`, `climate`, `fan`, `humidifier`, `media_player`, `button`, `input_button`, `vacuum`, `lawn_mower`.
