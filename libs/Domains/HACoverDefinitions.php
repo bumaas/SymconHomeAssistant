@@ -66,6 +66,13 @@ final class HACoverDefinitions
     public const int FEATURE_SET_TILT_POSITION = 64;
     public const int FEATURE_STOP_TILT = 128;
 
+    public const int ACTION_OPEN = 0;
+    public const int ACTION_CLOSE = 1;
+    public const int ACTION_STOP = 2;
+    public const int ACTION_OPEN_TILT = 3;
+    public const int ACTION_CLOSE_TILT = 4;
+    public const int ACTION_STOP_TILT = 5;
+
     public const array SUPPORTED_FEATURES = [
         self::FEATURE_OPEN => 'Cover feature: Open',
         self::FEATURE_CLOSE => 'Cover feature: Close',

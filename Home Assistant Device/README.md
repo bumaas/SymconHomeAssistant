@@ -95,7 +95,9 @@ Keine öffentlichen Funktionen.
 - `lock`
   Read-only-Status als Enumeration, optionale `open`-Aktion und Zusatzattribute `changed_by` / `code_format`.
 - `cover`
-  Je nach `device_class` als Position, Öffnung oder Shutter; zusätzliche Positions-/Tilt-Attribute gemäß Features.
+  Je nach `device_class` als Position, Öffnung oder Status; zusätzliche Positions-/Tilt-Attribute gemäß Features. Zusätzlich werden eine Aktionsvariable mit `Open`/`Close`/`Stop` sowie bei passenden Features eine getrennte Tilt-Aktionsvariable mit `Open Tilt`/`Close Tilt`/`Stop Tilt` angelegt.
+- `valve`
+  Reine Ventile als Status-Enumeration, Positionsventile als 0-100-Hauptvariable; Positionsmodus wird über `current_valve_position`, `current_position`, `reports_position` oder `supported_features` erkannt. Zusätzlich wird eine Aktionsvariable mit `Open`/`Close`/`Stop` gemäß `supported_features` angelegt.
 - `climate`
   Hauptvariable für Soll- bzw. Ist-Temperatur, zusätzliche Attribute (`hvac_mode`, `hvac_action`, `preset_mode`, `fan_mode`, `swing_mode`, `swing_horizontal_mode`, `target_humidity`, `target_temperature_low/high`), zusätzliche `Power`-Variable bei Turn On/Off.
 - `fan`

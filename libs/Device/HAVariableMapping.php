@@ -26,6 +26,9 @@ trait HAVariableMappingTrait
     {
         return [
             self::LOCK_ACTION_SUFFIX,
+            self::COVER_ACTION_SUFFIX,
+            self::COVER_TILT_ACTION_SUFFIX,
+            self::VALVE_ACTION_SUFFIX,
             self::VACUUM_ACTION_SUFFIX,
             self::LAWN_MOWER_ACTION_SUFFIX,
             self::MEDIA_PLAYER_ACTION_SUFFIX

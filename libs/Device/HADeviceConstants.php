@@ -8,6 +8,9 @@ interface HADeviceConstants
     public const string KEY_ATTRIBUTES = 'attributes';
     public const string KEY_SUPPORTED_FEATURES = 'supported_features';
     public const string LOCK_ACTION_SUFFIX = '_lock_action';
+    public const string COVER_ACTION_SUFFIX = '_cover_action';
+    public const string COVER_TILT_ACTION_SUFFIX = '_cover_tilt_action';
+    public const string VALVE_ACTION_SUFFIX = '_valve_action';
     public const string VACUUM_ACTION_SUFFIX = '_vacuum_action';
     public const string VACUUM_FAN_SPEED_SUFFIX = '_vacuum_fan_speed';
     public const string LAWN_MOWER_ACTION_SUFFIX = '_lawn_mower_action';

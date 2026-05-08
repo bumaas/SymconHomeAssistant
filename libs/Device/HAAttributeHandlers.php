@@ -53,6 +53,7 @@ trait HAAttributeHandlersTrait
             HASwitchDefinitions::DOMAIN => 'handleGenericAttributeTopic',
             HAEventDefinitions::DOMAIN => 'handleEventAttributeTopic',
             HACoverDefinitions::DOMAIN => 'handleCoverAttributeTopic',
+            HAValveDefinitions::DOMAIN => 'handleValveAttributeTopic',
             HAClimateDefinitions::DOMAIN => 'handleClimateAttributeTopic',
             HAFanDefinitions::DOMAIN => 'handleFanAttributeTopic',
             HAHumidifierDefinitions::DOMAIN => 'handleHumidifierAttributeTopic',
@@ -459,6 +460,24 @@ trait HAAttributeHandlersTrait
             $this->updateCoverAttributeValues($entityId, $attributes, $state);
         }
 
+        return true;
+    }
+
+    private function handleValveAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            return true;
+        }
+
+        $this->storeAttributeTopicValue($entityId, $attribute, $value);
+        $attributes = $this->getStoredAttributeTopicAttributes($entityId);
+        if ($attributes === []) {
+            return true;
+        }
+
+        $state = $this->getCachedEntityRawState($entityId) ?? $this->getCachedEntityState($entityId) ?? '';
+        $this->updateValveAttributeValues($entityId, $attributes, $state);
         return true;
     }
 

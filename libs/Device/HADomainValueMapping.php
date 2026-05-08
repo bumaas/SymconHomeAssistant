@@ -43,12 +43,14 @@ trait HADomainValueMappingTrait
             HAButtonDefinitions::DOMAIN => -1,
             HAEventDefinitions::DOMAIN,
             HAImageDefinitions::DOMAIN => $this->parseTimestampValue($valueData),
+            HACoverDefinitions::DOMAIN => $this->convertCoverValue($valueData, $attributes),
             HALightDefinitions::DOMAIN,
             HASwitchDefinitions::DOMAIN,
             HABinarySensorDefinitions::DOMAIN,
             HAFanDefinitions::DOMAIN,
             HAHumidifierDefinitions::DOMAIN => strtoupper(trim($valueData)) === 'ON',
             HAClimateDefinitions::DOMAIN => (float)$valueData,
+            HAValveDefinitions::DOMAIN => $this->convertValveValue($valueData, $attributes),
             HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER
                 ? (int)$valueData
                 : (float)$valueData,
@@ -93,9 +95,43 @@ trait HADomainValueMappingTrait
 
         return match ($domain) {
             HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes),
+            HACoverDefinitions::DOMAIN => $this->inferCoverVariableType($attributes),
+            HAValveDefinitions::DOMAIN => $this->inferValveVariableType($attributes),
             HASensorDefinitions::DOMAIN => $this->inferSensorVariableType($attributes),
             default => VARIABLETYPE_STRING,
         };
+    }
+
+    private function convertCoverValue(string $valueData, array $attributes): string|float|null
+    {
+        if ($this->inferCoverVariableType($attributes, $valueData) === VARIABLETYPE_FLOAT) {
+            return $this->resolveCoverMainValue($attributes, $valueData);
+        }
+
+        return $this->normalizeCoverState($valueData);
+    }
+
+    private function inferCoverVariableType(array $attributes, string $valueData = ''): int
+    {
+        return $this->isCoverPositionEntity($attributes, $valueData)
+            ? VARIABLETYPE_FLOAT
+            : VARIABLETYPE_STRING;
+    }
+
+    private function convertValveValue(string $valueData, array $attributes): string|float|null
+    {
+        if ($this->inferValveVariableType($attributes, $valueData) === VARIABLETYPE_FLOAT) {
+            return $this->resolveValveMainValue($attributes, $valueData);
+        }
+
+        return $this->normalizeValveState($valueData);
+    }
+
+    private function inferValveVariableType(array $attributes, string $valueData = ''): int
+    {
+        return $this->isValvePositionEntity($attributes, $valueData)
+            ? VARIABLETYPE_FLOAT
+            : VARIABLETYPE_STRING;
     }
 
     private function inferSensorVariableType(array $attributes): int

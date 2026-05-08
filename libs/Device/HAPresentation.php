@@ -46,6 +46,7 @@ trait HAPresentationTrait
             HAButtonDefinitions::DOMAIN => $this->getButtonPresentation($entity),
             HAMediaPlayerDefinitions::DOMAIN => $this->getMediaPlayerPresentation(),
             HACoverDefinitions::DOMAIN => $this->getCoverPresentation($attributes),
+            HAValveDefinitions::DOMAIN => $this->getValvePresentation($attributes),
             HAEventDefinitions::DOMAIN => $this->getEventPresentation($attributes),
             default => null
         };
@@ -550,7 +551,7 @@ trait HAPresentationTrait
         }
         $deviceClass = trim($deviceClass);
 
-        $hasPosition = $this->extractCoverPosition($attributes) !== null || $this->isCoverPositionSupported($attributes);
+        $hasPosition = $this->isCoverPositionEntity($attributes);
         if ($hasPosition && HACoverDefinitions::usesShutterPresentation($deviceClass)) {
             return $this->filterPresentation([
                                                  'CLOSE_INSIDE_VALUE' => 0,
@@ -596,6 +597,40 @@ trait HAPresentationTrait
     {
         $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
         return ($supported & HACoverDefinitions::FEATURE_SET_POSITION) === HACoverDefinitions::FEATURE_SET_POSITION;
+    }
+
+    private function getValvePresentation(array $attributes): array
+    {
+        if ($this->isValvePositionEntity($attributes)) {
+            return $this->filterPresentation([
+                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                'MIN' => 0,
+                'MAX' => 100,
+                'STEP_SIZE' => 1,
+                'DIGITS' => 1,
+                'SUFFIX' => $this->formatPresentationSuffix('%')
+            ]);
+        }
+
+        $options = [];
+        foreach (HAValveDefinitions::STATE_OPTIONS as $value => $captionKey) {
+            $options[] = [
+                'Value' => $value,
+                'Caption' => $this->Translate($captionKey),
+                'IconActive' => false,
+                'IconValue' => '',
+                'Color' => -1,
+                'ContentColorActive' => false,
+                'ContentColorValue' => -1,
+                'ColorDisplay' => -1,
+                'ContentColorDisplay' => -1
+            ];
+        }
+
+        return $this->filterPresentation([
+            'PRESENTATION' => HAValveDefinitions::PRESENTATION,
+            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
+        ]);
     }
 
     private function getClimatePresentation(array $attributes): array
@@ -1001,6 +1036,7 @@ trait HAPresentationTrait
             HAClimateDefinitions::DOMAIN => $this->getClimateEntityVariableName($entity),
             HAImageDefinitions::DOMAIN => $this->getImageEntityVariableName($entity),
             HACoverDefinitions::DOMAIN => $this->getCoverVariableName($entity),
+            HAValveDefinitions::DOMAIN => $this->getValveVariableName($entity),
             HAButtonDefinitions::DOMAIN => $this->getButtonVariableName($entity),
             HAEventDefinitions::DOMAIN => $this->getEventStateVariableName($entity),
             default => $this->isStatusDomain($domain) ? $this->getStatusEntityVariableName($domain) : null,
@@ -1127,6 +1163,11 @@ trait HAPresentationTrait
 
     private function getCoverVariableName(array $entity): string
     {
+        $attributes = $this->getEntityAttributesArray($entity);
+        if (!$this->isCoverPositionEntity($attributes)) {
+            return $this->getStatusEntityVariableName(HACoverDefinitions::DOMAIN);
+        }
+
         $deviceClass = $this->getEntityDeviceClass($entity);
         return match ($deviceClass) {
             HACoverDefinitions::DEVICE_CLASS_GARAGE,
@@ -1136,6 +1177,16 @@ trait HAPresentationTrait
             HACoverDefinitions::DEVICE_CLASS_DAMPER => $this->Translate('Positioning'),
             default => $this->Translate('Position'),
         };
+    }
+
+    private function getValveVariableName(array $entity): string
+    {
+        $attributes = $this->getEntityAttributesArray($entity);
+        if ($this->isValvePositionEntity($attributes)) {
+            return $this->Translate('Position');
+        }
+
+        return $this->getStatusEntityVariableName(HAValveDefinitions::DOMAIN);
     }
 
     private function isStatusDomain(string $domain): bool

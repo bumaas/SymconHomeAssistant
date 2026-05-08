@@ -212,6 +212,15 @@ trait HADeviceCoreTrait
         if ($this->handleLockAction($Ident, $Value)) {
             return;
         }
+        if ($this->handleCoverAction($Ident, $Value)) {
+            return;
+        }
+        if ($this->handleCoverTiltAction($Ident, $Value)) {
+            return;
+        }
+        if ($this->handleValveAction($Ident, $Value)) {
+            return;
+        }
         if ($this->handleVacuumAction($Ident, $Value)) {
             return;
         }
@@ -637,6 +646,7 @@ trait HADeviceCoreTrait
             HALightDefinitions::DOMAIN, HAFanDefinitions::DOMAIN, HAHumidifierDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
             HASwitchDefinitions::DOMAIN => $value ? HASwitchDefinitions::STATE_ON : HASwitchDefinitions::STATE_OFF,
             HACoverDefinitions::DOMAIN => HACoverDefinitions::normalizeCommand($value),
+            HAValveDefinitions::DOMAIN => HAValveDefinitions::normalizeCommand($value),
             HALockDefinitions::DOMAIN => HALockDefinitions::normalizeCommand($value),
             HANumberDefinitions::DOMAIN => $this->formatNumberPayload($value, $attributes),
             HASelectDefinitions::DOMAIN => $this->formatSelectPayload($value, $attributes),
@@ -726,6 +736,25 @@ trait HADeviceCoreTrait
             || (($supported & HACoverDefinitions::FEATURE_CLOSE) === HACoverDefinitions::FEATURE_CLOSE);
     }
 
+    protected function isValveMainWritable(mixed $attributes): bool
+    {
+        if (!is_array($attributes)) {
+            return true;
+        }
+
+        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
+        if ($supported === 0) {
+            return true;
+        }
+
+        if (($supported & HAValveDefinitions::FEATURE_SET_POSITION) === HAValveDefinitions::FEATURE_SET_POSITION) {
+            return true;
+        }
+
+        return (($supported & HAValveDefinitions::FEATURE_OPEN) === HAValveDefinitions::FEATURE_OPEN)
+            || (($supported & HAValveDefinitions::FEATURE_CLOSE) === HAValveDefinitions::FEATURE_CLOSE);
+    }
+
     protected function isEntityWritable(string $domain, mixed $attributes): bool
     {
         if (!$this->isWriteable($domain)) {
@@ -739,6 +768,9 @@ trait HADeviceCoreTrait
         }
         if ($domain === HACoverDefinitions::DOMAIN) {
             return $this->isCoverMainWritable($attributes);
+        }
+        if ($domain === HAValveDefinitions::DOMAIN) {
+            return $this->isValveMainWritable($attributes);
         }
 
         return true;

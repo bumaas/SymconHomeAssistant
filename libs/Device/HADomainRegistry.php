@@ -23,6 +23,7 @@ trait HADomainRegistryTrait
             HALockDefinitions::DOMAIN => 'applyLockActionState',
             HAClimateDefinitions::DOMAIN => 'applyClimateActionState',
             HACoverDefinitions::DOMAIN => 'applyCoverActionState',
+            HAValveDefinitions::DOMAIN => 'applyValveActionState',
             HAFanDefinitions::DOMAIN => 'applyFanActionState',
             HASelectDefinitions::DOMAIN => 'applySelectActionState',
             HAHumidifierDefinitions::DOMAIN => 'applyHumidifierActionState'
@@ -33,6 +34,16 @@ trait HADomainRegistryTrait
 
     private function applyLockActionState(string $ident, array $entity): void
     {
+        $this->DisableAction($ident);
+    }
+
+    private function applyValveActionState(string $ident, array $entity): void
+    {
+        if ($this->isValveMainWritable($entity[self::KEY_ATTRIBUTES] ?? [])) {
+            $this->EnableAction($ident);
+            return;
+        }
+
         $this->DisableAction($ident);
     }
 
@@ -107,7 +118,12 @@ trait HADomainRegistryTrait
                 'maintainClimatePowerVariable'
             ],
             HACoverDefinitions::DOMAIN => [
+                'maintainCoverActionVariable',
+                'maintainCoverTiltActionVariable',
                 'maintainCoverAttributeVariables'
+            ],
+            HAValveDefinitions::DOMAIN => [
+                'maintainValveActionVariable'
             ],
             HAFanDefinitions::DOMAIN => [
                 'maintainFanAttributeVariables'
@@ -163,6 +179,7 @@ trait HADomainRegistryTrait
             HAEventDefinitions::DOMAIN => 'updateEventEntityValue',
             HAClimateDefinitions::DOMAIN => 'updateClimateEntityValue',
             HACoverDefinitions::DOMAIN => 'updateCoverEntityValue',
+            HAValveDefinitions::DOMAIN => 'updateValveEntityValue',
             HALockDefinitions::DOMAIN => 'updateLockEntityValue',
             HAVacuumDefinitions::DOMAIN => 'updateVacuumEntityValue',
             HALawnMowerDefinitions::DOMAIN => 'updateLawnMowerEntityValue',
@@ -250,39 +267,52 @@ trait HADomainRegistryTrait
     {
         $state = (string)($parsed[self::KEY_STATE] ?? '');
         $rawState = $parsed[self::KEY_STATE] ?? null;
-        $rawAttributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
-        $storedAttributes = null;
+        $attributes = $this->getStoredEntityAttributes($entityId);
+        $rawAttributes = $parsed[self::KEY_ATTRIBUTES] ?? null;
+        if (is_array($rawAttributes) && $rawAttributes !== []) {
+            $attributes = $this->storeEntityAttributes($entityId, $rawAttributes);
+        }
 
-        if (is_array($rawAttributes)) {
-            if ($rawAttributes !== []) {
-                $storedAttributes = $this->storeEntityAttributes($entityId, $rawAttributes);
-            }
-            $resolvedAttributes = $storedAttributes ?? $rawAttributes;
-            $mainValue = $this->resolveCoverMainValue($resolvedAttributes, $state);
+        if ($this->isCoverPositionEntity($attributes, $state)) {
+            $mainValue = $this->resolveCoverMainValue($attributes, $state);
             if ($mainValue !== null) {
                 $this->setEntityMainValue($entityId, $ident, $mainValue, $rawState);
-                $this->updateEntityCache($entityId, $rawState, $resolvedAttributes);
-                $this->refreshEntityPresentation($entityId);
-                $this->updateCoverAttributeValues($entityId, $resolvedAttributes, $state);
-                return;
+            }
+        } elseif ($state !== '') {
+            $mainValue = $this->convertValueByDomain(HACoverDefinitions::DOMAIN, $state, $attributes);
+            if ($mainValue !== null) {
+                $this->setEntityMainValue($entityId, $ident, $mainValue, $rawState);
             }
         }
 
-        $level = $this->resolveCoverMainValue([], $state);
-        if ($level !== null) {
-            $this->setEntityMainValue($entityId, $ident, $level, $rawState);
-            $this->updateEntityCache($entityId, $rawState, is_array($rawAttributes) ? $rawAttributes : null);
+        $this->finalizeEntityStateUpdate($entityId, $rawState, $attributes);
+        $this->updateCoverAttributeValues($entityId, $attributes, $state);
+    }
+
+    private function updateValveEntityValue(string $entityId, string $ident, array $parsed): void
+    {
+        $state = (string)($parsed[self::KEY_STATE] ?? '');
+        $rawState = $parsed[self::KEY_STATE] ?? null;
+
+        $attributes = $this->getStoredEntityAttributes($entityId);
+        $rawAttributes = $parsed[self::KEY_ATTRIBUTES] ?? null;
+        if (is_array($rawAttributes) && $rawAttributes !== []) {
+            $attributes = $this->storeEntityAttributes($entityId, $rawAttributes);
         }
 
-        if (empty($parsed[self::KEY_ATTRIBUTES])) {
-            return;
+        if ($this->isValvePositionEntity($attributes, $state)) {
+            $mainValue = $this->resolveValveMainValue($attributes, $state);
+            if ($mainValue !== null) {
+                $this->setEntityMainValue($entityId, $ident, $mainValue, $rawState);
+            }
+        } elseif ($state !== '') {
+            $mainValue = $this->convertValueByDomain(HAValveDefinitions::DOMAIN, $state, $attributes);
+            if ($mainValue !== null) {
+                $this->setEntityMainValue($entityId, $ident, $mainValue, $rawState);
+            }
         }
 
-        if ($storedAttributes === null) {
-            $storedAttributes = $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
-        }
-        $this->refreshEntityPresentation($entityId);
-        $this->updateCoverAttributeValues($entityId, $storedAttributes, $state);
+        $this->finalizeEntityStateUpdate($entityId, $rawState, $attributes);
     }
 
     private function updateLockEntityValue(string $entityId, string $ident, array $parsed): void

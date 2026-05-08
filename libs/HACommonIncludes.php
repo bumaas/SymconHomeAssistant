@@ -19,6 +19,7 @@ require_once __DIR__ . '/Domains/HAClimateDefinitions.php';
 require_once __DIR__ . '/Domains/HANumberDefinitions.php';
 require_once __DIR__ . '/Domains/HALockDefinitions.php';
 require_once __DIR__ . '/Domains/HACoverDefinitions.php';
+require_once __DIR__ . '/Domains/HAValveDefinitions.php';
 require_once __DIR__ . '/Domains/HAEventDefinitions.php';
 require_once __DIR__ . '/Domains/HASelectDefinitions.php';
 require_once __DIR__ . '/Domains/HAVacuumDefinitions.php';

@@ -48,6 +48,7 @@
               {"caption": "Number (number)", "value": "number"},
               {"caption": "Lock (lock)", "value": "lock"},
               {"caption": "Cover (cover)", "value": "cover"},
+              {"caption": "Valve (valve)", "value": "valve"},
               {"caption": "Event (event)", "value": "event"},
               {"caption": "Select (select)", "value": "select"},
               {"caption": "Button (button)", "value": "button"},

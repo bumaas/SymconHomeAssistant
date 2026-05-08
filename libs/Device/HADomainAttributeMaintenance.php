@@ -844,6 +844,19 @@ trait HADomainAttributeMaintenanceTrait
         return null;
     }
 
+    private function isCoverPositionEntity(array $attributes, string $state = ''): bool
+    {
+        if ($this->extractCoverPosition($attributes) !== null) {
+            return true;
+        }
+
+        if ($this->isCoverPositionSupported($attributes)) {
+            return true;
+        }
+
+        return is_numeric(trim($state));
+    }
+
     // Cover bevorzugt numerische Positionsattribute vor textuellen Statuswerten.
     private function resolveCoverMainValue(array $attributes, string $state): ?float
     {
@@ -870,6 +883,117 @@ trait HADomainAttributeMaintenanceTrait
             'closed' => 0.0,
             default => null
         };
+    }
+
+    private function normalizeCoverState(string $state): string
+    {
+        $text = strtolower(trim($state));
+        return match ($text) {
+            'open', 'opened' => 'open',
+            'close', 'closed' => 'closed',
+            'opening' => 'opening',
+            'closing' => 'closing',
+            default => $text
+        };
+    }
+
+    private function updateValveAttributeValues(string $entityId, array $attributes, string $state = ''): void
+    {
+        if (!$this->isValvePositionEntity($attributes, $state)) {
+            return;
+        }
+
+        $mainValue = $this->resolveValveMainValue($attributes, $state);
+        if ($mainValue === null) {
+            return;
+        }
+
+        $ident = $this->sanitizeIdent($entityId);
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        $this->setEntityMainValue($entityId, $ident, $mainValue, $state);
+    }
+
+    private function extractValvePosition(array $attributes): ?float
+    {
+        foreach ([HAValveDefinitions::ATTRIBUTE_POSITION, HAValveDefinitions::ATTRIBUTE_POSITION_ALT] as $key) {
+            $value = $attributes[$key] ?? null;
+            if (!is_numeric($value)) {
+                continue;
+            }
+
+            return $this->clampFloat((float)$value, 0.0, 100.0);
+        }
+
+        return null;
+    }
+
+    private function isValvePositionEntity(array $attributes, string $state = ''): bool
+    {
+        if ($this->extractValvePosition($attributes) !== null) {
+            return true;
+        }
+
+        if ($this->isValvePositionSupported($attributes)) {
+            return true;
+        }
+
+        return is_numeric(trim($state));
+    }
+
+    private function isValvePositionSupported(array $attributes): bool
+    {
+        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
+        if (($supported & HAValveDefinitions::FEATURE_SET_POSITION) === HAValveDefinitions::FEATURE_SET_POSITION) {
+            return true;
+        }
+
+        return $this->boolAttributeIsTrue($attributes[HAValveDefinitions::ATTRIBUTE_REPORTS_POSITION] ?? null);
+    }
+
+    private function resolveValveMainValue(array $attributes, string $state): ?float
+    {
+        $position = $this->extractValvePosition($attributes);
+        if ($position !== null) {
+            return $position;
+        }
+
+        $normalized = $this->normalizeValveState($state);
+        return match ($normalized) {
+            'open' => 100.0,
+            'closed' => 0.0,
+            default => null
+        };
+    }
+
+    private function normalizeValveState(string $state): string
+    {
+        $text = strtolower(trim($state));
+        return match ($text) {
+            'open', 'opened' => 'open',
+            'close', 'closed' => 'closed',
+            'opening' => 'opening',
+            'closing' => 'closing',
+            'stop', 'stopped' => 'stopped',
+            default => $text
+        };
+    }
+
+    private function boolAttributeIsTrue(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_numeric($value)) {
+            return (int)$value !== 0;
+        }
+        if (!is_string($value)) {
+            return false;
+        }
+
+        return in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true);
     }
 
     // Light hat eine bevorzugte Reihenfolge und sortiert den Rest stabil dahinter ein.
@@ -1506,4 +1630,3 @@ trait HADomainAttributeMaintenanceTrait
         return false;
     }
 }
-

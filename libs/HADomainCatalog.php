@@ -72,8 +72,13 @@ final class HADomainCatalog
                 'main_writable' => true,
                 'attribute_topics' => true,
                 'attribute_payload' => true,
-                'variable_type' => HACoverDefinitions::VARIABLE_TYPE,
                 'supported_features' => HACoverDefinitions::SUPPORTED_FEATURES
+            ],
+            HAValveDefinitions::DOMAIN => [
+                'configurator_default' => true,
+                'main_writable' => true,
+                'attribute_topics' => true,
+                'supported_features' => HAValveDefinitions::SUPPORTED_FEATURES
             ],
             HAEventDefinitions::DOMAIN => [
                 'configurator_default' => true,

@@ -47,6 +47,21 @@ trait HADomainSpecialActionsTrait
         return $this->sanitizeIdent($entityId) . self::VACUUM_ACTION_SUFFIX;
     }
 
+    private function getCoverActionIdent(string $entityId): string
+    {
+        return $this->sanitizeIdent($entityId) . self::COVER_ACTION_SUFFIX;
+    }
+
+    private function getCoverTiltActionIdent(string $entityId): string
+    {
+        return $this->sanitizeIdent($entityId) . self::COVER_TILT_ACTION_SUFFIX;
+    }
+
+    private function getValveActionIdent(string $entityId): string
+    {
+        return $this->sanitizeIdent($entityId) . self::VALVE_ACTION_SUFFIX;
+    }
+
     private function getVacuumFanSpeedIdent(string $entityId): string
     {
         return $this->sanitizeIdent($entityId) . self::VACUUM_FAN_SPEED_SUFFIX;
@@ -182,6 +197,60 @@ trait HADomainSpecialActionsTrait
         $ident = $this->getLockActionIdent($entityId);
         $position = $this->getEntityPosition($entityId) + 5;
         $this->maintainEnumerationTriggerVariable($ident, 'Aktion', $position, $options, false);
+    }
+
+    private function maintainCoverActionVariable(array $entity): void
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $options = $this->getCoverActionOptions($attributes);
+        $ident = $this->getCoverActionIdent($entityId);
+        $position = $this->getEntityPosition($entityId) + 5;
+        $this->maintainEnumerationTriggerVariable($ident, 'Aktion', $position, $options, true);
+    }
+
+    private function maintainCoverTiltActionVariable(array $entity): void
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $options = $this->getCoverTiltActionOptions($attributes);
+        $ident = $this->getCoverTiltActionIdent($entityId);
+        $position = $this->getEntityPosition($entityId) + 6;
+        $this->maintainEnumerationTriggerVariable($ident, $this->Translate('Tilt Action'), $position, $options, true);
+    }
+
+    private function maintainValveActionVariable(array $entity): void
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $options = $this->getValveActionOptions($attributes);
+        $ident = $this->getValveActionIdent($entityId);
+        $position = $this->getEntityPosition($entityId) + 5;
+        $this->maintainEnumerationTriggerVariable($ident, 'Aktion', $position, $options, true);
     }
 
     private function maintainVacuumActionVariable(array $entity): void
@@ -386,6 +455,168 @@ trait HADomainSpecialActionsTrait
         }
 
         if ($this->sendTopicCommandToEntity($entityId, $command, 'Lock action', ['EntityID' => $entityId, 'Command' => $command])) {
+            $this->resetTriggerActionValue($ident);
+        }
+        return true;
+    }
+
+    private function handleCoverAction(string $ident, mixed $value): bool
+    {
+        $entity = $this->resolveSpecialActionEntity($ident, self::COVER_ACTION_SUFFIX, HACoverDefinitions::DOMAIN);
+        if ($entity === null) {
+            return false;
+        }
+
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return true;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $action = is_numeric($value) ? (int)$value : null;
+        [$service, $payload] = match ($action) {
+            HACoverDefinitions::ACTION_OPEN => ['open_cover', 'open'],
+            HACoverDefinitions::ACTION_CLOSE => ['close_cover', 'close'],
+            HACoverDefinitions::ACTION_STOP => ['stop_cover', 'stop'],
+            default => ['', '']
+        };
+        if ($service === '' || $payload === '') {
+            return true;
+        }
+
+        $supported = $this->getSupportedFeatureFlags($attributes);
+        $addAll = $supported === 0;
+        if (!$addAll) {
+            $requiredFeature = match ($action) {
+                HACoverDefinitions::ACTION_OPEN => HACoverDefinitions::FEATURE_OPEN,
+                HACoverDefinitions::ACTION_CLOSE => HACoverDefinitions::FEATURE_CLOSE,
+                HACoverDefinitions::ACTION_STOP => HACoverDefinitions::FEATURE_STOP,
+                default => 0
+            };
+            if ($requiredFeature === 0 || !$this->supportsFeatureFlag($supported, $requiredFeature)) {
+                return true;
+            }
+        }
+
+        if ($this->sendServiceRequestToParent(HACoverDefinitions::DOMAIN, $service, ['entity_id' => $entityId])) {
+            $this->debugExpert('RequestAction', 'Cover action (REST)', ['EntityID' => $entityId, 'Command' => $service], true);
+            $this->resetTriggerActionValue($ident);
+            return true;
+        }
+
+        if ($this->sendTopicCommandToEntity($entityId, $payload, 'Cover action', ['EntityID' => $entityId, 'Command' => $payload], true)) {
+            $this->resetTriggerActionValue($ident);
+        }
+        return true;
+    }
+
+    private function handleCoverTiltAction(string $ident, mixed $value): bool
+    {
+        $entity = $this->resolveSpecialActionEntity($ident, self::COVER_TILT_ACTION_SUFFIX, HACoverDefinitions::DOMAIN);
+        if ($entity === null) {
+            return false;
+        }
+
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return true;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $action = is_numeric($value) ? (int)$value : null;
+        [$service, $payload] = match ($action) {
+            HACoverDefinitions::ACTION_OPEN_TILT => ['open_cover_tilt', 'open_tilt'],
+            HACoverDefinitions::ACTION_CLOSE_TILT => ['close_cover_tilt', 'close_tilt'],
+            HACoverDefinitions::ACTION_STOP_TILT => ['stop_cover_tilt', 'stop_tilt'],
+            default => ['', '']
+        };
+        if ($service === '' || $payload === '') {
+            return true;
+        }
+
+        $supported = $this->getSupportedFeatureFlags($attributes);
+        $addAll = $supported === 0;
+        if (!$addAll) {
+            $requiredFeature = match ($action) {
+                HACoverDefinitions::ACTION_OPEN_TILT => HACoverDefinitions::FEATURE_OPEN_TILT,
+                HACoverDefinitions::ACTION_CLOSE_TILT => HACoverDefinitions::FEATURE_CLOSE_TILT,
+                HACoverDefinitions::ACTION_STOP_TILT => HACoverDefinitions::FEATURE_STOP_TILT,
+                default => 0
+            };
+            if ($requiredFeature === 0 || !$this->supportsFeatureFlag($supported, $requiredFeature)) {
+                return true;
+            }
+        }
+
+        if ($this->sendServiceRequestToParent(HACoverDefinitions::DOMAIN, $service, ['entity_id' => $entityId])) {
+            $this->debugExpert('RequestAction', 'Cover tilt action (REST)', ['EntityID' => $entityId, 'Command' => $service], true);
+            $this->resetTriggerActionValue($ident);
+            return true;
+        }
+
+        if ($this->sendTopicCommandToEntity($entityId, $payload, 'Cover tilt action', ['EntityID' => $entityId, 'Command' => $payload], true)) {
+            $this->resetTriggerActionValue($ident);
+        }
+        return true;
+    }
+
+    private function handleValveAction(string $ident, mixed $value): bool
+    {
+        $entity = $this->resolveSpecialActionEntity($ident, self::VALVE_ACTION_SUFFIX, HAValveDefinitions::DOMAIN);
+        if ($entity === null) {
+            return false;
+        }
+
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return true;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $action = is_numeric($value) ? (int)$value : null;
+        [$service, $payload] = match ($action) {
+            HAValveDefinitions::ACTION_OPEN => ['open_valve', 'open'],
+            HAValveDefinitions::ACTION_CLOSE => ['close_valve', 'close'],
+            HAValveDefinitions::ACTION_STOP => ['stop_valve', 'stop'],
+            default => ['', '']
+        };
+        if ($service === '' || $payload === '') {
+            return true;
+        }
+
+        $supported = $this->getSupportedFeatureFlags($attributes);
+        $addAll = $supported === 0;
+        if (!$addAll) {
+            $requiredFeature = match ($action) {
+                HAValveDefinitions::ACTION_OPEN => HAValveDefinitions::FEATURE_OPEN,
+                HAValveDefinitions::ACTION_CLOSE => HAValveDefinitions::FEATURE_CLOSE,
+                HAValveDefinitions::ACTION_STOP => HAValveDefinitions::FEATURE_STOP,
+                default => 0
+            };
+            if ($requiredFeature === 0 || !$this->supportsFeatureFlag($supported, $requiredFeature)) {
+                return true;
+            }
+        }
+
+        if ($this->sendServiceRequestToParent(HAValveDefinitions::DOMAIN, $service, ['entity_id' => $entityId])) {
+            $this->debugExpert('RequestAction', 'Valve action (REST)', ['EntityID' => $entityId, 'Command' => $service], true);
+            $this->resetTriggerActionValue($ident);
+            return true;
+        }
+
+        if ($this->sendTopicCommandToEntity($entityId, $payload, 'Valve action', ['EntityID' => $entityId, 'Command' => $payload], true)) {
             $this->resetTriggerActionValue($ident);
         }
         return true;
@@ -830,6 +1061,63 @@ trait HADomainSpecialActionsTrait
         }
         if ($this->supportsFeatureFlag($supported, HAVacuumDefinitions::FEATURE_LOCATE)) {
             $options[] = $this->buildEnumerationOption(HAVacuumDefinitions::ACTION_LOCATE, $this->Translate('Lokalisieren'));
+        }
+
+        return $options;
+    }
+
+    private function getCoverActionOptions(array $attributes): array
+    {
+        $supported = $this->getSupportedFeatureFlags($attributes);
+        $addAll = $supported === 0;
+        $options = [];
+
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_OPEN)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_OPEN, $this->Translate('Open'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_CLOSE)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_CLOSE, $this->Translate('Close'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_STOP)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_STOP, $this->Translate('Stop'));
+        }
+
+        return $options;
+    }
+
+    private function getCoverTiltActionOptions(array $attributes): array
+    {
+        $supported = $this->getSupportedFeatureFlags($attributes);
+        $addAll = $supported === 0;
+        $options = [];
+
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_OPEN_TILT)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_OPEN_TILT, $this->Translate('Open Tilt'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_CLOSE_TILT)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_CLOSE_TILT, $this->Translate('Close Tilt'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_STOP_TILT)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_STOP_TILT, $this->Translate('Stop Tilt'));
+        }
+
+        return $options;
+    }
+
+    private function getValveActionOptions(array $attributes): array
+    {
+        $supported = $this->getSupportedFeatureFlags($attributes);
+        $addAll = $supported === 0;
+        $options = [];
+
+        if ($addAll || $this->supportsFeatureFlag($supported, HAValveDefinitions::FEATURE_OPEN)) {
+            $options[] = $this->buildEnumerationOption(HAValveDefinitions::ACTION_OPEN, $this->Translate('Open'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HAValveDefinitions::FEATURE_CLOSE)) {
+            $options[] = $this->buildEnumerationOption(HAValveDefinitions::ACTION_CLOSE, $this->Translate('Close'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HAValveDefinitions::FEATURE_STOP)) {
+            $options[] = $this->buildEnumerationOption(HAValveDefinitions::ACTION_STOP, $this->Translate('Stop'));
         }
 
         return $options;
