@@ -12,6 +12,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     use HARestParentClientTrait;
     use HASupportedFeaturesTrait;
     use HAEntityConfigLoaderTrait;
+    use HAEntityNormalizationTrait;
     use HAEntityConfigBuilderTrait {
         buildResolvedEntityConfig as private buildResolvedEntities;
         buildStableCreateConfig as private buildStableResolvedCreateConfig;
@@ -349,6 +350,25 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     private function buildDeviceRow(array $dev, int $instanceID, array $cleanedEntities, array $entitiesForConfig, bool $isBlocked, string $type = 'Device'): array
     {
+        $entitiesForDeviceProperty = [];
+        foreach ($entitiesForConfig as $entity) {
+            if (!is_array($entity)) {
+                continue;
+            }
+
+            $attributes = $entity['attributes'] ?? [];
+            if (is_array($attributes)) {
+                $entity['attributes'] = json_encode(
+                    $attributes,
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+                );
+            } elseif (!is_string($attributes)) {
+                $entity['attributes'] = '{}';
+            }
+
+            $entitiesForDeviceProperty[] = $entity;
+        }
+
         $row = [
             'instanceID' => $instanceID,
             'Type'       => $type,
@@ -369,7 +389,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
                     'DeviceArea'   => $dev['area'],
                     'DeviceName'   => $dev['name'],
                     // Bereinigte Liste übergeben
-                    'DeviceConfig' => json_encode($entitiesForConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+                    'DeviceConfig' => json_encode($entitiesForDeviceProperty, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
                 ],
                 'name'          => $dev['name']
             ];

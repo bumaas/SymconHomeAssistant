@@ -19,6 +19,7 @@ final class HADomainCatalog
             HASwitchDefinitions::DOMAIN => [
                 'configurator_default' => true,
                 'main_writable' => true,
+                'attribute_topics' => true,
                 'variable_type' => HASwitchDefinitions::VARIABLE_TYPE
             ],
             'input_boolean' => [
@@ -29,10 +30,12 @@ final class HADomainCatalog
             ],
             HASensorDefinitions::DOMAIN => [
                 'configurator_default' => true,
+                'attribute_topics' => true,
                 'device_class_name_fallback' => true
             ],
             HABinarySensorDefinitions::DOMAIN => [
                 'configurator_default' => true,
+                'attribute_topics' => true,
                 'device_class_name_fallback' => true,
                 'variable_type' => HABinarySensorDefinitions::VARIABLE_TYPE
             ],
@@ -47,6 +50,7 @@ final class HADomainCatalog
             HANumberDefinitions::DOMAIN => [
                 'configurator_default' => true,
                 'main_writable' => true,
+                'attribute_topics' => true,
                 'device_class_name_fallback' => true
             ],
             'input_number' => [

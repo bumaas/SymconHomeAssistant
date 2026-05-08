@@ -133,6 +133,11 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         if ($configData === null) {
             return;
         }
+        [$configData, $configWasNormalized] = $this->normalizeDeviceConfigAttributesForStorage($configData, 'ApplyChanges');
+        if ($configWasNormalized) {
+            IPS_ApplyChanges($this->InstanceID);
+            return;
+        }
 
         $stateMap = $this->fetchStateMap($configData);
         if ($stateMap !== []) {
@@ -444,14 +449,16 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         $form   = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
-        $config = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), __FUNCTION__);
+        $rawConfig = $this->ReadPropertyString(self::PROP_DEVICE_CONFIG);
+        $config = $this->decodeJsonArray($rawConfig, __FUNCTION__);
         $this->debugExpert(__FUNCTION__, 'config:', $config);
 
         $values = [];
         $domainOptions = HADomainCatalog::getDomainSelectOptions();
 
         if (is_array($config)) {
-            foreach ($config as $row) {
+            foreach ($config as $index => $row) {
+                $rawAttributeType = gettype($row['attributes'] ?? null);
                 $row = $this->normalizeEntityStructure($row);
                 if ($row === null) {
                     continue;
@@ -512,6 +519,52 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->debugExpert(__FUNCTION__, 'Form:', $form);
 
         return json_encode($form, JSON_THROW_ON_ERROR);
+    }
+
+    private function normalizeDeviceConfigAttributesForStorage(array $configData, string $context): array
+    {
+        $normalized = [];
+        $changed = false;
+
+        foreach ($configData as $row) {
+            if (!is_array($row)) {
+                $normalized[] = $row;
+                continue;
+            }
+
+            $attributes = $row['attributes'] ?? null;
+            if (is_string($attributes)) {
+                $decoded = $this->decodeJsonArray($attributes, $context);
+                $attributes = $decoded ?? [];
+            } elseif (!is_array($attributes)) {
+                $attributes = [];
+            }
+
+            $encodedAttributes = json_encode(
+                $attributes,
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+            );
+
+            if (($row['attributes'] ?? null) !== $encodedAttributes) {
+                $row['attributes'] = $encodedAttributes;
+                $changed = true;
+            }
+
+            $normalized[] = $row;
+        }
+
+        if ($changed) {
+            IPS_SetProperty(
+                $this->InstanceID,
+                self::PROP_DEVICE_CONFIG,
+                json_encode($normalized, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+            );
+            $this->debugExpert($context, 'DeviceConfig attributes normalized for storage', [
+                'RowCount' => count($normalized)
+            ]);
+        }
+
+        return [$normalized, $changed];
     }
 
     // --- Private Hilfsmethoden (Business Logic) ---

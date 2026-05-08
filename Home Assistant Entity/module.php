@@ -332,10 +332,11 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
     {
         $resolved = $this->getResolvedEntity();
         $attributes = $this->getResolvedAttributesForDisplay($resolved);
+        $deviceClass = $this->getResolvedDeviceClass($resolved, $attributes);
 
         $this->updateFormFieldSafe('ResolvedName', 'value', (string)($resolved['name'] ?? ''));
         $this->updateFormFieldSafe('ResolvedDomain', 'value', (string)($resolved['domain'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedDeviceClass', 'value', $this->getResolvedDeviceClass($resolved));
+        $this->updateFormFieldSafe('ResolvedDeviceClass', 'value', $deviceClass);
         $this->updateFormFieldSafe('ResolvedDeviceID', 'value', (string)($resolved['device_id'] ?? ''));
         $this->updateFormFieldSafe('ResolvedArea', 'value', (string)($resolved['area'] ?? ''));
         $this->updateFormFieldSafe('ResolvedAttributeCount', 'value', (string)count($attributes));
@@ -350,6 +351,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
     {
         $resolved = $this->getResolvedEntity();
         $attributes = $this->getResolvedAttributesForDisplay($resolved);
+        $deviceClass = $this->getResolvedDeviceClass($resolved, $attributes);
 
         foreach ($form['elements'] as &$element) {
             if (($element['name'] ?? '') === 'ResolvedName') {
@@ -361,7 +363,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDeviceClass') {
-                $element['value'] = $this->getResolvedDeviceClass($resolved);
+                $element['value'] = $deviceClass;
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDeviceID') {
@@ -391,7 +393,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDeviceClass') {
-                    $item['value'] = $this->getResolvedDeviceClass($resolved);
+                    $item['value'] = $deviceClass;
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDeviceID') {
@@ -426,14 +428,14 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         return is_array($entity) ? $entity : [];
     }
 
-    private function getResolvedDeviceClass(array $resolved): string
+    private function getResolvedDeviceClass(array $resolved, ?array $attributes = null): string
     {
         $deviceClass = $resolved['device_class'] ?? '';
         if (is_string($deviceClass) && trim($deviceClass) !== '') {
             return trim($deviceClass);
         }
 
-        $attributes = $this->getResolvedAttributesForDisplay($resolved);
+        $attributes ??= $this->getResolvedAttributesForDisplay($resolved);
         $attributeDeviceClass = $attributes['device_class'] ?? '';
         return is_string($attributeDeviceClass) ? trim($attributeDeviceClass) : '';
     }
@@ -473,5 +475,3 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 }
-
-

@@ -47,6 +47,10 @@ trait HAAttributeHandlersTrait
     private function getAttributeTopicDomainHandlerMethod(string $domain): ?string
     {
         $handlers = [
+            HASensorDefinitions::DOMAIN => 'handleGenericAttributeTopic',
+            HABinarySensorDefinitions::DOMAIN => 'handleGenericAttributeTopic',
+            HANumberDefinitions::DOMAIN => 'handleGenericAttributeTopic',
+            HASwitchDefinitions::DOMAIN => 'handleGenericAttributeTopic',
             HAEventDefinitions::DOMAIN => 'handleEventAttributeTopic',
             HACoverDefinitions::DOMAIN => 'handleCoverAttributeTopic',
             HAClimateDefinitions::DOMAIN => 'handleClimateAttributeTopic',
@@ -63,6 +67,17 @@ trait HAAttributeHandlersTrait
         ];
 
         return $handlers[$domain] ?? null;
+    }
+
+    private function handleGenericAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            return true;
+        }
+
+        $this->storeAttributeTopicValue($entityId, $attribute, $value);
+        return true;
     }
 
     private function handleEventAttributeTopic(string $entityId, string $attribute, string $payload): bool
