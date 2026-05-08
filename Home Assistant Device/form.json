@@ -29,6 +29,7 @@
       "name":     "DeviceConfig",
       "caption":  "Mapped Entities",
       "rowCount": 10,
+      "loadValuesFromConfiguration": true,
       "add":      true,
       "delete":   true,
       "columns":  [
@@ -102,6 +103,7 @@
           "name":    "attributes",
           "width":   "auto",
           "visible": false,
+          "save":    true,
           "edit":    {
             "type": "ValidationTextBox"
           },

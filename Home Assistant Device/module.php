@@ -133,11 +133,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         if ($configData === null) {
             return;
         }
-        [$configData, $configWasNormalized] = $this->normalizeDeviceConfigAttributesForStorage($configData, 'ApplyChanges');
-        if ($configWasNormalized) {
-            IPS_ApplyChanges($this->InstanceID);
-            return;
-        }
+        $configData = $this->normalizeDeviceConfigAttributesForStorage($configData, 'ApplyChanges');
 
         $stateMap = $this->fetchStateMap($configData);
         if ($stateMap !== []) {
@@ -457,8 +453,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $domainOptions = HADomainCatalog::getDomainSelectOptions();
 
         if (is_array($config)) {
-            foreach ($config as $index => $row) {
-                $rawAttributeType = gettype($row['attributes'] ?? null);
+            foreach ($config as $row) {
                 $row = $this->normalizeEntityStructure($row);
                 if ($row === null) {
                     continue;
@@ -532,6 +527,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 continue;
             }
 
+            $originalRow = $row;
+            $normalizedRow = $this->normalizeEntityStructure($row);
+            if ($normalizedRow !== null) {
+                $row = $normalizedRow;
+            }
+
             $attributes = $row['attributes'] ?? null;
             if (is_string($attributes)) {
                 $decoded = $this->decodeJsonArray($attributes, $context);
@@ -547,6 +548,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
             if (($row['attributes'] ?? null) !== $encodedAttributes) {
                 $row['attributes'] = $encodedAttributes;
+            }
+
+            if ($row !== $originalRow) {
                 $changed = true;
             }
 
@@ -564,7 +568,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             ]);
         }
 
-        return [$normalized, $changed];
+        return $normalized;
     }
 
     // --- Private Hilfsmethoden (Business Logic) ---

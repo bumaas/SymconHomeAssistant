@@ -7,6 +7,7 @@ trait HAEntityConfigBuilderTrait
     private const array STABLE_GENERIC_ATTRIBUTE_KEYS = [
         'device_class',
         'supported_features',
+        'supported_features_list',
         'options',
         'unit_of_measurement',
         'native_unit_of_measurement',
@@ -99,6 +100,12 @@ trait HAEntityConfigBuilderTrait
             if (!is_array($entity)) {
                 continue;
             }
+
+            $normalizedEntity = $this->normalizeEntityStructure($entity);
+            if ($normalizedEntity === null) {
+                continue;
+            }
+            $entity = $normalizedEntity;
 
             $stableEntity = [
                 'entity_id' => (string)($entity['entity_id'] ?? ''),
