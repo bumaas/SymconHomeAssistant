@@ -89,7 +89,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
-        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT) {
+        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->debugExpert(__FUNCTION__, 'Verbindungsstatus ge�ndert. Aktualisiere...');
             $this->ApplyChanges();
         }
@@ -98,6 +98,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        $this->syncParentStatusMessageRegistration();
 
         $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 0);
         $this->maintainUnavailableEntitiesJsonVariable();
@@ -105,7 +106,13 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
         if (!$this->hasCompatibleSplitterParent()) {
             $this->SetStatus(201);
-            $this->debugExpert(__FUNCTION__, 'Parent ist nicht Home Assistant Splitter');
+            $this->debugExpert(__FUNCTION__, 'Parent ist nicht Home Assistant Splitter', $this->getCurrentParentDebugContext(), true);
+            return;
+        }
+
+        if (!$this->hasActiveSplitterParent()) {
+            $this->SetStatus(201);
+            $this->debugExpert(__FUNCTION__, 'Parent ist nicht aktiv', $this->getCurrentParentDebugContext(), true);
             return;
         }
 
@@ -116,6 +123,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
     {
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
         $this->applyResolvedConfigToForm($form);
+        $this->applyCurrentDiagnosticsToForm($form);
 
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
@@ -334,12 +342,12 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $attributes = $this->getResolvedAttributesForDisplay($resolved);
         $deviceClass = $this->getResolvedDeviceClass($resolved, $attributes);
 
-        $this->updateFormFieldSafe('ResolvedName', 'value', (string)($resolved['name'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedDomain', 'value', (string)($resolved['domain'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedDeviceClass', 'value', $deviceClass);
-        $this->updateFormFieldSafe('ResolvedDeviceID', 'value', (string)($resolved['device_id'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedArea', 'value', (string)($resolved['area'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedAttributeCount', 'value', (string)count($attributes));
+        $this->updateFormFieldSafe('ResolvedName', 'caption', 'Resolved Name: ' . (string)($resolved['name'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedDomain', 'caption', 'Resolved Domain: ' . (string)($resolved['domain'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedDeviceClass', 'caption', 'Resolved Device Class: ' . $deviceClass);
+        $this->updateFormFieldSafe('ResolvedDeviceID', 'caption', 'Resolved Device ID: ' . (string)($resolved['device_id'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedArea', 'caption', 'Resolved Area: ' . (string)($resolved['area'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedAttributeCount', 'caption', 'Resolved Attribute Count: ' . (string)count($attributes));
         $this->updateFormFieldSafe(
             'ResolvedAttributes',
             'values',
@@ -355,27 +363,27 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
         foreach ($form['elements'] as &$element) {
             if (($element['name'] ?? '') === 'ResolvedName') {
-                $element['value'] = (string)($resolved['name'] ?? '');
+                $element['caption'] = 'Resolved Name: ' . (string)($resolved['name'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDomain') {
-                $element['value'] = (string)($resolved['domain'] ?? '');
+                $element['caption'] = 'Resolved Domain: ' . (string)($resolved['domain'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDeviceClass') {
-                $element['value'] = $deviceClass;
+                $element['caption'] = 'Resolved Device Class: ' . $deviceClass;
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDeviceID') {
-                $element['value'] = (string)($resolved['device_id'] ?? '');
+                $element['caption'] = 'Resolved Device ID: ' . (string)($resolved['device_id'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedArea') {
-                $element['value'] = (string)($resolved['area'] ?? '');
+                $element['caption'] = 'Resolved Area: ' . (string)($resolved['area'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedAttributeCount') {
-                $element['value'] = (string)count($attributes);
+                $element['caption'] = 'Resolved Attribute Count: ' . (string)count($attributes);
                 continue;
             }
 
@@ -385,27 +393,27 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
             foreach ($element['items'] as &$item) {
                 if (($item['name'] ?? '') === 'ResolvedName') {
-                    $item['value'] = (string)($resolved['name'] ?? '');
+                    $item['caption'] = 'Resolved Name: ' . (string)($resolved['name'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDomain') {
-                    $item['value'] = (string)($resolved['domain'] ?? '');
+                    $item['caption'] = 'Resolved Domain: ' . (string)($resolved['domain'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDeviceClass') {
-                    $item['value'] = $deviceClass;
+                    $item['caption'] = 'Resolved Device Class: ' . $deviceClass;
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDeviceID') {
-                    $item['value'] = (string)($resolved['device_id'] ?? '');
+                    $item['caption'] = 'Resolved Device ID: ' . (string)($resolved['device_id'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedArea') {
-                    $item['value'] = (string)($resolved['area'] ?? '');
+                    $item['caption'] = 'Resolved Area: ' . (string)($resolved['area'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedAttributeCount') {
-                    $item['value'] = (string)count($attributes);
+                    $item['caption'] = 'Resolved Attribute Count: ' . (string)count($attributes);
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedAttributes') {
@@ -415,6 +423,42 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             unset($item);
         }
         unset($element);
+    }
+
+    private function applyCurrentDiagnosticsToForm(array &$form): void
+    {
+        $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
+        if ($lastMqtt === '') {
+            $lastMqtt = 'nie';
+        }
+
+        $lastRest = $this->ReadAttributeString('LastRESTFetch');
+        if ($lastRest === '') {
+            $lastRest = 'nie';
+        }
+
+        $entityCount = $this->getResolvedEntity() === [] ? 0 : 1;
+        $captions = [
+            'DiagLastMQTT' => 'Letzte MQTT-Message: ' . $lastMqtt,
+            'DiagLastREST' => 'Letzter REST-Abruf: ' . $lastRest,
+            'DiagEntityCount' => 'EntitÃ¤ten (aktiv): ' . $entityCount
+        ];
+
+        foreach ($form['actions'] as &$action) {
+            if (!isset($action['items']) || !is_array($action['items'])) {
+                continue;
+            }
+
+            foreach ($action['items'] as &$item) {
+                $name = (string)($item['name'] ?? '');
+                if ($name === '' || !array_key_exists($name, $captions)) {
+                    continue;
+                }
+                $item['caption'] = $captions[$name];
+            }
+            unset($item);
+        }
+        unset($action);
     }
 
     private function getResolvedEntity(): array

@@ -1,0 +1,21 @@
+{
+  "id": "{68522B48-8638-4AA1-995F-84DD1CF32CD8}",
+  "name": "Home Assistant MQTT Discovery Splitter",
+  "aliases": [
+    "Home Assistant MQTT Discovery Splitter"
+  ],
+  "type": 2,
+  "vendor": "Home Assistant",
+  "url": "https://github.com/bumaas/SymconHomeAssistant/blob/master/Home%20Assistant%20MQTT%20Discovery%20Splitter/README.md",
+  "parentRequirements": [
+    "{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}"
+  ],
+  "childRequirements": [
+    "{61F1A329-7E9D-4C78-BF20-31F64244F6C4}"
+  ],
+  "implemented": [
+    "{B0B0B353-1F1A-4D77-9D5B-96D67B58A3F1}",
+    "{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}"
+  ],
+  "prefix": "HA"
+}

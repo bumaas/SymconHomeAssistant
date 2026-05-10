@@ -51,6 +51,7 @@ Keine öffentlichen Funktionen.
   Vom Configurator gesetzt, nur lesend relevant.
 - `DeviceConfig`
   Liste der Entitäten mit Domain, Name, `entity_id`, Position und Aktiv-Flag.
+  Wird eine Entität deaktiviert oder aus der Liste entfernt, löscht das Modul die dazugehörigen Symcon-Variablen und Medienobjekte beim nächsten `ApplyChanges()`.
 - `EnableExpertDebug`
   Aktiviert zusätzliche Debug-Ausgaben.
 - `ShowUnavailableEntitiesJson`

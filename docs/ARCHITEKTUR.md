@@ -9,8 +9,16 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - `Home Assistant Configurator`
   Liest Geräte- und Entity-Daten aus Home Assistant, gruppiert sie zu Symcon-Geräten und erzeugt daraus `DeviceConfig`.
   Für den Symcon-`create`-Block wird dabei nur eine stabile CreateConfig mit strukturellen Attributen erzeugt, damit volatile Live-Daten keine neuen Configurator-Einträge vortäuschen.
+- `Home Assistant MQTT Discovery Splitter`
+  Ist der Transportknoten fuer `homeassistant/.../config` Topics. Er cached MQTT-Discovery-Payloads, reicht MQTT an Kinder weiter und stellt den Cache fuer Discovery-Module bereit.
+- `Home Assistant MQTT Discovery Configurator`
+  Liest gecachte MQTT-Discovery-Configs aus dem MQTT Discovery Splitter, parst die Payloads in eine interne Transportstruktur und gruppiert sie zu Geraetekandidaten fuer Zigbee2MQTT und aehnliche Discovery-Quellen.
+- `Home Assistant MQTT Discovery Device`
+  Ist der schlanke Laufzeitpfad fuer MQTT-Discovery-Geraete. Er loest seine Entities ueber `DeviceID` aus dem MQTT Discovery Splitter auf, cached die aufgeloeste Device-Definition intern und verarbeitet `state_topic`, `command_topic` sowie `availability`.
 - `libs/Config`
   Enthält die gemeinsame Aufbereitungsschicht für Configurator und spätere self-resolving Module. Loader lädt Rohdaten aus HA, Builder normalisiert die Entity-Konfiguration und Grouping bündelt Entities für die Geräteansicht.
+- `libs/Discovery`
+  Enthaelt die vorbereitende MQTT-Discovery-Schicht. Parser und Grouping normalisieren `homeassistant/.../config` Topics in eine transportfeste interne Struktur, ohne den bestehenden Statestream-Pfad zu vermischen.
 - `Home Assistant Splitter`
   Ist der zentrale Transportknoten. Er verteilt MQTT-Nachrichten an Kinder und kapselt REST- sowie Bildabrufe.
 - `Home Assistant Device`
@@ -71,6 +79,12 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
   Baut aus Rohdaten eine stabile interne Entity-Konfiguration und filtert strukturrelevante Attribute.
 - `libs/Config/HAEntityGroupingTrait`
   Gruppiert normalisierte Entities zu Geräten und bereitet Namen sowie Zusammenfassungen für die UI auf.
+- `libs/Discovery/HAMqttDiscoveryTemplate`
+  Reduziert die fuer v1 unterstuetzten MQTT-Discovery-Templates auf eine kleine interne Struktur, damit Runtime-Code keine freien Jinja-Ausdruecke auswerten muss.
+- `libs/Discovery/HAMqttDiscoveryParser`
+  Uebersetzt einzelne `homeassistant/.../config` Payloads in normalisierte Discovery-Entities mit expliziten Topics, Availability und Schreibmetadaten.
+- `libs/Discovery/HAMqttDiscoveryGrouping`
+  Gruppiert normalisierte Discovery-Entities ueber `device.identifiers` zu Symcon-Geraetekandidaten und baut daraus eine stabile Discovery-Device-Definition fuer Configurator und Laufzeitmodul.
 - `libs/Device/HADeviceCoreTrait`
   Kapselt den gemeinsamen Laufzeitkern für Device- und Entity-Instanzen, insbesondere MQTT/REST-Synchronisierung, Topic-Ableitung, Initialzustände und Action-Dispatch.
 - `libs/Domains/*Definitions.php`
@@ -78,9 +92,10 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 
 ## 4. Architekturregeln
 
-- `DeviceConfig` als Roh-JSON darf nur dort direkt gelesen werden, wo die unveränderte Konfiguration gebraucht wird, zum Beispiel in `ApplyChanges()` oder beim Formularaufbau.
+- `DeviceConfig` als Roh-JSON ist Teil des klassischen Home-Assistant-Device-Pfads. MQTT-Discovery-Geräte arbeiten stattdessen mit `DeviceID` plus intern gecachter, aufgelöster Device-Definition.
 - Der Configurator darf für den `create`-Block nur stabile Strukturattribute verwenden. Flüchtige Laufzeit- oder Prognosewerte gehören nicht in die CreateConfig, weil Symcon diesen Block für `Als gelesen markiert` wiedererkennt.
 - Gemeinsame Entity-Aufbereitung für Configurator und künftige self-resolving Instanzen gehört in `libs/Config`, nicht in modul-lokale Speziallogik.
+- Unterschiede zwischen MQTT-Discovery-Quellen gehören in Parser, Template-Reduktion oder vorgeschaltete Normalisierung. Das MQTT Discovery Device arbeitet quellenneutral gegen ein internes Discovery-Modell und darf nicht pro Producer wie Zigbee2MQTT, Tasmota oder ESPHome verzweigen.
 - Self-resolving Module wie `Home Assistant Entity` speichern nur stabile Identifikatoren in den Properties. Die eigentliche Entity-Konfiguration wird bei `ApplyChanges()` aus Home Assistant erneut aufgelöst.
 - Für normale Lookup- und Fallback-Pfade müssen normalisierte Konfigurations-Entities über `getConfiguredEntities()` bezogen werden.
 - `EntityStateCache` wird nur über `HAEntityStoreTrait` gelesen oder geschrieben. Direkte JSON-Zugriffe außerhalb von Bootstrap-Code sollen vermieden werden.
@@ -108,3 +123,23 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - Zusatzvariablen dürfen nur existieren oder schreibbar sein, wenn Features und Attributlage das wirklich hergeben.
 - Medienobjekte und benutzernahe Namen sind regressionsanfällig, weil sie direkt in Symcon sichtbar sind.
 - Es gibt aktuell keine automatisierten Tests. Minimale Absicherung vor Commits: `php -l` über alle PHP-Dateien und eine gezielte manuelle Prüfrunde der betroffenen Domains.
+
+### Leitlinie: Zustand und Schreiben
+
+- Zustandsvariablen bleiben fachlich nah an Home Assistant. Kanonische HA-States und Optionen werden als `String` modelliert, auch wenn die Symcon-PrÃ¤sentation enum-artige Optionen zeigt. `Integer`-Enums sind fÃ¼r lokale Aktionsvariablen gedacht, nicht fÃ¼r den eigentlichen HA-Zustand.
+- Lese- und Schreibpfad werden getrennt betrachtet. `mqtt_statestream` ist ein Read-Kanal; geschrieben wird pro Domain Ã¼ber den von Home Assistant fachlich vorgesehenen Pfad, typischerweise per Service-Call. MQTT wird nur als Write-Pfad genutzt, wenn die Domain oder Discovery-Metadaten einen echten Command-Pfad explizit liefern.
+- Hauptvariable und Aktionsvariable haben unterschiedliche Aufgaben. Die Hauptvariable bildet den HA-Zustand ab, separate Aktionsvariablen kapseln lokale Bedienlogik und dÃ¼rfen dafÃ¼r eigene Integer-Enums verwenden.
+
+## 7. Architektur-Backlog
+
+### MQTT Discovery: DeviceID-only Schnittstelle
+
+Stand:
+- Der MQTT Discovery Configurator gibt an das Discovery Device nur noch `DeviceID` und den Symcon-Instanznamen weiter.
+- Das Discovery Device wird vollständig self-resolving und lädt Metadaten sowie Entity-Definition ausschließlich über den MQTT Discovery Splitter.
+- Doppelte Metadaten in Device-Properties entfallen, damit kein Drift zwischen Configurator, Device und Splitter entstehen kann.
+
+Offene Punkte:
+- Formularverhalten, wenn für eine `DeviceID` noch kein Discovery-Cache im Splitter vorhanden ist
+- Statusmodell bei fehlendem oder inaktivem Parent
+- mögliche Vereinheitlichung mit dem self-resolving Muster von `Home Assistant Entity`

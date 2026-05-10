@@ -264,6 +264,10 @@ trait HADeviceCoreTrait
             }
             $this->debugExpert('RequestAction', 'Payload formatiert', ['Payload' => $mqttPayload]);
 
+            if ($this->trySendMainEntityValueViaRest($entityId, (string)($domain ?? ''), $mqttPayload, $Ident, $entity['attributes'] ?? [])) {
+                return;
+            }
+
             $topic = $this->getSetTopicForEntity($entityId);
             if ($topic === '') {
                 return;
@@ -312,6 +316,55 @@ trait HADeviceCoreTrait
                 $this->setValueWithDebug($Ident, $hvacMode);
             }
         }
+    }
+
+    protected function trySendMainEntityValueViaRest(
+        string $entityId,
+        string $domain,
+        string $formattedPayload,
+        string $ident,
+        mixed $attributes
+    ): bool {
+        $normalizedDomain = $this->normalizeDomainAlias($domain);
+        if ($normalizedDomain !== HANumberDefinitions::DOMAIN) {
+            return false;
+        }
+
+        [$service, $data] = HANumberDefinitions::buildRestServicePayload($formattedPayload);
+        if ($service === '') {
+            $this->debugExpert(__FUNCTION__, 'REST-Payload leer', [
+                'EntityID' => $entityId,
+                'Domain' => $domain,
+                'Payload' => $formattedPayload
+            ], true);
+            return true;
+        }
+
+        $serviceDomain = $domain !== '' ? $domain : $normalizedDomain;
+        $requestData = array_merge(['entity_id' => $entityId], $data);
+        if (!$this->sendServiceRequestToParent($serviceDomain, $service, $requestData)) {
+            $this->debugExpert(__FUNCTION__, 'REST-Service fehlgeschlagen', [
+                'EntityID' => $entityId,
+                'Domain' => $serviceDomain,
+                'Service' => $service,
+                'Data' => $requestData
+            ], true);
+            return true;
+        }
+
+        $this->debugExpert(__FUNCTION__, 'REST-Service gesendet', [
+            'EntityID' => $entityId,
+            'Domain' => $serviceDomain,
+            'Service' => $service,
+            'Data' => $requestData
+        ], true);
+
+        $optimisticValue = $this->convertValueByDomain($domain, $formattedPayload, is_array($attributes) ? $attributes : []);
+        $this->setEntityMainValue($entityId, $ident, $optimisticValue, $formattedPayload);
+        $this->updateEntityRawStateCache($entityId, $formattedPayload);
+        $this->updateEntityCache($entityId, $formattedPayload, null);
+        $this->resetVariableByDescriptor($ident, $this->describeVariableByIdent($ident, $domain));
+        return true;
     }
 
     protected function processEntities(array $configData, string $baseTopic): array

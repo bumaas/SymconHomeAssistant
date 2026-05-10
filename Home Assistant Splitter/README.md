@@ -65,7 +65,7 @@ HA_CallService($splitterId, 'script', 'turn_on', [
 
 ## 5. Konfiguration
 
-- `MQTTBaseTopic`: Basis-Topic für Discovery (typisch `homeassistant`).
+- `MQTTBaseTopic`: Basis-Topic fuer den MQTT-Statestream.
 - `HAUrl`: Base URL `http(s)://<host>:<port>` (z.B. `http://homeassistant.local:8123`).
 - `HAToken`: Long-Lived Access Token (Home Assistant Profil).
 - `UseRestForSetTopics`: Leitet `*/set` Topics an REST weiter.

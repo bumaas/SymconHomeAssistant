@@ -1,0 +1,21 @@
+{
+  "id": "{E5739B2D-7732-4398-9AD1-BECF0B8738C5}",
+  "name": "Home Assistant MQTT Discovery Configurator",
+  "aliases": [
+    "Home Assistant MQTT Discovery Konfigurator"
+  ],
+  "type": 4,
+  "vendor": "Home Assistant",
+  "version": "1.0.0",
+  "build": 1,
+  "date": 0,
+  "url": "https://github.com/bumaas/SymconHomeAssistant/blob/master/Home%20Assistant%20MQTT%20Discovery%20Configurator/README.md",
+  "parentRequirements": [
+    "{B0B0B353-1F1A-4D77-9D5B-96D67B58A3F1}"
+  ],
+  "childRequirements": [],
+  "implemented": [
+    "{61F1A329-7E9D-4C78-BF20-31F64244F6C4}"
+  ],
+  "prefix": "HA"
+}

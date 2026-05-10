@@ -1,0 +1,43 @@
+[![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+# Home Assistant MQTT Discovery Splitter
+
+Verbindet MQTT-Discovery-Topics mit Discovery-Configurator- und spaeteren Discovery-Device-Instanzen.
+
+## Funktionsumfang
+
+- Empfaengt MQTT-Daten von einem MQTT Client.
+- Cacht `homeassistant/.../config` Topics fuer spaetere Discovery-Auswertung.
+- Cacht zusaetzlich die letzten MQTT-Payloads je referenziertem Runtime-Topic fuer Initialwerte und Diagnosezwecke.
+- Trennt Discovery-Cache und Runtime-Topic-Cache sauber, damit `.../config` Topics nicht doppelt im Runtime-Cache landen.
+- Markiert Cache-Eintraege je MQTT-Session, damit nach Reconnect zwischen aktuellem Replay und altem Cache-Stand unterschieden werden kann.
+- Reicht MQTT-Nachrichten an Child-Instanzen weiter.
+- Stellt den Discovery-Cache per internem Parent-Request zur Verfuegung.
+- Kann ein Discovery-Bundle fuer Fremd-Producer exportieren, bestehend aus gecachten Discovery-Configs und referenzierten MQTT-Topic-Payloads.
+
+## Voraussetzungen
+
+- MQTT Client Instanz als Parent.
+- Der MQTT Client muss den Discovery-Prefix abonnieren, typischerweise `homeassistant/#`.
+- Fuer Discovery-Device-Runtime muessen ueber denselben MQTT Client auch die State-Topics der Quelle ankommen, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
+
+## Konfiguration
+
+- `MQTTDiscoveryPrefix`: Prefix fuer MQTT-Discovery-Konfigurationen, typischerweise `homeassistant`.
+- Optional: `EnableExpertDebug`.
+
+## Export
+
+- Im Formular steht ein Button `Discovery-Bundle herunterladen` zur Verfuegung.
+- Das Bundle enthaelt alle gecachten `homeassistant/.../config` Topics sowie die dazu in den Configs referenzierten MQTT-Topics, sofern dafuer Payloads im Cache vorhanden sind.
+- Zusaetzlich exportiert das Bundle Session-Informationen, Freshness (`is_current_session`) und Listen fuer fehlende, stale oder zusaetzlich gecachte Runtime-Topics.
+- Das Exportformat ist bewusst roh gehalten, damit Producer-spezifische Unterschiede spaeter im Parser nachvollzogen und als Fixture abgelegt werden koennen.
+
+## Diagnose
+
+- Das Formular zeigt getrennt an, wie viele Discovery-Configs in der aktuellen MQTT-Session gesehen wurden und wie viele nur noch als stale Cache vorliegen.
+- Fuer referenzierte Runtime-Topics werden aktuelle, stale und fehlende Topics getrennt ausgewiesen.
+- Leere Payloads entfernen den jeweiligen Cache-Eintrag. Bei Discovery-Configs entspricht das dem ueblichen MQTT-Delete ueber leere retained Config-Payloads.
+
+## Hinweis
+
+Dieser Splitter ist bewusst vom bestehenden Home Assistant Splitter getrennt. Er verwaltet keine REST-Verbindung und keinen `mqtt_statestream`. Fuer einen vollstaendigen Discovery-Cache wird ein MQTT Client als Parent benoetigt, damit die retained `homeassistant/.../config` Topics sauber replayed werden.

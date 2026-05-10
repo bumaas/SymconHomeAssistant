@@ -5,22 +5,19 @@
       "caption": "Device Information",
       "items":   [
         {
-          "type":     "ValidationTextBox",
+          "type":     "Label",
           "name":     "DeviceName",
-          "caption":  "Device Name (HA)",
-          "readOnly": true
+          "caption":  "Device Name (HA): "
         },
         {
-          "type":     "ValidationTextBox",
+          "type":     "Label",
           "name":     "DeviceArea",
-          "caption":  "Area",
-          "readOnly": true
+          "caption":  "Area: "
         },
         {
-          "type":     "ValidationTextBox",
+          "type":     "Label",
           "name":     "DeviceID",
-          "caption":  "Device ID",
-          "readOnly": true
+          "caption":  "Device ID: "
         }
       ]
     },
@@ -178,7 +175,7 @@
     {
       "code":    201,
       "icon":    "error",
-      "caption": "Kein Parent verbunden"
+      "caption": "Kein kompatibler oder aktiver Parent verbunden"
     }
   ]
 }

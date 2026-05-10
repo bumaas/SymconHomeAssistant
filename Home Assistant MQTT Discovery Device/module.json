@@ -1,0 +1,18 @@
+{
+  "id": "{5A6C7B2A-14B4-4D6C-AC3C-07D7D6A7568D}",
+  "name": "Home Assistant MQTT Discovery Device",
+  "aliases": [
+    "Home Assistant MQTT Discovery Geraet"
+  ],
+  "type": 3,
+  "vendor": "Home Assistant",
+  "url": "https://github.com/bumaas/SymconHomeAssistant/blob/master/Home%20Assistant%20MQTT%20Discovery%20Device/README.md",
+  "parentRequirements": [
+    "{B0B0B353-1F1A-4D77-9D5B-96D67B58A3F1}"
+  ],
+  "childRequirements": [],
+  "implemented": [
+    "{61F1A329-7E9D-4C78-BF20-31F64244F6C4}"
+  ],
+  "prefix": "HA"
+}

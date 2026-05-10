@@ -6,6 +6,8 @@ Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
 ## Dokumentation
 
 Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
+Umsetzungs- und Backlog-Plan: [Weiteres Vorgehen](docs/WEITERES_VORGEHEN.md)
+Discovery-Fixtures: [docs/fixtures](docs/fixtures/README.md)
 
 **Inhaltsverzeichnis**
 
@@ -23,6 +25,7 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 ## 1. Funktionsumfang
 
 - Module für Discovery, Konfiguration, Splitter, Device und Entity.
+- MQTT Discovery Splitter, Configurator und Device fuer `homeassistant/.../config` Topics.
 - Anbindung von Home Assistant Entitäten per MQTT Statestream.
 - Optionaler REST-Zugriff für Steuerbefehle.
 - Mapping von Domains auf Symcon-Variablen.
@@ -31,6 +34,9 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 
 - [Home Assistant Discovery](Home%20Assistant%20Discovery/README.md)
 - [Home Assistant Configurator](Home%20Assistant%20Configurator/README.md)
+- [Home Assistant MQTT Discovery Splitter](Home%20Assistant%20MQTT%20Discovery%20Splitter/README.md)
+- [Home Assistant MQTT Discovery Configurator](Home%20Assistant%20MQTT%20Discovery%20Configurator/README.md)
+- [Home Assistant MQTT Discovery Device](Home%20Assistant%20MQTT%20Discovery%20Device/README.md)
 - [Home Assistant Splitter](Home%20Assistant%20Splitter/README.md)
 - [Home Assistant Device](Home%20Assistant%20Device/README.md)
 - [Home Assistant Entity](Home%20Assistant%20Entity/README.md)
@@ -42,7 +48,7 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 | `light`         | voll      | Attribute + schreibbar                                                                                                               | -                                             |
 | `switch`        | voll      | schaltbar                                                                                                                            | -                                             |
 | `binary_sensor` | voll      | `device_class` + Icons                                                                                                               | -                                             |
-| `number`        | voll      | Slider/Min/Max/Step, REST `set_value`                                                                                                | -                                             |
+| `number`        | voll      | Slider/Min/Max/Step, REST `set_value` (gilt auch fuer `input_number`)                                                                | -                                             |
 | `sensor`        | voll      | Units/Suffix, `enum` als Enumeration                                                                                                 | -                                             |
 | `select`        | voll      | Enumeration                                                                                                                          | -                                             |
 | `climate`       | voll      | Heizen/Kühlen steuerbar: Solltemperatur, Modus (z. B. Heizen/Kühlen), Preset-, Lüfter- und Swing-Modus sowie Ein/Aus und Zielfeuchte | -                                             |
@@ -64,6 +70,8 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 
 - Symcon ab Version 9.0
 - MQTT Broker in Home Assistant und eine MQTT Client-Instanz in Symcon oder alternativ ein Symcon MQTT Server
+- Fuer den MQTT Discovery Splitter wird ein zusaetzlicher Symcon MQTT Client mit Subscription `homeassistant/#` benoetigt.
+- Fuer MQTT Discovery Devices muessen ueber denselben MQTT Client zusaetzlich die Laufzeit-Topics der Quelle empfangen werden, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 - Home Assistant mit aktivierter MQTT Integration (Statestream)
 - Optional: mDNS/DNS-SD (Discovery)
 - Long-Lived Access Token (REST)
@@ -149,6 +157,9 @@ Home Assistant Device / Entity / Configurator
 |-----------------------------|--------------|------------------------------------------|
 | Home Assistant Discovery    | Discovery    | `{C36FEFA4-4732-CBD6-0216-A1DB30D036CF}` |
 | Home Assistant Configurator | Configurator | `{B9830F89-98E6-106C-CD6C-A3AD76FD5AE9}` |
+| Home Assistant MQTT Discovery Splitter | Splitter | `{68522B48-8638-4AA1-995F-84DD1CF32CD8}` |
+| Home Assistant MQTT Discovery Configurator | Configurator | `{E5739B2D-7732-4398-9AD1-BECF0B8738C5}` |
+| Home Assistant MQTT Discovery Device | Device | `{5A6C7B2A-14B4-4D6C-AC3C-07D7D6A7568D}` |
 | Home Assistant Splitter     | Splitter     | `{0A4C4B31-2F59-4D21-8F62-3A12A0A0F3E1}` |
 | Home Assistant Device       | Device       | `{72D6A284-1870-4E11-92D8-0402C8233C29}` |
 | Home Assistant Entity       | Device       | `{C27D957C-3761-497B-8A30-A223405E04F2}` |

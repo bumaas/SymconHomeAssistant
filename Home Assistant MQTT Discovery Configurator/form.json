@@ -1,0 +1,28 @@
+{
+  "elements": [
+    {
+      "type": "ExpansionPanel",
+      "caption": "Configuration",
+      "expanded": true,
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "ShowBridgeDevices",
+          "caption": "Show Zigbee2MQTT bridge devices"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Expert Settings",
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "EnableExpertDebug",
+          "caption": "Enable extended debug output"
+        }
+      ]
+    }
+  ],
+  "actions": []
+}

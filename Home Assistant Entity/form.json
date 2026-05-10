@@ -38,40 +38,34 @@
       "caption": "Resolved Configuration",
       "items": [
         {
-          "type": "ValidationTextBox",
+          "type": "Label",
           "name": "ResolvedName",
-          "caption": "Resolved Name",
-          "readOnly": true
+          "caption": "Resolved Name: "
         },
         {
-          "type": "ValidationTextBox",
+          "type": "Label",
           "name": "ResolvedDomain",
-          "caption": "Resolved Domain",
-          "readOnly": true
+          "caption": "Resolved Domain: "
         },
         {
-          "type": "ValidationTextBox",
+          "type": "Label",
           "name": "ResolvedDeviceClass",
-          "caption": "Resolved Device Class",
-          "readOnly": true
+          "caption": "Resolved Device Class: "
         },
         {
-          "type": "ValidationTextBox",
+          "type": "Label",
           "name": "ResolvedDeviceID",
-          "caption": "Resolved Device ID",
-          "readOnly": true
+          "caption": "Resolved Device ID: "
         },
         {
-          "type": "ValidationTextBox",
+          "type": "Label",
           "name": "ResolvedArea",
-          "caption": "Resolved Area",
-          "readOnly": true
+          "caption": "Resolved Area: "
         },
         {
-          "type": "ValidationTextBox",
+          "type": "Label",
           "name": "ResolvedAttributeCount",
-          "caption": "Resolved Attribute Count",
-          "readOnly": true
+          "caption": "Resolved Attribute Count: "
         },
         {
           "type": "List",
@@ -138,7 +132,7 @@
     {
       "code": 201,
       "icon": "error",
-      "caption": "Kein Parent verbunden"
+      "caption": "Kein kompatibler oder aktiver Parent verbunden"
     },
     {
       "code": 210,

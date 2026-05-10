@@ -4,27 +4,32 @@ declare(strict_types=1);
 
 trait HARestParentClientTrait
 {
+    use HAParentConnectionTrait;
+
     private function hasCompatibleSplitterParent(): bool
     {
-        $instance = IPS_GetInstance($this->InstanceID);
-        $parentId = (int)($instance['ConnectionID'] ?? 0);
-        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
-            return false;
-        }
-        $parent = IPS_GetInstance($parentId);
-        $moduleId = (string)($parent['ModuleInfo']['ModuleID'] ?? '');
-        return $moduleId === HAIds::MODULE_SPLITTER;
+        return $this->hasCompatibleParentModule(HAIds::MODULE_SPLITTER);
+    }
+
+    private function hasActiveSplitterParent(): bool
+    {
+        return $this->hasCompatibleActiveParentModule(HAIds::MODULE_SPLITTER);
+    }
+
+    private function getCurrentParentDebugContext(): array
+    {
+        return $this->buildCurrentParentDebugContext();
     }
 
     private function sendRestRequestToParent(string $endpoint, ?string $postData): ?array
     {
         if (!$this->hasCompatibleSplitterParent()) {
-            $this->debugExpert('REST', 'No compatible parent');
+            $this->debugExpert('REST', 'No compatible parent', $this->getCurrentParentDebugContext(), true);
             return null;
         }
 
-        if (!$this->HasActiveParent()) {
-            $this->debugExpert('REST', 'No active parent');
+        if (!$this->hasActiveSplitterParent()) {
+            $this->debugExpert('REST', 'No active parent', $this->getCurrentParentDebugContext(), true);
             return null;
         }
 

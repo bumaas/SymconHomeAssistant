@@ -1,0 +1,199 @@
+{
+  "elements": [
+    {
+      "type": "ExpansionPanel",
+      "caption": "Device Information",
+      "expanded": true,
+      "items": [
+        {
+          "type": "ValidationTextBox",
+          "name": "DeviceID",
+          "caption": "Discovery Device ID",
+          "readOnly": false
+        },
+        {
+          "type": "Label",
+          "name": "ResolvedDeviceName",
+          "caption": "Device Name: "
+        },
+        {
+          "type": "Label",
+          "name": "ResolvedManufacturer",
+          "caption": "Manufacturer: "
+        },
+        {
+          "type": "Label",
+          "name": "ResolvedModel",
+          "caption": "Model: "
+        }
+      ]
+    },
+    {
+      "type": "List",
+      "name": "EntitySelection",
+      "caption": "Entity Selection",
+      "visible": false,
+      "rowCount": 20,
+      "add": false,
+      "delete": false,
+      "columns": [
+        {
+          "caption": "Active",
+          "name": "create_var",
+          "width": "70px",
+          "edit": {
+            "type": "CheckBox"
+          }
+        },
+        {
+          "caption": "Component",
+          "name": "component",
+          "width": "120px"
+        },
+        {
+          "caption": "Name",
+          "name": "name",
+          "width": "auto"
+        },
+        {
+          "caption": "State Topic",
+          "name": "state_topic",
+          "width": "260px"
+        },
+        {
+          "caption": "Command Topic",
+          "name": "command_topic",
+          "width": "260px",
+          "save": true
+        },
+        {
+          "caption": "AvailCfg",
+          "name": "availability",
+          "width": "95px"
+        },
+        {
+          "caption": "Cache",
+          "name": "cache",
+          "width": "85px"
+        },
+        {
+          "caption": "Mapping",
+          "name": "mapping",
+          "width": "180px"
+        },
+        {
+          "caption": "Warnung",
+          "name": "warning",
+          "width": "170px"
+        },
+        {
+          "caption": "Mode",
+          "name": "mode",
+          "width": "70px"
+        },
+        {
+          "caption": "Entity Key",
+          "name": "entity_key",
+          "width": "280px",
+          "visible": false,
+          "save": true
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Expert Settings",
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "EnableExpertDebug",
+          "caption": "Enable extended debug output"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "RowLayout",
+      "items": [
+        {
+          "type": "Button",
+          "label": "Alle auswählen",
+          "onClick": "HA_SelectAllEntities($id);"
+        },
+        {
+          "type": "Button",
+          "label": "Alle abwählen",
+          "onClick": "HA_DeselectAllEntities($id);"
+        },
+        {
+          "type": "Button",
+          "label": "Discovery-Default",
+          "onClick": "HA_ResetEntitySelectionToDefaults($id);"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Diagnostics",
+      "expanded": false,
+      "items": [
+        {
+          "type": "Label",
+          "name": "DiagLastMQTT",
+          "caption": "Letzte MQTT-Message: nie"
+        },
+        {
+          "type": "Label",
+          "name": "DiagTopics",
+          "caption": "Topics: 0"
+        },
+        {
+          "type": "Label",
+          "name": "DiagEntities",
+          "caption": "Entities (aktiv/gesamt): 0/0"
+        },
+        {
+          "type": "Label",
+          "name": "DiagResolution",
+          "caption": "Auflösung: unbekannt"
+        },
+        {
+          "type": "Label",
+          "name": "DiagAvailability",
+          "caption": "Availability: unbekannt"
+        },
+        {
+          "type": "Label",
+          "name": "DiagWarnings",
+          "caption": "Warnungen: keine"
+        }
+      ]
+    },
+    {
+      "type": "TestCenter"
+    }
+  ],
+  "status": [
+    {
+      "code": 201,
+      "icon": "error",
+      "caption": "Parent ist nicht Home Assistant MQTT Discovery Splitter"
+    },
+    {
+      "code": 202,
+      "icon": "error",
+      "caption": "Keine Discovery-Infos fuer diese DeviceID im Splitter-Cache gefunden"
+    },
+    {
+      "code": 203,
+      "icon": "error",
+      "caption": "Home Assistant MQTT Discovery Splitter Parent ist nicht aktiv"
+    },
+    {
+      "code": 204,
+      "icon": "error",
+      "caption": "Keine Discovery DeviceID konfiguriert"
+    }
+  ]
+}

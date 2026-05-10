@@ -8,6 +8,7 @@ require_once __DIR__ . '/../libs/HACommonIncludes.php';
 
 class HomeAssistantSplitter extends IPSModuleStrict
 {
+    use HAParentConnectionTrait;
     use ModuleDebugTrait;
     use HASupportedFeaturesTrait;
     use HADiagnosticsTrait;
@@ -41,7 +42,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
-        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT) {
+        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...', [], true);
             $this->ApplyChanges();
         }
@@ -64,9 +65,17 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return json_encode($parents, JSON_THROW_ON_ERROR);
     }
 
+    public function GetConfigurationForm(): string
+    {
+        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
+        $this->applyCurrentDiagnosticsToForm($form);
+        return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        $this->syncParentStatusMessageRegistration();
         $this->SetReceiveDataFilter('.*');
 
         $this->updateLastMqttMessageLabel();
@@ -78,9 +87,15 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return;
         }
 
-        if (!$this->isMqttParentActive()) {
+        if (!$this->hasCompatibleParentModules([HAIds::MODULE_MQTT_CLIENT, HAIds::MODULE_MQTT_SERVER])) {
             $this->SetStatus(201);
-            $this->debugExpert('Config', 'MQTT Parent ist nicht aktiv.');
+            $this->debugExpert('Config', 'MQTT Parent ist nicht kompatibel.', $this->buildCurrentParentDebugContext(), true);
+            return;
+        }
+
+        if (!$this->hasCompatibleActiveParentModules([HAIds::MODULE_MQTT_CLIENT, HAIds::MODULE_MQTT_SERVER])) {
+            $this->SetStatus(201);
+            $this->debugExpert('Config', 'MQTT Parent ist nicht aktiv.', $this->buildCurrentParentDebugContext(), true);
             return;
         }
 
@@ -200,29 +215,6 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $last = 'nie';
         }
         $this->updateFormFieldSafe('LastMQTTMessage', 'caption', 'Letzte MQTT-Message: ' . $last);
-    }
-
-    private function isMqttParentActive(): bool
-    {
-        $instance = IPS_GetInstance($this->InstanceID);
-        $parentId = (int)($instance['ConnectionID'] ?? 0);
-        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
-            $this->debugExpert('Config', 'MQTT Parent fehlt', ['ParentID' => $parentId], true);
-            return false;
-        }
-
-        $parent = IPS_GetInstance($parentId);
-        $status = (int)($parent['InstanceStatus'] ?? 0);
-        if ($status !== IS_ACTIVE) {
-            $this->debugExpert('Config', 'MQTT Parent Status', [
-                'ParentID' => $parentId,
-                'ParentName' => IPS_GetName($parentId),
-                'Status' => $status,
-                'ModuleID' => (string)($parent['ModuleInfo']['ModuleID'] ?? ''),
-                'ModuleName' => (string)($parent['ModuleInfo']['ModuleName'] ?? '')
-            ], true);
-        }
-        return $status === IS_ACTIVE;
     }
 
     private function isRestApiReachable(): bool
@@ -758,30 +750,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function updateDiagnosticsLabels(): void
     {
-        $instance = IPS_GetInstance($this->InstanceID);
-        $parentId = (int)($instance['ConnectionID'] ?? 0);
-        $parentStatus = 0;
-        $parentName = '';
-        if ($parentId > 0 && IPS_InstanceExists($parentId)) {
-            $parent = IPS_GetInstance($parentId);
-            $parentStatus = (int)($parent['InstanceStatus'] ?? 0);
-            $parentName = IPS_GetName($parentId);
+        foreach ($this->buildDiagnosticsCaptions() as $field => $caption) {
+            $this->updateFormFieldSafe($field, 'caption', $caption);
         }
-
-        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
-        $statusName = $this->getInstanceStatusName($parentStatus);
-        $nameSuffix = $parentName !== '' ? ' (' . $parentName . ')' : '';
-        $statusSuffix = $statusName !== '' ? '(' . $statusName .')' : '';
-        $this->updateFormFieldSafe(
-            'DiagParent',
-            'caption',
-            'MQTT Parent: ' . $parentId . $nameSuffix . ' | Status ' . $parentStatus . $statusSuffix
-        );
-        $this->updateFormFieldSafe('DiagBaseTopic', 'caption', 'MQTT Base Topic: ' . ($baseTopic !== '' ? $baseTopic : 'leer'));
-
-        $this->updateRestErrorLabel();
-        $this->updateRestResponseLabel();
-        $this->updateRestTimeoutLabel();
     }
 
     private function getInstanceStatusName(int $status): string
@@ -910,5 +881,67 @@ class HomeAssistantSplitter extends IPSModuleStrict
     private function updateFormFieldSafe(string $name, string $property, mixed $value): void
     {
         @ $this->UpdateFormField($name, $property, $value);
+    }
+
+    private function buildDiagnosticsCaptions(): array
+    {
+        $parent = $this->buildCurrentParentDebugContext();
+        $parentId = (int)($parent['ParentID'] ?? 0);
+        $parentStatus = (int)($parent['ParentStatus'] ?? 0);
+        $parentName = (string)($parent['ParentName'] ?? '');
+
+        $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
+        if ($lastMqtt === '') {
+            $lastMqtt = 'nie';
+        }
+
+        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
+        $statusName = $this->getInstanceStatusName($parentStatus);
+        $nameSuffix = $parentName !== '' ? ' (' . $parentName . ')' : '';
+        $statusSuffix = $statusName !== '' ? '(' . $statusName . ')' : '';
+
+        $lastRestError = $this->ReadAttributeString('LastRestError');
+        if ($lastRestError === '') {
+            $lastRestError = 'keiner';
+        }
+
+        $lastRestResponse = $this->ReadAttributeString('LastRestResponse');
+        if ($lastRestResponse === '') {
+            $lastRestResponse = 'keine';
+        }
+
+        $lastRestTimeout = $this->ReadAttributeString('LastRestTimeout');
+        if ($lastRestTimeout === '') {
+            $lastRestTimeout = 'keiner';
+        }
+
+        return [
+            'LastMQTTMessage' => 'Letzte MQTT-Message: ' . $lastMqtt,
+            'DiagParent' => 'MQTT Parent: ' . $parentId . $nameSuffix . ' | Status ' . $parentStatus . $statusSuffix,
+            'DiagBaseTopic' => 'MQTT Base Topic: ' . ($baseTopic !== '' ? $baseTopic : 'leer'),
+            'DiagRest' => 'Letzter REST-Fehler: ' . $lastRestError,
+            'DiagRestResponse' => 'Letzte REST-Antwort: ' . $lastRestResponse,
+            'DiagRestTimeout' => 'Letzter REST-Timeout: ' . $lastRestTimeout
+        ];
+    }
+
+    private function applyCurrentDiagnosticsToForm(array &$form): void
+    {
+        $captions = $this->buildDiagnosticsCaptions();
+        foreach ($form['actions'] as &$action) {
+            if (!isset($action['items']) || !is_array($action['items'])) {
+                continue;
+            }
+
+            foreach ($action['items'] as &$item) {
+                $name = (string)($item['name'] ?? '');
+                if ($name === '' || !array_key_exists($name, $captions)) {
+                    continue;
+                }
+                $item['caption'] = $captions[$name];
+            }
+            unset($item);
+        }
+        unset($action);
     }
 }

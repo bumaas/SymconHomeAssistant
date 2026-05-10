@@ -1,0 +1,105 @@
+{
+  "elements": [
+    {
+      "type": "ExpansionPanel",
+      "caption": "MQTT Discovery",
+      "expanded": true,
+      "items": [
+        {
+          "type": "ValidationTextBox",
+          "name": "MQTTDiscoveryPrefix",
+          "caption": "MQTT Discovery Prefix"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Expert",
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "EnableExpertDebug",
+          "caption": "Enable extended debug output"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "ExpansionPanel",
+      "caption": "Diagnostics",
+      "expanded": false,
+      "items": [
+        {
+          "type": "Label",
+          "name": "DiagInstance",
+          "caption": "Instance: - | Status -"
+        },
+        {
+          "type": "Label",
+          "name": "LastMQTTMessage",
+          "caption": "Letzte MQTT-Message: nie"
+        },
+        {
+          "type": "Label",
+          "name": "DiagParent",
+          "caption": "MQTT Parent: -"
+        },
+        {
+          "type": "Label",
+          "name": "DiagSession",
+          "caption": "MQTT Session: keine aktive Session"
+        },
+        {
+          "type": "Label",
+          "name": "DiagDiscovery",
+          "caption": "MQTT Discovery Prefix: - | Configs gesamt/aktuell/stale: 0/0/0"
+        },
+        {
+          "type": "Label",
+          "name": "DiagDiscoveryPreview",
+          "caption": "Stale Discovery Topics: -"
+        },
+        {
+          "type": "Label",
+          "name": "DiagTopicPayloads",
+          "caption": "Referenzierte Runtime Topics gesamt/aktuell/stale/fehlend: 0/0/0/0"
+        },
+        {
+          "type": "Label",
+          "name": "DiagTopicPreview",
+          "caption": "Fehlende/Stale Runtime Topics: -"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Export",
+      "expanded": false,
+      "items": [
+        {
+          "type": "Label",
+          "caption": "Exportiert Discovery-Configs, referenzierte MQTT-Topics sowie Session-, Freshness- und Missing-Topic-Metadaten als JSON-Bundle."
+        },
+        {
+          "type": "Button",
+          "caption": "Discovery-Bundle herunterladen",
+          "download": "ha_mqtt_discovery_bundle.json",
+          "onClick": "echo HA_ExportDiscoveryBundleDataUrl($id, true, false);"
+        }
+      ]
+    }
+  ],
+  "status": [
+    {
+      "code": 201,
+      "icon": "error",
+      "caption": "Kein aktiver MQTT-Parent verbunden."
+    },
+    {
+      "code": 202,
+      "icon": "error",
+      "caption": "MQTT Discovery Prefix ist leer."
+    }
+  ]
+}

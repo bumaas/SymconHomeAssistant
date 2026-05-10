@@ -98,7 +98,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
         // Wenn sich die Verbindung ändert, die Konfiguration neu laden.
-        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT) {
+        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...');
             $this->ApplyChanges();
         }
@@ -107,6 +107,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        $this->syncParentStatusMessageRegistration();
         $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 0);
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
@@ -115,12 +116,17 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $parentID = $instance['ConnectionID'];
         if ($parentID <= 0) {
             $this->SetStatus(201);
-            $this->debugExpert('ApplyChanges', 'Kein Parent verbunden');
+            $this->debugExpert('ApplyChanges', 'Kein Parent verbunden', $this->getCurrentParentDebugContext(), true);
             return;
         }
         if (!$this->hasCompatibleSplitterParent()) {
             $this->SetStatus(201);
-            $this->debugExpert('ApplyChanges', 'Parent ist nicht Home Assistant Splitter');
+            $this->debugExpert('ApplyChanges', 'Parent ist nicht Home Assistant Splitter', $this->getCurrentParentDebugContext(), true);
+            return;
+        }
+        if (!$this->hasActiveSplitterParent()) {
+            $this->SetStatus(201);
+            $this->debugExpert('ApplyChanges', 'Parent ist nicht aktiv', $this->getCurrentParentDebugContext(), true);
             return;
         }
 
@@ -397,6 +403,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
             $this->debugExpert('RequestAction', 'Payload formatiert', ['Payload' => $mqttPayload]);
 
+            if ($this->trySendMainEntityValueViaRest($entityId, (string)($domain ?? ''), $mqttPayload, $Ident, $entity['attributes'] ?? [])) {
+                return;
+            }
+
             $topic = $this->getSetTopicForEntity($entityId);
             if ($topic === '') {
                 return;
@@ -500,6 +510,22 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
         }
         foreach ($form['elements'] as &$element) {
+            if (isset($element['items']) && is_array($element['items'])) {
+                foreach ($element['items'] as &$item) {
+                    if (($item['name'] ?? '') === self::PROP_DEVICE_NAME) {
+                        $item['caption'] = 'Device Name (HA): ' . $this->ReadPropertyString(self::PROP_DEVICE_NAME);
+                        continue;
+                    }
+                    if (($item['name'] ?? '') === self::PROP_DEVICE_AREA) {
+                        $item['caption'] = 'Area: ' . $this->ReadPropertyString(self::PROP_DEVICE_AREA);
+                        continue;
+                    }
+                    if (($item['name'] ?? '') === self::PROP_DEVICE_ID) {
+                        $item['caption'] = 'Device ID: ' . $this->ReadPropertyString(self::PROP_DEVICE_ID);
+                    }
+                }
+                unset($item);
+            }
             if (($element['name'] ?? '') === self::PROP_DEVICE_CONFIG) {
                 $element['values'] = $values;
                 // Update domain options dynamically from catalog
@@ -520,9 +546,49 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
         }
         unset($action);
+        $this->applyCurrentDiagnosticsToForm($form, $values);
         $this->debugExpert(__FUNCTION__, 'Form:', $form);
 
         return json_encode($form, JSON_THROW_ON_ERROR);
+    }
+
+    private function applyCurrentDiagnosticsToForm(array &$form, array $values): void
+    {
+        $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
+        if ($lastMqtt === '') {
+            $lastMqtt = 'nie';
+        }
+
+        $lastRest = $this->ReadAttributeString('LastRESTFetch');
+        if ($lastRest === '') {
+            $lastRest = 'nie';
+        }
+
+        $activeEntityCount = count(array_filter($values, static function (array $row): bool {
+            return !array_key_exists('create_var', $row) || (bool)$row['create_var'];
+        }));
+
+        $captions = [
+            'DiagLastMQTT' => 'Letzte MQTT-Message: ' . $lastMqtt,
+            'DiagLastREST' => 'Letzter REST-Abruf: ' . $lastRest,
+            'DiagEntityCount' => 'EntitÃ¤ten (aktiv): ' . $activeEntityCount
+        ];
+
+        foreach ($form['actions'] as &$action) {
+            if (!isset($action['items']) || !is_array($action['items'])) {
+                continue;
+            }
+
+            foreach ($action['items'] as &$item) {
+                $name = (string)($item['name'] ?? '');
+                if ($name === '' || !array_key_exists($name, $captions)) {
+                    continue;
+                }
+                $item['caption'] = $captions[$name];
+            }
+            unset($item);
+        }
+        unset($action);
     }
 
     private function normalizeDeviceConfigAttributesForStorage(array $configData, string $context): array
@@ -647,16 +713,26 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     private function processEntities(array $configData, string $baseTopic): array
     {
-        $previousEntities      = $this->entities;
-        $this->entities        = [];
-        $this->topicMapping    = [];
-        $filterTopics          = [];
-        $positionIndex         = 0;
+        $previousEntities = $this->entities;
+        $this->entities = [];
+        $this->topicMapping = [];
+        $filterTopics = [];
+        $positionIndex = 0;
+        $activeEntityIds = [];
+        $inactiveEntityIds = [];
         $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
 
         foreach ($configData as $row) {
             $entity = $this->normalizeEntityStructure($row);
-            if ($entity === null || !($entity['create_var'] ?? true)) {
+            if ($entity === null) {
+                continue;
+            }
+            $entityId = (string)($entity['entity_id'] ?? '');
+            if ($entityId === '') {
+                continue;
+            }
+            if (!($entity['create_var'] ?? true)) {
+                $inactiveEntityIds[] = $entityId;
                 continue;
             }
             if (($entity['domain'] ?? '') === '') {
@@ -664,32 +740,108 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 continue;
             }
 
+            $activeEntityIds[] = $entityId;
             $positionIndex++;
             $basePosition                                = $positionIndex * 10;
             $entity['position_base']                     = $basePosition;
-            if (isset($previousEntities[$entity['entity_id']]['attributes'])
-                && is_array($previousEntities[$entity['entity_id']]['attributes'])) {
-                $existingAttributes = $previousEntities[$entity['entity_id']]['attributes'];
+            if (isset($previousEntities[$entityId]['attributes'])
+                && is_array($previousEntities[$entityId]['attributes'])) {
+                $existingAttributes = $previousEntities[$entityId]['attributes'];
                 if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
                     $entity['attributes'] = $existingAttributes;
                 } else {
                     $entity['attributes'] = array_merge($existingAttributes, $entity['attributes']);
                 }
             }
-            $this->entities[$entity['entity_id']]        = $entity;
-            $this->debugExpert('processEntities', 'Entity registriert', ['EntityID' => $entity['entity_id'], 'Domain' => $entity['domain'] ?? null]);
+            $this->entities[$entityId] = $entity;
+            $this->debugExpert('processEntities', 'Entity registriert', ['EntityID' => $entityId, 'Domain' => $entity['domain'] ?? null]);
 
             $this->maintainEntityVariable($entity);
 
             if ($baseTopic !== '') {
-                $stateTopic                      = $this->deriveStateTopic($baseTopic, $entity['entity_id']);
-                $this->topicMapping[$stateTopic] = $entity['entity_id'];
-                $entityPrefix                    = $this->deriveEntityTopicPrefix($baseTopic, $entity['entity_id']);
+                $stateTopic = $this->deriveStateTopic($baseTopic, $entityId);
+                $this->topicMapping[$stateTopic] = $entityId;
+                $entityPrefix = $this->deriveEntityTopicPrefix($baseTopic, $entityId);
                 $filterTopics[]                  = $entityPrefix;
                 $this->debugExpert('processEntities', 'Topic Mapping', ['StateTopic' => $stateTopic, 'Prefix' => $entityPrefix]);
             }
         }
+
+        $entityIdsToCleanup = array_values(array_unique(array_merge(
+            array_diff(array_keys($previousEntities), $activeEntityIds),
+            $inactiveEntityIds
+        )));
+        $this->cleanupManagedEntityObjects($entityIdsToCleanup, $activeEntityIds);
+
         return $filterTopics;
+    }
+
+    private function cleanupManagedEntityObjects(array $entityIds, array $activeEntityIds): void
+    {
+        if ($entityIds === []) {
+            return;
+        }
+
+        $entityIds = array_values(array_unique(array_filter(
+            $entityIds,
+            static fn(mixed $entityId): bool => is_string($entityId) && trim($entityId) !== ''
+        )));
+        if ($entityIds === []) {
+            return;
+        }
+
+        $baseIdents = array_map(fn(string $entityId): string => $this->sanitizeIdent($entityId), $entityIds);
+        $activeBaseIdents = array_map(fn(string $entityId): string => $this->sanitizeIdent($entityId), $activeEntityIds);
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
+            $object = IPS_GetObject($childId);
+            $ident = (string)($object['ObjectIdent'] ?? '');
+            if ($ident === ''
+                || !$this->isManagedEntityIdent($ident, $baseIdents)
+                || $this->isManagedEntityIdent($ident, $activeBaseIdents)) {
+                continue;
+            }
+
+            $objectType = (int)($object['ObjectType'] ?? -1);
+            if ($objectType === OBJECTTYPE_VARIABLE) {
+                IPS_DeleteVariable($childId);
+            } elseif ($objectType === 5) {
+                IPS_DeleteMedia($childId);
+            } else {
+                continue;
+            }
+
+            $this->debugExpert(__FUNCTION__, 'Objekt entfernt', [
+                'ObjectID' => $childId,
+                'ObjectType' => $objectType,
+                'Ident' => $ident
+            ]);
+        }
+
+        $cache = $this->readEntityStateCache();
+        $changed = false;
+        foreach ($entityIds as $entityId) {
+            if (!isset($cache[$entityId])) {
+                continue;
+            }
+
+            unset($cache[$entityId]);
+            $changed = true;
+        }
+
+        if ($changed) {
+            $this->writeEntityStateCache($cache);
+        }
+    }
+
+    private function isManagedEntityIdent(string $ident, array $baseIdents): bool
+    {
+        foreach ($baseIdents as $baseIdent) {
+            if ($ident === $baseIdent || str_starts_with($ident, $baseIdent . '_')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function countStatusEntities(array $configData): int
