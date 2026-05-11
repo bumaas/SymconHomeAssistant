@@ -29,6 +29,34 @@ Diese Ablage enthaelt reale Export-Bundles aus dem `Home Assistant MQTT Discover
 - Gruppierung nach `device.identifiers` verifizieren
 - Reconnect-, Missing- und Extra-Topic-Diagnosen reproduzierbar nachvollziehen
 
+## Bundle-Erzeugung
+
+Empfohlener Ablauf im `Home Assistant MQTT Discovery Splitter`:
+
+1. Pruefen, ob der MQTT-Parent verbunden ist.
+2. Falls Discovery-Eintraege fehlen oder nur alte Cache-Staende sichtbar sind: `MQTT-Parent reconnecten` ausfuehren.
+3. Warten, bis das retained Replay durchgelaufen ist und die Session-Anzeige im Formular aktualisiert wurde.
+4. Dann den passenden Export ziehen:
+   - `Discovery-Bundle herunterladen` fuer den gesamten Cache.
+   - `Discovery-Bundle aktuelle Session herunterladen` fuer einen frischen, auf die aktuelle MQTT-Session begrenzten Export.
+
+Wann welcher Export sinnvoll ist:
+
+- Gesamt-Bundle:
+  - fuer Bestandsaufnahme
+  - fuer Cache-/Reconnect-Diagnosen
+  - wenn auch stale Eintraege oder aeltere Producer-Reste sichtbar sein sollen
+- Session-Bundle:
+  - fuer Support-Faelle
+  - fuer reproduzierbare Fixtures
+  - wenn nur der aktuelle Replay-Stand ohne Altlasten betrachtet werden soll
+
+Hinweise:
+
+- Eine Session beginnt mit einem neuen MQTT-Connect oder Reconnect des Splitters zum Parent.
+- Der Session-Export leert den Cache nicht. Er blendet nur Eintraege aus, die nicht zur aktuellen Session gehoeren.
+- Das Bundle wird direkt aus dem Splitter-Cache erzeugt. Es muss daher kein externer MQTT-Mitschnitt erstellt werden.
+
 Lokaler Pruefaufruf:
 
 ```powershell

@@ -6,9 +6,7 @@ Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
 ## Dokumentation
 
 Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
-Umsetzungs- und Backlog-Plan: [Weiteres Vorgehen](docs/WEITERES_VORGEHEN.md)
-Verifikation und Pruefliste: [docs/VERIFIKATION.md](docs/VERIFIKATION.md)
-Discovery-Fixtures: [docs/fixtures](docs/fixtures/README.md)
+Discovery-Fixtures und Bundle-Erzeugung: [docs/fixtures](docs/fixtures/README.md)
 
 **Inhaltsverzeichnis**
 
@@ -145,6 +143,11 @@ Home Assistant Device / Entity / Configurator
 - Wenn es im Datenfluss hakt: Mithilfe des [MQTT Explorer](https://mqtt-explorer.com/) kann komfortabel geprüft werden, ob der MQTT-Server mit Daten versorgt wird (Topic, Payload, Attribute).
 - IP-Adressen und Ports prüfen: MQTT standardmäßig `1883` (TLS `8883`), Home Assistant REST standardmäßig `8123`.
 - MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.
+
+- Wenn beim MQTT Discovery Splitter bereits vorhandene Discovery-Geraete nicht sofort auftauchen, obwohl sie retained am Broker liegen: `MQTT-Parent reconnecten` ausfuehren. Dadurch wird das retained Replay erneut eingelesen.
+- Fuer Support und Analyse gibt es zwei Exportwege im MQTT Discovery Splitter:
+  - `Discovery-Bundle herunterladen` fuer den gesamten Cache.
+  - `Discovery-Bundle aktuelle Session herunterladen` fuer nur die aktuelle MQTT-Session nach einem frischen Connect oder Reconnect.
 
 ### Datenfluss
 - Device/Configurator -> Splitter: `{E62B0B4F-1B5C-4F2C-9B6B-2C86F5B7C1D1}`
