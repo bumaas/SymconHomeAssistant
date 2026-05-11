@@ -281,11 +281,21 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 'CacheCount' => count($cache)
             ]);
         } else {
-            $cache[$topic] = $this->createCacheRecord($topic, $payload, $metadata);
-            $this->debugExpert(__FUNCTION__, 'Cached discovery config', [
-                'Topic' => $topic,
-                'CacheCount' => count($cache)
-            ]);
+            $record = $this->createCacheRecord($topic, $payload, $metadata, false);
+            if ($record === null) {
+                unset($cache[$topic]);
+                $this->debugExpert(__FUNCTION__, 'Discovery-Payload nicht cachebar', [
+                    'Topic' => $topic,
+                    'PayloadBytes' => strlen($payload),
+                    'CacheCount' => count($cache)
+                ], true);
+            } else {
+                $cache[$topic] = $record;
+                $this->debugExpert(__FUNCTION__, 'Cached discovery config', [
+                    'Topic' => $topic,
+                    'CacheCount' => count($cache)
+                ]);
+            }
         }
 
         $this->writeDiscoveryCache($cache);
@@ -462,7 +472,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         if ($this->isDiscoveryConfigTopic($topic) || trim($payload) === '') {
             unset($cache[$topic]);
         } else {
-            $cache[$topic] = $this->createCacheRecord($topic, $payload, $metadata);
+            $record = $this->createCacheRecord($topic, $payload, $metadata, true);
+            if ($record !== null) {
+                $cache[$topic] = $record;
+            }
         }
 
         $this->writeTopicPayloadCache($cache);
@@ -821,6 +834,11 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'received_at' => max(0, (int)($record['received_at'] ?? 0))
         ];
 
+        if (!empty($record['payload_is_binary'])) {
+            $normalized['payload_is_binary'] = true;
+            $normalized['payload_bytes'] = max(0, (int)($record['payload_bytes'] ?? 0));
+        }
+
         $sessionId = trim((string)($record['session_id'] ?? ''));
         if ($sessionId !== '') {
             $normalized['session_id'] = $sessionId;
@@ -842,13 +860,23 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         return $normalized;
     }
 
-    private function createCacheRecord(string $topic, string $payload, array $metadata = []): array
+    private function createCacheRecord(string $topic, string $payload, array $metadata = [], bool $allowBinarySummary = false): ?array
     {
+        $storedPayload = $this->normalizePayloadForCache($payload, $allowBinarySummary);
+        if ($storedPayload === null) {
+            return null;
+        }
+
         $record = [
             'topic' => $topic,
-            'payload' => $payload,
+            'payload' => $storedPayload['payload'],
             'received_at' => time()
         ];
+
+        if (!empty($storedPayload['payload_is_binary'])) {
+            $record['payload_is_binary'] = true;
+            $record['payload_bytes'] = (int)$storedPayload['payload_bytes'];
+        }
 
         $session = $this->readMqttSessionState();
         $sessionId = trim((string)($session['id'] ?? ''));
@@ -870,6 +898,32 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         }
 
         return $record;
+    }
+
+    private function normalizePayloadForCache(string $payload, bool $allowBinarySummary): ?array
+    {
+        if (trim($payload) === '') {
+            return null;
+        }
+
+        if ($this->isValidUtf8String($payload)) {
+            return ['payload' => $payload];
+        }
+
+        if (!$allowBinarySummary) {
+            return null;
+        }
+
+        return [
+            'payload' => '[binary payload omitted]',
+            'payload_is_binary' => true,
+            'payload_bytes' => strlen($payload)
+        ];
+    }
+
+    private function isValidUtf8String(string $value): bool
+    {
+        return preg_match('//u', $value) === 1;
     }
 
     private function annotateCacheRecords(array $records): array
