@@ -60,13 +60,18 @@ Hinweise:
 Lokaler Pruefaufruf:
 
 ```powershell
-php .\scripts\check-mqtt-discovery-fixtures.php
+php .\tests\check-mqtt-discovery-fixtures.php
 ```
 
 Optional mit expliziten Dateien:
 
 ```powershell
-php .\scripts\check-mqtt-discovery-fixtures.php .\docs\fixtures\ha_mqtt_discovery_bundle_ebusd.json .\docs\fixtures\ha_mqtt_discovery_bundle_zigbee2mqtt.json
+php .\tests\check-mqtt-discovery-fixtures.php .\docs\fixtures\ha_mqtt_discovery_bundle_ebusd.json .\docs\fixtures\ha_mqtt_discovery_bundle_zigbee2mqtt.json
 ```
+
+Hinweis zum Bundle-Schema:
+
+- Export-Version `2` nutzt `referenced_topics` als normalisierte Liste von Topic-Objekten mit `topic`, `kinds`, `primary_kind`, `status`, `is_current_session` und `has_payload`.
+- Aeltere Version-`1`-Fixtures bleiben fuer Parser- und Gruppierungspruefungen weiterhin gueltig; der lokale Checker versteht beide Versionen.
 
 Neue Bundles sollten nach Producer benannt und nur mit den Metadaten eingecheckt werden, die fuer reproduzierbare Analyse und Debugging noetig sind.

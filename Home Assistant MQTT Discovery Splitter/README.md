@@ -34,8 +34,8 @@ Verbindet MQTT-Discovery-Topics mit Discovery-Configurator- und spaeteren Discov
 - `MQTT-Parent reconnecten` trennt den MQTT-Client-Parent kurz von seinem IO-Parent und verbindet ihn wieder. Damit kann ein frischer MQTT-Reconnect inklusive retained Replay angestossen werden.
 - Das Bundle enthaelt alle gecachten `homeassistant/.../config` Topics sowie die dazu in den Configs referenzierten MQTT-Topics, sofern dafuer Payloads im Cache vorhanden sind.
 - Der Session-Export beschraenkt Discovery-Configs und exportierte Topic-Payloads auf Records der aktuellen MQTT-Session. Damit lassen sich stale Cache-Eintraege fuer frische Fixture-Exporte gezielt ausblenden, ohne den Cache zu leeren.
-- Zusaetzlich exportiert das Bundle Session-Informationen, Freshness (`is_current_session`) und Listen fuer fehlende, stale oder zusaetzlich gecachte Runtime-Topics.
-- Das Exportformat ist bewusst roh gehalten, damit Producer-spezifische Unterschiede spaeter im Parser nachvollzogen und als Fixture abgelegt werden koennen.
+- Zusaetzlich exportiert das Bundle Session-Informationen, Freshness (`is_current_session`) und eine normalisierte Liste referenzierter Runtime-Topics mit `status`, `primary_kind` und `kinds`.
+- Das Exportformat kombiniert rohe Discovery-Configs mit einer normalisierten Runtime-Topic-Diagnostik, damit Producer-Unterschiede nachvollziehbar bleiben und Support-/Fixture-Auswertungen weniger Redundanz pflegen muessen.
 
 ## Session-Verhalten
 

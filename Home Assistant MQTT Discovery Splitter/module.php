@@ -15,7 +15,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const string ATTRIBUTE_TOPIC_PAYLOAD_CACHE = 'MqttTopicPayloadCache';
     private const string ATTRIBUTE_MQTT_SESSION_STATE = 'MqttSessionState';
     private const string EXPORT_FORMAT = 'ha_mqtt_discovery_bundle';
-    private const int EXPORT_VERSION = 1;
+    private const int EXPORT_VERSION = 2;
     private const int DIAGNOSTIC_PREVIEW_LIMIT = 8;
     private const int OUTPUT_BUFFER_RESERVE_BYTES = 262144;
 
@@ -397,15 +397,12 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                     'current_session' => $topicAnalysis['current_count'],
                     'stale' => $topicAnalysis['stale_count'],
                     'missing' => $topicAnalysis['missing_count'],
-                    'extra_cached' => $topicAnalysis['extra_count']
+                    'extra_cached' => $topicAnalysis['extra_count'],
+                    'by_kind' => $topicAnalysis['by_kind_diagnostics']
                 ]
             ],
-            'referenced_topics' => [
-                'all' => $topicAnalysis['referenced_topics'],
-                'missing' => $topicAnalysis['missing_topics'],
-                'stale' => $topicAnalysis['stale_topics'],
-                'extra_cached' => $topicAnalysis['extra_topics']
-            ],
+            'referenced_topics' => $topicAnalysis['topic_entries'],
+            'extra_cached_topics' => $topicAnalysis['extra_topics'],
             'discovery_configs' => $annotatedDiscoveryConfigs,
             'topic_payloads' => $topicPayloads,
             'stats' => [
@@ -665,6 +662,12 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function collectReferencedTopicsFromDiscoveryConfigs(array $records): array
     {
+        $descriptors = $this->collectReferencedTopicDescriptorsFromDiscoveryConfigs($records);
+        return array_column($descriptors, 'topic');
+    }
+
+    private function collectReferencedTopicDescriptorsFromDiscoveryConfigs(array $records): array
+    {
         $topics = [];
         foreach ($records as $record) {
             if (!is_array($record)) {
@@ -697,11 +700,21 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             if ($topic === '' || $this->isDiscoveryConfigTopic($topic)) {
                 continue;
             }
-            $normalizedTopics[$topic] = true;
+            $normalizedTopics[$topic] = array_keys($topics[$topic]);
+            sort($normalizedTopics[$topic], SORT_STRING);
         }
 
-        $result = array_keys($normalizedTopics);
-        sort($result, SORT_STRING);
+        ksort($normalizedTopics, SORT_STRING);
+
+        $result = [];
+        foreach ($normalizedTopics as $topic => $kinds) {
+            $result[] = [
+                'topic' => $topic,
+                'kinds' => $kinds,
+                'primary_kind' => $kinds[0] ?? 'state'
+            ];
+        }
+
         return $result;
     }
 
@@ -716,7 +729,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
-        $topics[$topic] = true;
+        $this->addReferencedTopic($topics, $topic, 'event');
 
         if (!str_contains($topic, '/')) {
             return;
@@ -730,7 +743,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $fallbackTopic = substr($topic, 0, -strlen('/' . $field));
         if ($fallbackTopic !== '') {
-            $topics[$fallbackTopic] = true;
+            $this->addReferencedTopic($topics, $fallbackTopic, 'event');
         }
     }
 
@@ -750,7 +763,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 continue;
             }
 
-            $topics[$topic] = true;
+            $this->addReferencedTopic($topics, $topic, 'availability');
         }
     }
 
@@ -911,16 +924,95 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private function analyzeReferencedRuntimeTopics(?array $discoveryConfigs = null): array
     {
         $discoveryConfigs = $discoveryConfigs ?? array_values($this->getDiscoveryConfigRecords());
-        $referencedTopics = $this->collectReferencedTopicsFromDiscoveryConfigs($discoveryConfigs);
+        $topicDescriptors = $this->collectReferencedTopicDescriptorsFromDiscoveryConfigs($discoveryConfigs);
+        $referencedTopics = array_column($topicDescriptors, 'topic');
         $referencedLookup = array_fill_keys($referencedTopics, true);
         $runtimeCache = $this->readTopicPayloadCache();
         $sessionState = $this->readMqttSessionState();
 
+        ['current' => $currentTopics, 'stale' => $staleTopics, 'missing' => $missingTopics] = $this->classifyReferencedTopicsByCacheStatus($referencedTopics, $runtimeCache, $sessionState);
+
+        $extraTopics = [];
+        foreach (array_keys($runtimeCache) as $topic) {
+            if (!isset($referencedLookup[$topic])) {
+                $extraTopics[] = $topic;
+            }
+        }
+
+        sort($extraTopics, SORT_STRING);
+
+        $topicEntries = [];
+        foreach ($topicDescriptors as $descriptor) {
+            $topic = (string)($descriptor['topic'] ?? '');
+            if ($topic === '') {
+                continue;
+            }
+
+            $record = $runtimeCache[$topic] ?? null;
+            $hasPayload = is_array($record);
+            $isCurrentSession = $hasPayload && $this->isRecordCurrentSession($record, $sessionState);
+            $status = $hasPayload
+                ? ($isCurrentSession ? 'current' : 'stale')
+                : 'missing';
+
+            $topicEntries[] = [
+                'topic' => $topic,
+                'kinds' => is_array($descriptor['kinds'] ?? null) ? array_values($descriptor['kinds']) : [],
+                'primary_kind' => (string)($descriptor['primary_kind'] ?? 'state'),
+                'status' => $status,
+                'is_current_session' => $isCurrentSession,
+                'has_payload' => $hasPayload
+            ];
+        }
+
+        $topicsByKind = [];
+        foreach ($topicDescriptors as $descriptor) {
+            foreach (($descriptor['kinds'] ?? []) as $kind) {
+                if (!is_string($kind) || $kind === '') {
+                    continue;
+                }
+
+                $topicsByKind[$kind][(string)$descriptor['topic']] = true;
+            }
+        }
+        ksort($topicsByKind, SORT_STRING);
+
+        $byKindDiagnostics = [];
+        foreach ($topicsByKind as $kind => $topicLookup) {
+            $kindTopics = array_keys($topicLookup);
+            sort($kindTopics, SORT_STRING);
+            $classified = $this->classifyReferencedTopicsByCacheStatus($kindTopics, $runtimeCache, $sessionState);
+            $byKindDiagnostics[$kind] = [
+                'referenced' => count($kindTopics),
+                'current_session' => count($classified['current']),
+                'stale' => count($classified['stale']),
+                'missing' => count($classified['missing'])
+            ];
+        }
+
+        return [
+            'referenced_count' => count($referencedTopics),
+            'current_count' => count($currentTopics),
+            'stale_count' => count($staleTopics),
+            'missing_count' => count($missingTopics),
+            'extra_count' => count($extraTopics),
+            'topic_entries' => $topicEntries,
+            'referenced_topics' => $referencedTopics,
+            'current_topics' => $currentTopics,
+            'stale_topics' => $staleTopics,
+            'missing_topics' => $missingTopics,
+            'extra_topics' => $extraTopics,
+            'by_kind_diagnostics' => $byKindDiagnostics
+        ];
+    }
+
+    private function classifyReferencedTopicsByCacheStatus(array $topics, array $runtimeCache, array $sessionState): array
+    {
         $currentTopics = [];
         $staleTopics = [];
         $missingTopics = [];
 
-        foreach ($referencedTopics as $topic) {
+        foreach ($topics as $topic) {
             $record = $runtimeCache[$topic] ?? null;
             if (!is_array($record)) {
                 $missingTopics[] = $topic;
@@ -935,29 +1027,14 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $staleTopics[] = $topic;
         }
 
-        $extraTopics = [];
-        foreach (array_keys($runtimeCache) as $topic) {
-            if (!isset($referencedLookup[$topic])) {
-                $extraTopics[] = $topic;
-            }
-        }
-
         sort($currentTopics, SORT_STRING);
         sort($staleTopics, SORT_STRING);
         sort($missingTopics, SORT_STRING);
-        sort($extraTopics, SORT_STRING);
 
         return [
-            'referenced_count' => count($referencedTopics),
-            'current_count' => count($currentTopics),
-            'stale_count' => count($staleTopics),
-            'missing_count' => count($missingTopics),
-            'extra_count' => count($extraTopics),
-            'referenced_topics' => $referencedTopics,
-            'current_topics' => $currentTopics,
-            'stale_topics' => $staleTopics,
-            'missing_topics' => $missingTopics,
-            'extra_topics' => $extraTopics
+            'current' => $currentTopics,
+            'stale' => $staleTopics,
+            'missing' => $missingTopics
         ];
     }
 
@@ -1137,12 +1214,36 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
-        $topics[$topic] = true;
+        $this->addReferencedTopic($topics, $topic, $this->determineReferencedRuntimeTopicKind($currentKey));
     }
 
     private function isReferencedRuntimeTopicKey(string $currentKey): bool
     {
         return str_ends_with($currentKey, '_topic') || preg_match('/_t$/', $currentKey) === 1;
+    }
+
+    private function determineReferencedRuntimeTopicKind(string $currentKey): string
+    {
+        return match ($currentKey) {
+            'availability_topic', 'avty_t' => 'availability',
+            'command_topic', 'cmd_t', 'bri_cmd_t', 'rgb_cmd_t' => 'command',
+            'json_attributes_topic', 'json_attr_t' => 'attributes',
+            default => 'state'
+        };
+    }
+
+    private function addReferencedTopic(array &$topics, string $topic, string $kind): void
+    {
+        $topic = trim($topic, '/');
+        if ($topic === '') {
+            return;
+        }
+
+        if (!isset($topics[$topic]) || !is_array($topics[$topic])) {
+            $topics[$topic] = [];
+        }
+
+        $topics[$topic][$kind] = true;
     }
 
     private function normalizeRelativeTopicBase(mixed $value): ?string

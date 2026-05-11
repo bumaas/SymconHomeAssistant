@@ -70,7 +70,8 @@ function analyzeFixture(string $fixturePath): array
     if (($bundle['format'] ?? null) !== 'ha_mqtt_discovery_bundle') {
         $errors[] = 'Unerwartetes Bundle-Format.';
     }
-    if (($bundle['version'] ?? null) !== 1) {
+    $bundleVersion = (int)($bundle['version'] ?? 0);
+    if (!in_array($bundleVersion, [1, 2], true)) {
         $errors[] = 'Unerwartete Bundle-Version.';
     }
 
@@ -78,6 +79,38 @@ function analyzeFixture(string $fixturePath): array
     $records = $bundle['discovery_configs'] ?? null;
     if (!is_array($records)) {
         throw new RuntimeException('discovery_configs fehlt oder ist kein Array.');
+    }
+
+    if ($bundleVersion === 2) {
+        $referencedTopics = $bundle['referenced_topics'] ?? null;
+        if (!is_array($referencedTopics)) {
+            $errors[] = 'referenced_topics fehlt oder ist fuer Version 2 kein Array.';
+        } else {
+            foreach ($referencedTopics as $index => $topicEntry) {
+                if (!is_array($topicEntry)) {
+                    $errors[] = 'referenced_topics[' . $index . '] ist kein Objekt.';
+                    continue;
+                }
+
+                $topic = normalizeString($topicEntry['topic'] ?? null);
+                $status = normalizeString($topicEntry['status'] ?? null);
+                $primaryKind = normalizeString($topicEntry['primary_kind'] ?? null);
+                $kinds = $topicEntry['kinds'] ?? null;
+
+                if ($topic === null) {
+                    $errors[] = 'referenced_topics[' . $index . '] ohne topic.';
+                }
+                if (!in_array($status, ['current', 'stale', 'missing'], true)) {
+                    $errors[] = 'referenced_topics[' . $index . '] mit ungueltigem status.';
+                }
+                if ($primaryKind === null) {
+                    $errors[] = 'referenced_topics[' . $index . '] ohne primary_kind.';
+                }
+                if (!is_array($kinds) || $kinds === []) {
+                    $errors[] = 'referenced_topics[' . $index . '] ohne kinds.';
+                }
+            }
+        }
     }
 
     $parser = new HAMqttDiscoveryParser($discoveryPrefix);
@@ -182,7 +215,7 @@ function analyzeFixture(string $fixturePath): array
         'path' => $fixturePath,
         'bundle' => [
             'format' => (string)($bundle['format'] ?? ''),
-            'version' => (int)($bundle['version'] ?? 0),
+            'version' => $bundleVersion,
             'exported_at' => (string)($bundle['exported_at'] ?? '')
         ],
         'diagnostics' => [
