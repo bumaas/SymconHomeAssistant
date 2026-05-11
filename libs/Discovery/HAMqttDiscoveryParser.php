@@ -37,6 +37,8 @@ final class HAMqttDiscoveryParser
             return null;
         }
 
+        $config = $this->normalizeConfigAliases($config);
+
         $component = $topicMeta['component'];
         if ($component === self::DEVICE_AUTOMATION_COMPONENT) {
             return $this->parseDeviceAutomationMessage($topicMeta, $config, $topic);
@@ -257,6 +259,7 @@ final class HAMqttDiscoveryParser
             ];
         }
 
+        $device = $this->normalizeDeviceAliases($device);
         $identifiers = $this->normalizeDeviceIdentifiers($device['identifiers'] ?? null);
         return [
             'discovery_device_id' => $identifiers[0] ?? '',
@@ -324,6 +327,142 @@ final class HAMqttDiscoveryParser
             'sw'   => $this->normalizeNullableString($origin['sw'] ?? null) ?? '',
             'url'  => $this->normalizeNullableString($origin['url'] ?? null) ?? ''
         ];
+    }
+
+    private function normalizeConfigAliases(array $config): array
+    {
+        $config = $this->applyAliases($config, [
+            'availability'         => 'avty',
+            'availability_mode'    => 'avty_mode',
+            'availability_topic'   => 'avty_t',
+            'availability_template' => 'avty_tpl',
+            'command_template'     => 'cmd_tpl',
+            'command_topic'        => 'cmd_t',
+            'device'               => 'dev',
+            'device_class'         => 'dev_cla',
+            'entity_category'      => 'ent_cat',
+            'json_attributes_topic' => 'json_attr_t',
+            'object_id'            => 'obj_id',
+            'payload_available'    => 'pl_avail',
+            'payload_not_available' => 'pl_not_avail',
+            'payload_off'          => 'pl_off',
+            'payload_on'           => 'pl_on',
+            'payload_press'        => 'pl_prs',
+            'state_class'          => 'stat_cla',
+            'state_off'            => 'stat_off',
+            'state_on'             => 'stat_on',
+            'state_topic'          => 'stat_t',
+            'unique_id'            => 'uniq_id',
+            'unit_of_measurement'  => 'unit_of_meas',
+            'value_template'       => 'val_tpl',
+            'icon'                 => 'ic',
+            'optimistic'           => 'opt',
+            'retain'               => 'ret'
+        ]);
+
+        if (isset($config['device']) && is_array($config['device'])) {
+            $config['device'] = $this->normalizeDeviceAliases($config['device']);
+        }
+
+        if (isset($config['availability']) && is_array($config['availability'])) {
+            $normalizedAvailability = [];
+            foreach ($config['availability'] as $entry) {
+                if (!is_array($entry)) {
+                    $normalizedAvailability[] = $entry;
+                    continue;
+                }
+
+                $normalizedAvailability[] = $this->applyAliases($entry, [
+                    'payload_available'     => 'pl_avail',
+                    'payload_not_available' => 'pl_not_avail',
+                    'value_template'        => 'val_tpl'
+                ]);
+            }
+            $config['availability'] = $normalizedAvailability;
+        }
+
+        $baseTopic = $this->normalizeNullableString($config['~'] ?? null);
+        return $this->expandRelativeTopicReferences($config, $baseTopic);
+    }
+
+    private function normalizeDeviceAliases(array $device): array
+    {
+        return $this->applyAliases($device, [
+            'identifiers' => 'ids',
+            'manufacturer' => 'mf',
+            'model'       => 'mdl',
+            'model_id'    => 'mdl_id',
+            'sw_version'  => 'sw'
+        ]);
+    }
+
+    private function applyAliases(array $data, array $aliases): array
+    {
+        foreach ($aliases as $canonicalKey => $aliasKey) {
+            if (array_key_exists($canonicalKey, $data) || !array_key_exists($aliasKey, $data)) {
+                continue;
+            }
+
+            $data[$canonicalKey] = $data[$aliasKey];
+        }
+
+        return $data;
+    }
+
+    private function expandRelativeTopicReferences(mixed $value, ?string $baseTopic, array $path = []): mixed
+    {
+        if (is_array($value)) {
+            foreach ($value as $key => $nestedValue) {
+                $nextPath = $path;
+                if (is_string($key)) {
+                    $nextPath[] = $key;
+                }
+
+                $value[$key] = $this->expandRelativeTopicReferences($nestedValue, $baseTopic, $nextPath);
+            }
+
+            return $value;
+        }
+
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        $currentKey = $path[count($path) - 1] ?? null;
+        if (!is_string($currentKey) || !$this->isTopicReferenceKey($currentKey, $path)) {
+            return $value;
+        }
+
+        return $this->resolveRelativeTopicReference($value, $baseTopic) ?? $value;
+    }
+
+    private function isTopicReferenceKey(string $currentKey, array $path): bool
+    {
+        if (str_ends_with($currentKey, '_topic') || preg_match('/_t$/', $currentKey) === 1) {
+            return true;
+        }
+
+        return $currentKey === 'topic'
+            && (count($path) === 1 || in_array('availability', $path, true));
+    }
+
+    private function resolveRelativeTopicReference(mixed $value, ?string $baseTopic): ?string
+    {
+        $topic = $this->normalizeNullableString($value);
+        if ($topic === null) {
+            return null;
+        }
+
+        if (!str_starts_with($topic, '~/')) {
+            return $topic;
+        }
+
+        $baseTopic = $this->normalizeNullableString($baseTopic);
+        if ($baseTopic === null) {
+            return $topic;
+        }
+
+        return trim($baseTopic, '/') . substr($topic, 1);
     }
 
     private function determineCommandMode(array $config): string

@@ -20,6 +20,15 @@
           "type": "CheckBox",
           "name": "EnableExpertDebug",
           "caption": "Enable extended debug output"
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "OutputBufferSize",
+          "caption": "Output buffer (MB)",
+          "minimum": 0,
+          "maximum": 100,
+          "value": 10,
+          "visible": false
         }
       ]
     }

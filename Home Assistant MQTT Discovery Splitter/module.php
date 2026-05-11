@@ -17,6 +17,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const string EXPORT_FORMAT = 'ha_mqtt_discovery_bundle';
     private const int EXPORT_VERSION = 1;
     private const int DIAGNOSTIC_PREVIEW_LIMIT = 8;
+    private const int OUTPUT_BUFFER_RESERVE_BYTES = 262144;
 
     public function Create(): void
     {
@@ -28,6 +29,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $this->RegisterPropertyString('MQTTDiscoveryPrefix', 'homeassistant');
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
+        $this->RegisterPropertyInteger('OutputBufferSize', 10);
 
         $this->RegisterAttributeString('LastMQTTMessage', '');
         $this->RegisterAttributeString(self::ATTRIBUTE_DISCOVERY_CACHE, '{}');
@@ -105,13 +107,17 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'current_session_only' => $currentSessionOnly
         ]);
 
-        return json_encode($bundle, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        $json = json_encode($bundle, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        $this->applyOutputBufferForStringResponse($json, 'ExportDiscoveryBundle');
+        return $json;
     }
 
     public function ExportDiscoveryBundleDataUrl(bool $includeTopicPayloads = true, bool $includeAllCachedTopics = false, bool $currentSessionOnly = false): string
     {
         $json = $this->ExportDiscoveryBundle($includeTopicPayloads, $includeAllCachedTopics, $currentSessionOnly);
-        return 'data:text/plain;charset=utf-8;base64,' . base64_encode($json);
+        $dataUrl = 'data:text/plain;charset=utf-8;base64,' . base64_encode($json);
+        $this->applyOutputBufferForStringResponse($dataUrl, 'ExportDiscoveryBundleDataUrl');
+        return $dataUrl;
     }
 
     public function ReconnectMqttParent(): void
@@ -588,6 +594,22 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         ];
     }
 
+    private function applyOutputBufferForStringResponse(string $response, string $context): void
+    {
+        $configuredBufferMb = max(0, $this->ReadPropertyInteger('OutputBufferSize'));
+        $configuredBufferBytes = $configuredBufferMb > 0 ? $configuredBufferMb * 1024 * 1024 : 0;
+        $responseBytes = strlen($response);
+        $recommendedBufferBytes = max($configuredBufferBytes, $responseBytes + self::OUTPUT_BUFFER_RESERVE_BYTES);
+        ini_set('ips.output_buffer', (string)$recommendedBufferBytes);
+
+        $this->debugExpert($context, 'output_buffer', [
+            'ResponseBytes' => $responseBytes,
+            'ConfiguredBufferBytes' => $configuredBufferBytes,
+            'RecommendedBufferBytes' => $recommendedBufferBytes,
+            'AppliedBufferBytes' => ini_get('ips.output_buffer')
+        ]);
+    }
+
     private function applyCurrentDiagnosticsToForm(array &$form): void
     {
         $captions = $this->buildDiagnosticsCaptions();
@@ -660,10 +682,13 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 continue;
             }
 
+            $baseTopic = null;
             if (is_array($decoded)) {
-                $this->collectDeviceAutomationTopics($decoded, $topics);
+                $baseTopic = $this->normalizeRelativeTopicBase($decoded['~'] ?? null);
+                $this->collectDeviceAutomationTopics($decoded, $topics, $baseTopic);
+                $this->collectAvailabilityTopics($decoded['availability'] ?? null, $topics, $baseTopic);
             }
-            $this->collectTopicsFromDecodedPayload($decoded, $topics);
+            $this->collectTopicsFromDecodedPayload($decoded, $topics, $baseTopic ?? null);
         }
 
         $normalizedTopics = [];
@@ -680,14 +705,14 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         return $result;
     }
 
-    private function collectDeviceAutomationTopics(array $decoded, array &$topics): void
+    private function collectDeviceAutomationTopics(array $decoded, array &$topics, ?string $baseTopic = null): void
     {
         if (($decoded['automation_type'] ?? null) !== 'trigger') {
             return;
         }
 
-        $topic = trim((string)($decoded['topic'] ?? ''), '/');
-        if ($topic === '') {
+        $topic = $this->resolveRelativeTopicReference($decoded['topic'] ?? null, $baseTopic);
+        if ($topic === null) {
             return;
         }
 
@@ -706,6 +731,26 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $fallbackTopic = substr($topic, 0, -strlen('/' . $field));
         if ($fallbackTopic !== '') {
             $topics[$fallbackTopic] = true;
+        }
+    }
+
+    private function collectAvailabilityTopics(mixed $availability, array &$topics, ?string $baseTopic = null): void
+    {
+        if (!is_array($availability)) {
+            return;
+        }
+
+        foreach ($availability as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $topic = $this->resolveRelativeTopicReference($entry['topic'] ?? null, $baseTopic);
+            if ($topic === null) {
+                continue;
+            }
+
+            $topics[$topic] = true;
         }
     }
 
@@ -1065,29 +1110,67 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         ];
     }
 
-    private function collectTopicsFromDecodedPayload(mixed $value, array &$topics, ?string $currentKey = null): void
+    private function collectTopicsFromDecodedPayload(mixed $value, array &$topics, ?string $baseTopic = null, array $path = []): void
     {
         if (is_array($value)) {
             foreach ($value as $key => $nestedValue) {
-                $nestedKey = is_string($key) ? $key : $currentKey;
-                $this->collectTopicsFromDecodedPayload($nestedValue, $topics, $nestedKey);
+                $nestedPath = $path;
+                if (is_string($key)) {
+                    $nestedPath[] = $key;
+                }
+                $this->collectTopicsFromDecodedPayload($nestedValue, $topics, $baseTopic, $nestedPath);
             }
             return;
         }
 
-        if (!is_string($value) || !is_string($currentKey)) {
+        if (!is_string($value)) {
             return;
         }
 
-        if (!str_ends_with($currentKey, '_topic')) {
+        $currentKey = $path[count($path) - 1] ?? null;
+        if (!is_string($currentKey) || !$this->isReferencedRuntimeTopicKey($currentKey)) {
             return;
         }
 
-        $topic = trim($value, '/');
-        if ($topic === '') {
+        $topic = $this->resolveRelativeTopicReference($value, $baseTopic);
+        if ($topic === null) {
             return;
         }
 
         $topics[$topic] = true;
+    }
+
+    private function isReferencedRuntimeTopicKey(string $currentKey): bool
+    {
+        return str_ends_with($currentKey, '_topic') || preg_match('/_t$/', $currentKey) === 1;
+    }
+
+    private function normalizeRelativeTopicBase(mixed $value): ?string
+    {
+        $baseTopic = trim((string)$value, '/');
+        return $baseTopic === '' ? null : $baseTopic;
+    }
+
+    private function resolveRelativeTopicReference(mixed $value, ?string $baseTopic): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $topic = trim($value);
+        if ($topic === '') {
+            return null;
+        }
+
+        if (!str_starts_with($topic, '~/')) {
+            return trim($topic, '/');
+        }
+
+        $baseTopic = $this->normalizeRelativeTopicBase($baseTopic);
+        if ($baseTopic === null) {
+            return trim($topic, '/');
+        }
+
+        return $baseTopic . substr($topic, 1);
     }
 }
