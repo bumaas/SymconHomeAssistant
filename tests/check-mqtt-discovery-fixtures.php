@@ -4,11 +4,6 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 
-const DEFAULT_FIXTURES = [
-    'docs/fixtures/ha_mqtt_discovery_bundle_ebusd.json',
-    'docs/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt.json'
-];
-
 const SUPPORTED_COMPONENTS = [
     HABinarySensorDefinitions::DOMAIN,
     HASensorDefinitions::DOMAIN,
@@ -24,7 +19,7 @@ function main(array $argv): int
 {
     $fixturePaths = array_slice($argv, 1);
     if ($fixturePaths === []) {
-        $fixturePaths = array_values(array_filter(DEFAULT_FIXTURES, static fn(string $path): bool => is_file($path)));
+        $fixturePaths = findDefaultFixtures();
     }
 
     if ($fixturePaths === []) {
@@ -48,6 +43,17 @@ function main(array $argv): int
     }
 
     return $failed ? 1 : 0;
+}
+
+function findDefaultFixtures(): array
+{
+    $paths = glob(dirname(__DIR__) . '/docs/fixtures/*.json');
+    if ($paths === false) {
+        return [];
+    }
+
+    sort($paths);
+    return array_values(array_filter($paths, static fn(string $path): bool => is_file($path)));
 }
 
 function analyzeFixture(string $fixturePath): array
