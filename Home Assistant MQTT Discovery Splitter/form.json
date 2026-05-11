@@ -83,9 +83,25 @@
         },
         {
           "type": "Button",
-          "caption": "Discovery-Bundle herunterladen",
-          "download": "ha_mqtt_discovery_bundle.json",
-          "onClick": "echo HA_ExportDiscoveryBundleDataUrl($id, true, false);"
+          "caption": "MQTT-Parent reconnecten",
+          "onClick": "HA_ReconnectMqttParent($id);"
+        },
+        {
+          "type": "RowLayout",
+          "items": [
+            {
+              "type": "Button",
+              "caption": "Discovery-Bundle herunterladen",
+              "download": "ha_mqtt_discovery_bundle.json",
+              "onClick": "echo HA_ExportDiscoveryBundleDataUrl($id, true, false);"
+            },
+            {
+              "type": "Button",
+              "caption": "Discovery-Bundle aktuelle Session herunterladen",
+              "download": "ha_mqtt_discovery_bundle_current_session.json",
+              "onClick": "echo HA_ExportDiscoveryBundleDataUrl($id, true, false, true);"
+            }
+          ]
         }
       ]
     }

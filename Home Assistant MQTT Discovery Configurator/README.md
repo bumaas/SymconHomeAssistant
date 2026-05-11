@@ -6,7 +6,8 @@ Liest MQTT-Discovery-Konfigurationen aus dem Home Assistant MQTT Discovery Split
 ## Funktionsumfang
 
 - Liest gecachte `homeassistant/.../config` Topics aus dem Splitter.
-- Parst MQTT-Discovery fuer `sensor`, `binary_sensor`, `switch` und `select`.
+- Parst MQTT-Discovery fuer `sensor`, `binary_sensor`, `switch`, `select` und `button`.
+- Reduziert `device_automation` Trigger aus Zigbee2MQTT auf lesbare Event-Kandidaten im Discovery-Modell.
 - Gruppiert Entities ueber `device.identifiers`.
 - Zeigt Zigbee2MQTT Endgeraete und optional Bridge-Entities im Configurator an.
 - Legt daraus `Home Assistant MQTT Discovery Device` Instanzen an.

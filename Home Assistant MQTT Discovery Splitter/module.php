@@ -97,20 +97,60 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
-    public function ExportDiscoveryBundle(bool $includeTopicPayloads = true, bool $includeAllCachedTopics = false): string
+    public function ExportDiscoveryBundle(bool $includeTopicPayloads = true, bool $includeAllCachedTopics = false, bool $currentSessionOnly = false): string
     {
         $bundle = $this->buildDiscoveryExportBundle([
             'include_topic_payloads' => $includeTopicPayloads,
-            'include_all_cached_topics' => $includeAllCachedTopics
+            'include_all_cached_topics' => $includeAllCachedTopics,
+            'current_session_only' => $currentSessionOnly
         ]);
 
         return json_encode($bundle, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
     }
 
-    public function ExportDiscoveryBundleDataUrl(bool $includeTopicPayloads = true, bool $includeAllCachedTopics = false): string
+    public function ExportDiscoveryBundleDataUrl(bool $includeTopicPayloads = true, bool $includeAllCachedTopics = false, bool $currentSessionOnly = false): string
     {
-        $json = $this->ExportDiscoveryBundle($includeTopicPayloads, $includeAllCachedTopics);
+        $json = $this->ExportDiscoveryBundle($includeTopicPayloads, $includeAllCachedTopics, $currentSessionOnly);
         return 'data:text/plain;charset=utf-8;base64,' . base64_encode($json);
+    }
+
+    public function ReconnectMqttParent(): void
+    {
+        if (!$this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+            $this->debugExpert(__FUNCTION__, 'MQTT Parent ist nicht kompatibel.', $this->buildCurrentParentDebugContext(), true);
+            $this->updateDiagnosticsLabels();
+            return;
+        }
+
+        $mqttClientId = $this->getCurrentParentId();
+        if ($mqttClientId <= 0 || !IPS_InstanceExists($mqttClientId)) {
+            $this->debugExpert(__FUNCTION__, 'MQTT Parent nicht gefunden.', ['ParentID' => $mqttClientId], true);
+            $this->updateDiagnosticsLabels();
+            return;
+        }
+
+        $mqttClient = IPS_GetInstance($mqttClientId);
+        $ioParentId = (int)($mqttClient['ConnectionID'] ?? 0);
+        if ($ioParentId <= 0 || !IPS_InstanceExists($ioParentId)) {
+            $this->debugExpert(__FUNCTION__, 'MQTT Parent hat keinen gueltigen IO-Parent.', [
+                'MQTTParentID' => $mqttClientId,
+                'IOParentID' => $ioParentId
+            ], true);
+            $this->updateDiagnosticsLabels();
+            return;
+        }
+
+        $disconnected = IPS_DisconnectInstance($mqttClientId);
+        $reconnected = IPS_ConnectInstance($mqttClientId, $ioParentId);
+
+        $this->debugExpert(__FUNCTION__, 'MQTT Parent reconnect ausgefuehrt', [
+            'MQTTParentID' => $mqttClientId,
+            'IOParentID' => $ioParentId,
+            'Disconnected' => $disconnected,
+            'Reconnected' => $reconnected
+        ], !$disconnected || !$reconnected);
+
+        $this->updateDiagnosticsLabels();
     }
 
     public function ForwardData(string $JSONString): string
@@ -294,6 +334,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     {
         $normalizedOptions = $this->normalizeExportOptions($options);
         $discoveryConfigs = array_values($this->getDiscoveryConfigRecords());
+        if ($normalizedOptions['current_session_only']) {
+            $discoveryConfigs = $this->filterCurrentSessionRecords($discoveryConfigs);
+        }
         usort($discoveryConfigs, static function (array $left, array $right): int {
             return strcmp((string)($left['topic'] ?? ''), (string)($right['topic'] ?? ''));
         });
@@ -308,6 +351,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             } else {
                 $referencedTopics = $this->collectReferencedTopicsFromDiscoveryConfigs($discoveryConfigs);
                 $topicPayloads = $this->buildTopicPayloadResponse($referencedTopics)['Items'];
+            }
+
+            if ($normalizedOptions['current_session_only']) {
+                $topicPayloads = $this->filterCurrentSessionRecords($topicPayloads);
             }
         }
 
@@ -325,7 +372,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'session' => $this->buildExportSessionInfo(),
             'options' => [
                 'include_topic_payloads' => $normalizedOptions['include_topic_payloads'],
-                'include_all_cached_topics' => $normalizedOptions['include_all_cached_topics']
+                'include_all_cached_topics' => $normalizedOptions['include_all_cached_topics'],
+                'current_session_only' => $normalizedOptions['current_session_only']
             ],
             'source' => [
                 'producer_hint' => '',
@@ -568,8 +616,29 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         return [
             'include_topic_payloads' => !array_key_exists('include_topic_payloads', $options) || (bool)$options['include_topic_payloads'],
-            'include_all_cached_topics' => (bool)($options['include_all_cached_topics'] ?? false)
+            'include_all_cached_topics' => (bool)($options['include_all_cached_topics'] ?? false),
+            'current_session_only' => (bool)($options['current_session_only'] ?? false)
         ];
+    }
+
+    private function filterCurrentSessionRecords(array $records): array
+    {
+        $sessionState = $this->readMqttSessionState();
+        $filtered = [];
+
+        foreach ($records as $record) {
+            if (!is_array($record)) {
+                continue;
+            }
+
+            if (!$this->isRecordCurrentSession($record, $sessionState)) {
+                continue;
+            }
+
+            $filtered[] = $record;
+        }
+
+        return $filtered;
     }
 
     private function collectReferencedTopicsFromDiscoveryConfigs(array $records): array
@@ -591,6 +660,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 continue;
             }
 
+            if (is_array($decoded)) {
+                $this->collectDeviceAutomationTopics($decoded, $topics);
+            }
             $this->collectTopicsFromDecodedPayload($decoded, $topics);
         }
 
@@ -606,6 +678,35 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $result = array_keys($normalizedTopics);
         sort($result, SORT_STRING);
         return $result;
+    }
+
+    private function collectDeviceAutomationTopics(array $decoded, array &$topics): void
+    {
+        if (($decoded['automation_type'] ?? null) !== 'trigger') {
+            return;
+        }
+
+        $topic = trim((string)($decoded['topic'] ?? ''), '/');
+        if ($topic === '') {
+            return;
+        }
+
+        $topics[$topic] = true;
+
+        if (!str_contains($topic, '/')) {
+            return;
+        }
+
+        $segments = explode('/', $topic);
+        $field = trim((string)end($segments));
+        if ($field === '' || !preg_match('/^[A-Za-z0-9_]+$/', $field) || !str_ends_with($topic, '/' . $field)) {
+            return;
+        }
+
+        $fallbackTopic = substr($topic, 0, -strlen('/' . $field));
+        if ($fallbackTopic !== '') {
+            $topics[$fallbackTopic] = true;
+        }
     }
 
     private function normalizeCacheRecords(mixed $cache, bool $discoveryCache): array

@@ -9,8 +9,11 @@ final class HAMqttDiscoveryParser
         HABinarySensorDefinitions::DOMAIN,
         HASensorDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
-        HASelectDefinitions::DOMAIN
+        HASelectDefinitions::DOMAIN,
+        HAButtonDefinitions::DOMAIN
     ];
+
+    private const string DEVICE_AUTOMATION_COMPONENT = 'device_automation';
 
     public function __construct(
         private readonly string $discoveryPrefix = 'homeassistant'
@@ -35,6 +38,10 @@ final class HAMqttDiscoveryParser
         }
 
         $component = $topicMeta['component'];
+        if ($component === self::DEVICE_AUTOMATION_COMPONENT) {
+            return $this->parseDeviceAutomationMessage($topicMeta, $config, $topic);
+        }
+
         if (!in_array($component, self::SUPPORTED_COMPONENTS, true)) {
             return null;
         }
@@ -68,6 +75,10 @@ final class HAMqttDiscoveryParser
                 'state_off'           => $config['state_off'] ?? null,
                 'payload_on'          => $config['payload_on'] ?? null,
                 'payload_off'         => $config['payload_off'] ?? null,
+                'payload_press'       => $config['payload_press'] ?? null,
+                'event_payload'       => null,
+                'event_type'          => null,
+                'event_types'         => [],
                 'options'             => $this->normalizeStringList($config['options'] ?? null),
                 'unit_of_measurement' => $this->normalizeNullableString($config['unit_of_measurement'] ?? null),
                 'device_class'        => $this->normalizeNullableString($config['device_class'] ?? null),
@@ -112,6 +123,80 @@ final class HAMqttDiscoveryParser
         }
 
         return $result;
+    }
+
+    private function parseDeviceAutomationMessage(array $topicMeta, array $config, string $topic): ?array
+    {
+        $triggerTopic = $this->normalizeNullableString($config['topic'] ?? null);
+        if ($triggerTopic === null) {
+            return null;
+        }
+
+        $device = $this->parseDevice($config['device'] ?? null);
+        $objectId = $this->pickNonEmptyString($config['object_id'] ?? null, $topicMeta['topic_object_id']);
+        $eventType = $this->pickNonEmptyString($config['subtype'] ?? null, $objectId);
+        $eventPayload = $this->pickNonEmptyString($config['payload'] ?? null, $eventType);
+        $name = $this->deriveDeviceAutomationName($config, $eventType);
+        $uniqueFallback = implode('.', array_filter([
+            HAEventDefinitions::DOMAIN,
+            $device['discovery_device_id'] !== '' ? $device['discovery_device_id'] : $topicMeta['topic_node_id'],
+            $objectId
+        ], static fn(string $part): bool => $part !== ''));
+
+        return [
+            'source'           => 'mqtt_discovery',
+            'discovery_prefix' => $this->discoveryPrefix,
+            'component'        => HAEventDefinitions::DOMAIN,
+            'unique_id'        => $this->pickNonEmptyString($config['unique_id'] ?? null, $uniqueFallback),
+            'object_id'        => $objectId,
+            'topic_object_id'  => $topicMeta['topic_object_id'],
+            'topic_node_id'    => $topicMeta['topic_node_id'],
+            'name'             => $name,
+            'entity_id_hint'   => HAEventDefinitions::DOMAIN . '.' . $objectId,
+            'device'           => $device,
+            'transport'        => [
+                'state_topic'           => $triggerTopic,
+                'command_topic'         => null,
+                'json_attributes_topic' => null,
+                'optimistic'            => false,
+                'retain'                => false,
+                'qos'                   => $this->normalizeQos($config['qos'] ?? null)
+            ],
+            'state'            => [
+                'value_template'      => [
+                    'kind'      => 'raw_value',
+                    'path'      => [],
+                    'filters'   => [],
+                    'supported' => true,
+                    'raw'       => '{{ value }}'
+                ],
+                'state_on'            => null,
+                'state_off'           => null,
+                'payload_on'          => null,
+                'payload_off'         => null,
+                'payload_press'       => null,
+                'event_payload'       => $eventPayload,
+                'event_type'          => $eventType,
+                'event_types'         => [$eventType],
+                'options'             => [],
+                'unit_of_measurement' => null,
+                'device_class'        => $this->normalizeNullableString($config['type'] ?? null),
+                'state_class'         => null,
+                'entity_category'     => null,
+                'enabled_by_default'  => true,
+                'icon'                => null
+            ],
+            'command'          => [
+                'mode'             => 'none',
+                'command_template' => null
+            ],
+            'availability'     => $this->parseAvailability($config),
+            'origin'           => $this->parseOrigin($config['origin'] ?? null),
+            'raw'              => [
+                'topic'  => $topic,
+                'config' => $config
+            ]
+        ];
     }
 
     private function parseTopic(string $topic): ?array
@@ -280,6 +365,32 @@ final class HAMqttDiscoveryParser
 
         $humanized = implode(' ', $words);
         return ucfirst($humanized);
+    }
+
+    private function deriveDeviceAutomationName(array $config, string $eventType): string
+    {
+        $explicitName = $this->normalizeNullableString($config['name'] ?? null);
+        if ($explicitName !== null) {
+            return $explicitName;
+        }
+
+        $triggerType = $this->normalizeNullableString($config['type'] ?? null);
+        $humanizedEventType = $this->humanizeIdentifier($eventType);
+        if ($triggerType !== null) {
+            return ucfirst($triggerType) . ' ' . $humanizedEventType;
+        }
+
+        return $humanizedEventType;
+    }
+
+    private function humanizeIdentifier(string $value): string
+    {
+        $words = array_values(array_filter(explode('_', trim($value)), static fn(string $word): bool => $word !== ''));
+        if ($words === []) {
+            return $value;
+        }
+
+        return ucfirst(implode(' ', $words));
     }
 
     private function slugify(string $value): string

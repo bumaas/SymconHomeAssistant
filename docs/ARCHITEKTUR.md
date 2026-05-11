@@ -122,7 +122,7 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - Teilupdates über MQTT sind ein Hotspot. Attribute dürfen keine Hauptzustände implizit überschreiben, wenn nur unvollständige Daten angekommen sind.
 - Zusatzvariablen dürfen nur existieren oder schreibbar sein, wenn Features und Attributlage das wirklich hergeben.
 - Medienobjekte und benutzernahe Namen sind regressionsanfällig, weil sie direkt in Symcon sichtbar sind.
-- Es gibt aktuell keine automatisierten Tests. Minimale Absicherung vor Commits: `php -l` über alle PHP-Dateien und eine gezielte manuelle Prüfrunde der betroffenen Domains.
+- Es gibt aktuell keine automatisierten Tests. Minimale Absicherung vor Commits: `powershell -ExecutionPolicy Bypass -File .\scripts\lint-php.ps1` und eine gezielte manuelle Prüfrunde gemäß `docs/VERIFIKATION.md`.
 
 ### Leitlinie: Zustand und Schreiben
 

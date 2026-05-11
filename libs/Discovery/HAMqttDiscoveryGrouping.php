@@ -109,6 +109,8 @@ final class HAMqttDiscoveryGrouping
                 'availability'      => $entity['availability'] ?? ['mode' => 'latest', 'entries' => []],
                 'payload_on'        => $entity['state']['payload_on'] ?? null,
                 'payload_off'       => $entity['state']['payload_off'] ?? null,
+                'payload_press'     => $entity['state']['payload_press'] ?? null,
+                'event_payload'     => $entity['state']['event_payload'] ?? null,
                 'state_on'          => $entity['state']['state_on'] ?? null,
                 'state_off'         => $entity['state']['state_off'] ?? null,
                 'options'           => $entity['state']['options'] ?? [],
@@ -119,6 +121,8 @@ final class HAMqttDiscoveryGrouping
                     'entity_category'    => $entity['state']['entity_category'] ?? null,
                     'enabled_by_default' => $entity['state']['enabled_by_default'] ?? true,
                     'icon'               => $entity['state']['icon'] ?? null,
+                    'event_type'         => $entity['state']['event_type'] ?? null,
+                    'event_types'        => $entity['state']['event_types'] ?? [],
                     'origin'             => $entity['origin'] ?? ['name' => '', 'sw' => '', 'url' => '']
                 ]
             ];

@@ -33,7 +33,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         HABinarySensorDefinitions::DOMAIN,
         HASensorDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
-        HASelectDefinitions::DOMAIN
+        HASelectDefinitions::DOMAIN,
+        HAButtonDefinitions::DOMAIN,
+        HAEventDefinitions::DOMAIN
     ];
 
     /** @var string[] */
@@ -554,6 +556,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'availability' => $this->normalizeAvailability($row['availability'] ?? null),
             'payload_on' => $row['payload_on'] ?? null,
             'payload_off' => $row['payload_off'] ?? null,
+            'payload_press' => $row['payload_press'] ?? null,
+            'event_payload' => $this->normalizeNullableString($this->scalarToString($row['event_payload'] ?? null)),
             'state_on' => $row['state_on'] ?? null,
             'state_off' => $row['state_off'] ?? null,
             'options' => $this->normalizeOptions($row['options'] ?? null),
@@ -870,6 +874,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return match ($entity['component']) {
             HABinarySensorDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN => VARIABLETYPE_BOOLEAN,
             HASelectDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
+            HAButtonDefinitions::DOMAIN, HAEventDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
             HASensorDefinitions::DOMAIN => $this->determineSensorVariableType($entity, $cachedTopics),
             default => VARIABLETYPE_STRING
         };
@@ -916,6 +921,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function buildVariablePresentation(array $entity, int $variableType): array|string
     {
+        if ((string)($entity['component'] ?? '') === HAButtonDefinitions::DOMAIN) {
+            return $this->buildButtonPresentation($entity);
+        }
+
+        if ((string)($entity['component'] ?? '') === HAEventDefinitions::DOMAIN) {
+            return ['PRESENTATION' => HAEventDefinitions::PRESENTATION];
+        }
+
         if ((string)($entity['component'] ?? '') === HASelectDefinitions::DOMAIN) {
             return $this->buildSelectPresentation($entity['options'] ?? []);
         }
@@ -929,6 +942,21 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return '';
+    }
+
+    private function buildButtonPresentation(array $entity): array
+    {
+        $caption = (string)($entity['name'] ?? 'Press');
+        return [
+            'PRESENTATION' => HAButtonDefinitions::PRESENTATION,
+            'OPTIONS' => json_encode([[
+                'Value' => HAButtonDefinitions::ACTION_PRESS,
+                'Caption' => $caption,
+                'IconActive' => false,
+                'IconValue' => '',
+                'Color' => -1
+            ]], JSON_THROW_ON_ERROR)
+        ];
     }
 
     private function buildSelectPresentation(array $options): array|string
@@ -1011,6 +1039,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 }
             }
 
+            $eventFallback = $this->getEventStateFallback($entity);
+            if ($eventFallback !== null) {
+                $topics[$eventFallback['topic']] = true;
+            }
+
             foreach ($entity['availability']['entries'] as $entry) {
                 $topic = trim((string)($entry['topic'] ?? ''), '/');
                 if ($topic !== '') {
@@ -1079,11 +1112,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function applyCachedTopicPayloads(array $entities, array $cachedTopics): void
     {
         foreach ($cachedTopics as $topic => $item) {
-            $this->applyTopicPayloadToEntities($entities, $topic, (string)($item['payload'] ?? ''));
+            $this->applyTopicPayloadToEntities($entities, $topic, (string)($item['payload'] ?? ''), (int)($item['received_at'] ?? 0));
         }
     }
 
-    private function applyTopicPayloadToEntities(array $entities, string $topic, string $payload): void
+    private function applyTopicPayloadToEntities(array $entities, string $topic, string $payload, int $receivedAt = 0): void
     {
         $warnings = $this->readStateWarnings();
         $warningsChanged = false;
@@ -1106,8 +1139,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
-            if ($entity['state_topic'] === $topic) {
-                $this->applyStatePayload($entity, $payload);
+            $eventFallback = $this->getEventStateFallback($entity);
+            if ($entity['state_topic'] === $topic || ($eventFallback !== null && $eventFallback['topic'] === $topic)) {
+                $this->applyStatePayload($entity, $topic, $payload, $receivedAt);
             }
 
             $this->applyAvailabilityPayload($entity, $topic, $payload);
@@ -1118,7 +1152,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
     }
 
-    private function applyStatePayload(array $entity, string $payload): void
+    private function applyStatePayload(array $entity, string $topic, string $payload, int $receivedAt = 0): void
     {
         $ident = $entity['ident'];
         $variableId = @$this->GetIDForIdent($ident);
@@ -1132,6 +1166,22 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $component = $entity['component'];
+
+        if ($component === HAEventDefinitions::DOMAIN) {
+            $eventPayload = $entity['event_payload'] ?? null;
+            $currentValue = $this->resolveEventStateValue($entity, $topic, $payload);
+            if ($eventPayload === null || $currentValue === null || $currentValue !== $eventPayload) {
+                return;
+            }
+
+            $timestamp = $receivedAt > 0 ? $receivedAt : time();
+            $currentTimestamp = GetValueInteger($variableId);
+            if ($currentTimestamp > $timestamp) {
+                return;
+            }
+            $this->SetValue($ident, $timestamp);
+            return;
+        }
 
         if ($component === HABinarySensorDefinitions::DOMAIN || $component === HASwitchDefinitions::DOMAIN) {
             $boolValue = $this->normalizeBooleanState($value, $entity);
@@ -1254,6 +1304,63 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return $trimmed;
+    }
+
+    private function resolveEventStateValue(array $entity, string $topic, string $payload): ?string
+    {
+        if ($entity['state_topic'] === $topic) {
+            return $this->normalizeNullableString($this->scalarToString($this->extractStateValue($entity, $payload)));
+        }
+
+        $eventFallback = $this->getEventStateFallback($entity);
+        if ($eventFallback === null || $eventFallback['topic'] !== $topic) {
+            return null;
+        }
+
+        try {
+            $decoded = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+
+        $field = $eventFallback['field'];
+        if (!is_array($decoded) || !array_key_exists($field, $decoded)) {
+            return null;
+        }
+
+        return $this->normalizeNullableString($this->scalarToString($decoded[$field]));
+    }
+
+    private function getEventStateFallback(array $entity): ?array
+    {
+        if ((string)($entity['component'] ?? '') !== HAEventDefinitions::DOMAIN) {
+            return null;
+        }
+
+        $stateTopic = trim((string)($entity['state_topic'] ?? ''), '/');
+        if ($stateTopic === '' || !str_contains($stateTopic, '/')) {
+            return null;
+        }
+
+        $segments = explode('/', $stateTopic);
+        $field = trim((string)end($segments));
+        if ($field === '' || !preg_match('/^[A-Za-z0-9_]+$/', $field)) {
+            return null;
+        }
+
+        if (!str_ends_with($stateTopic, '/' . $field)) {
+            return null;
+        }
+
+        $fallbackTopic = substr($stateTopic, 0, -strlen('/' . $field));
+        if ($fallbackTopic === '') {
+            return null;
+        }
+
+        return [
+            'topic' => $fallbackTopic,
+            'field' => $field
+        ];
     }
 
     private function applyTemplateFilters(mixed $value, array $filters): mixed
@@ -1386,6 +1493,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $component = $entity['component'];
+        if ($component === HAButtonDefinitions::DOMAIN) {
+            return true;
+        }
         if ($component === HASwitchDefinitions::DOMAIN) {
             return true;
         }
@@ -1398,6 +1508,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function buildCommandPayload(array $entity, mixed $value): ?string
     {
+        if ($entity['component'] === HAButtonDefinitions::DOMAIN) {
+            $payload = $this->scalarToString($entity['payload_press'] ?? null);
+            return $payload ?? '';
+        }
+
         if ($entity['component'] === HASwitchDefinitions::DOMAIN) {
             $boolValue = is_bool($value) ? $value : ((int)$value) !== 0;
             $payload = $boolValue ? $entity['payload_on'] : $entity['payload_off'];
@@ -1455,6 +1570,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $ident = $entity['ident'];
         if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        if ($entity['component'] === HAButtonDefinitions::DOMAIN) {
+            $this->SetValue($ident, HAButtonDefinitions::ACTION_PRESS);
             return;
         }
 
@@ -1711,11 +1831,19 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $record = $cachedTopics[$topic] ?? null;
-        if (!is_array($record)) {
-            return 'missing';
+        if (is_array($record)) {
+            return (bool)($record['is_current_session'] ?? false) ? 'current' : 'stale';
         }
 
-        return (bool)($record['is_current_session'] ?? false) ? 'current' : 'stale';
+        $eventFallback = $this->getEventStateFallback($entity);
+        if ($eventFallback !== null) {
+            $fallbackRecord = $cachedTopics[$eventFallback['topic']] ?? null;
+            if (is_array($fallbackRecord)) {
+                return (bool)($fallbackRecord['is_current_session'] ?? false) ? 'current' : 'stale';
+            }
+        }
+
+        return 'missing';
     }
 
     private function buildEntitySelectionMappingSummary(array $entity): string
@@ -1726,6 +1854,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $boolSummary = $this->buildBooleanMappingSummary($entity);
             if ($boolSummary !== '') {
                 $parts[] = $boolSummary;
+            }
+        }
+
+        if ((string)($entity['component'] ?? '') === HAButtonDefinitions::DOMAIN) {
+            $parts[] = 'press';
+        }
+
+        if ((string)($entity['component'] ?? '') === HAEventDefinitions::DOMAIN) {
+            $eventPayload = $this->normalizeNullableString($this->scalarToString($entity['event_payload'] ?? null));
+            if ($eventPayload !== null) {
+                $parts[] = 'event:' . $eventPayload;
             }
         }
 
@@ -1787,7 +1926,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return 'keine';
         }
 
-        return $count . ' Bool-Mapping-Mismatch' . ($count === 1 ? '' : 'es');
+        return $count . ' Laufzeit-Warnung' . ($count === 1 ? '' : 'en');
     }
 
     private function synchronizeStateWarnings(array $entities, array $cachedTopics): array
@@ -1801,12 +1940,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $warningMap = [];
         foreach ($entities as $entity) {
-            $topic = (string)($entity['state_topic'] ?? '');
-            if ($topic === '' || !isset($cachedTopics[$topic])) {
-                continue;
-            }
-
-            $warning = $this->detectBooleanRuntimeWarning($entity, (string)$cachedTopics[$topic]['payload']);
+            $warning = $this->detectRuntimeWarning($entity, $cachedTopics);
             if ($warning === null) {
                 continue;
             }
@@ -1815,6 +1949,41 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return $warningMap;
+    }
+
+    private function detectRuntimeWarning(array $entity, array $cachedTopics): ?string
+    {
+        $component = (string)($entity['component'] ?? '');
+        if ($component === HAEventDefinitions::DOMAIN) {
+            return $this->detectEventRuntimeWarning($entity, $cachedTopics);
+        }
+
+        $topic = (string)($entity['state_topic'] ?? '');
+        if ($topic === '' || !isset($cachedTopics[$topic])) {
+            return null;
+        }
+
+        return $this->detectBooleanRuntimeWarning($entity, (string)$cachedTopics[$topic]['payload']);
+    }
+
+    private function detectEventRuntimeWarning(array $entity, array $cachedTopics): ?string
+    {
+        $stateTopic = trim((string)($entity['state_topic'] ?? ''), '/');
+        $eventFallback = $this->getEventStateFallback($entity);
+        if ($stateTopic === '' || $eventFallback === null) {
+            return null;
+        }
+
+        if (isset($cachedTopics[$stateTopic])) {
+            return null;
+        }
+
+        $fallbackRecord = $cachedTopics[$eventFallback['topic']] ?? null;
+        if (!is_array($fallbackRecord)) {
+            return null;
+        }
+
+        return 'disc topic fehlt; root-json fallback';
     }
 
     private function detectBooleanRuntimeWarning(array $entity, string $payload): ?string
