@@ -102,7 +102,7 @@
               "type": "Button",
               "caption": "Discovery-Bundle herunterladen",
               "download": "ha_mqtt_discovery_bundle.json",
-              "onClick": "echo HA_ExportDiscoveryBundleDataUrl($id, true, false);"
+              "onClick": "echo HA_ExportDiscoveryBundleDataUrl($id, true, false, false);"
             },
             {
               "type": "Button",
