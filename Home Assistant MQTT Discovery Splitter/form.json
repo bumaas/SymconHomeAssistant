@@ -28,7 +28,7 @@
           "minimum": 0,
           "maximum": 100,
           "value": 10,
-          "visible": false
+          "visible": true
         }
       ]
     }
