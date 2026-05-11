@@ -29,7 +29,7 @@ function main(array $argv): int
 
     if ($fixturePaths === []) {
         fwrite(STDERR, "Keine Fixture-Dateien gefunden.\n");
-        fwrite(STDERR, "Aufruf: php scripts/check-mqtt-discovery-fixtures.php <bundle1.json> [bundle2.json ...]\n");
+        fwrite(STDERR, "Aufruf: php tests/check-mqtt-discovery-fixtures.php <bundle1.json> [bundle2.json ...]\n");
         return 1;
     }
 
