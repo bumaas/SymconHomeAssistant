@@ -127,7 +127,7 @@ function analyzeFixture(string $fixturePath): array
     $originCounts = [];
     $duplicateUniqueIds = [];
     $supportedParseFailures = [];
-    $supportedRecordCount = 0;
+    $supportedEntryCount = 0;
     $supportedParsedCount = 0;
     $unsupportedRecordCount = 0;
     $writableEntityCount = 0;
@@ -146,51 +146,51 @@ function analyzeFixture(string $fixturePath): array
             continue;
         }
 
-        $component = extractTopicComponent($topic, $discoveryPrefix);
-        $isSupportedComponent = $component !== null && in_array($component, SUPPORTED_COMPONENTS, true);
-        if ($isSupportedComponent) {
-            $supportedRecordCount++;
+        $supportedEntriesInRecord = countSupportedDiscoveryEntries($topic, $payload, $discoveryPrefix);
+        if ($supportedEntriesInRecord > 0) {
+            $supportedEntryCount += $supportedEntriesInRecord;
         } else {
             $unsupportedRecordCount++;
         }
 
-        $parsed = $parser->parseConfigMessage($topic, $payload);
-        if ($parsed === null) {
-            if ($isSupportedComponent) {
+        $parsedEntities = $parser->parseConfigRecord($topic, $payload);
+        if (count($parsedEntities) < $supportedEntriesInRecord) {
+            if ($supportedEntriesInRecord > 0) {
                 $supportedParseFailures[] = $topic;
             }
-            continue;
         }
 
-        $uniqueId = (string)($parsed['unique_id'] ?? '');
-        if ($uniqueId === '') {
-            $errors[] = 'Geparste Entity ohne unique_id fuer Topic ' . $topic . '.';
-            continue;
-        }
+        foreach ($parsedEntities as $parsed) {
+            $uniqueId = (string)($parsed['unique_id'] ?? '');
+            if ($uniqueId === '') {
+                $errors[] = 'Geparste Entity ohne unique_id fuer Topic ' . $topic . '.';
+                continue;
+            }
 
-        if (isset($entities[$uniqueId])) {
-            $duplicateUniqueIds[] = $uniqueId;
-        }
+            if (isset($entities[$uniqueId])) {
+                $duplicateUniqueIds[] = $uniqueId;
+            }
 
-        $entities[$uniqueId] = $parsed;
-        $supportedParsedCount++;
+            $entities[$uniqueId] = $parsed;
+            $supportedParsedCount++;
 
-        $parsedComponent = (string)($parsed['component'] ?? '');
-        incrementCount($componentCounts, $parsedComponent);
+            $parsedComponent = (string)($parsed['component'] ?? '');
+            incrementCount($componentCounts, $parsedComponent);
 
-        $originName = normalizeString($parsed['origin']['name'] ?? null) ?? '<leer>';
-        incrementCount($originCounts, $originName);
+            $originName = normalizeString($parsed['origin']['name'] ?? null) ?? '<leer>';
+            incrementCount($originCounts, $originName);
 
-        if ((string)($parsed['command']['mode'] ?? 'none') !== 'none') {
-            $writableEntityCount++;
-        }
+            if ((string)($parsed['command']['mode'] ?? 'none') !== 'none') {
+                $writableEntityCount++;
+            }
 
-        if ((string)($parsed['device']['discovery_device_id'] ?? '') === '') {
-            $entityOnlyGroupCandidates++;
+            if ((string)($parsed['device']['discovery_device_id'] ?? '') === '') {
+                $entityOnlyGroupCandidates++;
+            }
         }
     }
 
-    if ($supportedRecordCount === 0) {
+    if ($supportedEntryCount === 0) {
         $errors[] = 'Keine Discovery-Configs fuer aktuell unterstuetzte Komponenten gefunden.';
     }
     if ($supportedParseFailures !== []) {
@@ -234,9 +234,9 @@ function analyzeFixture(string $fixturePath): array
             'referenced_missing' => (int)($bundle['diagnostics']['referenced_topic_payloads']['missing'] ?? 0)
         ],
         'supported' => [
-            'record_count' => $supportedRecordCount,
+            'entry_count' => $supportedEntryCount,
             'parsed_count' => count($entities),
-            'parsed_record_count' => $supportedParsedCount,
+            'parsed_entry_count' => $supportedParsedCount,
             'unsupported_record_count' => $unsupportedRecordCount,
             'writable_entity_count' => $writableEntityCount,
             'entity_only_group_candidates' => $entityOnlyGroupCandidates
@@ -250,6 +250,55 @@ function analyzeFixture(string $fixturePath): array
         'duplicate_unique_ids' => array_values(array_unique($duplicateUniqueIds)),
         'errors' => $errors
     ];
+}
+
+function countSupportedDiscoveryEntries(string $topic, string $payload, string $discoveryPrefix): int
+{
+    $component = extractTopicComponent($topic, $discoveryPrefix);
+    if ($component === null) {
+        return 0;
+    }
+
+    if (in_array($component, SUPPORTED_COMPONENTS, true)) {
+        return 1;
+    }
+
+    if ($component !== 'device') {
+        return 0;
+    }
+
+    try {
+        $config = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+    } catch (JsonException) {
+        return 0;
+    }
+
+    if (!is_array($config)) {
+        return 0;
+    }
+
+    $components = $config['components'] ?? $config['cmps'] ?? null;
+    if (!is_array($components)) {
+        return 0;
+    }
+
+    $count = 0;
+    foreach ($components as $componentConfig) {
+        if (!is_array($componentConfig)) {
+            continue;
+        }
+
+        $platform = normalizeString($componentConfig['platform'] ?? $componentConfig['p'] ?? null);
+        if ($platform === null) {
+            continue;
+        }
+
+        if (in_array($platform, SUPPORTED_COMPONENTS, true)) {
+            $count++;
+        }
+    }
+
+    return $count;
 }
 
 function printReport(array $report): void
@@ -268,8 +317,8 @@ function printReport(array $report): void
         . $report['diagnostics']['referenced_current_session'] . '/'
         . $report['diagnostics']['referenced_stale'] . '/'
         . $report['diagnostics']['referenced_missing'] . "\n";
-    echo 'Supported: records='
-        . $report['supported']['record_count']
+    echo 'Supported: entries='
+        . $report['supported']['entry_count']
         . ', parsed=' . $report['supported']['parsed_count']
         . ', unsupported_records=' . $report['supported']['unsupported_record_count']
         . ', writable=' . $report['supported']['writable_entity_count']

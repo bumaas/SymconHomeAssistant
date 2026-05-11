@@ -7,9 +7,10 @@ Liest MQTT-Discovery-Konfigurationen aus dem Home Assistant MQTT Discovery Split
 
 - Liest gecachte `homeassistant/.../config` Topics aus dem Splitter.
 - Parst MQTT-Discovery fuer `sensor`, `binary_sensor`, `switch`, `select` und `button`.
+- Unterstuetzt sowohl klassische Component-Topics wie `homeassistant/sensor/.../config` als auch HA-Device-Discovery ueber `homeassistant/device/.../config`.
 - Reduziert `device_automation` Trigger aus Zigbee2MQTT auf lesbare Event-Kandidaten im Discovery-Modell.
 - Gruppiert Entities ueber `device.identifiers`.
-- Zeigt Zigbee2MQTT Endgeraete und optional Bridge-Entities im Configurator an.
+- Zeigt MQTT-Discovery-Geraete aus klassischen und Device-Discovery-Exports im Configurator an.
 - Legt daraus `Home Assistant MQTT Discovery Device` Instanzen an.
 
 ## Voraussetzungen
@@ -20,4 +21,4 @@ Liest MQTT-Discovery-Konfigurationen aus dem Home Assistant MQTT Discovery Split
 
 ## Hinweis
 
-Der Configurator ist bewusst auf den Zigbee2MQTT-v1-Pfad begrenzt. Weitere Discovery-Komponenten koennen spaeter ueber dasselbe Transportmodell folgen.
+Der Configurator ist bewusst auf den aktuellen MQTT-Discovery-Kernpfad fuer `sensor`, `binary_sensor`, `switch`, `select`, `button` und einfache `device_automation`-Trigger begrenzt. Weitere Discovery-Komponenten koennen spaeter ueber dasselbe Transportmodell folgen.

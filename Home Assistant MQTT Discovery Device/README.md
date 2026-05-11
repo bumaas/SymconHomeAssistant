@@ -7,7 +7,8 @@ Laufzeitmodul fuer MQTT-Discovery-Geraete aus dem Home Assistant MQTT Discovery 
 
 - Empfaengt MQTT-Nachrichten ueber den Home Assistant MQTT Discovery Splitter.
 - Wertet `state_topic`, `command_topic` und `availability` quellenneutral fuer MQTT-Discovery aus.
-- Unterstuetzt in v1 die Komponenten `sensor`, `binary_sensor`, `switch`, `select` und `button`.
+- Unterstuetzt aktuell die Komponenten `sensor`, `binary_sensor`, `switch`, `select` und `button`.
+- Kann diese Komponenten sowohl aus klassischen Discovery-Topics `homeassistant/<component>/.../config` als auch aus HA-Device-Discovery `homeassistant/device/.../config` aufloesen.
 - Stellt Zigbee2MQTT-`device_automation` Trigger als read-only Event-Zeitstempel pro Trigger-Subtype dar.
 - Behaelt fuer Zigbee2MQTT-Trigger einen Root-Topic-JSON-Fallback bei, falls statt des deklarierten Trigger-Topics nur das Runtime-JSON mit Feld wie `action` ankommt.
 - Nutzt den Topic-Cache des Splitters fuer Initialwerte aus retained MQTT-Payloads.
@@ -24,6 +25,6 @@ Laufzeitmodul fuer MQTT-Discovery-Geraete aus dem Home Assistant MQTT Discovery 
 
 ## Hinweis
 
-Das Modul ist bewusst auf den v1-Pfad fuer `sensor`, `binary_sensor`, `switch`, `select`, `button` und einfache Zigbee2MQTT-Trigger begrenzt. Weitere Discovery-Komponenten koennen spaeter darauf aufbauen, ohne den bestehenden Home Assistant Runtime-Pfad zu vermischen.
+Das Modul ist bewusst auf den aktuellen MQTT-Discovery-Kernpfad fuer `sensor`, `binary_sensor`, `switch`, `select`, `button` und einfache Zigbee2MQTT-Trigger begrenzt. Weitere Discovery-Komponenten koennen spaeter darauf aufbauen, ohne den bestehenden Home Assistant Runtime-Pfad zu vermischen.
 
 Der Zigbee2MQTT-Fallback ist als Kompatibilitaetspfad gedacht, nicht als Discovery-Istzustand. Sobald das deklarierte Trigger-Topic selbst geliefert wird, verschwindet die Warnung automatisch und der regulaere Discovery-Pfad greift.

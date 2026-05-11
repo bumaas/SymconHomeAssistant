@@ -177,12 +177,13 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
                 'name' => (string)($group['name'] ?? ''),
                 'Manufacturer' => (string)($group['manufacturer'] ?? ''),
                 'Model' => (string)($group['model'] ?? ''),
+                'DeviceID' => $deviceId,
                 'EntityCount' => count($entities),
                 'Summary' => $this->buildEntitySummary($entities),
                 'group' => (string)($group['manufacturer'] ?? '')
             ];
 
-            if ($instanceID === 0 && $deviceId !== '') {
+            if ($deviceId !== '') {
                 $row['create'] = [
                     'moduleID' => HAIds::MODULE_MQTT_DISCOVERY_DEVICE,
                     'configuration' => [

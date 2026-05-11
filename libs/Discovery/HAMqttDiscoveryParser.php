@@ -14,6 +14,7 @@ final class HAMqttDiscoveryParser
     ];
 
     private const string DEVICE_AUTOMATION_COMPONENT = 'device_automation';
+    private const string DEVICE_DISCOVERY_COMPONENT = 'device';
 
     public function __construct(
         private readonly string $discoveryPrefix = 'homeassistant'
@@ -22,32 +23,76 @@ final class HAMqttDiscoveryParser
 
     public function parseConfigMessage(string $topic, string $payload): ?array
     {
+        $entities = $this->parseConfigRecord($topic, $payload);
+        if (count($entities) !== 1) {
+            return null;
+        }
+
+        return reset($entities) ?: null;
+    }
+
+    public function parseConfigRecord(string $topic, string $payload): array
+    {
         $topicMeta = $this->parseTopic($topic);
         if ($topicMeta === null) {
-            return null;
+            return [];
         }
 
         try {
             $config = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            return null;
+            return [];
         }
 
         if (!is_array($config)) {
-            return null;
+            return [];
         }
 
         $config = $this->normalizeConfigAliases($config);
 
         $component = $topicMeta['component'];
+        if ($component === self::DEVICE_DISCOVERY_COMPONENT) {
+            return $this->parseDeviceDiscoveryMessage($topicMeta, $config, $topic);
+        }
+
         if ($component === self::DEVICE_AUTOMATION_COMPONENT) {
-            return $this->parseDeviceAutomationMessage($topicMeta, $config, $topic);
+            $parsed = $this->parseDeviceAutomationMessage($topicMeta, $config, $topic);
+            return $parsed === null ? [] : [$parsed['unique_id'] => $parsed];
         }
 
         if (!in_array($component, self::SUPPORTED_COMPONENTS, true)) {
-            return null;
+            return [];
         }
 
+        $parsed = $this->parseSingleComponentMessage($topicMeta, $config, $topic);
+        return [$parsed['unique_id'] => $parsed];
+    }
+
+    public function parseConfigMessages(array $records): array
+    {
+        $result = [];
+        foreach ($records as $record) {
+            if (!is_array($record)) {
+                continue;
+            }
+
+            $topic = $this->normalizeNullableString($record['topic'] ?? null);
+            $payload = $record['payload'] ?? null;
+            if ($topic === null || !is_string($payload) || trim($payload) === '') {
+                continue;
+            }
+
+            foreach ($this->parseConfigRecord($topic, $payload) as $uniqueId => $parsed) {
+                $result[$uniqueId] = $parsed;
+            }
+        }
+
+        return $result;
+    }
+
+    private function parseSingleComponentMessage(array $topicMeta, array $config, string $topic): array
+    {
+        $component = (string)($topicMeta['component'] ?? '');
         $device = $this->parseDevice($config['device'] ?? null);
         $objectId = $this->pickNonEmptyString($config['object_id'] ?? null, $topicMeta['topic_object_id']);
         $name = $this->deriveName($config, $objectId, $device['name']);
@@ -100,31 +145,6 @@ final class HAMqttDiscoveryParser
                 'config' => $config
             ]
         ];
-    }
-
-    public function parseConfigMessages(array $records): array
-    {
-        $result = [];
-        foreach ($records as $record) {
-            if (!is_array($record)) {
-                continue;
-            }
-
-            $topic = $this->normalizeNullableString($record['topic'] ?? null);
-            $payload = $record['payload'] ?? null;
-            if ($topic === null || !is_string($payload) || trim($payload) === '') {
-                continue;
-            }
-
-            $parsed = $this->parseConfigMessage($topic, $payload);
-            if ($parsed === null) {
-                continue;
-            }
-
-            $result[$parsed['unique_id']] = $parsed;
-        }
-
-        return $result;
     }
 
     private function parseDeviceAutomationMessage(array $topicMeta, array $config, string $topic): ?array
@@ -199,6 +219,57 @@ final class HAMqttDiscoveryParser
                 'config' => $config
             ]
         ];
+    }
+
+    private function parseDeviceDiscoveryMessage(array $topicMeta, array $config, string $topic): array
+    {
+        $components = $config['components'] ?? null;
+        if (!is_array($components) || $components === []) {
+            return [];
+        }
+
+        $result = [];
+        $sharedConfig = $this->extractDeviceDiscoverySharedConfig($config);
+        foreach ($components as $componentId => $componentConfig) {
+            if (!is_string($componentId) || $componentId === '' || !is_array($componentConfig)) {
+                continue;
+            }
+
+            $componentConfig = $this->normalizeConfigAliases($componentConfig);
+            $platform = $this->normalizeNullableString($componentConfig['platform'] ?? null);
+            if ($platform === null) {
+                continue;
+            }
+
+            if ($platform !== self::DEVICE_AUTOMATION_COMPONENT && !in_array($platform, self::SUPPORTED_COMPONENTS, true)) {
+                continue;
+            }
+
+            $mergedConfig = array_replace($sharedConfig, $componentConfig);
+            $mergedConfig['device'] = $config['device'] ?? null;
+            $mergedConfig['origin'] = $config['origin'] ?? null;
+            $mergedConfig['object_id'] ??= $componentId;
+
+            $nestedTopicMeta = [
+                'component' => $platform,
+                'topic_object_id' => $componentId,
+                'topic_node_id' => $this->buildDeviceDiscoveryNodeId($topicMeta)
+            ];
+
+            if ($platform === self::DEVICE_AUTOMATION_COMPONENT) {
+                $parsed = $this->parseDeviceAutomationMessage($nestedTopicMeta, $mergedConfig, $topic);
+            } else {
+                $parsed = $this->parseSingleComponentMessage($nestedTopicMeta, $mergedConfig, $topic);
+            }
+
+            if ($parsed === null) {
+                continue;
+            }
+
+            $result[$parsed['unique_id']] = $parsed;
+        }
+
+        return $result;
     }
 
     private function parseTopic(string $topic): ?array
@@ -342,12 +413,14 @@ final class HAMqttDiscoveryParser
             'device_class'         => 'dev_cla',
             'entity_category'      => 'ent_cat',
             'json_attributes_topic' => 'json_attr_t',
+            'origin'               => 'o',
             'object_id'            => 'obj_id',
             'payload_available'    => 'pl_avail',
             'payload_not_available' => 'pl_not_avail',
             'payload_off'          => 'pl_off',
             'payload_on'           => 'pl_on',
             'payload_press'        => 'pl_prs',
+            'platform'             => 'p',
             'state_class'          => 'stat_cla',
             'state_off'            => 'stat_off',
             'state_on'             => 'stat_on',
@@ -357,7 +430,8 @@ final class HAMqttDiscoveryParser
             'value_template'       => 'val_tpl',
             'icon'                 => 'ic',
             'optimistic'           => 'opt',
-            'retain'               => 'ret'
+            'retain'               => 'ret',
+            'components'           => 'cmps'
         ]);
 
         if (isset($config['device']) && is_array($config['device'])) {
@@ -383,6 +457,49 @@ final class HAMqttDiscoveryParser
 
         $baseTopic = $this->normalizeNullableString($config['~'] ?? null);
         return $this->expandRelativeTopicReferences($config, $baseTopic);
+    }
+
+    private function extractDeviceDiscoverySharedConfig(array $config): array
+    {
+        $shared = [];
+        foreach ([
+            '~',
+            'availability',
+            'availability_mode',
+            'availability_topic',
+            'availability_template',
+            'command_topic',
+            'command_template',
+            'encoding',
+            'optimistic',
+            'qos',
+            'retain',
+            'state_topic'
+        ] as $key) {
+            if (!array_key_exists($key, $config)) {
+                continue;
+            }
+
+            $shared[$key] = $config[$key];
+        }
+
+        return $shared;
+    }
+
+    private function buildDeviceDiscoveryNodeId(array $topicMeta): string
+    {
+        $parts = [];
+        $topicNodeId = trim((string)($topicMeta['topic_node_id'] ?? ''), '/');
+        if ($topicNodeId !== '') {
+            $parts[] = $topicNodeId;
+        }
+
+        $topicObjectId = trim((string)($topicMeta['topic_object_id'] ?? ''), '/');
+        if ($topicObjectId !== '') {
+            $parts[] = $topicObjectId;
+        }
+
+        return implode('/', $parts);
     }
 
     private function normalizeDeviceAliases(array $device): array
