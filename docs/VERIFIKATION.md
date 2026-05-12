@@ -14,12 +14,12 @@ Sie deckt Arbeitspaket `D1` aus `docs/WEITERES_VORGEHEN.md` ab.
 Aus dem Repository-Root:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tests\lint-php.ps1
+lokaler Lint-/Pruefworkflow aus dem unversionierten Testbereich
 ```
 
 Erwartung:
 
-- Das Skript prueft alle `*.php` Dateien rekursiv mit `php -l`
+- Der lokale Lint-Workflow prueft alle `*.php` Dateien rekursiv mit `php -l`
 - Der Prozess endet mit Exit-Code `0`, wenn keine Syntaxfehler gefunden wurden
 - Bei Fehlern werden die betroffenen Dateien am Ende gesammelt ausgegeben
 
@@ -64,12 +64,12 @@ Pflichtpunkte:
 Fuer MQTT-Discovery-Aenderungen wird die D1-Pruefung durch die discovery-spezifischen Testprotokolle ergaenzt:
 
 - `docs/MQTT_DISCOVERY_A3_TESTPLAN.md`
-- `tests/fixtures/README.md`
+- lokale Fixture-Doku aus dem unversionierten Testbereich
 
 ## 5. Abschlusskriterium fuer D1
 
 `D1` ist fuer eine Aenderung nur dann erfuellt, wenn:
 
-- `tests/lint-php.ps1` erfolgreich lief
+- der lokale Lint-/Pruefworkflow erfolgreich lief
 - die betroffenen Punkte der manuellen Pruefliste abgearbeitet wurden
 - Ergebnis und Einschraenkungen nachvollziehbar notiert sind

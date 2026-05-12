@@ -6,7 +6,6 @@ Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
 ## Dokumentation
 
 Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
-Discovery-Fixtures und Bundle-Erzeugung: [tests/fixtures](tests/fixtures/README.md)
 
 **Inhaltsverzeichnis**
 

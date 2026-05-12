@@ -4,8 +4,4 @@ Home Assistant Device/form_result.json
 .junie/
 docs/MQTT_DISCOVERY_A3_TESTPLAN.md
 docs/WEITERES_VORGEHEN.md
-tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json
-tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_stale_v2.json
-tests/check-mqtt-discovery-light-runtime.php
-tests/extract-mqtt-discovery-light-fixture.php
-tests/zigbee2mqtt_update_task.ps1
+tests/
