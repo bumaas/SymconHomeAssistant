@@ -56,7 +56,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         if ($records === []) {
             $form['actions'][] = [
                 'type' => 'Label',
-                'caption' => 'Keine MQTT-Discovery-Configs im Splitter-Cache gefunden. MQTT Parent muss ein MQTT Client mit homeassistant/# sein.'
+                'caption' => 'Keine MQTT-Discovery-Configs im Splitter-Cache gefunden. MQTT Parent muss den Discovery-Prefix abonnieren, z. B. homeassistant/# oder #.'
             ];
         }
 

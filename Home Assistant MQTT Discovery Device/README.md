@@ -20,7 +20,7 @@ Laufzeitmodul fuer MQTT-Discovery-Geraete aus dem Home Assistant MQTT Discovery 
 ## Voraussetzungen
 
 - Home Assistant MQTT Discovery Splitter als Parent.
-- Parent des Splitters muss ein MQTT Client mit Subscription `homeassistant/#` sein.
+- Parent des Splitters muss ein MQTT Client sein, der den Discovery-Prefix abonniert, z. B. `homeassistant/#` oder `#`.
 - Die relevanten State-Topics muessen vom MQTT Client empfangen werden, typischerweise ueber `zigbee2mqtt/#` oder `#`.
 
 ## Hinweis

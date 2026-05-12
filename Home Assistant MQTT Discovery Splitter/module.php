@@ -11,13 +11,17 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     use HAParentConnectionTrait;
     use ModuleDebugTrait;
 
+    private const string TIMER_DIAGNOSTICS_REFRESH = 'DiagnosticsRefresh';
     private const string ATTRIBUTE_DISCOVERY_CACHE = 'MqttDiscoveryConfigCache';
     private const string ATTRIBUTE_TOPIC_PAYLOAD_CACHE = 'MqttTopicPayloadCache';
     private const string ATTRIBUTE_MQTT_SESSION_STATE = 'MqttSessionState';
+    private const string ATTRIBUTE_DIAGNOSTICS_DIRTY = 'DiagnosticsDirty';
+    private const string ATTRIBUTE_REFERENCED_TOPIC_LOOKUP = 'MqttReferencedTopicLookup';
     private const string EXPORT_FORMAT = 'ha_mqtt_discovery_bundle';
     private const int EXPORT_VERSION = 2;
     private const int DIAGNOSTIC_PREVIEW_LIMIT = 8;
     private const int OUTPUT_BUFFER_RESERVE_BYTES = 262144;
+    private const int DIAGNOSTICS_REFRESH_INTERVAL_MS = 1000;
 
     public function Create(): void
     {
@@ -31,10 +35,13 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
 
+        $this->RegisterTimer(self::TIMER_DIAGNOSTICS_REFRESH, 0, 'HA_RefreshDiscoveryDiagnostics($_IPS["TARGET"]);');
         $this->RegisterAttributeString('LastMQTTMessage', '');
         $this->RegisterAttributeString(self::ATTRIBUTE_DISCOVERY_CACHE, '{}');
         $this->RegisterAttributeString(self::ATTRIBUTE_TOPIC_PAYLOAD_CACHE, '{}');
         $this->RegisterAttributeString(self::ATTRIBUTE_MQTT_SESSION_STATE, '{}');
+        $this->RegisterAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
+        $this->RegisterAttributeString(self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP, '{}');
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -118,6 +125,18 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $dataUrl = 'data:text/plain;charset=utf-8;base64,' . base64_encode($json);
         $this->applyOutputBufferForStringResponse($dataUrl, 'ExportDiscoveryBundleDataUrl');
         return $dataUrl;
+    }
+
+    /** @noinspection PhpUnused */
+    public function RefreshDiscoveryDiagnostics(): void
+    {
+        $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
+        if (!$this->ReadAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY)) {
+            return;
+        }
+
+        $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
+        $this->updateDiagnosticsLabels();
     }
 
     public function ReconnectMqttParent(): void
@@ -213,7 +232,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             ];
             $this->updateTopicPayloadCacheFromMessage($topic, $payload, $metadata);
             $this->updateDiscoveryCacheFromMessage($topic, $payload, $metadata);
-            $this->updateDiagnosticsLabels();
+            $this->scheduleDiagnosticsRefresh();
 
             $data['DataID'] = HAIds::DATA_MQTT_DISCOVERY_SPLITTER_TO_DEVICE;
             $this->SendDataToChildren(json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
@@ -232,17 +251,38 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         }
 
         return match ($action) {
-            'GetDiscoveryConfigs' => json_encode($this->buildDiscoveryResponse(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            'GetTopicPayloads' => json_encode($this->buildTopicPayloadResponse($data['Topics'] ?? []), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'GetDiscoveryConfigs' => $this->encodeDiscoveryRequestResponse(
+                $this->buildDiscoveryResponse(),
+                'GetDiscoveryConfigs'
+            ),
+            'GetTopicPayloads' => $this->encodeDiscoveryRequestResponse(
+                $this->buildTopicPayloadResponse($data['Topics'] ?? []),
+                'GetTopicPayloads'
+            ),
             'ExportDiscoveryBundle' => json_encode($this->buildDiscoveryExportBundle($data['Options'] ?? null), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             default => json_encode(['Error' => 'Unsupported DiscoveryAction'], JSON_THROW_ON_ERROR)
         };
+    }
+
+    private function encodeDiscoveryRequestResponse(array $payload, string $context): string
+    {
+        $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $this->applyOutputBufferForStringResponse($json, $context);
+        return $json;
     }
 
     private function updateDiagnosticsLabels(): void
     {
         foreach ($this->buildDiagnosticsCaptions() as $field => $caption) {
             $this->updateFormFieldSafe($field, 'caption', $caption);
+        }
+    }
+
+    private function scheduleDiagnosticsRefresh(): void
+    {
+        $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, true);
+        if ($this->GetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH) <= 0) {
+            $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, self::DIAGNOSTICS_REFRESH_INTERVAL_MS);
         }
     }
 
@@ -386,6 +426,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         }
 
         $this->writeDiscoveryCache($cache);
+        $this->syncReferencedRuntimeTopicState($cache);
     }
 
     private function buildDiscoveryResponse(): array
@@ -544,8 +585,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function pruneCaches(): void
     {
-        $this->writeDiscoveryCache($this->getDiscoveryConfigRecords());
-        $this->writeTopicPayloadCache($this->readTopicPayloadCache());
+        $discoveryCache = $this->getDiscoveryConfigRecords();
+        $this->writeDiscoveryCache($discoveryCache);
+        $this->syncReferencedRuntimeTopicState($discoveryCache);
     }
 
     private function updateTopicPayloadCacheFromMessage(string $topic, string $payload, array $metadata = []): void
@@ -556,16 +598,31 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         }
 
         $cache = $this->readTopicPayloadCache();
+        $cacheChanged = false;
         if ($this->isDiscoveryConfigTopic($topic) || trim($payload) === '') {
-            unset($cache[$topic]);
+            if (isset($cache[$topic])) {
+                unset($cache[$topic]);
+                $cacheChanged = true;
+            }
         } else {
-            $record = $this->createCacheRecord($topic, $payload, $metadata, true);
-            if ($record !== null) {
-                $cache[$topic] = $record;
+            $referencedTopics = $this->readReferencedTopicLookup();
+            if (!isset($referencedTopics[$topic])) {
+                if (isset($cache[$topic])) {
+                    unset($cache[$topic]);
+                    $cacheChanged = true;
+                }
+            } else {
+                $record = $this->createCacheRecord($topic, $payload, $metadata, true);
+                if ($record !== null) {
+                    $cache[$topic] = $record;
+                    $cacheChanged = true;
+                }
             }
         }
 
-        $this->writeTopicPayloadCache($cache);
+        if ($cacheChanged) {
+            $this->writeTopicPayloadCache($cache);
+        }
     }
 
     private function isDiscoveryConfigTopic(string $topic, ?string $prefix = null): bool
@@ -619,6 +676,76 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             self::ATTRIBUTE_TOPIC_PAYLOAD_CACHE,
             json_encode($cache, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
+    }
+
+    private function readReferencedTopicLookup(): array
+    {
+        try {
+            $decoded = json_decode($this->ReadAttributeString(self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($decoded as $topic => $enabled) {
+            if (!is_string($topic) || trim($topic, '/') === '' || !$enabled) {
+                continue;
+            }
+            $result[trim($topic, '/')] = true;
+        }
+
+        ksort($result, SORT_STRING);
+        return $result;
+    }
+
+    private function writeReferencedTopicLookup(array $lookup): void
+    {
+        ksort($lookup, SORT_STRING);
+        $this->WriteAttributeString(
+            self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP,
+            json_encode($lookup, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+    }
+
+    private function syncReferencedRuntimeTopicState(array $discoveryCache): void
+    {
+        $lookup = $this->buildReferencedTopicLookup($discoveryCache);
+        $this->writeReferencedTopicLookup($lookup);
+        $this->writeTopicPayloadCache($this->filterRuntimeCacheToReferencedTopics($this->readTopicPayloadCache(), $lookup));
+    }
+
+    private function buildReferencedTopicLookup(array $discoveryCache): array
+    {
+        $lookup = [];
+        foreach ($this->collectReferencedTopicsFromDiscoveryConfigs(array_values($discoveryCache)) as $topic) {
+            $topic = trim($topic, '/');
+            if ($topic === '') {
+                continue;
+            }
+            $lookup[$topic] = true;
+        }
+
+        ksort($lookup, SORT_STRING);
+        return $lookup;
+    }
+
+    private function filterRuntimeCacheToReferencedTopics(array $runtimeCache, array $referencedTopicLookup): array
+    {
+        $filtered = [];
+        foreach ($runtimeCache as $topic => $record) {
+            $topic = trim((string)$topic, '/');
+            if ($topic === '' || !isset($referencedTopicLookup[$topic])) {
+                continue;
+            }
+            $filtered[$topic] = $record;
+        }
+
+        ksort($filtered, SORT_STRING);
+        return $filtered;
     }
 
     private function normalizeRequestedTopics(mixed $topics): array
@@ -1305,16 +1432,18 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     {
         $state = $this->readMqttSessionState();
         $startedAt = (int)($state['started_at'] ?? 0);
+        $sessionId = trim((string)($state['id'] ?? ''));
+        $sessionSuffix = ' | ID ' . ($sessionId !== '' ? $sessionId : '-');
         if ($startedAt <= 0) {
-            return 'keine aktive Session';
+            return 'keine aktive Session' . $sessionSuffix;
         }
 
         $timeText = date('Y-m-d H:i:s', $startedAt);
         if ((bool)($state['active'] ?? false)) {
-            return 'aktiv seit ' . $timeText;
+            return 'aktiv seit ' . $timeText . $sessionSuffix;
         }
 
-        return 'inaktiv | letzte Session ' . $timeText;
+        return 'inaktiv | letzte Session ' . $timeText . $sessionSuffix;
     }
 
     private function buildExportSessionInfo(): array

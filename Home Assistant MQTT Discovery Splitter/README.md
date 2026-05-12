@@ -18,7 +18,7 @@ Verbindet MQTT-Discovery-Topics mit Discovery-Configurator- und spaeteren Discov
 ## Voraussetzungen
 
 - MQTT Client Instanz als Parent.
-- Der MQTT Client muss den Discovery-Prefix abonnieren, typischerweise `homeassistant/#`.
+- Der MQTT Client muss den Discovery-Prefix abonnieren, z. B. `homeassistant/#` oder `#`.
 - Fuer Discovery-Device-Runtime muessen ueber denselben MQTT Client auch die State-Topics der Quelle ankommen, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 
 ## Konfiguration

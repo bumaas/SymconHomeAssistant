@@ -143,3 +143,32 @@ Offene Punkte:
 - Formularverhalten, wenn für eine `DeviceID` noch kein Discovery-Cache im Splitter vorhanden ist
 - Statusmodell bei fehlendem oder inaktivem Parent
 - mögliche Vereinheitlichung mit dem self-resolving Muster von `Home Assistant Entity`
+
+### MQTT Discovery Splitter: Performance-Backlog
+
+Beobachtung:
+- Im Live-Betrieb gab es Hinweise auf hohe Last im `Home Assistant MQTT Discovery Splitter` bei starkem MQTT-Traffic.
+- Bereits umgesetzt sind gedrosselte Diagnose-Updates und ein Runtime-Cache nur für aktuell referenzierte Topics.
+- Weitere Eingriffe werden erst nach Rückmeldung aus dem Live-Test eingeplant.
+
+Geparkte nächste Schritte:
+- `TX` aus dem schweren Cache-/Diagnosepfad des Discovery-Splitters herausnehmen
+- Cache-Schreibvorgänge nur bei echter Payload-Änderung ausführen
+- Kinderverteilung im Splitter weiter eingrenzen statt alle Nachrichten breit weiterzureichen
+- Referenzierte Topics und Diagnosestatistik stärker zwischenspeichern
+- Volle Diagnose nur bei Bedarf oder Formularnutzung rechnen
+- Bei Bedarf einen dedizierten MQTT-Client nur für Discovery empfehlen
+
+### Klassischer Home Assistant Splitter: Performance-Backlog
+
+Beobachtung:
+- Auch im klassischen `Home Assistant Splitter` kann hohe Last auftreten, wenn der Parent viel MQTT-Traffic sieht.
+- Der Splitter empfaengt derzeit breit ueber `SetReceiveDataFilter('.*')` und reicht `RX`/`TX`-Nachrichten an Kinder weiter.
+- Ob hier weiterer Handlungsbedarf besteht, wird erst nach den Discovery-Splitter-Erfahrungen priorisiert.
+
+Geparkte naechste Schritte:
+- Breiten Empfang im Splitter gegen den real benoetigten Topic-Bereich absichern
+- `TX` nur dann an Kinder weiterreichen, wenn dafuer ein fachlicher Bedarf besteht
+- Broadcast an Kinder weiter eingrenzen statt jede MQTT-Nachricht global durchzureichen
+- Diagnose- und Formularupdates auch hier auf moegliche Hotspots pruefen
+- Einen dedizierten MQTT-Client mit enger Subscription als Betriebsoption dokumentieren

@@ -68,7 +68,7 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 
 - Symcon ab Version 9.0
 - MQTT Broker in Home Assistant und eine MQTT Client-Instanz in Symcon oder alternativ ein Symcon MQTT Server
-- Fuer den MQTT Discovery Splitter wird ein zusaetzlicher Symcon MQTT Client mit Subscription `homeassistant/#` benoetigt.
+- Fuer den MQTT Discovery Splitter wird ein zusaetzlicher Symcon MQTT Client benoetigt, der den Discovery-Prefix abonniert, z. B. `homeassistant/#` oder `#`.
 - Fuer MQTT Discovery Devices muessen ueber denselben MQTT Client zusaetzlich die Laufzeit-Topics der Quelle empfangen werden, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 - Home Assistant mit aktivierter MQTT Integration (Statestream)
 - Optional: mDNS/DNS-SD (Discovery)
@@ -138,7 +138,7 @@ Home Assistant Device / Entity / Configurator
 
 **Hinweise zur Fehlersuche**
 
-- Wenn im Splitter `Kein aktiver MQTT Parent gefunden` steht: Parent-Verbindung im Splitter, MQTT-Client-Status und Subscription in Symcon prüfen (`homeassistant/#`).
+- Wenn im Splitter `Kein aktiver MQTT Parent gefunden` steht: Parent-Verbindung im Splitter, MQTT-Client-Status und Subscription in Symcon pruefen (Discovery-Prefix, z. B. `homeassistant/#` oder `#`).
 - Wenn es im Datenfluss hakt: Mithilfe des [MQTT Explorer](https://mqtt-explorer.com/) kann komfortabel geprüft werden, ob der MQTT-Server mit Daten versorgt wird (Topic, Payload, Attribute).
 - IP-Adressen und Ports prüfen: MQTT standardmäßig `1883` (TLS `8883`), Home Assistant REST standardmäßig `8123`.
 - MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.

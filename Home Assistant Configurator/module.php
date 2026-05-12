@@ -227,13 +227,6 @@ class HomeAssistantConfigurator extends IPSModuleStrict
                     $entityInstanceID = $mappedEntityInstances[$entityId][0] ?? 0;
                     $values[] = $this->buildEntityRow($dev, $entityInstanceID, $cleanedEntities);
                 }
-
-                if (!isset($blockedDeviceIds[$entityId])) {
-                    $deviceInstanceID = $mappedDeviceInstances[$entityId][0] ?? 0;
-                    $entitiesForConfig = $this->buildEntitiesForConfig($dev, $cleanedNameById, $autoCreateVariables);
-                    $createEntitiesForConfig = $this->buildStableResolvedCreateConfig($entitiesForConfig);
-                    $values[] = $this->buildDeviceRow($dev, $deviceInstanceID, $cleanedEntities, $createEntitiesForConfig, false, 'Device (Legacy)');
-                }
                 continue;
             }
 

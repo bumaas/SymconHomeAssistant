@@ -16,7 +16,7 @@ Liest MQTT-Discovery-Konfigurationen aus dem Home Assistant MQTT Discovery Split
 ## Voraussetzungen
 
 - Home Assistant MQTT Discovery Splitter als Parent.
-- Parent des Splitters muss ein MQTT Client mit Subscription `homeassistant/#` sein.
+- Parent des Splitters muss ein MQTT Client sein, der den Discovery-Prefix abonniert, z. B. `homeassistant/#` oder `#`.
 - Discovery-Topics muessen im Splitter-Cache angekommen sein.
 
 ## Hinweis
