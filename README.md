@@ -6,7 +6,7 @@ Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
 ## Dokumentation
 
 Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
-Discovery-Fixtures und Bundle-Erzeugung: [docs/fixtures](docs/fixtures/README.md)
+Discovery-Fixtures und Bundle-Erzeugung: [tests/fixtures](tests/fixtures/README.md)
 
 **Inhaltsverzeichnis**
 
@@ -148,7 +148,6 @@ Home Assistant Device / Entity / Configurator
 - Fuer Support und Analyse gibt es zwei Exportwege im MQTT Discovery Splitter:
   - `Discovery-Bundle herunterladen` fuer den gesamten Cache.
   - `Discovery-Bundle aktuelle Session herunterladen` fuer nur die aktuelle MQTT-Session nach einem frischen Connect oder Reconnect.
-
 ### Datenfluss
 - Device/Configurator -> Splitter: `{E62B0B4F-1B5C-4F2C-9B6B-2C86F5B7C1D1}`
 - Splitter -> Device/Configurator: `{F4A2B9F1-1D3B-44A9-9B6A-0D3A5A7D6E10}`

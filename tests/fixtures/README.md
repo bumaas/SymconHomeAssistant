@@ -83,12 +83,12 @@ Lokaler Pruefaufruf:
 php .\tests\check-mqtt-discovery-fixtures.php
 ```
 
-Der Checker sammelt dabei automatisch alle `*.json` unter `docs/fixtures`.
+Der Checker sammelt dabei automatisch alle `*.json` unter `tests/fixtures`.
 
 Optional mit expliziten Dateien:
 
 ```powershell
-php .\tests\check-mqtt-discovery-fixtures.php .\docs\fixtures\ha_mqtt_discovery_bundle_ebusd.json .\docs\fixtures\ha_mqtt_discovery_bundle_zigbee2mqtt_full_v2.json
+php .\tests\check-mqtt-discovery-fixtures.php .\tests\fixtures\ha_mqtt_discovery_bundle_ebusd.json .\tests\fixtures\ha_mqtt_discovery_bundle_zigbee2mqtt_full_v2.json
 ```
 
 Hinweis zum Bundle-Schema:

@@ -47,7 +47,7 @@ function main(array $argv): int
 
 function findDefaultFixtures(): array
 {
-    $paths = glob(dirname(__DIR__) . '/docs/fixtures/*.json');
+    $paths = glob(dirname(__DIR__) . '/tests/fixtures/*.json');
     if ($paths === false) {
         return [];
     }

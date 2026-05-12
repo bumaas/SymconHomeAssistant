@@ -64,7 +64,7 @@ Pflichtpunkte:
 Fuer MQTT-Discovery-Aenderungen wird die D1-Pruefung durch die discovery-spezifischen Testprotokolle ergaenzt:
 
 - `docs/MQTT_DISCOVERY_A3_TESTPLAN.md`
-- `docs/fixtures/README.md`
+- `tests/fixtures/README.md`
 
 ## 5. Abschlusskriterium fuer D1
 
