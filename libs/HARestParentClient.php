@@ -23,13 +23,14 @@ trait HARestParentClientTrait
 
     private function sendRestRequestToParent(string $endpoint, ?string $postData): ?array
     {
-        if (!$this->hasCompatibleSplitterParent()) {
-            $this->debugExpert('REST', 'No compatible parent', $this->getCurrentParentDebugContext(), true);
-            return null;
-        }
-
-        if (!$this->hasActiveSplitterParent()) {
-            $this->debugExpert('REST', 'No active parent', $this->getCurrentParentDebugContext(), true);
+        $parentState = $this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]);
+        if ($parentState !== 'active') {
+            $message = match ($parentState) {
+                'missing' => 'No parent connected',
+                'inactive' => 'No active parent',
+                default => 'No compatible parent'
+            };
+            $this->debugExpert('REST', $message, $this->getCurrentParentDebugContext(), true);
             return null;
         }
 

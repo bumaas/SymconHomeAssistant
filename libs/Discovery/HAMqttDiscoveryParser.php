@@ -10,7 +10,8 @@ final class HAMqttDiscoveryParser
         HASensorDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
         HASelectDefinitions::DOMAIN,
-        HAButtonDefinitions::DOMAIN
+        HAButtonDefinitions::DOMAIN,
+        HALightDefinitions::DOMAIN
     ];
 
     private const string DEVICE_AUTOMATION_COMPONENT = 'device_automation';
@@ -132,7 +133,18 @@ final class HAMqttDiscoveryParser
                 'state_class'         => $this->normalizeNullableString($config['state_class'] ?? null),
                 'entity_category'     => $this->normalizeNullableString($config['entity_category'] ?? null),
                 'enabled_by_default'  => !array_key_exists('enabled_by_default', $config) || (bool)$config['enabled_by_default'],
-                'icon'                => $this->normalizeNullableString($config['icon'] ?? null)
+                'icon'                => $this->normalizeNullableString($config['icon'] ?? null),
+                'brightness'          => (bool)($config['brightness'] ?? false),
+                'brightness_scale'    => is_numeric($config['brightness_scale'] ?? null) ? (int)$config['brightness_scale'] : null,
+                'effect'              => (bool)($config['effect'] ?? false),
+                'effect_list'         => $this->normalizeStringList($config['effect_list'] ?? null),
+                'supported_features'  => $component === HALightDefinitions::DOMAIN ? $this->buildLightSupportedFeatures($config) : null,
+                'supported_color_modes' => $this->normalizeStringList($config['supported_color_modes'] ?? null),
+                'min_mireds'          => is_numeric($config['min_mireds'] ?? null) ? (int)$config['min_mireds'] : null,
+                'max_mireds'          => is_numeric($config['max_mireds'] ?? null) ? (int)$config['max_mireds'] : null,
+                'min_color_temp_kelvin' => is_numeric($config['min_color_temp_kelvin'] ?? null) ? (int)$config['min_color_temp_kelvin'] : null,
+                'max_color_temp_kelvin' => is_numeric($config['max_color_temp_kelvin'] ?? null) ? (int)$config['max_color_temp_kelvin'] : null,
+                'schema'              => $this->normalizeNullableString($config['schema'] ?? null)
             ],
             'command'        => [
                 'mode'             => $this->determineCommandMode($config),
@@ -398,6 +410,23 @@ final class HAMqttDiscoveryParser
             'sw'   => $this->normalizeNullableString($origin['sw'] ?? null) ?? '',
             'url'  => $this->normalizeNullableString($origin['url'] ?? null) ?? ''
         ];
+    }
+
+    private function buildLightSupportedFeatures(array $config): int
+    {
+        $features = 0;
+
+        if (!empty($config['effect']) || $this->normalizeStringList($config['effect_list'] ?? null) !== []) {
+            $features |= 4;
+        }
+        if (!empty($config['flash'])) {
+            $features |= 8;
+        }
+        if (!empty($config['transition'])) {
+            $features |= 32;
+        }
+
+        return $features;
     }
 
     private function normalizeConfigAliases(array $config): array

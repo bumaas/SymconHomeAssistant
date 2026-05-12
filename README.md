@@ -144,7 +144,7 @@ Home Assistant Device / Entity / Configurator
 - IP-Adressen und Ports prüfen: MQTT standardmäßig `1883` (TLS `8883`), Home Assistant REST standardmäßig `8123`.
 - MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.
 
-- Wenn beim MQTT Discovery Splitter bereits vorhandene Discovery-Geraete nicht sofort auftauchen, obwohl sie retained am Broker liegen: `MQTT-Parent reconnecten` ausfuehren. Dadurch wird das retained Replay erneut eingelesen.
+- Wenn beim MQTT Discovery Splitter bereits vorhandene Discovery-Geraete nicht sofort auftauchen, obwohl sie retained am Broker liegen: `MQTT-IO reconnecten` ausfuehren. Dadurch wird der IO des MQTT-Clients neu verbunden und das retained Replay erneut eingelesen.
 - Fuer Support und Analyse gibt es zwei Exportwege im MQTT Discovery Splitter:
   - `Discovery-Bundle herunterladen` fuer den gesamten Cache.
   - `Discovery-Bundle aktuelle Session herunterladen` fuer nur die aktuelle MQTT-Session nach einem frischen Connect oder Reconnect.

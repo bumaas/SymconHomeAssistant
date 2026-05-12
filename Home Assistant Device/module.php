@@ -38,6 +38,9 @@ require_once __DIR__ . '/../libs/Device/HADeviceCore.php';
  */
 class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 {
+    private const int STATUS_PARENT_UNAVAILABLE = 201;
+    private const int STATUS_MQTT_BASE_TOPIC_MISSING = 202;
+
     use ModuleDebugTrait;
     use HADomainStateHandlersTrait;
     use HAAttributeHandlersTrait;
@@ -112,21 +115,15 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
 
-        $instance = IPS_GetInstance($this->InstanceID);
-        $parentID = $instance['ConnectionID'];
-        if ($parentID <= 0) {
-            $this->SetStatus(201);
-            $this->debugExpert('ApplyChanges', 'Kein Parent verbunden', $this->getCurrentParentDebugContext(), true);
-            return;
-        }
-        if (!$this->hasCompatibleSplitterParent()) {
-            $this->SetStatus(201);
-            $this->debugExpert('ApplyChanges', 'Parent ist nicht Home Assistant Splitter', $this->getCurrentParentDebugContext(), true);
-            return;
-        }
-        if (!$this->hasActiveSplitterParent()) {
-            $this->SetStatus(201);
-            $this->debugExpert('ApplyChanges', 'Parent ist nicht aktiv', $this->getCurrentParentDebugContext(), true);
+        $parentState = $this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]);
+        if ($parentState !== 'active') {
+            $this->SetStatus(self::STATUS_PARENT_UNAVAILABLE);
+            $message = match ($parentState) {
+                'missing' => 'Kein Parent verbunden',
+                'inactive' => 'Parent ist nicht aktiv',
+                default => 'Parent ist nicht Home Assistant Splitter'
+            };
+            $this->debugExpert('ApplyChanges', $message, $this->getCurrentParentDebugContext(), true);
             return;
         }
 
@@ -147,7 +144,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         if ($baseTopic === '') {
-            $this->SetStatus(202);
+            $this->SetStatus(self::STATUS_MQTT_BASE_TOPIC_MISSING);
             $this->debugExpert('ApplyChanges', 'MQTTBaseTopic ist leer. MQTT Statestream Updates kommen dann nicht an.');
         } else {
             $this->SetStatus(IS_ACTIVE);

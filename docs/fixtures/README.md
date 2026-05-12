@@ -54,7 +54,7 @@ Diese Ablage enthaelt reale Export-Bundles aus dem `Home Assistant MQTT Discover
 Empfohlener Ablauf im `Home Assistant MQTT Discovery Splitter`:
 
 1. Pruefen, ob der MQTT-Parent verbunden ist.
-2. Falls Discovery-Eintraege fehlen oder nur alte Cache-Staende sichtbar sind: `MQTT-Parent reconnecten` ausfuehren.
+2. Falls Discovery-Eintraege fehlen oder nur alte Cache-Staende sichtbar sind: `MQTT-IO reconnecten` ausfuehren.
 3. Warten, bis das retained Replay durchgelaufen ist und die Session-Anzeige im Formular aktualisiert wurde.
 4. Dann den passenden Export ziehen:
    - `Discovery-Bundle herunterladen` fuer den gesamten Cache.
@@ -73,7 +73,7 @@ Wann welcher Export sinnvoll ist:
 
 Hinweise:
 
-- Eine Session beginnt mit einem neuen MQTT-Connect oder Reconnect des Splitters zum Parent.
+- Eine Session beginnt mit einem neuen MQTT-Connect oder Reconnect des MQTT-Clients ueber seinen IO.
 - Der Session-Export leert den Cache nicht. Er blendet nur Eintraege aus, die nicht zur aktuellen Session gehoeren.
 - Das Bundle wird direkt aus dem Splitter-Cache erzeugt. Es muss daher kein externer MQTT-Mitschnitt erstellt werden.
 

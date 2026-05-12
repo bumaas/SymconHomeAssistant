@@ -92,7 +92,7 @@
         },
         {
           "type": "Button",
-          "caption": "MQTT-Parent reconnecten",
+          "caption": "MQTT-IO reconnecten",
           "onClick": "HA_ReconnectMqttParent($id);"
         },
         {

@@ -58,6 +58,8 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
     private const string PROP_ENTITY_ID = 'EntityID';
     private const string ATTR_RESOLVED_CONFIG = 'ResolvedConfig';
+    private const int STATUS_PARENT_UNAVAILABLE = 201;
+    private const int STATUS_MQTT_BASE_TOPIC_MISSING = 202;
     private const int STATUS_ENTITY_NOT_FOUND = 210;
     private const int STATUS_ENTITY_INVALID = 211;
 
@@ -104,15 +106,15 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
 
-        if (!$this->hasCompatibleSplitterParent()) {
-            $this->SetStatus(201);
-            $this->debugExpert(__FUNCTION__, 'Parent ist nicht Home Assistant Splitter', $this->getCurrentParentDebugContext(), true);
-            return;
-        }
-
-        if (!$this->hasActiveSplitterParent()) {
-            $this->SetStatus(201);
-            $this->debugExpert(__FUNCTION__, 'Parent ist nicht aktiv', $this->getCurrentParentDebugContext(), true);
+        $parentState = $this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]);
+        if ($parentState !== 'active') {
+            $this->SetStatus(self::STATUS_PARENT_UNAVAILABLE);
+            $message = match ($parentState) {
+                'missing' => 'Kein Parent verbunden',
+                'inactive' => 'Parent ist nicht aktiv',
+                default => 'Parent ist nicht Home Assistant Splitter'
+            };
+            $this->debugExpert(__FUNCTION__, $message, $this->getCurrentParentDebugContext(), true);
             return;
         }
 
@@ -198,7 +200,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         }
 
         $this->refreshResolvedFormFields();
-        $this->SetStatus($baseTopic === '' ? 202 : IS_ACTIVE);
+        $this->SetStatus($baseTopic === '' ? self::STATUS_MQTT_BASE_TOPIC_MISSING : IS_ACTIVE);
     }
 
     private function getConfiguredEntities(string $context): array

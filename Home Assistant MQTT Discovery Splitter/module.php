@@ -146,15 +146,24 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
-        $disconnected = IPS_DisconnectInstance($mqttClientId);
-        $reconnected = IPS_ConnectInstance($mqttClientId, $ioParentId);
+        $ioReconnect = $this->reconnectIoParent($ioParentId);
+        if (!(bool)($ioReconnect['supported'] ?? false)) {
+            $this->debugExpert(__FUNCTION__, 'MQTT IO-Reconnect nicht moeglich.', [
+                'MQTTParentID' => $mqttClientId,
+                'IOParentID' => $ioParentId,
+                'Reason' => (string)($ioReconnect['reason'] ?? 'unsupported')
+            ], true);
+            $this->updateDiagnosticsLabels();
+            return;
+        }
 
-        $this->debugExpert(__FUNCTION__, 'MQTT Parent reconnect ausgefuehrt', [
+        $this->debugExpert(__FUNCTION__, 'MQTT IO reconnect ausgefuehrt', [
             'MQTTParentID' => $mqttClientId,
             'IOParentID' => $ioParentId,
-            'Disconnected' => $disconnected,
-            'Reconnected' => $reconnected
-        ], !$disconnected || !$reconnected);
+            'CloseApplied' => (bool)($ioReconnect['close_applied'] ?? false),
+            'OpenApplied' => (bool)($ioReconnect['open_applied'] ?? false),
+            'IOStatusAfter' => (int)($ioReconnect['status_after'] ?? 0)
+        ], !(bool)($ioReconnect['close_applied'] ?? false) || !(bool)($ioReconnect['open_applied'] ?? false));
 
         $this->updateDiagnosticsLabels();
     }
@@ -252,6 +261,84 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private function updateFormFieldSafe(string $name, string $property, mixed $value): void
     {
         @ $this->UpdateFormField($name, $property, $value);
+    }
+
+    private function reconnectIoParent(int $ioParentId): array
+    {
+        $configuration = $this->readInstanceConfiguration($ioParentId);
+        if ($configuration === null) {
+            return [
+                'supported' => false,
+                'reason' => 'configuration_unavailable'
+            ];
+        }
+
+        if (!array_key_exists('Open', $configuration)) {
+            return [
+                'supported' => false,
+                'reason' => 'open_property_missing'
+            ];
+        }
+
+        $closeApplied = $this->setInstanceOpenState($ioParentId, false);
+        usleep(300000);
+        $openApplied = $this->setInstanceOpenState($ioParentId, true);
+
+        return [
+            'supported' => true,
+            'close_applied' => $closeApplied,
+            'open_applied' => $openApplied,
+            'status_after' => $this->getInstanceStatus($ioParentId)
+        ];
+    }
+
+    private function readInstanceConfiguration(int $instanceId): ?array
+    {
+
+        try {
+            $configuration = IPS_GetConfiguration($instanceId);
+        } catch (Throwable) {
+            return null;
+        }
+
+        if (!is_string($configuration) || trim($configuration) === '') {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode($configuration, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function setInstanceOpenState(int $instanceId, bool $open): bool
+    {
+        try {
+            IPS_SetProperty($instanceId, 'Open', $open);
+            IPS_ApplyChanges($instanceId);
+        } catch (Throwable $e) {
+            $this->debugExpert(__FUNCTION__, 'IO Open-Status konnte nicht gesetzt werden.', [
+                'InstanceID' => $instanceId,
+                'Open' => $open,
+                'Error' => $e->getMessage()
+            ], true);
+            return false;
+        }
+
+        return true;
+    }
+
+    private function getInstanceStatus(int $instanceId): int
+    {
+        if (!IPS_InstanceExists($instanceId)) {
+            return 0;
+        }
+
+        $instance = IPS_GetInstance($instanceId);
+        return (int)($instance['InstanceStatus'] ?? 0);
     }
 
     private function getDiscoveryPrefix(): string

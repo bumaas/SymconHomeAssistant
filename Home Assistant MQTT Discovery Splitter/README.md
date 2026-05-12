@@ -28,10 +28,10 @@ Verbindet MQTT-Discovery-Topics mit Discovery-Configurator- und spaeteren Discov
 
 ## Export
 
-- Im Formular steht ein Button `MQTT-Parent reconnecten` zur Verfuegung.
+- Im Formular steht ein Button `MQTT-IO reconnecten` zur Verfuegung.
 - Im Formular steht ein Button `Discovery-Bundle herunterladen` zur Verfuegung.
 - Zusaetzlich steht ein Button `Discovery-Bundle aktuelle Session herunterladen` zur Verfuegung.
-- `MQTT-Parent reconnecten` trennt den MQTT-Client-Parent kurz von seinem IO-Parent und verbindet ihn wieder. Damit kann ein frischer MQTT-Reconnect inklusive retained Replay angestossen werden.
+- `MQTT-IO reconnecten` schliesst den IO des MQTT-Clients kurz und oeffnet ihn wieder. Damit wird ein echter MQTT-Reconnect inklusive retained Replay angestossen.
 - Das Bundle enthaelt alle gecachten `homeassistant/.../config` Topics sowie die dazu in den Configs referenzierten MQTT-Topics, sofern dafuer Payloads im Cache vorhanden sind.
 - Der Session-Export beschraenkt Discovery-Configs und exportierte Topic-Payloads auf Records der aktuellen MQTT-Session. Damit lassen sich stale Cache-Eintraege fuer frische Fixture-Exporte gezielt ausblenden, ohne den Cache zu leeren.
 - Zusaetzlich exportiert das Bundle Session-Informationen, Freshness (`is_current_session`) und eine normalisierte Liste referenzierter Runtime-Topics mit `status`, `primary_kind` und `kinds`.
@@ -41,13 +41,13 @@ Verbindet MQTT-Discovery-Topics mit Discovery-Configurator- und spaeteren Discov
 
 - Eine neue MQTT-Session beginnt, wenn der Splitter eine aktive Verbindung zu seinem MQTT-Parent feststellt und dabei einen neuen Connect/Reconnect verarbeitet.
 - Der Zeitpunkt wird im Formular ueber `MQTT Session: ...` angezeigt.
-- Ein manueller Reconnect ueber `MQTT-Parent reconnecten` startet damit praktisch eine neue Session.
+- Ein manueller Reconnect ueber `MQTT-IO reconnecten` startet damit praktisch eine neue Session.
 - Alte Cache-Eintraege bleiben erhalten, werden aber fuer Diagnose und Session-Export als nicht aktuell markiert.
 
 ## Bundle ziehen
 
 1. Sicherstellen, dass der Parent verbunden ist und der Splitter Discovery-Daten empfaengt.
-2. Wenn Discovery-Topics trotz bestehender Broker-Verbindung nicht vollstaendig auftauchen: `MQTT-Parent reconnecten` ausfuehren.
+2. Wenn Discovery-Topics trotz bestehender Broker-Verbindung nicht vollstaendig auftauchen: `MQTT-IO reconnecten` ausfuehren.
 3. Kurz warten, bis retained Discovery-Topics erneut eingelaufen sind und die Zaehler im Formular plausibel aussehen.
 4. Danach den passenden Export ziehen:
    - `Discovery-Bundle herunterladen`: kompletter Cache, inklusive aelterer Sessions.
@@ -66,4 +66,4 @@ Empfohlene Verwendung:
 
 ## Hinweis
 
-Dieser Splitter ist bewusst vom bestehenden Home Assistant Splitter getrennt. Er verwaltet keine REST-Verbindung und keinen `mqtt_statestream`. Fuer einen vollstaendigen Discovery-Cache wird ein MQTT Client als Parent benoetigt, damit die retained `homeassistant/.../config` Topics sauber replayed werden. Wenn bereits lange eine bestehende Broker-Verbindung laeuft, kann ein manueller Reconnect noetig sein, damit alle retained Discovery-Topics erneut eingelesen werden.
+Dieser Splitter ist bewusst vom bestehenden Home Assistant Splitter getrennt. Er verwaltet keine REST-Verbindung und keinen `mqtt_statestream`. Fuer einen vollstaendigen Discovery-Cache wird ein MQTT Client als Parent benoetigt, damit die retained `homeassistant/.../config` Topics sauber replayed werden. Wenn bereits lange eine bestehende Broker-Verbindung laeuft, kann ein manueller IO-Reconnect noetig sein, damit alle retained Discovery-Topics erneut eingelesen werden.

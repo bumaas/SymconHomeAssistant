@@ -35,7 +35,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         HASwitchDefinitions::DOMAIN,
         HASelectDefinitions::DOMAIN,
         HAButtonDefinitions::DOMAIN,
-        HAEventDefinitions::DOMAIN
+        HAEventDefinitions::DOMAIN,
+        HALightDefinitions::DOMAIN
     ];
 
     /** @var string[] */
@@ -99,26 +100,18 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        if (!$this->hasCompatibleDiscoverySplitterParent()) {
+        $parentState = $this->getDiscoveryParentRuntimeState();
+        if ($parentState !== 'active') {
             $fallbackDefinition = $this->buildOfflineDeviceDefinition();
             $this->storeResolvedDeviceDefinitionIfUsable($fallbackDefinition);
-            $this->SetStatus(self::STATUS_PARENT_INVALID);
+            $this->SetStatus($parentState === 'inactive' ? self::STATUS_PARENT_INACTIVE : self::STATUS_PARENT_INVALID);
             $this->SetReceiveDataFilter('^$');
-            $this->debugExpert('ApplyChanges', 'Parent ist nicht Home Assistant MQTT Discovery Splitter', $this->getCurrentParentDebugContext(), true);
-            $fallbackEntities = $this->normalizeConfiguredEntities($fallbackDefinition['entities'] ?? []);
-            $this->pruneAvailabilityState($fallbackEntities);
-            $this->writeStateWarnings([]);
-            $this->updateDiagnosticsLabels($fallbackEntities, []);
-            $this->updateInstanceSummary($fallbackEntities);
-            return;
-        }
-
-        if (!$this->hasActiveDiscoverySplitterParent()) {
-            $fallbackDefinition = $this->buildOfflineDeviceDefinition();
-            $this->storeResolvedDeviceDefinitionIfUsable($fallbackDefinition);
-            $this->SetStatus(self::STATUS_PARENT_INACTIVE);
-            $this->SetReceiveDataFilter('^$');
-            $this->debugExpert('ApplyChanges', 'Home Assistant MQTT Discovery Splitter Parent ist nicht aktiv', $this->getCurrentParentDebugContext(), true);
+            $message = match ($parentState) {
+                'missing' => 'Kein Parent verbunden',
+                'inactive' => 'Home Assistant MQTT Discovery Splitter Parent ist nicht aktiv',
+                default => 'Parent ist nicht Home Assistant MQTT Discovery Splitter'
+            };
+            $this->debugExpert('ApplyChanges', $message, $this->getCurrentParentDebugContext(), true);
             $fallbackEntities = $this->normalizeConfiguredEntities($fallbackDefinition['entities'] ?? []);
             $this->pruneAvailabilityState($fallbackEntities);
             $this->writeStateWarnings([]);
@@ -307,7 +300,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return $fallback;
         }
 
-        if (!$this->hasCompatibleDiscoverySplitterParent() || !$this->hasActiveDiscoverySplitterParent()) {
+        if ($this->getDiscoveryParentRuntimeState() !== 'active') {
             return $fallback;
         }
 
@@ -586,6 +579,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'entity_category' => $this->normalizeNullableString($metadata['entity_category'] ?? null),
             'enabled_by_default' => !array_key_exists('enabled_by_default', $metadata) || (bool)$metadata['enabled_by_default'],
             'icon' => $this->normalizeNullableString($metadata['icon'] ?? null),
+            'brightness' => (bool)($metadata['brightness'] ?? false),
+            'brightness_scale' => is_numeric($metadata['brightness_scale'] ?? null) ? (int)$metadata['brightness_scale'] : null,
+            'effect' => (bool)($metadata['effect'] ?? false),
+            'effect_list' => HASelectDefinitions::normalizeOptions($metadata['effect_list'] ?? null),
+            'supported_features' => is_numeric($metadata['supported_features'] ?? null) ? (int)$metadata['supported_features'] : 0,
+            'supported_color_modes' => HASelectDefinitions::normalizeOptions($metadata['supported_color_modes'] ?? null),
+            'min_mireds' => is_numeric($metadata['min_mireds'] ?? null) ? (int)$metadata['min_mireds'] : null,
+            'max_mireds' => is_numeric($metadata['max_mireds'] ?? null) ? (int)$metadata['max_mireds'] : null,
+            'min_color_temp_kelvin' => is_numeric($metadata['min_color_temp_kelvin'] ?? null) ? (int)$metadata['min_color_temp_kelvin'] : null,
+            'max_color_temp_kelvin' => is_numeric($metadata['max_color_temp_kelvin'] ?? null) ? (int)$metadata['max_color_temp_kelvin'] : null,
+            'schema' => $this->normalizeNullableString($metadata['schema'] ?? null),
             'origin' => is_array($metadata['origin'] ?? null) ? $metadata['origin'] : []
         ];
     }
@@ -741,7 +745,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             ];
         }
 
-        if (!$this->hasCompatibleDiscoverySplitterParent()) {
+        $parentState = $this->getDiscoveryParentRuntimeState();
+        if ($parentState === 'missing') {
+            return [
+                'status' => self::STATUS_PARENT_INVALID,
+                'message' => 'Kein Parent verbunden.',
+                'resolution' => 'kein Parent verbunden'
+            ];
+        }
+
+        if ($parentState === 'invalid') {
             return [
                 'status' => self::STATUS_PARENT_INVALID,
                 'message' => 'Parent ist nicht Home Assistant MQTT Discovery Splitter.',
@@ -749,7 +762,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             ];
         }
 
-        if (!$this->hasActiveDiscoverySplitterParent()) {
+        if ($parentState === 'inactive') {
             return [
                 'status' => self::STATUS_PARENT_INACTIVE,
                 'message' => 'Home Assistant MQTT Discovery Splitter Parent ist nicht aktiv.',
@@ -872,7 +885,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function determineVariableType(array $entity, array $cachedTopics): int
     {
         return match ($entity['component']) {
-            HABinarySensorDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN => VARIABLETYPE_BOOLEAN,
+            HABinarySensorDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HALightDefinitions::DOMAIN => VARIABLETYPE_BOOLEAN,
             HASelectDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
             HAButtonDefinitions::DOMAIN, HAEventDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
             HASensorDefinitions::DOMAIN => $this->determineSensorVariableType($entity, $cachedTopics),
@@ -934,6 +947,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         if ((string)($entity['component'] ?? '') === HASwitchDefinitions::DOMAIN && $variableType === VARIABLETYPE_BOOLEAN) {
+            return ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH];
+        }
+
+        if ((string)($entity['component'] ?? '') === HALightDefinitions::DOMAIN && $variableType === VARIABLETYPE_BOOLEAN) {
             return ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH];
         }
 
@@ -1183,7 +1200,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        if ($component === HABinarySensorDefinitions::DOMAIN || $component === HASwitchDefinitions::DOMAIN) {
+        if ($component === HABinarySensorDefinitions::DOMAIN || $component === HASwitchDefinitions::DOMAIN || $component === HALightDefinitions::DOMAIN) {
             $boolValue = $this->normalizeBooleanState($value, $entity);
             if ($boolValue === null) {
                 return;
@@ -1259,12 +1276,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $template = $entity['value_template'];
         if ($template === null || !($template['supported'] ?? false)) {
-            return $this->extractRawPayloadValue($payload);
+            return $this->normalizeComponentStateValue($entity, $this->extractRawPayloadValue($payload));
         }
 
         $kind = (string)($template['kind'] ?? '');
         if ($kind === 'raw_value') {
-            return $this->applyTemplateFilters($payload, $template['filters'] ?? []);
+            return $this->normalizeComponentStateValue($entity, $this->applyTemplateFilters($payload, $template['filters'] ?? []));
         }
 
         if ($kind === 'json_path') {
@@ -1282,10 +1299,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 $value = $value[$segment];
             }
 
-            return $this->applyTemplateFilters($value, $template['filters'] ?? []);
+            return $this->normalizeComponentStateValue($entity, $this->applyTemplateFilters($value, $template['filters'] ?? []));
         }
 
-        return $this->extractRawPayloadValue($payload);
+        return $this->normalizeComponentStateValue($entity, $this->extractRawPayloadValue($payload));
     }
 
     private function extractRawPayloadValue(string $payload): mixed
@@ -1304,6 +1321,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return $trimmed;
+    }
+
+    private function normalizeComponentStateValue(array $entity, mixed $value): mixed
+    {
+        if ((string)($entity['component'] ?? '') !== HALightDefinitions::DOMAIN) {
+            return $value;
+        }
+
+        return HAMqttDiscoveryLightRuntime::extractStateValue($value);
     }
 
     private function resolveEventStateValue(array $entity, string $topic, string $payload): ?string
@@ -1499,6 +1525,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($component === HASwitchDefinitions::DOMAIN) {
             return true;
         }
+        if ($component === HALightDefinitions::DOMAIN) {
+            return $entity['command_mode'] === 'payload';
+        }
         if ($component === HASelectDefinitions::DOMAIN) {
             return $entity['options'] !== [] && ($entity['command_mode'] === 'payload' || $entity['command_mode'] === 'template');
         }
@@ -1514,13 +1543,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         if ($entity['component'] === HASwitchDefinitions::DOMAIN) {
-            $boolValue = is_bool($value) ? $value : ((int)$value) !== 0;
+            $boolValue = $this->coerceBooleanActionValue($value);
+            if ($boolValue === null) {
+                return null;
+            }
             $payload = $boolValue ? $entity['payload_on'] : $entity['payload_off'];
             if ($payload === null) {
                 $payload = $boolValue ? 'ON' : 'OFF';
             }
 
             return $this->scalarToString($payload);
+        }
+
+        if ($entity['component'] === HALightDefinitions::DOMAIN) {
+            return HAMqttDiscoveryLightRuntime::buildCommandPayload($value);
         }
 
         if ($entity['component'] === HASelectDefinitions::DOMAIN) {
@@ -1566,6 +1602,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return preg_replace('/\{\{\s*value\s*\}\}/', $value, $raw, 1);
     }
 
+    private function coerceBooleanActionValue(mixed $value): ?bool
+    {
+        return HAMqttDiscoveryLightRuntime::coerceBooleanActionValue($value);
+    }
+
     private function applyOptimisticValue(array $entity, mixed $value): void
     {
         $ident = $entity['ident'];
@@ -1579,7 +1620,19 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         if ($entity['component'] === HASwitchDefinitions::DOMAIN) {
-            $boolValue = is_bool($value) ? $value : ((int)$value) !== 0;
+            $boolValue = $this->coerceBooleanActionValue($value);
+            if ($boolValue === null) {
+                return;
+            }
+            $this->SetValue($ident, $boolValue);
+            return;
+        }
+
+        if ($entity['component'] === HALightDefinitions::DOMAIN) {
+            $boolValue = $this->coerceBooleanActionValue($value);
+            if ($boolValue === null) {
+                return;
+            }
             $this->SetValue($ident, $boolValue);
             return;
         }
@@ -1598,8 +1651,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function sendMqttMessage(string $topic, string $payload, int $qos, bool $retain): void
     {
-        if (!$this->hasActiveDiscoverySplitterParent()) {
-            $this->debugExpert(__FUNCTION__, 'MQTT Send uebersprungen, Parent nicht aktiv', [
+        $parentState = $this->getDiscoveryParentRuntimeState();
+        if ($parentState !== 'active') {
+            $message = match ($parentState) {
+                'missing' => 'MQTT Send uebersprungen, kein Parent verbunden',
+                'inactive' => 'MQTT Send uebersprungen, Parent nicht aktiv',
+                default => 'MQTT Send uebersprungen, Parent ist nicht Home Assistant MQTT Discovery Splitter'
+            };
+            $this->debugExpert(__FUNCTION__, $message, [
                 'Topic' => $topic,
                 'Payload' => $payload
             ], true);
@@ -1870,6 +1929,18 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         if ((string)($entity['component'] ?? '') === HASelectDefinitions::DOMAIN) {
             $parts[] = 'opts:' . count($entity['options'] ?? []);
+        }
+
+        if ((string)($entity['component'] ?? '') === HALightDefinitions::DOMAIN) {
+            $schema = $this->normalizeNullableString($entity['metadata']['schema'] ?? null);
+            if ($schema !== null) {
+                $parts[] = 'schema:' . $schema;
+            }
+
+            $modes = $entity['metadata']['supported_color_modes'] ?? [];
+            if (is_array($modes) && $modes !== []) {
+                $parts[] = 'modes:' . implode(',', $modes);
+            }
         }
 
         return implode(' | ', array_values(array_filter($parts, static fn(string $part): bool => $part !== '')));

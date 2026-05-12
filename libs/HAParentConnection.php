@@ -4,6 +4,24 @@ declare(strict_types=1);
 
 trait HAParentConnectionTrait
 {
+    private function determineParentRuntimeState(array $moduleIds): string
+    {
+        $parentId = $this->getCurrentParentId();
+        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+            return 'missing';
+        }
+
+        if (!$this->hasCompatibleParentModules($moduleIds)) {
+            return 'invalid';
+        }
+
+        if (!$this->HasActiveParent()) {
+            return 'inactive';
+        }
+
+        return 'active';
+    }
+
     private function getCurrentParentId(): int
     {
         $instance = IPS_GetInstance($this->InstanceID);

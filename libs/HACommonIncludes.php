@@ -14,6 +14,7 @@ require_once __DIR__ . '/Config/HAEntityGrouping.php';
 require_once __DIR__ . '/Discovery/HAMqttDiscoveryTemplate.php';
 require_once __DIR__ . '/Discovery/HAMqttDiscoveryParser.php';
 require_once __DIR__ . '/Discovery/HAMqttDiscoveryGrouping.php';
+require_once __DIR__ . '/Discovery/HAMqttDiscoveryLightRuntime.php';
 require_once __DIR__ . '/Discovery/HAMqttDiscoveryParentClient.php';
 require_once __DIR__ . '/Device/HADeviceConstants.php';
 require_once __DIR__ . '/Domains/HALightDefinitions.php';

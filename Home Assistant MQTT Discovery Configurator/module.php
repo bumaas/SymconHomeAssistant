@@ -38,8 +38,14 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
     {
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
 
-        if (!$this->hasCompatibleDiscoverySplitterParent()) {
-            $this->debugExpert(__FUNCTION__, 'Parent ist nicht Home Assistant MQTT Discovery Splitter');
+        $parentState = $this->getDiscoveryParentRuntimeState();
+        if ($parentState !== 'active') {
+            $message = match ($parentState) {
+                'missing' => 'Kein Parent verbunden',
+                'inactive' => 'Home Assistant MQTT Discovery Splitter Parent ist nicht aktiv',
+                default => 'Parent ist nicht Home Assistant MQTT Discovery Splitter'
+            };
+            $this->debugExpert(__FUNCTION__, $message);
             return json_encode($form, JSON_THROW_ON_ERROR);
         }
 
