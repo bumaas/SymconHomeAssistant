@@ -105,6 +105,8 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - Präsentationslogik bleibt möglichst seiteneffektfrei. Variablen- und Medienerzeugung gehören in die Maintenance-Traits.
 - Feature- und Schreibbarkeitslogik orientiert sich an den Domain-Definitionen, nicht an verstreuten Literalwerten.
 - Echte Sonderfälle bleiben explizit. Wenn eine Domain fachlich anders arbeitet, ist eine kleine spezialisierte Methode besser als ein überdehnter Generic-Helper.
+- Modulsichtbare UI-Texte werden lokalisiert. Statische Formular-, Status- und Buttontexte gehören mit englischem Basistext in die jeweilige `locale.json`. Dynamische, für Benutzer sichtbare Texte aus PHP werden über `Translate()` auf dieselben Schlüssel geführt, statt deutschsprachige Literale direkt im Code zu verteilen.
+- Programmdokumentation im Modulcode bleibt knapp und begründet das Warum. Kommentare sind für Hotspots, Invarianten, Lastfallen und bewusst gewählte Abweichungen gedacht; selbsterklärender Ablaufcode bleibt kommentarlos.
 
 ## 5. Erweiterungspfad für eine neue Domain
 
@@ -167,7 +169,7 @@ Zielbild:
 - Der Bundle-Modus ist ein Entwicklungs- und Analysewerkzeug, kein vollwertiger Ersatz fuer einen Live-Broker.
 
 Geplanter MVP:
-- Neue Quelle `SourceMode = mqtt | bundle` im MQTT Discovery Splitter.
+- Interne Quelle `SourceMode = mqtt | bundle` im MQTT Discovery Splitter. Im Formular bleibt standardmäßig nur MQTT sichtbar; Bundle-Modus wird gezielt über öffentliche Funktionen aktiviert.
 - Neue Property `BundlePath` fuer ein zuvor exportiertes Discovery-Bundle.
 - Der Bundle-Import erwartet nur das aktuelle Exportformat V2, damit Validierung und Laufzeitpfad schlank bleiben.
 - Beim Laden werden `discovery_configs`, `topic_payloads` und referenzierte Topic-Informationen in die bestehenden Splitter-Caches uebernommen.
@@ -192,7 +194,7 @@ Architekturregel:
 
 Implementierungs-Backlog:
 1. Formular und Properties im MQTT Discovery Splitter erweitern
-   - `SourceMode`, `BundlePath`, optional `BundleCurrentSessionOnly` und `ReplayTopicsOnApply`
+   - interner `SourceMode`, `BundlePath`, optional `BundleCurrentSessionOnly` und `ReplayTopicsOnApply`
    - Bundle-spezifische Diagnostics und Bedienelemente im Formular sichtbar machen
 2. Bundle-Datei laden und validieren
    - JSON einlesen, Format pruefen, Mindestfelder absichern

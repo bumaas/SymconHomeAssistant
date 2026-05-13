@@ -2,33 +2,23 @@
   "elements": [
     {
       "type": "ExpansionPanel",
-      "caption": "Source",
+      "caption": "MQTT Discovery",
       "expanded": true,
       "items": [
-        {
-          "type": "Select",
-          "name": "SourceMode",
-          "caption": "Source mode",
-          "options": [
-            {
-              "caption": "MQTT",
-              "value": "mqtt"
-            },
-            {
-              "caption": "Bundle",
-              "value": "bundle"
-            }
-          ]
-        },
         {
           "type": "ValidationTextBox",
           "name": "MQTTDiscoveryPrefix",
           "caption": "MQTT Discovery Prefix"
         },
         {
+          "type": "Label",
+          "name": "BundleBasePathInfo",
+          "caption": "Default bundle path: -"
+        },
+        {
           "type": "ValidationTextBox",
           "name": "BundlePath",
-          "caption": "Bundle path"
+          "caption": "Bundle file or path"
         },
         {
           "type": "CheckBox",
@@ -82,7 +72,7 @@
         {
           "type": "Label",
           "name": "LastMQTTMessage",
-          "caption": "Letzte MQTT-Message: nie"
+          "caption": "Last MQTT message: never"
         },
         {
           "type": "Label",
@@ -92,32 +82,32 @@
         {
           "type": "Label",
           "name": "DiagSession",
-          "caption": "MQTT Session: keine aktive Session"
+          "caption": "MQTT Session: no active session"
         },
         {
           "type": "Label",
           "name": "DiagBundle",
-          "caption": "Bundle: nicht aktiv"
+          "caption": "Bundle: inactive"
         },
         {
           "type": "Label",
           "name": "DiagDiscovery",
-          "caption": "MQTT Discovery Prefix: - | Configs gesamt/aktuell/stale: 0/0/0"
+          "caption": "MQTT Discovery Prefix: - | Discovery configs total/current/stale: 0/0/0"
         },
         {
           "type": "Label",
           "name": "DiagDiscoveryPreview",
-          "caption": "Stale Discovery Topics: -"
+          "caption": "Stale discovery topics: -"
         },
         {
           "type": "Label",
           "name": "DiagTopicPayloads",
-          "caption": "Referenzierte Runtime Topics gesamt/aktuell/stale/fehlend: 0/0/0/0"
+          "caption": "Referenced runtime topics total/current/stale/missing: 0/0/0/0"
         },
         {
           "type": "Label",
           "name": "DiagTopicPreview",
-          "caption": "Fehlende/Stale Runtime Topics: -"
+          "caption": "Missing/stale runtime topics: -"
         }
       ]
     },
@@ -128,25 +118,28 @@
       "items": [
         {
           "type": "Label",
-          "caption": "Exportiert Discovery-Configs, referenzierte MQTT-Topics sowie Session-, Freshness- und Missing-Topic-Metadaten als JSON-Bundle."
+          "caption": "Exports discovery configs, referenced MQTT topics, session data, freshness data, and missing-topic metadata as a JSON bundle."
         },
         {
           "type": "RowLayout",
           "items": [
             {
               "type": "Button",
-              "caption": "MQTT-IO reconnecten",
-              "onClick": "HA_ReconnectMqttParent($id);"
+              "name": "ButtonReconnectMqttIo",
+              "caption": "Reconnect MQTT IO",
+              "onClick": "HAMD_ReconnectMqttParent($id);"
             },
             {
               "type": "Button",
-              "caption": "Bundle neu laden",
+              "name": "ButtonReloadBundle",
+              "caption": "Reload bundle",
               "onClick": "IPS_ApplyChanges($id);"
             },
             {
               "type": "Button",
-              "caption": "Bundle-Topics replayen",
-              "onClick": "HA_ReplayBundleTopicsToChildren($id);"
+              "name": "ButtonReplayBundleTopics",
+              "caption": "Replay bundle topics",
+              "onClick": "HAMD_ReplayBundleTopicsToChildren($id);"
             }
           ]
         },
@@ -155,15 +148,15 @@
           "items": [
             {
               "type": "Button",
-              "caption": "Discovery-Bundle herunterladen",
+              "caption": "Download discovery bundle",
               "download": "ha_mqtt_discovery_bundle.json",
-              "onClick": "echo HA_ExportDiscoveryBundleDataUrl($id, true, false, false);"
+              "onClick": "echo HAMD_ExportDiscoveryBundleDataUrl($id, true, false, false);"
             },
             {
               "type": "Button",
-              "caption": "Discovery-Bundle aktuelle Session herunterladen",
+              "caption": "Download current session discovery bundle",
               "download": "ha_mqtt_discovery_bundle_current_session.json",
-              "onClick": "echo HA_ExportDiscoveryBundleDataUrl($id, true, false, true);"
+              "onClick": "echo HAMD_ExportDiscoveryBundleDataUrl($id, true, false, true);"
             }
           ]
         }
@@ -174,22 +167,22 @@
     {
       "code": 201,
       "icon": "error",
-      "caption": "Kein aktiver MQTT-Parent verbunden."
+      "caption": "No active MQTT parent connected."
     },
     {
       "code": 202,
       "icon": "error",
-      "caption": "MQTT Discovery Prefix ist leer."
+      "caption": "MQTT discovery prefix is empty."
     },
     {
       "code": 203,
       "icon": "error",
-      "caption": "Bundle-Pfad ist leer."
+      "caption": "Bundle path is empty."
     },
     {
       "code": 204,
       "icon": "error",
-      "caption": "Bundle konnte nicht geladen oder validiert werden."
+      "caption": "Bundle could not be loaded or validated."
     }
   ]
 }

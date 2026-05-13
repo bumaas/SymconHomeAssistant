@@ -27,6 +27,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string ATTR_AVAILABILITY_STATE = 'AvailabilityState';
     private const string ATTR_RESOLVED_DEVICE_DEFINITION = 'ResolvedDeviceDefinition';
     private const string ATTR_STATE_WARNINGS = 'StateWarnings';
+    private const string ATTR_TOPIC_PROCESSING_INDEX = 'TopicProcessingIndex';
 
     /** @var string[] */
     private const array SUPPORTED_COMPONENTS = [
@@ -75,6 +76,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterAttributeString(self::ATTR_AVAILABILITY_STATE, '{}');
         $this->RegisterAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION, '{}');
         $this->RegisterAttributeString(self::ATTR_STATE_WARNINGS, '{}');
+        $this->RegisterAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX, '{}');
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -94,6 +96,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $this->SetStatus(self::STATUS_DEVICE_ID_MISSING);
             $this->SetReceiveDataFilter('^$');
             $entities = $this->normalizeConfiguredEntities($deviceDefinition['entities'] ?? []);
+            $this->writeTopicProcessingIndex($this->buildTopicProcessingIndex($entities));
             $this->writeStateWarnings([]);
             $this->updateDiagnosticsLabels($entities, []);
             $this->updateInstanceSummary($entities);
@@ -113,6 +116,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             };
             $this->debugExpert('ApplyChanges', $message, $this->getCurrentParentDebugContext(), true);
             $fallbackEntities = $this->normalizeConfiguredEntities($fallbackDefinition['entities'] ?? []);
+            $this->writeTopicProcessingIndex($this->buildTopicProcessingIndex($fallbackEntities));
             $this->pruneAvailabilityState($fallbackEntities);
             $this->writeStateWarnings([]);
             $this->updateDiagnosticsLabels($fallbackEntities, []);
@@ -130,6 +134,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'DeviceID' => (string)($deviceDefinition['device_id'] ?? $this->ReadPropertyString(self::PROP_DEVICE_ID)),
                 'Source' => (string)($deviceDefinition['source'] ?? 'unknown')
             ], true);
+            $this->writeTopicProcessingIndex($this->buildTopicProcessingIndex($entities));
             $this->writeStateWarnings([]);
             $this->updateDiagnosticsLabels($entities, []);
             $this->updateInstanceSummary($entities);
@@ -144,6 +149,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->cleanupObsoleteVariables($activeIdents);
 
         $topics = $this->collectRelevantTopics($entities);
+        $this->writeTopicProcessingIndex($this->buildTopicProcessingIndex($entities));
         $this->updateReceiveFilter($topics);
         $this->applyCachedTopicPayloads($entities, $cachedTopics);
 
@@ -175,9 +181,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->WriteAttributeString(self::ATTR_LAST_MQTT_MESSAGE, date('Y-m-d H:i:s'));
 
         $entities = $this->getConfiguredEntities();
-        $this->applyTopicPayloadToEntities($entities, $topic, $payload);
-        $this->updateDiagnosticsLabels($entities, $this->collectRelevantTopics($entities));
-        $this->updateInstanceSummary($entities);
+        $entityLookup = $this->buildEntityLookup($entities);
+        $topicIndex = $this->readTopicProcessingIndex();
+        $result = $this->applyTopicPayloadToEntities($entityLookup, $topicIndex, $topic, $payload);
+        if ($result['diagnostics_changed']) {
+            $this->updateDiagnosticsLabels($entities, $topicIndex['topics']);
+            $this->updateInstanceSummary($entities);
+        }
         return '';
     }
 
@@ -1072,6 +1082,135 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return array_keys($topics);
     }
 
+    private function buildTopicProcessingIndex(array $entities): array
+    {
+        $index = [
+            'topics' => [],
+            'warnings' => [],
+            'state' => [],
+            'availability' => []
+        ];
+
+        foreach ($entities as $entity) {
+            $entityKey = (string)($entity['entity_key'] ?? '');
+            if ($entityKey === '') {
+                continue;
+            }
+
+            $stateTopic = trim((string)($entity['state_topic'] ?? ''), '/');
+            if ($stateTopic !== '') {
+                $index['topics'][$stateTopic] = true;
+                $index['warnings'][$stateTopic][$entityKey] = true;
+                if ((bool)$entity['create_var']) {
+                    $index['state'][$stateTopic][$entityKey] = true;
+                }
+            }
+
+            $eventFallback = $this->getEventStateFallback($entity);
+            if ((bool)$entity['create_var'] && $eventFallback !== null) {
+                $fallbackTopic = trim((string)($eventFallback['topic'] ?? ''), '/');
+                if ($fallbackTopic !== '') {
+                    $index['topics'][$fallbackTopic] = true;
+                    $index['state'][$fallbackTopic][$entityKey] = true;
+                }
+            }
+
+            if (!(bool)$entity['create_var']) {
+                continue;
+            }
+
+            $attributesTopic = trim((string)($entity['json_attributes_topic'] ?? ''), '/');
+            if ($attributesTopic !== '') {
+                $index['topics'][$attributesTopic] = true;
+            }
+
+            foreach (($entity['availability']['entries'] ?? []) as $entry) {
+                $topic = trim((string)($entry['topic'] ?? ''), '/');
+                if ($topic === '') {
+                    continue;
+                }
+                $index['topics'][$topic] = true;
+                $index['availability'][$topic][$entityKey] = true;
+            }
+        }
+
+        $index['topics'] = array_keys($index['topics']);
+        sort($index['topics'], SORT_STRING);
+
+        foreach (['warnings', 'state', 'availability'] as $bucket) {
+            ksort($index[$bucket], SORT_STRING);
+            foreach ($index[$bucket] as $topic => $entityLookup) {
+                $keys = array_keys($entityLookup);
+                sort($keys, SORT_STRING);
+                $index[$bucket][$topic] = $keys;
+            }
+        }
+
+        return $index;
+    }
+
+    private function readTopicProcessingIndex(): array
+    {
+        try {
+            $decoded = json_decode($this->ReadAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            $decoded = [];
+        }
+
+        if (!is_array($decoded)) {
+            $decoded = [];
+        }
+
+        $normalizeBucket = static function (mixed $bucket): array {
+            if (!is_array($bucket)) {
+                return [];
+            }
+
+            $result = [];
+            foreach ($bucket as $topic => $keys) {
+                if (!is_string($topic) || trim($topic, '/') === '' || !is_array($keys)) {
+                    continue;
+                }
+
+                $normalizedKeys = [];
+                foreach ($keys as $key) {
+                    if (!is_string($key) || trim($key) === '') {
+                        continue;
+                    }
+                    $normalizedKeys[$key] = true;
+                }
+
+                $result[trim($topic, '/')] = array_keys($normalizedKeys);
+            }
+
+            ksort($result, SORT_STRING);
+            return $result;
+        };
+
+        $topics = [];
+        foreach (($decoded['topics'] ?? []) as $topic) {
+            if (!is_string($topic) || trim($topic, '/') === '') {
+                continue;
+            }
+            $topics[trim($topic, '/')] = true;
+        }
+
+        return [
+            'topics' => array_keys($topics),
+            'warnings' => $normalizeBucket($decoded['warnings'] ?? []),
+            'state' => $normalizeBucket($decoded['state'] ?? []),
+            'availability' => $normalizeBucket($decoded['availability'] ?? [])
+        ];
+    }
+
+    private function writeTopicProcessingIndex(array $index): void
+    {
+        $this->WriteAttributeString(
+            self::ATTR_TOPIC_PROCESSING_INDEX,
+            json_encode($index, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+    }
+
     private function updateReceiveFilter(array $topics): void
     {
         if ($topics === []) {
@@ -1128,45 +1267,147 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function applyCachedTopicPayloads(array $entities, array $cachedTopics): void
     {
+        $entityLookup = $this->buildEntityLookup($entities);
+        $topicIndex = $this->buildTopicProcessingIndex($entities);
         foreach ($cachedTopics as $topic => $item) {
-            $this->applyTopicPayloadToEntities($entities, $topic, (string)($item['payload'] ?? ''), (int)($item['received_at'] ?? 0));
+            $this->applyTopicPayloadToEntities($entityLookup, $topicIndex, $topic, (string)($item['payload'] ?? ''), (int)($item['received_at'] ?? 0));
         }
     }
 
-    private function applyTopicPayloadToEntities(array $entities, string $topic, string $payload, int $receivedAt = 0): void
+    private function applyTopicPayloadToEntities(array $entityLookup, array $topicIndex, string $topic, string $payload, int $receivedAt = 0): array
     {
-        $warnings = $this->readStateWarnings();
-        $warningsChanged = false;
-        foreach ($entities as $entity) {
-            if ($entity['state_topic'] === $topic) {
-                $entityKey = (string)$entity['entity_key'];
-                $warning = $this->detectBooleanRuntimeWarning($entity, $payload);
-                if ($warning === null) {
-                    if (isset($warnings[$entityKey])) {
-                        unset($warnings[$entityKey]);
-                        $warningsChanged = true;
-                    }
-                } elseif (($warnings[$entityKey] ?? null) !== $warning) {
-                    $warnings[$entityKey] = $warning;
-                    $warningsChanged = true;
-                }
-            }
+        $diagnosticsChanged = false;
 
-            if (!(bool)$entity['create_var']) {
+        // Shared topics like zigbee2mqtt/bridge/state can fan out widely. The prebuilt index keeps
+        // runtime processing on the affected entity slice instead of rescanning every configured entity.
+        $warningKeys = $topicIndex['warnings'][$topic] ?? [];
+        if ($warningKeys !== [] && $this->updateStateWarningsForTopic($entityLookup, $warningKeys, $payload)) {
+            $diagnosticsChanged = true;
+        }
+
+        foreach (($topicIndex['state'][$topic] ?? []) as $entityKey) {
+            $entity = $entityLookup[$entityKey] ?? null;
+            if (!is_array($entity)) {
                 continue;
             }
 
-            $eventFallback = $this->getEventStateFallback($entity);
-            if ($entity['state_topic'] === $topic || ($eventFallback !== null && $eventFallback['topic'] === $topic)) {
-                $this->applyStatePayload($entity, $topic, $payload, $receivedAt);
+            $this->applyStatePayload($entity, $topic, $payload, $receivedAt);
+        }
+
+        $availabilityKeys = $topicIndex['availability'][$topic] ?? [];
+        if ($availabilityKeys !== [] && $this->applyAvailabilityPayloads($entityLookup, $availabilityKeys, $topic, $payload)) {
+            $diagnosticsChanged = true;
+        }
+
+        return [
+            'diagnostics_changed' => $diagnosticsChanged
+        ];
+    }
+
+    private function updateStateWarningsForTopic(array $entityLookup, array $entityKeys, string $payload): bool
+    {
+        $warnings = $this->readStateWarnings();
+        $warningsChanged = false;
+
+        foreach ($entityKeys as $entityKey) {
+            $entity = $entityLookup[$entityKey] ?? null;
+            if (!is_array($entity)) {
+                continue;
             }
 
-            $this->applyAvailabilityPayload($entity, $topic, $payload);
+            $warning = $this->detectBooleanRuntimeWarning($entity, $payload);
+            if ($warning === null) {
+                if (isset($warnings[$entityKey])) {
+                    unset($warnings[$entityKey]);
+                    $warningsChanged = true;
+                }
+                continue;
+            }
+
+            if (($warnings[$entityKey] ?? null) !== $warning) {
+                $warnings[$entityKey] = $warning;
+                $warningsChanged = true;
+            }
         }
 
         if ($warningsChanged) {
             $this->writeStateWarnings($warnings);
         }
+
+        return $warningsChanged;
+    }
+
+    private function applyAvailabilityPayloads(array $entityLookup, array $entityKeys, string $topic, string $payload): bool
+    {
+        $state = $this->readAvailabilityState();
+        $stateChanged = false;
+        $diagnosticsChanged = false;
+        $updatedAt = time();
+
+        foreach ($entityKeys as $entityKey) {
+            $entity = $entityLookup[$entityKey] ?? null;
+            if (!is_array($entity)) {
+                continue;
+            }
+
+            $entries = $entity['availability']['entries'] ?? [];
+            if (!is_array($entries) || $entries === []) {
+                continue;
+            }
+
+            $matchedEntry = null;
+            foreach ($entries as $entry) {
+                if ((string)($entry['topic'] ?? '') === $topic) {
+                    $matchedEntry = $entry;
+                    break;
+                }
+            }
+
+            if (!is_array($matchedEntry)) {
+                continue;
+            }
+
+            $entityState = $state[$entityKey] ?? [
+                'mode' => (string)$entity['availability']['mode'],
+                'entries' => []
+            ];
+            if (!is_array($entityState)) {
+                $entityState = [
+                    'mode' => (string)$entity['availability']['mode'],
+                    'entries' => []
+                ];
+            }
+            if (!isset($entityState['entries']) || !is_array($entityState['entries'])) {
+                $entityState['entries'] = [];
+            }
+
+            $available = $this->evaluateAvailabilityEntry($matchedEntry, $payload);
+            $currentEntry = $entityState['entries'][$topic] ?? null;
+            $availableChanged = !is_array($currentEntry) || !array_key_exists('available', $currentEntry) || (bool)$currentEntry['available'] !== $available;
+            $needsTimestampRefresh = count($entries) > 1 && (string)($entity['availability']['mode'] ?? 'latest') === 'latest';
+            if (!$availableChanged && !$needsTimestampRefresh) {
+                continue;
+            }
+
+            $previousAvailability = $this->computeEntityAvailability($entity, $entityState);
+            $entityState['mode'] = (string)$entity['availability']['mode'];
+            $entityState['entries'][$topic] = [
+                'available' => $available,
+                'updated_at' => $updatedAt
+            ];
+            $state[$entityKey] = $entityState;
+            $stateChanged = true;
+
+            if ($previousAvailability !== $this->computeEntityAvailability($entity, $entityState)) {
+                $diagnosticsChanged = true;
+            }
+        }
+
+        if ($stateChanged) {
+            $this->writeAvailabilityState($state);
+        }
+
+        return $diagnosticsChanged;
     }
 
     private function applyStatePayload(array $entity, string $topic, string $payload, int $receivedAt = 0): void
@@ -1229,47 +1470,6 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $this->SetValue($ident, $castValue);
-    }
-
-    private function applyAvailabilityPayload(array $entity, string $topic, string $payload): void
-    {
-        $entries = $entity['availability']['entries'];
-        if ($entries === []) {
-            return;
-        }
-
-        foreach ($entries as $entry) {
-            if ((string)($entry['topic'] ?? '') !== $topic) {
-                continue;
-            }
-
-            $available = $this->evaluateAvailabilityEntry($entry, $payload);
-            $state = $this->readAvailabilityState();
-            $entityState = $state[$entity['entity_key']] ?? [
-                'mode' => (string)$entity['availability']['mode'],
-                'entries' => []
-            ];
-
-            if (!is_array($entityState)) {
-                $entityState = [
-                    'mode' => (string)$entity['availability']['mode'],
-                    'entries' => []
-                ];
-            }
-
-            if (!isset($entityState['entries']) || !is_array($entityState['entries'])) {
-                $entityState['entries'] = [];
-            }
-
-            $entityState['mode'] = (string)$entity['availability']['mode'];
-            $entityState['entries'][$topic] = [
-                'available' => $available,
-                'updated_at' => time()
-            ];
-            $state[$entity['entity_key']] = $entityState;
-            $this->writeAvailabilityState($state);
-            return;
-        }
     }
 
     private function extractStateValue(array $entity, string $payload): mixed
@@ -1697,6 +1897,21 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return null;
+    }
+
+    private function buildEntityLookup(array $entities): array
+    {
+        $lookup = [];
+        foreach ($entities as $entity) {
+            $entityKey = (string)($entity['entity_key'] ?? '');
+            if ($entityKey === '') {
+                continue;
+            }
+
+            $lookup[$entityKey] = $entity;
+        }
+
+        return $lookup;
     }
 
     private function updateDiagnosticsLabels(array $entities, array $topics, ?array $warningMap = null): void

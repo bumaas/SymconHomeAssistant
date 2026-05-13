@@ -23,10 +23,24 @@ Verbindet MQTT-Discovery-Topics mit Discovery-Configurator- und spaeteren Discov
 
 ## Konfiguration
 
+- `SourceMode`: `mqtt` fuer Live-Betrieb mit MQTT-Parent oder `bundle` fuer Entwicklung gegen ein exportiertes Discovery-Bundle.
 - `MQTTDiscoveryPrefix`: Prefix fuer MQTT-Discovery-Konfigurationen, typischerweise `homeassistant`.
 - `MQTTDiscoveryPrefix` ist kein MQTT-Filter mit Wildcards, sondern der literale Prefix der Discovery-Topics. Gueltig ist daher typischerweise `homeassistant`, nicht `#`.
 - Wildcards wie `#` oder `+` gehoeren nur in die Subscription des MQTT-Clients, z. B. `homeassistant/#` oder `#`.
+- `BundlePath`: Dateiname oder absoluter Pfad zum Discovery-Bundle. Relative Angaben werden gegen `<modulpath>/tests/fixtures` aufgeloest.
+- `BundleCurrentSessionOnly`: Laedt aus dem Bundle nur Discovery-Configs und Topic-Payloads der exportierten Session.
+- `ReplayTopicsOnApply`: Replayed im Bundle-Modus nach `ApplyChanges()` alle gecachten Runtime-Topics einmal an die Child-Instanzen.
 - Optional: `EnableExpertDebug`.
+
+## Bundle-Modus
+
+- Der Bundle-Modus ist fuer Entwicklung und Analyse gedacht und benoetigt keinen MQTT-Parent.
+- Der Import erwartet das aktuelle Discovery-Bundle-Format `V2`.
+- Im Bundle-Modus werden Discovery-Configs und gecachte Topic-Payloads aus der Datei in die normalen Splitter-Caches geladen.
+- `BundleCurrentSessionOnly` ist sinnvoll, wenn nur der frische Stand eines Session-Exports simuliert werden soll.
+- `ReplayTopicsOnApply` ist sinnvoll, wenn Discovery-Devices ihren Receive-Pfad direkt nach dem Laden noch einmal durchlaufen sollen.
+- Der Button `Bundle-Topics replayen` stoesst diesen Replay-Schritt manuell an.
+- Ausgehende Commands werden im Bundle-Modus aktuell nicht simuliert, sondern nur verworfen.
 
 ## Export
 
