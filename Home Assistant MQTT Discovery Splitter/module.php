@@ -17,11 +17,14 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const string ATTRIBUTE_MQTT_SESSION_STATE = 'MqttSessionState';
     private const string ATTRIBUTE_DIAGNOSTICS_DIRTY = 'DiagnosticsDirty';
     private const string ATTRIBUTE_REFERENCED_TOPIC_LOOKUP = 'MqttReferencedTopicLookup';
+    private const string ATTRIBUTE_BUNDLE_STATE = 'BundleState';
     private const string EXPORT_FORMAT = 'ha_mqtt_discovery_bundle';
     private const int EXPORT_VERSION = 2;
     private const int DIAGNOSTIC_PREVIEW_LIMIT = 8;
     private const int OUTPUT_BUFFER_RESERVE_BYTES = 262144;
     private const int DIAGNOSTICS_REFRESH_INTERVAL_MS = 1000;
+    private const string SOURCE_MODE_MQTT = 'mqtt';
+    private const string SOURCE_MODE_BUNDLE = 'bundle';
 
     public function Create(): void
     {
@@ -31,7 +34,11 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
 
+        $this->RegisterPropertyString('SourceMode', self::SOURCE_MODE_MQTT);
         $this->RegisterPropertyString('MQTTDiscoveryPrefix', 'homeassistant');
+        $this->RegisterPropertyString('BundlePath', '');
+        $this->RegisterPropertyBoolean('BundleCurrentSessionOnly', false);
+        $this->RegisterPropertyBoolean('ReplayTopicsOnApply', false);
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
 
@@ -42,6 +49,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterAttributeString(self::ATTRIBUTE_MQTT_SESSION_STATE, '{}');
         $this->RegisterAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
         $this->RegisterAttributeString(self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP, '{}');
+        $this->RegisterAttributeString(self::ATTRIBUTE_BUNDLE_STATE, '{}');
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -61,7 +69,19 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     {
         parent::ApplyChanges();
         $this->syncParentStatusMessageRegistration();
-        $this->SetReceiveDataFilter('.*');
+        $this->SetReceiveDataFilter($this->isBundleMode() ? '^$' : '.*');
+
+        if ($this->isBundleMode()) {
+            $this->applyBundleMode();
+            return;
+        }
+
+        if (($this->readBundleState()['mode'] ?? self::SOURCE_MODE_MQTT) === self::SOURCE_MODE_BUNDLE) {
+            $this->clearDiscoveryRuntimeCaches();
+            $this->writeBundleState($this->buildDefaultBundleState());
+            $this->WriteAttributeString('LastMQTTMessage', '');
+        }
+
         $this->refreshMqttSessionState();
         $this->pruneCaches();
         $this->updateDiagnosticsLabels();
@@ -141,6 +161,14 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     public function ReconnectMqttParent(): void
     {
+        if ($this->isBundleMode()) {
+            $this->debugExpert(__FUNCTION__, 'MQTT IO reconnect im Bundle-Modus ignoriert.', [
+                'SourceMode' => $this->getSourceMode()
+            ]);
+            $this->updateDiagnosticsLabels();
+            return;
+        }
+
         if (!$this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
             $this->debugExpert(__FUNCTION__, 'MQTT Parent ist nicht kompatibel.', $this->buildCurrentParentDebugContext(), true);
             $this->updateDiagnosticsLabels();
@@ -187,6 +215,19 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->updateDiagnosticsLabels();
     }
 
+    /** @noinspection PhpUnused */
+    public function ReplayBundleTopicsToChildren(): void
+    {
+        if (!$this->isBundleMode()) {
+            $this->debugExpert(__FUNCTION__, 'Replay nur im Bundle-Modus verfuegbar.', [
+                'SourceMode' => $this->getSourceMode()
+            ], true);
+            return;
+        }
+
+        $this->replayCachedTopicPayloadsToChildren();
+    }
+
     public function ForwardData(string $JSONString): string
     {
         try {
@@ -202,6 +243,15 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 return $this->handleDiscoveryRequest($data);
             }
 
+            if ($this->isBundleMode()) {
+                $this->debugExpert(__FUNCTION__, 'MQTT Command im Bundle-Modus verworfen.', [
+                    'Topic' => (string)($data['Topic'] ?? ''),
+                    'QoS' => (int)($data['QualityOfService'] ?? 0),
+                    'Retain' => (bool)($data['Retain'] ?? false)
+                ], true);
+                return '';
+            }
+
             $data['DataID'] = HAIds::DATA_MQTT_TX;
             return $this->SendDataToParent(json_encode($data, JSON_THROW_ON_ERROR));
         }
@@ -211,6 +261,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
+        if ($this->isBundleMode()) {
+            return '';
+        }
+
         try {
             $data = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
@@ -303,6 +357,23 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         @ $this->UpdateFormField($name, $property, $value);
     }
 
+    private function getSourceMode(): string
+    {
+        $mode = strtolower(trim($this->ReadPropertyString('SourceMode')));
+        return $mode === self::SOURCE_MODE_BUNDLE ? self::SOURCE_MODE_BUNDLE : self::SOURCE_MODE_MQTT;
+    }
+
+    private function isBundleMode(): bool
+    {
+        return $this->getSourceMode() === self::SOURCE_MODE_BUNDLE;
+    }
+
+    private function getConfiguredDiscoveryPrefix(): string
+    {
+        $prefix = trim($this->ReadPropertyString('MQTTDiscoveryPrefix'));
+        return trim($prefix, '/');
+    }
+
     private function reconnectIoParent(int $ioParentId): array
     {
         $configuration = $this->readInstanceConfiguration($ioParentId);
@@ -383,14 +454,276 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function getDiscoveryPrefix(): string
     {
-        $prefix = trim($this->ReadPropertyString('MQTTDiscoveryPrefix'));
-        return trim($prefix, '/');
+        if ($this->isBundleMode()) {
+            $bundlePrefix = trim((string)($this->readBundleState()['discovery_prefix'] ?? ''), '/');
+            if ($bundlePrefix !== '') {
+                return $bundlePrefix;
+            }
+        }
+
+        return $this->getConfiguredDiscoveryPrefix();
     }
 
     private function decodePayload(string $payloadHex): string
     {
         $decoded = hex2bin($payloadHex);
         return $decoded === false ? '' : $decoded;
+    }
+
+    private function applyBundleMode(): void
+    {
+        $loadResult = $this->loadConfiguredBundle();
+        if (!($loadResult['ok'] ?? false)) {
+            $state = is_array($loadResult['state'] ?? null) ? $loadResult['state'] : $this->buildDefaultBundleState();
+            $this->writeBundleState($state);
+            $this->clearDiscoveryRuntimeCaches();
+            $this->writeMqttSessionState($this->buildBundleSessionState([], $state));
+            $this->WriteAttributeString('LastMQTTMessage', '');
+            $this->updateDiagnosticsLabels();
+
+            if (($loadResult['status'] ?? 204) === 202) {
+                $this->SetStatus(202);
+                return;
+            }
+
+            $this->SetStatus((int)($loadResult['status'] ?? 204));
+            return;
+        }
+
+        $bundle = is_array($loadResult['bundle'] ?? null) ? $loadResult['bundle'] : [];
+        $state = is_array($loadResult['state'] ?? null) ? $loadResult['state'] : $this->buildDefaultBundleState();
+        $this->hydrateCachesFromBundle($bundle, $state);
+        $this->WriteAttributeString('LastMQTTMessage', '');
+        $this->updateDiagnosticsLabels();
+        $this->SetStatus(IS_ACTIVE);
+
+        if ($this->ReadPropertyBoolean('ReplayTopicsOnApply')) {
+            $this->replayCachedTopicPayloadsToChildren();
+        }
+    }
+
+    private function loadConfiguredBundle(): array
+    {
+        $path = trim($this->ReadPropertyString('BundlePath'));
+        $state = $this->buildDefaultBundleState();
+        $state['mode'] = self::SOURCE_MODE_BUNDLE;
+        $state['path'] = $path;
+        $state['current_session_only'] = $this->ReadPropertyBoolean('BundleCurrentSessionOnly');
+
+        if ($path === '') {
+            $state['error'] = 'Bundle-Pfad ist leer.';
+            return [
+                'ok' => false,
+                'status' => 203,
+                'state' => $state
+            ];
+        }
+
+        $raw = @file_get_contents($path);
+        if ($raw === false) {
+            $state['error'] = 'Bundle-Datei konnte nicht gelesen werden.';
+            return [
+                'ok' => false,
+                'status' => 204,
+                'state' => $state
+            ];
+        }
+
+        try {
+            $bundle = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            $state['error'] = 'Bundle ist kein gueltiges JSON: ' . $e->getMessage();
+            return [
+                'ok' => false,
+                'status' => 204,
+                'state' => $state
+            ];
+        }
+
+        if (!is_array($bundle)) {
+            $state['error'] = 'Bundle ist kein JSON-Objekt.';
+            return [
+                'ok' => false,
+                'status' => 204,
+                'state' => $state
+            ];
+        }
+
+        $format = trim((string)($bundle['format'] ?? ''));
+        if ($format !== self::EXPORT_FORMAT) {
+            $state['error'] = 'Unerwartetes Bundle-Format.';
+            return [
+                'ok' => false,
+                'status' => 204,
+                'state' => $state
+            ];
+        }
+
+        $version = (int)($bundle['version'] ?? 0);
+        if ($version !== self::EXPORT_VERSION) {
+            $state['error'] = 'Unerwartete Bundle-Version. Erwartet wird V' . self::EXPORT_VERSION . '.';
+            return [
+                'ok' => false,
+                'status' => 204,
+                'state' => $state
+            ];
+        }
+
+        if (!is_array($bundle['discovery_configs'] ?? null)) {
+            $state['error'] = 'discovery_configs fehlt oder ist kein Array.';
+            return [
+                'ok' => false,
+                'status' => 204,
+                'state' => $state
+            ];
+        }
+
+        if (array_key_exists('topic_payloads', $bundle) && !is_array($bundle['topic_payloads'])) {
+            $state['error'] = 'topic_payloads ist kein Array.';
+            return [
+                'ok' => false,
+                'status' => 204,
+                'state' => $state
+            ];
+        }
+
+        $bundlePrefix = trim((string)($bundle['splitter']['discovery_prefix'] ?? ''), '/');
+        $configuredPrefix = $this->getConfiguredDiscoveryPrefix();
+        $effectivePrefix = $bundlePrefix !== '' ? $bundlePrefix : $configuredPrefix;
+        if ($effectivePrefix === '') {
+            $state['error'] = 'MQTT Discovery Prefix ist leer.';
+            return [
+                'ok' => false,
+                'status' => 202,
+                'state' => $state
+            ];
+        }
+
+        $state['loaded'] = true;
+        $state['error'] = '';
+        $state['bundle_format'] = $format;
+        $state['bundle_version'] = $version;
+        $state['discovery_prefix'] = $effectivePrefix;
+        $state['exported_at'] = trim((string)($bundle['exported_at'] ?? ''));
+        $state['session_id'] = trim((string)($bundle['session']['id'] ?? ''));
+        $state['session_started_at'] = $this->parseBundleTimestamp($bundle['session']['started_at'] ?? null);
+        $state['session_active'] = (bool)($bundle['session']['active'] ?? true);
+        $state['discovery_config_count'] = is_array($bundle['discovery_configs']) ? count($bundle['discovery_configs']) : 0;
+        $state['topic_payload_count'] = is_array($bundle['topic_payloads'] ?? null) ? count($bundle['topic_payloads']) : 0;
+        $state['source_notes'] = trim((string)($bundle['source']['notes'] ?? ''));
+
+        return [
+            'ok' => true,
+            'bundle' => $bundle,
+            'state' => $state
+        ];
+    }
+
+    private function hydrateCachesFromBundle(array $bundle, array $state): void
+    {
+        $bundleSessionState = $this->buildBundleSessionState($bundle, $state);
+        $discoveryCache = $this->normalizeCacheRecords($bundle['discovery_configs'] ?? [], true);
+        $runtimeCache = $this->normalizeCacheRecords($bundle['topic_payloads'] ?? [], false);
+
+        if ($this->ReadPropertyBoolean('BundleCurrentSessionOnly')) {
+            $discoveryCache = $this->filterBundleCacheToCurrentSession($discoveryCache, $bundleSessionState);
+            $runtimeCache = $this->filterBundleCacheToCurrentSession($runtimeCache, $bundleSessionState);
+        }
+
+        $lookup = $this->buildReferencedTopicLookup($discoveryCache);
+        $runtimeCache = $this->filterRuntimeCacheToReferencedTopics($runtimeCache, $lookup);
+
+        $state['loaded'] = true;
+        $state['discovery_config_count'] = count($discoveryCache);
+        $state['topic_payload_count'] = count($runtimeCache);
+
+        $this->writeBundleState($state);
+        $this->writeDiscoveryCache($discoveryCache);
+        $this->writeReferencedTopicLookup($lookup);
+        $this->writeTopicPayloadCache($runtimeCache);
+        $this->writeMqttSessionState($bundleSessionState);
+    }
+
+    private function filterBundleCacheToCurrentSession(array $cache, array $sessionState): array
+    {
+        if (trim((string)($sessionState['id'] ?? '')) === '' && (int)($sessionState['started_at'] ?? 0) <= 0) {
+            return $cache;
+        }
+
+        $filtered = [];
+        foreach ($cache as $topic => $record) {
+            if (!is_array($record) || !$this->isBundleRecordCurrentSession($record, $sessionState)) {
+                continue;
+            }
+            $filtered[$topic] = $record;
+        }
+
+        ksort($filtered, SORT_STRING);
+        return $filtered;
+    }
+
+    private function isBundleRecordCurrentSession(array $record, array $sessionState): bool
+    {
+        if (!empty($record['is_current_session'])) {
+            return true;
+        }
+
+        $sessionId = trim((string)($sessionState['id'] ?? ''));
+        $recordSessionId = trim((string)($record['session_id'] ?? ''));
+        if ($sessionId !== '' && $recordSessionId !== '') {
+            return $sessionId === $recordSessionId;
+        }
+
+        $startedAt = max(0, (int)($sessionState['started_at'] ?? 0));
+        $receivedAt = max(0, (int)($record['received_at'] ?? 0));
+        return $startedAt > 0 && $receivedAt >= $startedAt;
+    }
+
+    private function replayCachedTopicPayloadsToChildren(): void
+    {
+        $records = array_values($this->readTopicPayloadCache());
+        usort($records, static function (array $left, array $right): int {
+            $receivedAtCompare = ((int)($left['received_at'] ?? 0)) <=> ((int)($right['received_at'] ?? 0));
+            if ($receivedAtCompare !== 0) {
+                return $receivedAtCompare;
+            }
+
+            return strcmp((string)($left['topic'] ?? ''), (string)($right['topic'] ?? ''));
+        });
+
+        $sent = 0;
+        foreach ($records as $record) {
+            if (!is_array($record)) {
+                continue;
+            }
+
+            $topic = trim((string)($record['topic'] ?? ''), '/');
+            $payload = (string)($record['payload'] ?? '');
+            if ($topic === '' || trim($payload) === '') {
+                continue;
+            }
+
+            $packet = [
+                'DataID' => HAIds::DATA_MQTT_DISCOVERY_SPLITTER_TO_DEVICE,
+                'Topic' => $topic,
+                'Payload' => bin2hex($payload),
+                'Retain' => (bool)($record['retained'] ?? false),
+                'QualityOfService' => max(0, min(2, (int)($record['qos'] ?? 0)))
+            ];
+            $this->SendDataToChildren(json_encode($packet, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $sent++;
+        }
+
+        $this->debugExpert(__FUNCTION__, 'Bundle-Topics an Kinder replayt.', [
+            'Count' => $sent
+        ]);
+    }
+
+    private function clearDiscoveryRuntimeCaches(): void
+    {
+        $this->writeDiscoveryCache([]);
+        $this->writeTopicPayloadCache([]);
+        $this->writeReferencedTopicLookup([]);
     }
 
     private function updateDiscoveryCacheFromMessage(string $topic, string $payload, array $metadata = []): void
@@ -711,6 +1044,73 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         );
     }
 
+    private function buildDefaultBundleState(): array
+    {
+        return [
+            'mode' => self::SOURCE_MODE_MQTT,
+            'loaded' => false,
+            'path' => '',
+            'error' => '',
+            'bundle_format' => '',
+            'bundle_version' => 0,
+            'discovery_prefix' => '',
+            'exported_at' => '',
+            'session_id' => '',
+            'session_started_at' => 0,
+            'session_active' => false,
+            'discovery_config_count' => 0,
+            'topic_payload_count' => 0,
+            'current_session_only' => false,
+            'source_notes' => ''
+        ];
+    }
+
+    private function readBundleState(): array
+    {
+        try {
+            $decoded = json_decode($this->ReadAttributeString(self::ATTRIBUTE_BUNDLE_STATE), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            $decoded = [];
+        }
+
+        if (!is_array($decoded)) {
+            $decoded = [];
+        }
+
+        return [
+            'mode' => trim((string)($decoded['mode'] ?? self::SOURCE_MODE_MQTT)),
+            'loaded' => (bool)($decoded['loaded'] ?? false),
+            'path' => trim((string)($decoded['path'] ?? '')),
+            'error' => trim((string)($decoded['error'] ?? '')),
+            'bundle_format' => trim((string)($decoded['bundle_format'] ?? '')),
+            'bundle_version' => max(0, (int)($decoded['bundle_version'] ?? 0)),
+            'discovery_prefix' => trim((string)($decoded['discovery_prefix'] ?? '')),
+            'exported_at' => trim((string)($decoded['exported_at'] ?? '')),
+            'session_id' => trim((string)($decoded['session_id'] ?? '')),
+            'session_started_at' => max(0, (int)($decoded['session_started_at'] ?? 0)),
+            'session_active' => (bool)($decoded['session_active'] ?? false),
+            'discovery_config_count' => max(0, (int)($decoded['discovery_config_count'] ?? 0)),
+            'topic_payload_count' => max(0, (int)($decoded['topic_payload_count'] ?? 0)),
+            'current_session_only' => (bool)($decoded['current_session_only'] ?? false),
+            'source_notes' => trim((string)($decoded['source_notes'] ?? ''))
+        ];
+    }
+
+    private function writeBundleState(array $state): void
+    {
+        $normalized = $this->buildDefaultBundleState();
+        foreach ($normalized as $key => $_value) {
+            if (array_key_exists($key, $state)) {
+                $normalized[$key] = $state[$key];
+            }
+        }
+
+        $this->WriteAttributeString(
+            self::ATTRIBUTE_BUNDLE_STATE,
+            json_encode($normalized, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+    }
+
     private function syncReferencedRuntimeTopicState(array $discoveryCache): void
     {
         $lookup = $this->buildReferencedTopicLookup($discoveryCache);
@@ -773,6 +1173,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     {
         $instance = IPS_GetInstance($this->InstanceID);
         $instanceStatus = (int)($instance['InstanceStatus'] ?? 0);
+        $bundleState = $this->readBundleState();
+        $sourceMode = $this->getSourceMode();
 
         $last = $this->ReadAttributeString('LastMQTTMessage');
         if ($last === '') {
@@ -791,10 +1193,45 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $discoveryAnalysis = $this->analyzeDiscoveryConfigRecords();
         $topicAnalysis = $this->analyzeReferencedRuntimeTopics();
 
+        $sourceCaption = $sourceMode === self::SOURCE_MODE_BUNDLE
+            ? 'Source: Bundle'
+            : 'Source: MQTT';
+        if ($sourceMode === self::SOURCE_MODE_BUNDLE && !$bundleState['loaded']) {
+            $sourceCaption .= ' | Fehler';
+        }
+
+        $bundleCaption = 'Bundle: nicht aktiv';
+        if ($sourceMode === self::SOURCE_MODE_BUNDLE) {
+            if ($bundleState['loaded']) {
+                $bundleName = $bundleState['path'] !== '' ? pathinfo($bundleState['path'], PATHINFO_BASENAME) : '-';
+                $bundleExport = $bundleState['exported_at'] !== '' ? $bundleState['exported_at'] : '-';
+                $sessionFilter = $bundleState['current_session_only'] ? ' | nur aktuelle Session' : '';
+                $bundleCaption = sprintf(
+                    'Bundle: geladen | %s | Export %s | Configs %d | Topics %d%s',
+                    $bundleName,
+                    $bundleExport,
+                    (int)$bundleState['discovery_config_count'],
+                    (int)$bundleState['topic_payload_count'],
+                    $sessionFilter
+                );
+            } else {
+                $bundleCaption = 'Bundle: Fehler | ' . ($bundleState['error'] !== '' ? $bundleState['error'] : 'nicht geladen');
+            }
+        }
+
+        $parentCaption = 'MQTT Parent: ' . $parentId . $nameSuffix . ' | Status ' . $parentStatus . $statusSuffix;
+        if ($sourceMode === self::SOURCE_MODE_BUNDLE) {
+            $parentCaption .= ' | im Bundle-Modus nicht verwendet';
+        }
+
+        $sessionLabel = $sourceMode === self::SOURCE_MODE_BUNDLE ? 'Bundle Session: ' : 'MQTT Session: ';
+
         return [
             'DiagInstance' => 'Instance: ' . $this->InstanceID . ' | Status ' . $instanceStatus,
-            'DiagParent' => 'MQTT Parent: ' . $parentId . $nameSuffix . ' | Status ' . $parentStatus . $statusSuffix,
-            'DiagSession' => 'MQTT Session: ' . $this->buildSessionCaption(),
+            'DiagSource' => $sourceCaption,
+            'DiagParent' => $parentCaption,
+            'DiagSession' => $sessionLabel . $this->buildSessionCaption(),
+            'DiagBundle' => $bundleCaption,
             'LastMQTTMessage' => 'Letzte MQTT-Message: ' . $last,
             'DiagDiscovery' => sprintf(
                 'MQTT Discovery Prefix: %s | Configs gesamt/aktuell/stale: %d/%d/%d',
@@ -837,21 +1274,38 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private function applyCurrentDiagnosticsToForm(array &$form): void
     {
         $captions = $this->buildDiagnosticsCaptions();
+        $isBundleMode = $this->isBundleMode();
         foreach ($form['actions'] as &$action) {
             if (!isset($action['items']) || !is_array($action['items'])) {
                 continue;
             }
 
-            foreach ($action['items'] as &$item) {
-                $name = (string)($item['name'] ?? '');
-                if ($name === '' || !array_key_exists($name, $captions)) {
-                    continue;
-                }
-                $item['caption'] = $captions[$name];
-            }
-            unset($item);
+            $this->applyFormItemsState($action['items'], $captions, $isBundleMode);
         }
         unset($action);
+    }
+
+    private function applyFormItemsState(array &$items, array $captions, bool $isBundleMode): void
+    {
+        foreach ($items as &$item) {
+            if (isset($item['items']) && is_array($item['items'])) {
+                $this->applyFormItemsState($item['items'], $captions, $isBundleMode);
+            }
+
+            $name = (string)($item['name'] ?? '');
+            if ($name !== '' && array_key_exists($name, $captions)) {
+                $item['caption'] = $captions[$name];
+            }
+
+            $caption = (string)($item['caption'] ?? '');
+            if ($caption === 'MQTT-IO reconnecten') {
+                $item['enabled'] = !$isBundleMode;
+            }
+            if ($caption === 'Bundle-Topics replayen') {
+                $item['enabled'] = $isBundleMode;
+            }
+        }
+        unset($item);
     }
 
     private function normalizeExportOptions(mixed $options): array
@@ -1069,6 +1523,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $direction = strtolower(trim((string)($record['direction'] ?? '')));
         if ($direction === 'rx' || $direction === 'tx') {
             $normalized['direction'] = $direction;
+        }
+
+        if (array_key_exists('is_current_session', $record)) {
+            $normalized['is_current_session'] = (bool)$record['is_current_session'];
         }
 
         return $normalized;
@@ -1333,8 +1791,52 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         return $this->buildTopicPreview($issues);
     }
 
+    private function parseBundleTimestamp(mixed $value): int
+    {
+        if (is_int($value)) {
+            return max(0, $value);
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return 0;
+            }
+
+            if (ctype_digit($trimmed)) {
+                return max(0, (int)$trimmed);
+            }
+
+            $timestamp = strtotime($trimmed);
+            if ($timestamp !== false) {
+                return $timestamp;
+            }
+        }
+
+        return 0;
+    }
+
+    private function buildBundleSessionState(array $bundle, array $state): array
+    {
+        $bundleSession = is_array($bundle['session'] ?? null) ? $bundle['session'] : [];
+        $sessionId = trim((string)($bundleSession['id'] ?? $state['session_id'] ?? ''));
+        $startedAt = $this->parseBundleTimestamp($bundleSession['started_at'] ?? ($state['session_started_at'] ?? null));
+
+        return [
+            'id' => $sessionId,
+            'started_at' => $startedAt,
+            'parent_id' => 0,
+            'active' => $sessionId !== '' || $startedAt > 0,
+            'sequence' => 1
+        ];
+    }
+
     private function refreshMqttSessionState(): void
     {
+        if ($this->isBundleMode()) {
+            return;
+        }
+
         if ($this->hasCompatibleActiveParentModule(HAIds::MODULE_MQTT_CLIENT)) {
             $state = $this->readMqttSessionState();
             $currentParentId = $this->getCurrentParentId();

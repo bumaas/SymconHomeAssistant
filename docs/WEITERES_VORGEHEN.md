@@ -223,13 +223,13 @@ Geliefert:
 - `docs/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_current_session_v2.json` als kompakte Zigbee2MQTT-V2-Session-Fixture
 - `docs/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_full_v2.json` als Zigbee2MQTT-V2-Voll-Cache-Fixture
 - `tests/check-mqtt-discovery-fixtures.php` fuer Parser-, Gruppierungs- und Bundle-Checks gegen lokale Fixtures
-- Lokaler Fixture-Checker versteht Export-Bundle-Version `1` und `2` und sammelt Default-Fixtures automatisch aus `docs/fixtures`
+- Lokaler Fixture-Checker verstand Export-Bundle-Version `1` und `2` und sammelt Default-Fixtures automatisch aus `docs/fixtures`
 - Fixture-Doku in `docs/fixtures/README.md` beschreibt Erzeugung, Einsatz und Unterschiede zwischen Session- und Voll-Export
 
 Verifiziert:
 
 - `php -l tests/check-mqtt-discovery-fixtures.php`
-- `php .\tests\check-mqtt-discovery-fixtures.php` gegen die lokalen V1- und V2-Fixtures erfolgreich
+- `php .\tests\check-mqtt-discovery-fixtures.php` gegen die damaligen V1- und V2-Fixtures erfolgreich
 
 ### D3. Kleine Testwerkzeuge ergaenzen
 

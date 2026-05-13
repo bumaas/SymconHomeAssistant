@@ -159,6 +159,59 @@ Geparkte nächste Schritte:
 - Volle Diagnose nur bei Bedarf oder Formularnutzung rechnen
 - Bei Bedarf einen dedizierten MQTT-Client nur für Discovery empfehlen
 
+### MQTT Discovery Splitter: Bundle-/Simulator-Modus
+
+Zielbild:
+- Der `Home Assistant MQTT Discovery Splitter` soll optional ohne echten MQTT-Parent aus einem exportierten Discovery-Bundle arbeiten koennen.
+- Damit sollen `Home Assistant MQTT Discovery Configurator` und `Home Assistant MQTT Discovery Device` waehrend der Entwicklung reproduzierbar gegen gecachte Discovery- und Runtime-Daten laufen.
+- Der Bundle-Modus ist ein Entwicklungs- und Analysewerkzeug, kein vollwertiger Ersatz fuer einen Live-Broker.
+
+Geplanter MVP:
+- Neue Quelle `SourceMode = mqtt | bundle` im MQTT Discovery Splitter.
+- Neue Property `BundlePath` fuer ein zuvor exportiertes Discovery-Bundle.
+- Der Bundle-Import erwartet nur das aktuelle Exportformat V2, damit Validierung und Laufzeitpfad schlank bleiben.
+- Beim Laden werden `discovery_configs`, `topic_payloads` und referenzierte Topic-Informationen in die bestehenden Splitter-Caches uebernommen.
+- `GetDiscoveryConfigs` und `GetTopicPayloads` werden im Bundle-Modus direkt aus diesen Caches beantwortet.
+- Optionaler Replay-Schritt sendet gecachte Runtime-Topics an Kinder, damit `ApplyChanges()`, Initialwerte und Receive-Filter ohne Live-MQTT testbar bleiben.
+- Diagnostics zeigen im Bundle-Modus explizit Quelle, Bundle-Pfad, Export-Zeitpunkt sowie Anzahl Discovery-Configs und Topic-Payloads.
+
+Bewusste Abgrenzung fuer v1:
+- Keine generische Zeitachsen- oder Replay-Engine.
+- Keine vollstaendige Simulation beliebiger `command_topic`-Seiteneffekte.
+- Kein Producer-spezifischer Sonderpfad pro Quelle im Discovery Device.
+- Schreibvorgaenge im Bundle-Modus werden zunaechst hoechstens protokolliert oder optional verworfen.
+
+Moeglicher Ausbau nach dem MVP:
+- Einfaches Command-Log fuer ausgehende `.../set`-Topics.
+- Optionale Rueckspiegelung einfacher Commands in den Cache, zuerst fuer robuste Faelle wie `switch` und `light` mit `schema=json`.
+- Gezielte Replay-Optionen wie `alle Payloads`, `nur aktuelle Session` oder `nur referenzierte Topics`.
+
+Architekturregel:
+- Der Bundle-Modus soll moeglichst denselben Splitter-, Configurator- und Device-Pfad nutzen wie der Live-Betrieb.
+- Unterschiede zwischen Live-MQTT und Bundle-Datei gehoeren in die Quellbeschaffung und Cache-Hydrierung des MQTT Discovery Splitters, nicht in Parser, Gruppierung oder das Discovery Device.
+
+Implementierungs-Backlog:
+1. Formular und Properties im MQTT Discovery Splitter erweitern
+   - `SourceMode`, `BundlePath`, optional `BundleCurrentSessionOnly` und `ReplayTopicsOnApply`
+   - Bundle-spezifische Diagnostics und Bedienelemente im Formular sichtbar machen
+2. Bundle-Datei laden und validieren
+   - JSON einlesen, Format pruefen, Mindestfelder absichern
+   - Fehlerstatus und Diagnosemeldungen fuer fehlende oder ungueltige Bundle-Dateien definieren
+3. Splitter-Caches aus dem Bundle hydrieren
+   - `discovery_configs`, `topic_payloads` und referenzierte Topics in die bestehenden Cache-Strukturen ueberfuehren
+   - Lookup fuer referenzierte Runtime-Topics daraus neu aufbauen
+4. Bundle-Modus in den Laufzeitpfad einziehen
+   - `GetDiscoveryConfigs` und `GetTopicPayloads` ohne MQTT-Parent bedienen
+   - im Bundle-Modus einen sinnvollen aktiven Status ohne Broker-Verbindung setzen
+5. Optionales Replay an Kinder ergaenzen
+   - gecachte Runtime-Topics kontrolliert an Discovery-Devices weiterreichen
+   - Reihenfolge und Filterung bewusst einfach halten, keine Zeitachsen-Simulation
+
+Spaeter, aber nicht Teil des MVP:
+- Command-Log fuer ausgehende `command_topic`-Writes
+- einfache Rueckspiegelung fuer `switch` und `light` mit `schema=json`
+- feinere Replay-Optionen und eventuell Testhilfen fuer lokale Entwicklung
+
 ### Klassischer Home Assistant Splitter: Performance-Backlog
 
 Beobachtung:
