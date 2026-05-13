@@ -24,6 +24,8 @@ Verbindet MQTT-Discovery-Topics mit Discovery-Configurator- und spaeteren Discov
 ## Konfiguration
 
 - `MQTTDiscoveryPrefix`: Prefix fuer MQTT-Discovery-Konfigurationen, typischerweise `homeassistant`.
+- `MQTTDiscoveryPrefix` ist kein MQTT-Filter mit Wildcards, sondern der literale Prefix der Discovery-Topics. Gueltig ist daher typischerweise `homeassistant`, nicht `#`.
+- Wildcards wie `#` oder `+` gehoeren nur in die Subscription des MQTT-Clients, z. B. `homeassistant/#` oder `#`.
 - Optional: `EnableExpertDebug`.
 
 ## Export

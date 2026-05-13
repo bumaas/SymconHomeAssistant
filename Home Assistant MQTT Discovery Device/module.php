@@ -1418,7 +1418,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return $value != 0;
         }
 
-        $normalized = strtolower(trim((string)$value));
+        $stringValue = $this->scalarToString($value);
+        if ($stringValue === null) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($stringValue));
         if ($normalized === '') {
             return null;
         }

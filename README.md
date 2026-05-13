@@ -69,6 +69,7 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 - Symcon ab Version 9.0
 - MQTT Broker in Home Assistant und eine MQTT Client-Instanz in Symcon oder alternativ ein Symcon MQTT Server
 - Fuer den MQTT Discovery Splitter wird ein zusaetzlicher Symcon MQTT Client benoetigt, der den Discovery-Prefix abonniert, z. B. `homeassistant/#` oder `#`.
+- Wichtig: Die MQTT-Subscription des Clients darf Wildcards wie `#` enthalten. Im `Home Assistant MQTT Discovery Splitter` selbst muss als `MQTTDiscoveryPrefix` dagegen der echte Discovery-Prefix eingetragen werden, typischerweise `homeassistant` und nicht `#`.
 - Fuer MQTT Discovery Devices muessen ueber denselben MQTT Client zusaetzlich die Laufzeit-Topics der Quelle empfangen werden, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 - Home Assistant mit aktivierter MQTT Integration (Statestream)
 - Optional: mDNS/DNS-SD (Discovery)
