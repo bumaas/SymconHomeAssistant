@@ -42,6 +42,12 @@ Keine öffentlichen Funktionen.
 - `Statusvariablen automatisch anlegen`: legt Statusvariablen bei neu erzeugten Devices automatisch an.
 - Optional: `EnableExpertDebug`.
 
+## Hinweis
+
+- Der Configurator fuehrt im Symcon-`create`-Block nur noch stabile Strukturattribute.
+- Fluechtige Live-Werte und Prognosedaten werden dort bewusst nicht gespiegelt.
+- `DeviceConfig` im `create`-Block bleibt stabil nach `entity_id` sortiert, damit `Als gelesen markiert` nicht durch volatile Aenderungen erneut neue Eintraege erzeugt.
+
 ## 6. Statusvariablen und Profile
 
 Keine.

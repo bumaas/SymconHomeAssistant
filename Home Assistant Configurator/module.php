@@ -28,10 +28,12 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     private const string TIMER_CACHE_REFRESH = 'CacheRefreshTimer';
     private const string BUFFER_REFRESH_ACTIVE = 'CacheRefreshActive';
+    private const int PERFORMANCE_LOG_THRESHOLD_MS = 250;
 
     public function Create(): void
     {
         parent::Create();
+        $this->LogMessage('Create | start', KL_MESSAGE);
 
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyBoolean('AutoCreateVariables', true);
@@ -51,17 +53,23 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
         $this->RegisterPropertyString('DeviceMapping', '[]');
         $this->RegisterAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
+        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
-
+        $this->LogMessage('Create | after_SetBuffer', KL_MESSAGE);
     }
 
     public function GetConfigurationForm(): string
     {
+        $startedAt = microtime(true);
+        $this->logPerformanceMarker(__FUNCTION__, 'start');
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
 
         if (!$this->hasCompatibleSplitterParent()) {
             $this->debugExpert(__FUNCTION__, 'Parent ist nicht Home Assistant Splitter');
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'parent_invalid'
+            ], true);
             return json_encode($form, JSON_THROW_ON_ERROR);
         }
 
@@ -73,6 +81,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
             $this->debugExpert(__FUNCTION__, 'RegisterOnceTimer');
             $this->RegisterOnceTimer(self::TIMER_CACHE_REFRESH, 'IPS_RequestAction($_IPS["TARGET"], "refresh_cache", "");');
+            $this->logPerformanceMarker(__FUNCTION__, 'cache_refresh_scheduled');
         }
 
         $bufferSizeMb = max(0, $this->ReadPropertyInteger('OutputBufferSize'));
@@ -132,6 +141,11 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             'values'   => $values
         ];
 
+        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+            'Result' => 'ok',
+            'EntityCount' => count($entitiesForDisplay),
+            'DeviceCount' => count($devices)
+        ], true);
         return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
@@ -139,15 +153,24 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     public function RequestAction($Ident, $Value): void
     {
         if ($Ident === 'refresh_cache') {
+            $startedAt = microtime(true);
+            $this->logPerformanceMarker(__FUNCTION__, 'refresh_cache_start');
             if (!$this->hasCompatibleSplitterParent()) {
                 $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
                 $this->debugExpert(__FUNCTION__, 'Parent ist nicht Home Assistant Splitter');
+                $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                    'Result' => 'parent_invalid'
+                ], true);
                 return;
             }
             $this->UpdateCacheFromHA();
 
             $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
             $this->updateConfiguratorList();
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'refresh_cache_done',
+                'EntityCount' => count($this->entities)
+            ], true);
 
             return;
         }
@@ -544,7 +567,12 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     private function UpdateCacheFromHA(): void
     {
+        $startedAt = microtime(true);
+        $this->logPerformanceMarker(__FUNCTION__, 'start');
         if (!$this->hasCompatibleSplitterParent()) {
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'parent_invalid'
+            ], true);
             return;
         }
 
@@ -563,6 +591,9 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             $this->debugExpert(__FUNCTION__, 'No entities loaded. Cache cleared.');
             $this->entities = [];
             $this->WriteAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'no_entities'
+            ], true);
             return;
         }
 
@@ -575,6 +606,11 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $this->entities = $newEntities;
         $this->WriteAttributeString('CachedEntities', json_encode($this->entities, JSON_THROW_ON_ERROR));
         $this->LogUpdatedEntities();
+        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+            'Result' => 'ok',
+            'RawEntityCount' => count($rawEntities),
+            'ResolvedEntityCount' => count($newEntities)
+        ], true);
     }
 
     private function getConfiguredDomainRows(): array
@@ -643,6 +679,37 @@ class HomeAssistantConfigurator extends IPSModuleStrict
                 )
             );
         }
+    }
+
+    private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void
+    {
+        $durationMs = (int)round((microtime(true) - $startedAt) * 1000);
+        if (!$force && $durationMs < self::PERFORMANCE_LOG_THRESHOLD_MS) {
+            return;
+        }
+
+        $message = $scope . ' | ' . $durationMs . ' ms';
+        if ($context !== []) {
+            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if (is_string($encodedContext) && $encodedContext !== '') {
+                $message .= ' | ' . $encodedContext;
+            }
+        }
+
+        $this->LogMessage($message, KL_MESSAGE);
+    }
+
+    private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
+    {
+        $message = $scope . ' | ' . $phase;
+        if ($context !== []) {
+            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if (is_string($encodedContext) && $encodedContext !== '') {
+                $message .= ' | ' . $encodedContext;
+            }
+        }
+
+        $this->LogMessage($message, KL_MESSAGE);
     }
 
 }

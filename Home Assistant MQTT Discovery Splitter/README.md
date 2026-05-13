@@ -17,9 +17,17 @@ Verbindet MQTT-Discovery-Topics mit Discovery-Configurator- und spaeteren Discov
 
 ## Voraussetzungen
 
-- MQTT Client Instanz als Parent.
-- Der MQTT Client muss den Discovery-Prefix abonnieren, z. B. `homeassistant/#` oder `#`.
+- Im Live-Betrieb: MQTT Client Instanz als Parent.
+- Im Bundle-Modus: kein MQTT-Parent erforderlich.
+- Der MQTT Client muss im Live-Betrieb den Discovery-Prefix abonnieren, z. B. `homeassistant/#` oder `#`.
 - Fuer Discovery-Device-Runtime muessen ueber denselben MQTT Client auch die State-Topics der Quelle ankommen, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
+
+## Typische Subscription
+
+- Discovery selbst: `homeassistant/#`
+- Discovery plus Zigbee2MQTT-Runtime: `homeassistant/#` und `zigbee2mqtt/#`
+- Ein breiteres `#` funktioniert ebenfalls, ist aber nur dann sinnvoll, wenn der MQTT-Client bewusst fuer weitere Topics genutzt wird.
+- `MQTTDiscoveryPrefix` selbst bleibt der literale Prefix ohne Wildcards, typischerweise `homeassistant`.
 
 ## Konfiguration
 
@@ -41,6 +49,15 @@ Verbindet MQTT-Discovery-Topics mit Discovery-Configurator- und spaeteren Discov
 - `ReplayTopicsOnApply` ist sinnvoll, wenn Discovery-Devices ihren Receive-Pfad direkt nach dem Laden noch einmal durchlaufen sollen.
 - Der Button `Bundle-Topics replayen` stoesst diesen Replay-Schritt manuell an.
 - Ausgehende Commands werden im Bundle-Modus aktuell nicht simuliert, sondern nur verworfen.
+
+## Migration
+
+- Bestehende Live-Installationen bleiben auf `SourceMode = mqtt`.
+- `SourceMode = bundle` ist kein Ersatz fuer den regulaeren MQTT-Betrieb, sondern ein Entwicklungs- und Supportwerkzeug.
+- Nach einem Update sollte geprueft werden, ob:
+  - `MQTTDiscoveryPrefix` noch als literaler Prefix gesetzt ist
+  - der MQTT Client neben Discovery auch die benoetigten Runtime-Topics der Quelle empfaengt
+  - Bundle-Dateien nur bewusst und mit aktuellem V2-Format aktiviert werden
 
 ## Export
 

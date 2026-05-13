@@ -7,6 +7,12 @@ Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
 
 Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 
+Weitere interne Doku:
+
+- [Verifikation](docs/VERIFIKATION.md)
+- [Migration](docs/MIGRATION.md)
+- [MQTT-Discovery-Fixtures](tests/fixtures/README.md)
+
 **Inhaltsverzeichnis**
 
 1. [Funktionsumfang](#1-funktionsumfang)  
@@ -68,9 +74,9 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 
 - Symcon ab Version 9.0
 - MQTT Broker in Home Assistant und eine MQTT Client-Instanz in Symcon oder alternativ ein Symcon MQTT Server
-- Fuer den MQTT Discovery Splitter wird ein zusaetzlicher Symcon MQTT Client benoetigt, der den Discovery-Prefix abonniert, z. B. `homeassistant/#` oder `#`.
-- Wichtig: Die MQTT-Subscription des Clients darf Wildcards wie `#` enthalten. Im `Home Assistant MQTT Discovery Splitter` selbst muss als `MQTTDiscoveryPrefix` dagegen der echte Discovery-Prefix eingetragen werden, typischerweise `homeassistant` und nicht `#`.
+- Fuer den MQTT-Discovery-Pfad wird im Live-Betrieb ein MQTT Client benoetigt, der den Discovery-Prefix empfaengt, z. B. `homeassistant/#` oder `#`.
 - Fuer MQTT Discovery Devices muessen ueber denselben MQTT Client zusaetzlich die Laufzeit-Topics der Quelle empfangen werden, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
+- Wichtig: Die MQTT-Subscription des Clients darf Wildcards wie `#` enthalten. Im `Home Assistant MQTT Discovery Splitter` selbst muss als `MQTTDiscoveryPrefix` dagegen der echte Discovery-Prefix eingetragen werden, typischerweise `homeassistant` und nicht `#`.
 - Home Assistant mit aktivierter MQTT Integration (Statestream)
 - Optional: mDNS/DNS-SD (Discovery)
 - Long-Lived Access Token (REST)
@@ -81,19 +87,42 @@ Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
 - Modul über den Symcon Module Store hinzufügen (Library: "Home Assistant").
 - Danach die benötigten Instanzen anlegen.
 
+**Migrationshinweis**
+
+- Die Discovery-Migration ist in [Migration](docs/MIGRATION.md) gebuendelt.
+- Wichtig fuer Updates:
+  - `Home Assistant MQTT Discovery Device` arbeitet `DeviceID`-only und zieht seine Definition aus dem MQTT Discovery Splitter.
+  - `Home Assistant MQTT Discovery Splitter` hat zusaetzliche Bundle-Properties (`SourceMode`, `BundlePath`, `BundleCurrentSessionOnly`, `ReplayTopicsOnApply`).
+  - Der klassische `Home Assistant Configurator` fuehrt im `create`-Block nur noch stabile Strukturattribute.
+
 ## 4. Funktionsreferenz
 
 Keine öffentlichen Funktionen im Root-Modul. Siehe die jeweiligen Modul-READMEs.
 
 ## 5. Konfiguration
 
-**Einrichtung (Kurzfassung)**
+**Einrichtung klassischer Runtime-Pfad**
 
 1. MQTT Client in Symcon einrichten und mit dem Broker verbinden (inkl. Subscription `homeassistant/#` oder `#`).
 2. Home Assistant Splitter anlegen und mit dem MQTT Client verbinden.
 3. Im Splitter `MQTTBaseTopic` setzen (typisch: `homeassistant`) sowie `HAUrl` und `HAToken` für REST.
 4. Home Assistant Discovery ausführen, um eine Configurator Instanz zu erstellen.
 5. Im Configurator gefundene Geräte oder Entitäten auswählen und Instanzen erzeugen.
+
+**Einrichtung MQTT-Discovery-Pfad**
+
+1. MQTT Client in Symcon einrichten und mit dem Broker verbinden.
+2. Der MQTT Client muss mindestens `homeassistant/#` empfangen; fuer die Runtime der Discovery-Devices zusaetzlich die Quell-Topics, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
+3. `Home Assistant MQTT Discovery Splitter` anlegen und mit diesem MQTT Client verbinden.
+4. Im Splitter `MQTTDiscoveryPrefix` als literalen Discovery-Prefix setzen, typischerweise `homeassistant`, nicht `#`.
+5. `Home Assistant MQTT Discovery Configurator` ausfuehren und daraus `Home Assistant MQTT Discovery Device` Instanzen erzeugen.
+
+**MQTT-Discovery Bundle-Modus**
+
+- Fuer Entwicklung und Analyse kann der `Home Assistant MQTT Discovery Splitter` statt Live-MQTT ein exportiertes Discovery-Bundle nutzen.
+- Dazu `SourceMode = bundle` setzen und `BundlePath` auf ein passendes V2-Bundle zeigen lassen.
+- `ReplayTopicsOnApply` ist sinnvoll, wenn Discovery-Devices ihren Receive-Pfad nach dem Laden des Bundles direkt noch einmal durchlaufen sollen.
+- Im Bundle-Modus werden ausgehende Commands aktuell verworfen.
 
 **Home Assistant mqtt_statestream**
 
@@ -106,6 +135,16 @@ mqtt_statestream:
   publish_attributes: true
   publish_timestamps: true
 ```
+
+**Typische MQTT-Subscriptions**
+
+- Klassischer Runtime-Pfad:
+  - MQTT Client oder MQTT Server empfaengt typischerweise `homeassistant/#`
+- MQTT-Discovery-Pfad:
+  - derselbe MQTT Client am Discovery-Splitter empfaengt mindestens `homeassistant/#`
+  - fuer Zigbee2MQTT zusaetzlich typischerweise `zigbee2mqtt/#`
+- Wildcards wie `#` oder `+` gehoeren nur in die Subscription des MQTT-Clients.
+- `MQTTBaseTopic` und `MQTTDiscoveryPrefix` enthalten dagegen den literalen Prefix ohne Wildcards.
 
 ## 6. Statusvariablen und Profile
 
@@ -137,6 +176,21 @@ Home Assistant Splitter
 Home Assistant Device / Entity / Configurator
 ```
 
+```text
+Home Assistant MQTT Discovery Producer
+  |  homeassistant/.../config
+  |  producer runtime topics (z. B. zigbee2mqtt/...)
+  v
+MQTT Broker
+  v
+IP-Symcon MQTT Client
+  v
+Home Assistant MQTT Discovery Splitter
+  |  Cache, Diagnose, optional Bundle-Modus
+  v
+Home Assistant MQTT Discovery Configurator / Device
+```
+
 **Hinweise zur Fehlersuche**
 
 - Wenn im Splitter `Kein aktiver MQTT Parent gefunden` steht: Parent-Verbindung im Splitter, MQTT-Client-Status und Subscription in Symcon pruefen (Discovery-Prefix, z. B. `homeassistant/#` oder `#`).
@@ -144,10 +198,12 @@ Home Assistant Device / Entity / Configurator
 - IP-Adressen und Ports prüfen: MQTT standardmäßig `1883` (TLS `8883`), Home Assistant REST standardmäßig `8123`.
 - MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.
 
+- Wenn MQTT Discovery Devices keine Werte bekommen: pruefen, ob derselbe MQTT Client neben `homeassistant/#` auch die Runtime-Topics der Quelle sieht, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 - Wenn beim MQTT Discovery Splitter bereits vorhandene Discovery-Geraete nicht sofort auftauchen, obwohl sie retained am Broker liegen: `MQTT-IO reconnecten` ausfuehren. Dadurch wird der IO des MQTT-Clients neu verbunden und das retained Replay erneut eingelesen.
 - Fuer Support und Analyse gibt es zwei Exportwege im MQTT Discovery Splitter:
   - `Discovery-Bundle herunterladen` fuer den gesamten Cache.
   - `Discovery-Bundle aktuelle Session herunterladen` fuer nur die aktuelle MQTT-Session nach einem frischen Connect oder Reconnect.
+
 ### Datenfluss
 - Device/Configurator -> Splitter: `{E62B0B4F-1B5C-4F2C-9B6B-2C86F5B7C1D1}`
 - Splitter -> Device/Configurator: `{F4A2B9F1-1D3B-44A9-9B6A-0D3A5A7D6E10}`
@@ -173,6 +229,13 @@ Home Assistant Device / Entity / Configurator
 
 - In Home Assistant die MQTT-Integration möglichst über das offizielle Mosquitto Broker Add-on einrichten.
 - Im Splitter eine interne HA-URL verwenden (lokale IP/Host, Port 8123), nicht die externe Zugriff-URL.
+
+**MQTT Discovery Device bleibt leer oder unvollstaendig**
+
+- Parent-Kette pruefen: Discovery Device -> MQTT Discovery Splitter -> MQTT Client.
+- MQTT Client Subscription pruefen: fuer Discovery mindestens `homeassistant/#`, fuer die Runtime zusaetzlich die Quell-Topics.
+- Im Splitter `MQTT-IO reconnecten` ausfuehren, damit retained Discovery-Topics erneut eingelesen werden.
+- Falls im Entwicklungsbetrieb Bundle-Modus aktiv ist: `BundlePath`, Exportformat `V2` und `SourceMode` pruefen.
 
 ### Spenden
 

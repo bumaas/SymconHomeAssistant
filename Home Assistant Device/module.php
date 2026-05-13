@@ -100,6 +100,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
+        if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
+            $this->debugExpert('MessageSink', 'Kernel bereit. Aktualisiere...');
+            $this->ApplyChanges();
+            return;
+        }
+
         // Wenn sich die Verbindung ändert, die Konfiguration neu laden.
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...');
@@ -111,6 +117,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     {
         parent::ApplyChanges();
         $this->syncParentStatusMessageRegistration();
+        if (!$this->isKernelReady()) {
+            $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.');
+            return;
+        }
         $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 0);
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();

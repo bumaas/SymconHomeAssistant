@@ -21,6 +21,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->SetReceiveDataFilter('^$');
 
         $this->RegisterPropertyString('MQTTBaseTopic', 'homeassistant');
         $this->RegisterPropertyString('HAUrl', 'http://homeassistant.local:8123');
@@ -42,6 +43,12 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
+        if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
+            $this->debugExpert('MessageSink', 'Kernel bereit. Aktualisiere...', [], true);
+            $this->ApplyChanges();
+            return;
+        }
+
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...', [], true);
             $this->ApplyChanges();
@@ -76,6 +83,10 @@ class HomeAssistantSplitter extends IPSModuleStrict
     {
         parent::ApplyChanges();
         $this->syncParentStatusMessageRegistration();
+        if (!$this->isKernelReady()) {
+            $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
+            return;
+        }
         $this->SetReceiveDataFilter('.*');
 
         $this->updateLastMqttMessageLabel();

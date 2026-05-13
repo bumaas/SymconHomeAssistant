@@ -91,6 +91,74 @@ final class HAMqttDiscoveryParser
         return $result;
     }
 
+    public function analyzeConfigMessages(array $records): array
+    {
+        $entities = [];
+        $diagnostics = $this->createDiagnostics();
+
+        foreach ($records as $record) {
+            if (!is_array($record)) {
+                continue;
+            }
+
+            $topic = $this->normalizeNullableString($record['topic'] ?? null);
+            if ($topic === null) {
+                continue;
+            }
+
+            $topicMeta = $this->parseTopic($topic);
+            if ($topicMeta === null) {
+                continue;
+            }
+
+            $diagnostics['total_records']++;
+
+            $payload = $record['payload'] ?? null;
+            if (!is_string($payload) || trim($payload) === '') {
+                $this->recordSkippedDiagnostic(
+                    $diagnostics,
+                    'empty_payload',
+                    (string)($topicMeta['component'] ?? ''),
+                    $this->buildDiagnosticExample((string)($topicMeta['component'] ?? ''), (string)($topicMeta['topic_object_id'] ?? ''), $topic)
+                );
+                continue;
+            }
+
+            try {
+                $config = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException) {
+                $this->recordSkippedDiagnostic(
+                    $diagnostics,
+                    'invalid_json',
+                    (string)($topicMeta['component'] ?? ''),
+                    $this->buildDiagnosticExample((string)($topicMeta['component'] ?? ''), (string)($topicMeta['topic_object_id'] ?? ''), $topic)
+                );
+                continue;
+            }
+
+            if (!is_array($config)) {
+                $this->recordSkippedDiagnostic(
+                    $diagnostics,
+                    'invalid_json_object',
+                    (string)($topicMeta['component'] ?? ''),
+                    $this->buildDiagnosticExample((string)($topicMeta['component'] ?? ''), (string)($topicMeta['topic_object_id'] ?? ''), $topic)
+                );
+                continue;
+            }
+
+            $config = $this->normalizeConfigAliases($config);
+            foreach ($this->analyzeNormalizedConfigRecord($topicMeta, $config, $topic, $diagnostics) as $uniqueId => $parsed) {
+                $entities[$uniqueId] = $parsed;
+            }
+        }
+
+        $diagnostics['parsed_entities'] = count($entities);
+        return [
+            'entities' => $entities,
+            'diagnostics' => $this->finalizeDiagnostics($diagnostics)
+        ];
+    }
+
     private function parseSingleComponentMessage(array $topicMeta, array $config, string $topic): array
     {
         $component = (string)($topicMeta['component'] ?? '');
@@ -276,6 +344,120 @@ final class HAMqttDiscoveryParser
 
             if ($parsed === null) {
                 continue;
+            }
+
+            $result[$parsed['unique_id']] = $parsed;
+        }
+
+        return $result;
+    }
+
+    private function analyzeNormalizedConfigRecord(array $topicMeta, array $config, string $topic, array &$diagnostics): array
+    {
+        $component = (string)($topicMeta['component'] ?? '');
+        if ($component === self::DEVICE_DISCOVERY_COMPONENT) {
+            return $this->analyzeDeviceDiscoveryMessage($topicMeta, $config, $topic, $diagnostics);
+        }
+
+        if ($component === self::DEVICE_AUTOMATION_COMPONENT) {
+            $parsed = $this->parseDeviceAutomationMessage($topicMeta, $config, $topic);
+            if ($parsed === null) {
+                $this->recordSkippedDiagnostic(
+                    $diagnostics,
+                    'missing_topic',
+                    self::DEVICE_AUTOMATION_COMPONENT,
+                    $this->buildDiagnosticExample(self::DEVICE_AUTOMATION_COMPONENT, (string)($topicMeta['topic_object_id'] ?? ''), $topic)
+                );
+                return [];
+            }
+
+            return [$parsed['unique_id'] => $parsed];
+        }
+
+        if (!in_array($component, self::SUPPORTED_COMPONENTS, true)) {
+            $this->recordUnsupportedDiagnostic(
+                $diagnostics,
+                $component,
+                $this->buildDiagnosticExample($component, (string)($topicMeta['topic_object_id'] ?? ''), $topic)
+            );
+            return [];
+        }
+
+        $parsed = $this->parseSingleComponentMessage($topicMeta, $config, $topic);
+        return [$parsed['unique_id'] => $parsed];
+    }
+
+    private function analyzeDeviceDiscoveryMessage(array $topicMeta, array $config, string $topic, array &$diagnostics): array
+    {
+        $components = $config['components'] ?? null;
+        if (!is_array($components) || $components === []) {
+            $this->recordSkippedDiagnostic(
+                $diagnostics,
+                'missing_components',
+                self::DEVICE_DISCOVERY_COMPONENT,
+                $this->buildDiagnosticExample(self::DEVICE_DISCOVERY_COMPONENT, (string)($topicMeta['topic_object_id'] ?? ''), $topic)
+            );
+            return [];
+        }
+
+        $result = [];
+        $sharedConfig = $this->extractDeviceDiscoverySharedConfig($config);
+        foreach ($components as $componentId => $componentConfig) {
+            if (!is_string($componentId) || $componentId === '' || !is_array($componentConfig)) {
+                $this->recordSkippedDiagnostic(
+                    $diagnostics,
+                    'invalid_component_entry',
+                    self::DEVICE_DISCOVERY_COMPONENT,
+                    $this->buildDiagnosticExample(self::DEVICE_DISCOVERY_COMPONENT, (string)$componentId, $topic)
+                );
+                continue;
+            }
+
+            $componentConfig = $this->normalizeConfigAliases($componentConfig);
+            $platform = $this->normalizeNullableString($componentConfig['platform'] ?? null);
+            if ($platform === null) {
+                $this->recordSkippedDiagnostic(
+                    $diagnostics,
+                    'missing_platform',
+                    self::DEVICE_DISCOVERY_COMPONENT,
+                    $this->buildDiagnosticExample(self::DEVICE_DISCOVERY_COMPONENT, $componentId, $topic)
+                );
+                continue;
+            }
+
+            if ($platform !== self::DEVICE_AUTOMATION_COMPONENT && !in_array($platform, self::SUPPORTED_COMPONENTS, true)) {
+                $this->recordUnsupportedDiagnostic(
+                    $diagnostics,
+                    $platform,
+                    $this->buildDiagnosticExample($platform, $componentId, $topic)
+                );
+                continue;
+            }
+
+            $mergedConfig = array_replace($sharedConfig, $componentConfig);
+            $mergedConfig['device'] = $config['device'] ?? null;
+            $mergedConfig['origin'] = $config['origin'] ?? null;
+            $mergedConfig['object_id'] ??= $componentId;
+
+            $nestedTopicMeta = [
+                'component' => $platform,
+                'topic_object_id' => $componentId,
+                'topic_node_id' => $this->buildDeviceDiscoveryNodeId($topicMeta)
+            ];
+
+            if ($platform === self::DEVICE_AUTOMATION_COMPONENT) {
+                $parsed = $this->parseDeviceAutomationMessage($nestedTopicMeta, $mergedConfig, $topic);
+                if ($parsed === null) {
+                    $this->recordSkippedDiagnostic(
+                        $diagnostics,
+                        'missing_topic',
+                        self::DEVICE_AUTOMATION_COMPONENT,
+                        $this->buildDiagnosticExample(self::DEVICE_AUTOMATION_COMPONENT, $componentId, $topic)
+                    );
+                    continue;
+                }
+            } else {
+                $parsed = $this->parseSingleComponentMessage($nestedTopicMeta, $mergedConfig, $topic);
             }
 
             $result[$parsed['unique_id']] = $parsed;
@@ -755,5 +937,111 @@ final class HAMqttDiscoveryParser
     {
         $preferred = $this->normalizeNullableString($preferred);
         return $preferred ?? $fallback;
+    }
+
+    private function createDiagnostics(): array
+    {
+        return [
+            'total_records' => 0,
+            'parsed_entities' => 0,
+            'unsupported' => [],
+            'skipped' => []
+        ];
+    }
+
+    private function recordUnsupportedDiagnostic(array &$diagnostics, string $component, string $example): void
+    {
+        $component = $component !== '' ? $component : 'unknown';
+        if (!isset($diagnostics['unsupported'][$component])) {
+            $diagnostics['unsupported'][$component] = [
+                'component' => $component,
+                'count' => 0,
+                'examples' => []
+            ];
+        }
+
+        $diagnostics['unsupported'][$component]['count']++;
+        $this->appendDiagnosticExample($diagnostics['unsupported'][$component]['examples'], $example);
+    }
+
+    private function recordSkippedDiagnostic(array &$diagnostics, string $reason, string $component, string $example): void
+    {
+        $component = $component !== '' ? $component : 'unknown';
+        $key = $reason . '|' . $component;
+        if (!isset($diagnostics['skipped'][$key])) {
+            $diagnostics['skipped'][$key] = [
+                'reason' => $reason,
+                'component' => $component,
+                'count' => 0,
+                'examples' => []
+            ];
+        }
+
+        $diagnostics['skipped'][$key]['count']++;
+        $this->appendDiagnosticExample($diagnostics['skipped'][$key]['examples'], $example);
+    }
+
+    private function appendDiagnosticExample(array &$examples, string $example): void
+    {
+        if ($example === '' || in_array($example, $examples, true)) {
+            return;
+        }
+
+        $examples[] = $example;
+        if (count($examples) > 3) {
+            $examples = array_slice($examples, 0, 3);
+        }
+    }
+
+    private function buildDiagnosticExample(string $component, string $objectId, string $topic): string
+    {
+        $component = trim($component);
+        $objectId = trim($objectId);
+        if ($component !== '' && $objectId !== '') {
+            return $component . ':' . $objectId;
+        }
+        if ($objectId !== '') {
+            return $objectId;
+        }
+        if ($component !== '') {
+            return $component;
+        }
+
+        return $topic;
+    }
+
+    private function finalizeDiagnostics(array $diagnostics): array
+    {
+        $unsupported = array_values($diagnostics['unsupported']);
+        usort($unsupported, static function (array $left, array $right): int {
+            $countCompare = (int)($right['count'] ?? 0) <=> (int)($left['count'] ?? 0);
+            if ($countCompare !== 0) {
+                return $countCompare;
+            }
+
+            return strcmp((string)($left['component'] ?? ''), (string)($right['component'] ?? ''));
+        });
+
+        $skipped = array_values($diagnostics['skipped']);
+        usort($skipped, static function (array $left, array $right): int {
+            $countCompare = (int)($right['count'] ?? 0) <=> (int)($left['count'] ?? 0);
+            if ($countCompare !== 0) {
+                return $countCompare;
+            }
+
+            $reasonCompare = strcmp((string)($left['reason'] ?? ''), (string)($right['reason'] ?? ''));
+            if ($reasonCompare !== 0) {
+                return $reasonCompare;
+            }
+
+            return strcmp((string)($left['component'] ?? ''), (string)($right['component'] ?? ''));
+        });
+
+        return [
+            'total_records' => (int)($diagnostics['total_records'] ?? 0),
+            'parsed_entities' => (int)($diagnostics['parsed_entities'] ?? 0),
+            'unsupported' => $unsupported,
+            'skipped' => $skipped
+        ];
     }
 }

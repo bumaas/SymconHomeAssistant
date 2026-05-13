@@ -62,7 +62,7 @@ Geliefert:
 Verifiziert:
 
 - Verhalten nach MQTT-Reconnect mit Live-Diagnosen und aktualisiertem Export-Bundle.
-- Fixture-Austausch fuer `ebusd`-Bundle in `docs/fixtures`.
+- Fixture-Austausch fuer `ebusd`-Bundle in `tests/fixtures`.
 
 - Discovery-Cache und Topic-Cache auf Konsistenz pruefen
 - Verhalten bei leeren oder veralteten Retained-Payloads klaeren
@@ -125,9 +125,43 @@ Abschlusskriterien:
 - Die vier v1-Komponenten funktionieren im Laufzeitpfad zuverlaessig
 - Lesen, Schreiben und Reconnect-Verhalten sind manuell geprueft
 
+### A4. Bundle-Modus im Discovery-Splitter nachziehen
+
+Status:
+
+- im Repo umgesetzt, Backlog-Doku nachgezogen am 13.05.2026
+
+Geliefert:
+
+- MQTT Discovery Splitter unterstuetzt `SourceMode = mqtt | bundle`.
+- `BundlePath`, `BundleCurrentSessionOnly` und `ReplayTopicsOnApply` sind als Properties vorhanden.
+- Discovery-Bundles im Format `V2` koennen ohne MQTT-Parent in die bestehenden Splitter-Caches geladen werden.
+- Bundle-Modus beantwortet Discovery- und Topic-Lookups aus denselben Cache-Strukturen wie der Live-Betrieb.
+- Optionaler Replay-Schritt fuer gecachte Runtime-Topics an Child-Instanzen ist vorhanden.
+- Ausgehende Commands werden im Bundle-Modus aktuell verworfen und nicht simuliert.
+
+Verifiziert im Repo:
+
+- Formular, Locale und Modulcode des MQTT Discovery Splitters enthalten den Bundle-Modus einschliesslich Replay-Button und Session-Export.
+- Modul-README dokumentiert Bundle-Modus, Session-Export und die relevanten Properties.
+
+Offen/Nachlauf:
+
+- Eigene Migrationsnotiz fuer den Bundle-Modus und die neuen Properties noch in Arbeitspaket E sauber festziehen.
+
 ## 4. Arbeitspaket B: Discovery-Abdeckung erweitern
 
 ### B1. Parser und Gruppierung breiter absichern
+
+Status:
+
+- teilweise vorgezogen, aber noch nicht als abgeschlossen abgenommen
+
+Bereits im Repo sichtbar:
+
+- Zigbee2MQTT-`device_automation` ist im Parser und im Discovery-Device beruecksichtigt.
+- Reproduzierbare Fixtures und Doku decken `button` und `device_automation` bereits ab.
+- Fuer `light` existieren fixture-nahe Hilfsskripte und ein lokaler Runtime-Checker.
 
 - Zigbee2MQTT-v1-Pfade mit echten Beispiel-Payloads absichern
 - Bridge-Entities und Endgeraete klar voneinander trennen
@@ -135,13 +169,17 @@ Abschlusskriterien:
 
 ### B2. Weitere Discovery-Komponenten priorisieren
 
+Status:
+
+- `button` ist im Discovery-Device bereits enthalten
+- `light` ist fachlich erkennbar angelaufen, aber noch nicht als stabil abgeschlossen dokumentiert
+
 Empfohlene Reihenfolge nach Nutzwert und Naehe zum bestehenden Mapping:
 
-1. `light`
+1. `light` fachlich abschliessen, dokumentieren und manuell abnehmen
 2. `number`
-3. `button`
-4. `cover`
-5. `climate`
+3. `cover`
+4. `climate`
 
 Voraussetzung:
 
@@ -218,13 +256,13 @@ Status:
 
 Geliefert:
 
-- `docs/fixtures/ha_mqtt_discovery_bundle_ebusd.json` als reproduzierbare `ebusd`-Referenz
-- `docs/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt.json` als aktuelle Zigbee2MQTT-Session-Fixture
-- `docs/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_current_session_v2.json` als kompakte Zigbee2MQTT-V2-Session-Fixture
-- `docs/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_full_v2.json` als Zigbee2MQTT-V2-Voll-Cache-Fixture
+- `tests/fixtures/ha_mqtt_discovery_bundle_ebusd.json` als reproduzierbare `ebusd`-Referenz
+- `tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt.json` als aktuelle Zigbee2MQTT-Session-Fixture
+- `tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_current_session_v2.json` als kompakte Zigbee2MQTT-V2-Session-Fixture
+- `tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_full_v2.json` als Zigbee2MQTT-V2-Voll-Cache-Fixture
 - `tests/check-mqtt-discovery-fixtures.php` fuer Parser-, Gruppierungs- und Bundle-Checks gegen lokale Fixtures
-- Lokaler Fixture-Checker verstand Export-Bundle-Version `1` und `2` und sammelt Default-Fixtures automatisch aus `docs/fixtures`
-- Fixture-Doku in `docs/fixtures/README.md` beschreibt Erzeugung, Einsatz und Unterschiede zwischen Session- und Voll-Export
+- Lokaler Fixture-Checker versteht Export-Bundle-Version `1` und `2` und sammelt Default-Fixtures automatisch aus `tests/fixtures`
+- Fixture-Doku in `tests/fixtures/README.md` beschreibt Erzeugung, Einsatz und Unterschiede zwischen Session- und Voll-Export
 
 Verifiziert:
 
@@ -233,20 +271,39 @@ Verifiziert:
 
 ### D3. Kleine Testwerkzeuge ergaenzen
 
+Status:
+
+- teilweise vorgezogen, aber noch offen
+
+Bereits im Repo sichtbar:
+
+- `tests/check-mqtt-discovery-light-runtime.php` fuer fixture-nahe Light-Pruefungen
+- `tests/extract-mqtt-discovery-light-fixture.php` zum Ableiten kleinerer Light-Fixtures
+- `tests/zigbee2mqtt_update_task.ps1` als lokales Hilfsskript fuer Fixture-/Update-Arbeit
+
+Weiter offen:
+
 - Einfachen Lint- oder Pruef-Workflow dokumentieren oder skripten
 - Optional kleine parsernahe PHP-Tests fuer `libs/Discovery` und Gruppierung ergaenzen
 
 ## 7. Arbeitspaket E: Dokumentation und Migration
 
-- Root-README nach Stabilisierung des Discovery-Pfads um klare Einrichtungs- und Migrationshinweise ergaenzen
-- Modul-READMEs der neuen MQTT-Discovery-Module synchron halten
-- Umbauten an Properties oder Create-Configs mit eigener Migrationsnotiz dokumentieren
-- Voraussetzungen und typische MQTT-Subscriptions klar benennen
+Status:
+
+- abgeschlossen am 13.05.2026
+
+Geliefert:
+
+- Root-README enthaelt Discovery-Voraussetzungen, MQTT-Subscription-Hinweise sowie Export-/Reconnect-Notizen.
+- Root-README beschreibt jetzt den klassischen Runtime-Pfad und den MQTT-Discovery-Pfad getrennt, inklusive Bundle-Modus.
+- Modul-READMEs der MQTT-Discovery-Module sind auf `DeviceID`-only-Laufzeitpfad, Bundle-Modus und Subscription-Anforderungen synchronisiert.
+- Eigene Migrationsnotiz in `docs/MIGRATION.md` dokumentiert `DeviceID`-only, Bundle-Properties und die reduzierte `create`-Konfiguration des klassischen Configurators.
+- Fixture-Doku liegt im versionierten Testbereich unter `tests/fixtures/README.md`.
 
 ## 8. Empfohlene Reihenfolge der Umsetzung
 
-1. Arbeitspaket E fuer den Discovery-Pfad nachziehen
-2. Erst dann Arbeitspaket B fuer zusaetzliche Discovery-Komponenten beginnen
+1. Arbeitspaket B mit `light` gezielt abschliessen und erst danach weitere Discovery-Komponenten angehen
+2. Arbeitspaket D3 schlank mitziehen, damit Parser-/Runtime-Aenderungen nicht wieder ohne lokale Checks wachsen
 3. Klassische Domains aus Arbeitspaket C schrittweise erweitern
 
 ## 8.1 Geparkte Punkte

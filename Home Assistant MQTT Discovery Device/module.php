@@ -28,6 +28,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string ATTR_RESOLVED_DEVICE_DEFINITION = 'ResolvedDeviceDefinition';
     private const string ATTR_STATE_WARNINGS = 'StateWarnings';
     private const string ATTR_TOPIC_PROCESSING_INDEX = 'TopicProcessingIndex';
+    private const int PERFORMANCE_LOG_THRESHOLD_MS = 250;
 
     /** @var string[] */
     private const array SUPPORTED_COMPONENTS = [
@@ -63,24 +64,33 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     public function Create(): void
     {
         parent::Create();
+        $this->LogMessage('Create | start', KL_MESSAGE);
 
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->LogMessage('Create | after_RegisterMessage', KL_MESSAGE);
 
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
         $this->RegisterPropertyString(self::PROP_ENTITY_SELECTION, '[]');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
+        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->RegisterAttributeString(self::ATTR_LAST_MQTT_MESSAGE, '');
         $this->RegisterAttributeString(self::ATTR_AVAILABILITY_STATE, '{}');
         $this->RegisterAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION, '{}');
         $this->RegisterAttributeString(self::ATTR_STATE_WARNINGS, '{}');
         $this->RegisterAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX, '{}');
+        $this->LogMessage('Create | after_RegisterAttributes', KL_MESSAGE);
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
+        if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
+            $this->ApplyChanges();
+            return;
+        }
+
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->ApplyChanges();
         }
@@ -88,8 +98,18 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function ApplyChanges(): void
     {
+        $startedAt = microtime(true);
+        $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
+        $this->logPerformanceMarker(__FUNCTION__, 'start', [
+            'DeviceID' => $this->getConfiguredDeviceId()
+        ]);
         parent::ApplyChanges();
+        $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
         $this->syncParentStatusMessageRegistration();
+        if (!$this->isKernelReady()) {
+            $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
+            return;
+        }
 
         if ($this->getConfiguredDeviceId() === '') {
             $deviceDefinition = $this->buildPropertyDeviceDefinition();
@@ -100,6 +120,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $this->writeStateWarnings([]);
             $this->updateDiagnosticsLabels($entities, []);
             $this->updateInstanceSummary($entities);
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'missing_device_id'
+            ], true);
             return;
         }
 
@@ -121,10 +144,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $this->writeStateWarnings([]);
             $this->updateDiagnosticsLabels($fallbackEntities, []);
             $this->updateInstanceSummary($fallbackEntities);
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'parent_' . $parentState,
+                'DeviceID' => $this->getConfiguredDeviceId()
+            ], true);
             return;
         }
 
+        $this->logPerformanceMarker(__FUNCTION__, 'before_resolveRuntimeDeviceDefinition');
         $deviceDefinition = $this->resolveRuntimeDeviceDefinition();
+        $this->logPerformanceMarker(__FUNCTION__, 'after_resolveRuntimeDeviceDefinition');
         $entities = $this->normalizeConfiguredEntities($deviceDefinition['entities'] ?? []);
 
         if ($entities === []) {
@@ -138,6 +167,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $this->writeStateWarnings([]);
             $this->updateDiagnosticsLabels($entities, []);
             $this->updateInstanceSummary($entities);
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'no_entities',
+                'DeviceID' => (string)($deviceDefinition['device_id'] ?? $this->ReadPropertyString(self::PROP_DEVICE_ID)),
+                'Source' => (string)($deviceDefinition['source'] ?? 'unknown')
+            ], true);
             return;
         }
 
@@ -157,6 +191,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->SetStatus(IS_ACTIVE);
         $this->updateDiagnosticsLabels($entities, $topics, $warningMap);
         $this->updateInstanceSummary($entities);
+        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+            'Result' => 'active',
+            'DeviceID' => $this->ReadPropertyString(self::PROP_DEVICE_ID),
+            'EntityCount' => count($entities),
+            'TopicCount' => count($topics)
+        ], true);
     }
 
     public function ReceiveData(string $JSONString): string
@@ -304,23 +344,39 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function resolveRuntimeDeviceDefinition(): array
     {
+        $startedAt = microtime(true);
         $fallback = $this->buildOfflineDeviceDefinition();
         $deviceId = (string)($fallback['device_id'] ?? '');
         if ($deviceId === '') {
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'fallback_empty_device_id'
+            ], true);
             return $fallback;
         }
 
         if ($this->getDiscoveryParentRuntimeState() !== 'active') {
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'fallback_parent_inactive',
+                'DeviceID' => $deviceId
+            ], true);
             return $fallback;
         }
 
         $response = $this->sendDiscoveryRequestToParent('GetDiscoveryConfigs');
         if ($response === null) {
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'fallback_no_response',
+                'DeviceID' => $deviceId
+            ], true);
             return $fallback;
         }
 
         $records = $response['Items'] ?? [];
         if (!is_array($records) || $records === []) {
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'fallback_no_records',
+                'DeviceID' => $deviceId
+            ], true);
             return $fallback;
         }
 
@@ -342,9 +398,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'DeviceID' => $deviceId,
                 'EntityCount' => count(is_array($resolved['entities'] ?? null) ? $resolved['entities'] : [])
             ]);
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'resolved_parent',
+                'DeviceID' => $deviceId,
+                'RecordCount' => count($records),
+                'EntityCount' => count(is_array($resolved['entities'] ?? null) ? $resolved['entities'] : [])
+            ], true);
             return $resolved;
         }
 
+        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+            'Result' => 'fallback_no_matching_group',
+            'DeviceID' => $deviceId,
+            'RecordCount' => count($records)
+        ], true);
         return $fallback;
     }
 
@@ -2355,5 +2422,36 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function updateFormFieldSafe(string $name, string $property, mixed $value): void
     {
         @ $this->UpdateFormField($name, $property, $value);
+    }
+
+    private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void
+    {
+        $durationMs = (int)round((microtime(true) - $startedAt) * 1000);
+        if (!$force && $durationMs < self::PERFORMANCE_LOG_THRESHOLD_MS) {
+            return;
+        }
+
+        $message = $scope . ' | ' . $durationMs . ' ms';
+        if ($context !== []) {
+            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if (is_string($encodedContext) && $encodedContext !== '') {
+                $message .= ' | ' . $encodedContext;
+            }
+        }
+
+        $this->LogMessage($message, KL_MESSAGE);
+    }
+
+    private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
+    {
+        $message = $scope . ' | ' . $phase;
+        if ($context !== []) {
+            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if (is_string($encodedContext) && $encodedContext !== '') {
+                $message .= ' | ' . $encodedContext;
+            }
+        }
+
+        $this->LogMessage($message, KL_MESSAGE);
     }
 }

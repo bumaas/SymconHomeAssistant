@@ -50,30 +50,37 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         }
 
         $records = $this->loadDiscoveryRecords();
-        $groups = $this->loadDiscoveryGroups($records);
+        $analysis = $this->analyzeDiscoveryRecords($records);
+        $groups = $analysis['groups'];
+        $diagnostics = $analysis['diagnostics'];
         $values = $this->prepareConfiguratorValues($groups);
 
         if ($records === []) {
             $form['actions'][] = [
                 'type' => 'Label',
-                'caption' => 'Keine MQTT-Discovery-Configs im Splitter-Cache gefunden. MQTT Parent muss den Discovery-Prefix abonnieren, z. B. homeassistant/# oder #.'
+                'caption' => $this->Translate('No MQTT discovery configs found in splitter cache. MQTT parent must subscribe to the discovery prefix, for example homeassistant/# or #.')
             ];
+        }
+
+        $diagnosticsPanel = $this->buildDiagnosticsPanel($diagnostics, count($groups));
+        if ($diagnosticsPanel !== null) {
+            $form['actions'][] = $diagnosticsPanel;
         }
 
         $form['actions'][] = [
             'type' => 'Configurator',
             'name' => 'MqttDiscoveryDevices',
-            'caption' => 'Found MQTT Discovery Devices',
+            'caption' => $this->Translate('Found MQTT Discovery Devices'),
             'rowCount' => 20,
             'add' => false,
             'delete' => true,
             'columns' => [
-                ['caption' => 'Type', 'name' => 'Type', 'width' => '100px'],
-                ['caption' => 'Device', 'name' => 'name', 'width' => '260px'],
-                ['caption' => 'Manufacturer', 'name' => 'Manufacturer', 'width' => '180px'],
-                ['caption' => 'Model', 'name' => 'Model', 'width' => '180px'],
-                ['caption' => 'Entities', 'name' => 'EntityCount', 'width' => '80px'],
-                ['caption' => 'Summary', 'name' => 'Summary', 'width' => 'auto']
+                ['caption' => $this->Translate('Type'), 'name' => 'Type', 'width' => '100px'],
+                ['caption' => $this->Translate('Device'), 'name' => 'name', 'width' => '260px'],
+                ['caption' => $this->Translate('Manufacturer'), 'name' => 'Manufacturer', 'width' => '180px'],
+                ['caption' => $this->Translate('Model'), 'name' => 'Model', 'width' => '180px'],
+                ['caption' => $this->Translate('Entities'), 'name' => 'EntityCount', 'width' => '80px'],
+                ['caption' => $this->Translate('Summary'), 'name' => 'Summary', 'width' => 'auto']
             ],
             'values' => $values
         ];
@@ -108,11 +115,13 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         return $items;
     }
 
-    private function loadDiscoveryGroups(array $records): array
+    private function analyzeDiscoveryRecords(array $records): array
     {
         $this->ensureHelpers();
 
-        $entities = $this->parser->parseConfigMessages($records);
+        $analysis = $this->parser->analyzeConfigMessages($records);
+        $entities = is_array($analysis['entities'] ?? null) ? $analysis['entities'] : [];
+        $diagnostics = is_array($analysis['diagnostics'] ?? null) ? $analysis['diagnostics'] : [];
         $groups = $this->grouping->groupEntitiesToDevices($entities);
 
         if (!$this->ReadPropertyBoolean('ShowBridgeDevices')) {
@@ -149,11 +158,16 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         $this->debugExpert(__FUNCTION__, 'Grouped discovery devices', [
             'Entities' => count($entities),
             'Groups' => count($groups),
+            'Unsupported' => $diagnostics['unsupported'] ?? [],
+            'Skipped' => $diagnostics['skipped'] ?? [],
             'EntityMap' => array_slice($entityMap, 0, 30),
             'GroupMap' => $groupMap
         ]);
 
-        return $groups;
+        return [
+            'groups' => $groups,
+            'diagnostics' => $diagnostics
+        ];
     }
 
     private function prepareConfiguratorValues(array $groups): array
@@ -238,6 +252,149 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         }
 
         return implode(' | ', array_slice($parts, 0, 8));
+    }
+
+    private function buildDiagnosticsPanel(array $diagnostics, int $groupCount): ?array
+    {
+        $unsupported = is_array($diagnostics['unsupported'] ?? null) ? $diagnostics['unsupported'] : [];
+        $skipped = is_array($diagnostics['skipped'] ?? null) ? $diagnostics['skipped'] : [];
+        $parsedEntities = (int)($diagnostics['parsed_entities'] ?? 0);
+        $totalRecords = (int)($diagnostics['total_records'] ?? 0);
+
+        if ($unsupported === [] && $skipped === [] && $totalRecords === 0) {
+            return null;
+        }
+
+        $items = [[
+            'type' => 'Label',
+            'caption' => sprintf($this->Translate('Parsed discovery records/entities/devices: %d/%d/%d'), $totalRecords, $parsedEntities, $groupCount)
+        ]];
+
+        $items[] = [
+            'type' => 'Label',
+            'caption' => $unsupported === []
+                ? $this->Translate('Unsupported discovery components: none')
+                : sprintf($this->Translate('Unsupported discovery components: %s'), $this->formatUnsupportedSummary($unsupported))
+        ];
+
+        if ($unsupported !== []) {
+            $items[] = [
+                'type' => 'Label',
+                'caption' => sprintf($this->Translate('Unsupported examples: %s'), $this->formatUnsupportedExamples($unsupported))
+            ];
+        }
+
+        $items[] = [
+            'type' => 'Label',
+            'caption' => $skipped === []
+                ? $this->Translate('Skipped discovery entries: none')
+                : sprintf($this->Translate('Skipped discovery entries: %s'), $this->formatSkippedSummary($skipped))
+        ];
+
+        if ($skipped !== []) {
+            $items[] = [
+                'type' => 'Label',
+                'caption' => sprintf($this->Translate('Skipped examples: %s'), $this->formatSkippedExamples($skipped))
+            ];
+        }
+
+        return [
+            'type' => 'ExpansionPanel',
+            'caption' => $this->Translate('Discovery Diagnostics'),
+            'expanded' => false,
+            'items' => $items
+        ];
+    }
+
+    private function formatUnsupportedSummary(array $unsupported): string
+    {
+        $parts = [];
+        foreach (array_slice($unsupported, 0, 8) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $parts[] = sprintf(
+                '%s (%d)',
+                (string)($entry['component'] ?? 'unknown'),
+                (int)($entry['count'] ?? 0)
+            );
+        }
+
+        return $parts === [] ? $this->Translate('none') : implode(', ', $parts);
+    }
+
+    private function formatUnsupportedExamples(array $unsupported): string
+    {
+        $parts = [];
+        foreach (array_slice($unsupported, 0, 4) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $examples = array_slice(is_array($entry['examples'] ?? null) ? $entry['examples'] : [], 0, 2);
+            if ($examples === []) {
+                continue;
+            }
+
+            $parts[] = (string)($entry['component'] ?? 'unknown') . ' -> ' . implode(', ', $examples);
+        }
+
+        return $parts === [] ? $this->Translate('none') : implode(' | ', $parts);
+    }
+
+    private function formatSkippedSummary(array $skipped): string
+    {
+        $parts = [];
+        foreach (array_slice($skipped, 0, 8) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $parts[] = sprintf(
+                '%s (%d)',
+                $this->formatSkippedLabel($entry),
+                (int)($entry['count'] ?? 0)
+            );
+        }
+
+        return $parts === [] ? $this->Translate('none') : implode(', ', $parts);
+    }
+
+    private function formatSkippedExamples(array $skipped): string
+    {
+        $parts = [];
+        foreach (array_slice($skipped, 0, 4) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $examples = array_slice(is_array($entry['examples'] ?? null) ? $entry['examples'] : [], 0, 2);
+            if ($examples === []) {
+                continue;
+            }
+
+            $parts[] = $this->formatSkippedLabel($entry) . ' -> ' . implode(', ', $examples);
+        }
+
+        return $parts === [] ? $this->Translate('none') : implode(' | ', $parts);
+    }
+
+    private function formatSkippedLabel(array $entry): string
+    {
+        $component = (string)($entry['component'] ?? 'unknown');
+        $reason = (string)($entry['reason'] ?? 'unknown');
+
+        return match ($reason) {
+            'empty_payload' => sprintf($this->Translate('%s without payload'), $component),
+            'invalid_json' => sprintf($this->Translate('%s invalid JSON'), $component),
+            'invalid_json_object' => sprintf($this->Translate('%s invalid JSON object'), $component),
+            'missing_topic' => sprintf($this->Translate('%s without topic'), $component),
+            'missing_components' => $this->Translate('device discovery without components'),
+            'missing_platform' => $this->Translate('device discovery without platform'),
+            'invalid_component_entry' => $this->Translate('device discovery invalid component entry'),
+            default => sprintf($this->Translate('%s skipped'), $component)
+        };
     }
 
     private function ensureHelpers(): void

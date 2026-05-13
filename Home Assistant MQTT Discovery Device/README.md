@@ -20,8 +20,18 @@ Laufzeitmodul fuer MQTT-Discovery-Geraete aus dem Home Assistant MQTT Discovery 
 ## Voraussetzungen
 
 - Home Assistant MQTT Discovery Splitter als Parent.
-- Parent des Splitters muss ein MQTT Client sein, der den Discovery-Prefix abonniert, z. B. `homeassistant/#` oder `#`.
-- Die relevanten State-Topics muessen vom MQTT Client empfangen werden, typischerweise ueber `zigbee2mqtt/#` oder `#`.
+- Der Splitter kann live an einem MQTT Client haengen oder im Entwicklungsbetrieb aus einem Discovery-Bundle gespeist werden.
+- Im Live-Betrieb muss der Parent des Splitters ein MQTT Client sein, der den Discovery-Prefix abonniert, z. B. `homeassistant/#` oder `#`.
+- Die relevanten State-Topics muessen im Live-Betrieb vom MQTT Client empfangen werden, typischerweise ueber `zigbee2mqtt/#` oder `#`.
+
+## Migration
+
+- Das Device persistiert keine eigene `DeviceConfig` mehr.
+- Bestehende und neu erzeugte Instanzen arbeiten mit `DeviceID` plus aufgeloester Cache-Definition aus dem Splitter.
+- Wenn ein Device nach dem Update keine Definition findet:
+  1. Parent-Kette pruefen
+  2. Splitter-Cache pruefen
+  3. `MQTT-IO reconnecten` ausfuehren oder im Entwicklungsbetrieb Bundle-Modus samt passendem Bundle aktivieren
 
 ## Hinweis
 

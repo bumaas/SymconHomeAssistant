@@ -23,16 +23,20 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const int DIAGNOSTIC_PREVIEW_LIMIT = 8;
     private const int OUTPUT_BUFFER_RESERVE_BYTES = 262144;
     private const int DIAGNOSTICS_REFRESH_INTERVAL_MS = 1000;
+    private const int PERFORMANCE_LOG_THRESHOLD_MS = 250;
     private const string SOURCE_MODE_MQTT = 'mqtt';
     private const string SOURCE_MODE_BUNDLE = 'bundle';
 
     public function Create(): void
     {
         parent::Create();
+        $this->LogMessage('Create | start', KL_MESSAGE);
 
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->LogMessage('Create | after_RegisterMessage', KL_MESSAGE);
+        $this->SetReceiveDataFilter('^$');
 
         $this->RegisterPropertyString('SourceMode', self::SOURCE_MODE_MQTT);
         $this->RegisterPropertyString('MQTTDiscoveryPrefix', 'homeassistant');
@@ -41,6 +45,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterPropertyBoolean('ReplayTopicsOnApply', false);
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
+        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->RegisterTimer(self::TIMER_DIAGNOSTICS_REFRESH, 0, 'HAMD_RefreshDiscoveryDiagnostics($_IPS["TARGET"]);');
         $this->RegisterAttributeString('LastMQTTMessage', '');
@@ -50,10 +55,20 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
         $this->RegisterAttributeString(self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP, '{}');
         $this->RegisterAttributeString(self::ATTRIBUTE_BUNDLE_STATE, '{}');
+        $this->LogMessage('Create | after_RegisterAttributes', KL_MESSAGE);
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
+        if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
+            $this->ApplyChanges();
+            return;
+        }
+
+        if ($this->isBundleMode()) {
+            return;
+        }
+
         if ($Message === FM_CONNECT) {
             $this->startNewMqttSession();
         } elseif ($Message === FM_DISCONNECT) {
@@ -67,12 +82,26 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     public function ApplyChanges(): void
     {
+        $startedAt = microtime(true);
+        $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
+        $this->logPerformanceMarker(__FUNCTION__, 'start', [
+            'SourceMode' => $this->getSourceMode()
+        ]);
         parent::ApplyChanges();
+        $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
         $this->syncParentStatusMessageRegistration();
+        if (!$this->isKernelReady()) {
+            $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
+            return;
+        }
         $this->SetReceiveDataFilter($this->isBundleMode() ? '^$' : '.*');
 
         if ($this->isBundleMode()) {
             $this->applyBundleMode();
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'SourceMode' => $this->getSourceMode(),
+                'Path' => 'bundle'
+            ], true);
             return;
         }
 
@@ -82,29 +111,49 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $this->WriteAttributeString('LastMQTTMessage', '');
         }
 
+        $this->logPerformanceMarker(__FUNCTION__, 'before_refreshMqttSessionState');
         $this->refreshMqttSessionState();
+        $this->logPerformanceMarker(__FUNCTION__, 'after_refreshMqttSessionState');
+        $this->logPerformanceMarker(__FUNCTION__, 'before_pruneCaches');
         $this->pruneCaches();
+        $this->logPerformanceMarker(__FUNCTION__, 'after_pruneCaches');
         $this->updateDiagnosticsLabels();
 
         $prefix = $this->getDiscoveryPrefix();
         if ($prefix === '') {
             $this->SetStatus(202);
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'SourceMode' => $this->getSourceMode(),
+                'Result' => 'missing_prefix'
+            ], true);
             return;
         }
 
         if (!$this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
             $this->SetStatus(201);
             $this->debugExpert('ApplyChanges', 'MQTT Parent ist nicht kompatibel.', $this->buildCurrentParentDebugContext(), true);
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'SourceMode' => $this->getSourceMode(),
+                'Result' => 'parent_incompatible'
+            ], true);
             return;
         }
 
         if (!$this->hasCompatibleActiveParentModule(HAIds::MODULE_MQTT_CLIENT)) {
             $this->SetStatus(201);
             $this->debugExpert('ApplyChanges', 'MQTT Parent ist nicht aktiv.', $this->buildCurrentParentDebugContext(), true);
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'SourceMode' => $this->getSourceMode(),
+                'Result' => 'parent_inactive'
+            ], true);
             return;
         }
 
         $this->SetStatus(IS_ACTIVE);
+        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+            'SourceMode' => $this->getSourceMode(),
+            'DiscoveryCount' => count($this->readDiscoveryCache())
+        ], true);
     }
 
     public function GetCompatibleParents(): string
@@ -524,6 +573,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function applyBundleMode(): void
     {
+        $startedAt = microtime(true);
         $loadResult = $this->loadConfiguredBundle();
         if (!($loadResult['ok'] ?? false)) {
             $state = is_array($loadResult['state'] ?? null) ? $loadResult['state'] : $this->buildDefaultBundleState();
@@ -535,10 +585,18 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
             if (($loadResult['status'] ?? 204) === 202) {
                 $this->SetStatus(202);
+                $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                    'Result' => 'bundle_missing_path',
+                    'Status' => 202
+                ], true);
                 return;
             }
 
             $this->SetStatus((int)($loadResult['status'] ?? 204));
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+                'Result' => 'bundle_load_failed',
+                'Status' => (int)($loadResult['status'] ?? 204)
+            ], true);
             return;
         }
 
@@ -552,6 +610,12 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         if ($this->ReadPropertyBoolean('ReplayTopicsOnApply')) {
             $this->replayCachedTopicPayloadsToChildren();
         }
+
+        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+            'Result' => 'bundle_loaded',
+            'DiscoveryCount' => count($this->readDiscoveryCache()),
+            'TopicPayloadCount' => count($this->readTopicPayloadCache())
+        ], true);
     }
 
     private function loadConfiguredBundle(): array
@@ -987,9 +1051,20 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function pruneCaches(): void
     {
+        $startedAt = microtime(true);
+        $this->logPerformanceMarker(__FUNCTION__, 'start');
         $discoveryCache = $this->getDiscoveryConfigRecords();
         $this->writeDiscoveryCache($discoveryCache);
+        $this->logPerformanceMarker(__FUNCTION__, 'before_syncReferencedRuntimeTopicState', [
+            'DiscoveryCount' => count($discoveryCache)
+        ]);
         $this->syncReferencedRuntimeTopicState($discoveryCache);
+        $this->logPerformanceMarker(__FUNCTION__, 'after_syncReferencedRuntimeTopicState', [
+            'DiscoveryCount' => count($discoveryCache)
+        ]);
+        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+            'DiscoveryCount' => count($discoveryCache)
+        ]);
     }
 
     private function updateTopicPayloadCacheFromMessage(string $topic, string $payload, array $metadata = []): void
@@ -1338,6 +1413,37 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'RecommendedBufferBytes' => $recommendedBufferBytes,
             'AppliedBufferBytes' => ini_get('ips.output_buffer')
         ]);
+    }
+
+    private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void
+    {
+        $durationMs = (int)round((microtime(true) - $startedAt) * 1000);
+        if (!$force && $durationMs < self::PERFORMANCE_LOG_THRESHOLD_MS) {
+            return;
+        }
+
+        $message = $scope . ' | ' . $durationMs . ' ms';
+        if ($context !== []) {
+            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if (is_string($encodedContext) && $encodedContext !== '') {
+                $message .= ' | ' . $encodedContext;
+            }
+        }
+
+        $this->LogMessage($message, KL_MESSAGE);
+    }
+
+    private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
+    {
+        $message = $scope . ' | ' . $phase;
+        if ($context !== []) {
+            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if (is_string($encodedContext) && $encodedContext !== '') {
+                $message .= ' | ' . $encodedContext;
+            }
+        }
+
+        $this->LogMessage($message, KL_MESSAGE);
     }
 
     private function applyCurrentDiagnosticsToForm(array &$form): void
@@ -1957,7 +2063,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function refreshMqttSessionState(): void
     {
+        $this->logPerformanceMarker(__FUNCTION__, 'start');
         if ($this->isBundleMode()) {
+            $this->logPerformanceMarker(__FUNCTION__, 'bundle_mode_skip');
             return;
         }
 
@@ -1967,10 +2075,12 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             if (!(bool)($state['active'] ?? false) || (int)($state['parent_id'] ?? 0) !== $currentParentId || trim((string)($state['id'] ?? '')) === '') {
                 $this->startNewMqttSession();
             }
+            $this->logPerformanceMarker(__FUNCTION__, 'active_parent');
             return;
         }
 
         $this->markMqttSessionInactive();
+        $this->logPerformanceMarker(__FUNCTION__, 'inactive_parent');
     }
 
     private function startNewMqttSession(): void

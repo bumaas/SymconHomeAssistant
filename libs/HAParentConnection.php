@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 trait HAParentConnectionTrait
 {
+    private function isKernelReady(): bool
+    {
+        return IPS_GetKernelRunlevel() === KR_READY;
+    }
+
     private function determineParentRuntimeState(array $moduleIds): string
     {
         $parentId = $this->getCurrentParentId();
