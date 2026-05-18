@@ -39,32 +39,32 @@ trait HADomainSpecialActionsTrait
 
     private function getLockActionIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::LOCK_ACTION_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::LOCK_ACTION_SUFFIX);
     }
 
     private function getVacuumActionIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::VACUUM_ACTION_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::VACUUM_ACTION_SUFFIX);
     }
 
     private function getCoverActionIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::COVER_ACTION_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::COVER_ACTION_SUFFIX);
     }
 
     private function getCoverTiltActionIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::COVER_TILT_ACTION_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::COVER_TILT_ACTION_SUFFIX);
     }
 
     private function getValveActionIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::VALVE_ACTION_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::VALVE_ACTION_SUFFIX);
     }
 
     private function getVacuumFanSpeedIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::VACUUM_FAN_SPEED_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::VACUUM_FAN_SPEED_SUFFIX);
     }
 
     private function supportsVacuumFanSpeed(array $attributes): bool
@@ -74,12 +74,12 @@ trait HADomainSpecialActionsTrait
 
     private function getLawnMowerActionIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::LAWN_MOWER_ACTION_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::LAWN_MOWER_ACTION_SUFFIX);
     }
 
     private function getCameraPowerIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . '_camera_power';
+        return $this->buildSharedSuffixIdent($entityId, '_camera_power');
     }
 
     private function getSupportedFeatureFlags(array $attributes, string $attribute = self::KEY_SUPPORTED_FEATURES): int
@@ -897,17 +897,17 @@ trait HADomainSpecialActionsTrait
 
     private function getMediaPlayerActionIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::MEDIA_PLAYER_ACTION_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::MEDIA_PLAYER_ACTION_SUFFIX);
     }
 
     private function getMediaPlayerPowerIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::MEDIA_PLAYER_POWER_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::MEDIA_PLAYER_POWER_SUFFIX);
     }
 
     private function getClimatePowerIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::CLIMATE_POWER_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::CLIMATE_POWER_SUFFIX);
     }
 
     private function getMediaPlayerActionOptions(array $attributes): array

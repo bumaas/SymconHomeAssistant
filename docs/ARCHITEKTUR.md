@@ -43,6 +43,10 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
   Zentrale, fachliche Normalisierung von Entitäten (Struktur, Aliase, Features). Wird von Configurator und Device-Modulen genutzt.
 - `libs/Device/HADeviceEntityNormalizationTrait`
   Laufzeit-Bridge, die Konfigurationsdaten mit Live-MQTT/REST-Attributen verheiratet.
+- `HAIdentNamingTrait`
+  Gemeinsame Benennungsschicht für `Home Assistant Device`, `Home Assistant Entity` und `Home Assistant MQTT Discovery Device`. Sie erzeugt kurze, instanzlokale Idents und trennt dabei `ident_prefix` von der eigentlichen Hauptvariable.
+- `HAEntityVariableNamingTrait`
+  Gemeinsame Routine für die sichtbaren Namen der Hauptvariablen. Der klassische Device-Pfad ist dabei die fachliche Vorlage; Discovery nutzt dieselben Regeln für `Status`, Domain-Sonderfälle und Fallbacks.
 - `HAEntityStoreTrait`
   Verwaltet die Runtime-Entity-Liste, den `EntityStateCache`, Entity-Lookups und cachegestützte Präsentationsaktualisierungen.
 - `HADomainRegistryTrait`
@@ -98,6 +102,12 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - Unterschiede zwischen MQTT-Discovery-Quellen gehören in Parser, Template-Reduktion oder vorgeschaltete Normalisierung. Das MQTT Discovery Device arbeitet quellenneutral gegen ein internes Discovery-Modell und darf nicht pro Producer wie Zigbee2MQTT, Tasmota oder ESPHome verzweigen.
 - Self-resolving Module wie `Home Assistant Entity` speichern nur stabile Identifikatoren in den Properties. Die eigentliche Entity-Konfiguration wird bei `ApplyChanges()` aus Home Assistant erneut aufgelöst.
 - Für normale Lookup- und Fallback-Pfade müssen normalisierte Konfigurations-Entities über `getConfiguredEntities()` bezogen werden.
+- Idents werden zentral über `HAIdentNamingTrait` erzeugt. Device-, Entity- und Discovery-Code dürfen keine eigene Benennungspolitik aus `entity_id` oder `object_id` daneben aufbauen.
+- Die Ident-Strategie ist instanzlokal und domain-präfixbasiert. Redundante Geräte- oder Instanznamen werden nach Möglichkeit aus dem `object_id` entfernt, damit kurze Idents wie `light_status`, `light_brightness`, `select_power_on_behavior` oder `sensor_last_seen` entstehen.
+- Für diese Kürzung werden sowohl der von Home Assistant gelieferte `device_name` als auch der aktuelle Gerätename der Symcon-Instanz berücksichtigt. Falls keine passende Gerätekonfiguration vorliegt, dient dafür auch der echte Symcon-Objektname der Instanz als Redundanzkandidat. Für die Vergleichbarkeit werden solche Namen ASCII-normalisiert, also etwa `Büro` zu `buro`. Ein Präfix wie `backofen_` oder `buro_` soll daher entfallen, wenn es nur den bereits bekannten Instanz- oder Gerätenamen wiederholt.
+- `ident` ist die Hauptvariable einer Entity. `ident_prefix` ist die gemeinsame Basis für Attribute, Aktionen und Medienobjekte derselben Entity. Lookup- und Suffix-Logik muss deshalb immer gegen diese zentrale Zuordnung arbeiten.
+- Kollisionen werden zentral aufgelöst: zuerst mit einem längeren lokalen Stem, erst danach mit numerischen Suffixen. Die Regel muss in klassischem Device-Pfad und MQTT-Discovery identisch sein.
+- Sichtbare Variablennamen werden getrennt von Idents behandelt. Für Hauptvariablen kommt die gemeinsame Routine aus `HAEntityVariableNamingTrait`; Discovery darf hier keine abweichende lokale Namenslogik pflegen.
 - `EntityStateCache` wird nur über `HAEntityStoreTrait` gelesen oder geschrieben. Direkte JSON-Zugriffe außerhalb von Bootstrap-Code sollen vermieden werden.
 - Neue oder geänderte Textdateien liegen in `UTF-8` ohne BOM mit `LF`-Zeilenenden.
 - In menschenlesbaren deutschen Texten werden echte Umlaute verwendet. Transliterationen wie `ae`, `oe` oder `ue` bleiben nur dort zulässig, wo technische Gründe dagegen sprechen, zum Beispiel in Idents, Dateinamen oder ASCII-gebundenen Formaten.

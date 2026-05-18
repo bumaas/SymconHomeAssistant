@@ -9,6 +9,8 @@ require_once __DIR__ . '/../libs/HACommonIncludes.php';
 class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 {
     use ModuleDebugTrait;
+    use HAIdentNamingTrait;
+    use HAEntityVariableNamingTrait;
     use HAMqttDiscoveryParentClientTrait;
 
     private HAMqttDiscoveryParser $parser;
@@ -234,12 +236,57 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     public function RequestAction($Ident, $Value): void
     {
         $entities = $this->getConfiguredEntities();
-        $entity = $this->findEntityByIdent($entities, (string)$Ident);
-        if ($entity === null) {
+        $target = $this->resolveActionTarget($entities, (string) $Ident);
+        if ($target === null) {
             $this->debugExpert(__FUNCTION__, 'Entity fuer Ident nicht gefunden', ['Ident' => $Ident], true);
             return;
         }
 
+        if ($target['type'] === 'light_attribute') {
+            $entity = $target['entity'];
+            $attribute = $target['attribute'];
+            $context = $this->buildLightAttributeContext($entity, []);
+            if (!$this->isLightAttributeWritable($attribute, $context)) {
+                $this->debugExpert(__FUNCTION__, 'Light-Attribut ist nicht schreibbar', [
+                    'Ident' => $Ident,
+                    'EntityKey' => $entity['entity_key'],
+                    'Attribute' => $attribute
+                ], true);
+                return;
+            }
+
+            $payload = HAMqttDiscoveryLightRuntime::buildAttributeCommandPayload($attribute, $Value);
+            if ($payload === null) {
+                $this->debugExpert(__FUNCTION__, 'Light-Attributpayload konnte nicht erstellt werden', [
+                    'Ident' => $Ident,
+                    'EntityKey' => $entity['entity_key'],
+                    'Attribute' => $attribute,
+                    'Value' => $Value
+                ], true);
+                return;
+            }
+
+            $this->debugExpert(__FUNCTION__, 'Sende Light-Attribut', [
+                'Ident' => $Ident,
+                'EntityKey' => $entity['entity_key'],
+                'Attribute' => $attribute,
+                'CommandTopic' => $entity['command_topic'],
+                'Payload' => $payload,
+                'QoS' => (int)$entity['qos'],
+                'Retain' => (bool)$entity['retain']
+            ]);
+
+            $this->sendMqttMessage(
+                $entity['command_topic'],
+                $payload,
+                (int)$entity['qos'],
+                (bool)$entity['retain']
+            );
+
+            return;
+        }
+
+        $entity = $target['entity'];
         if (!$this->isEntityWritable($entity)) {
             $this->debugExpert(__FUNCTION__, 'Entity ist nicht schreibbar', ['Ident' => $Ident, 'EntityKey' => $entity['entity_key']], true);
             return;
@@ -339,7 +386,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $entities[] = $entity;
         }
 
-        return $this->applyEntitySelectionOverrides($entities);
+        return $this->applySharedEntityIdents($this->applyEntitySelectionOverrides($entities));
     }
 
     private function resolveRuntimeDeviceDefinition(): array
@@ -603,10 +650,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
         $deviceName = $this->normalizeNullableString($row['device_name'] ?? null) ?? '';
         $localObjectId = $this->buildLocalObjectId($objectId, $deviceName);
-        $resolvedName = $this->normalizeEntityVariableName(
-            $this->normalizeNullableString($row['name'] ?? null),
-            $localObjectId !== '' ? $localObjectId : $objectId
-        );
+        $resolvedName = $this->normalizeNullableString($row['name'] ?? null) ?? '';
 
         $metadata = $this->normalizeMetadata($row['metadata'] ?? null);
         $createVar = array_key_exists('create_var', $row)
@@ -615,8 +659,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         return [
             'entity_key' => $entityKey ?? ($component . '.' . $objectId),
+            'entity_id' => $component . '.' . $objectId,
             'component' => $component,
             'object_id' => $objectId,
+            'device_name' => $deviceName,
             'name' => $resolvedName,
             'ident' => $this->buildEntityIdent($component, $localObjectId !== '' ? $localObjectId : $objectId),
             'create_var' => $createVar,
@@ -936,19 +982,22 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function maintainEntityVariables(array $entities, array $cachedTopics): array
     {
         $idents = [];
+        $entityOrder = 0;
+        $hasMultipleStatusEntities = $this->countActiveStatusEntities($entities) > 1;
         foreach ($entities as $entity) {
             if (!(bool)$entity['create_var']) {
                 continue;
             }
 
+            $entityOrder++;
             $ident = $entity['ident'];
             $idents[] = $ident;
-            $position = count($idents);
+            $basePosition = $entityOrder * 100;
 
             $variableType = $this->determineVariableType($entity, $cachedTopics);
             $this->recreateVariableIfTypeChanged($ident, $variableType);
             $presentation = $this->buildVariablePresentation($entity, $variableType);
-            $this->MaintainVariable($ident, $entity['name'], $variableType, $presentation, $position, true);
+            $this->MaintainVariable($ident, $this->getEntityVariableName($entity, $hasMultipleStatusEntities), $variableType, $presentation, $basePosition, true);
 
             $variableId = @$this->GetIDForIdent($ident);
             if ($variableId === false) {
@@ -959,6 +1008,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 $this->EnableAction($ident);
             } else {
                 IPS_SetVariableCustomAction($variableId, 0);
+            }
+
+            if ((string)($entity['component'] ?? '') === HALightDefinitions::DOMAIN) {
+                $lightAttributes = $this->extractLightAttributesFromCachedTopics($entity, $cachedTopics);
+                $attributeContext = $this->buildLightAttributeContext($entity, $lightAttributes);
+                $idents = array_merge($idents, $this->maintainLightAttributeVariables($entity, $attributeContext, $basePosition));
             }
         }
 
@@ -1093,6 +1148,325 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         ], static fn(mixed $value): bool => $value !== null);
     }
 
+    private function extractLightAttributesFromCachedTopics(array $entity, array $cachedTopics): array
+    {
+        $attributes = [];
+        foreach ([$entity['state_topic'], $entity['json_attributes_topic']] as $topic) {
+            $topic = trim((string) $topic, '/');
+            if ($topic === '' || !isset($cachedTopics[$topic])) {
+                continue;
+            }
+
+            $attributes = array_merge(
+                $attributes,
+                $this->extractLightAttributesFromPayload($entity, (string) ($cachedTopics[$topic]['payload'] ?? ''))
+            );
+        }
+
+        return $attributes;
+    }
+
+    private function extractLightAttributesFromPayload(array $entity, string $payload): array
+    {
+        $rawValue = $this->extractRawPayloadValue($payload);
+        return HAMqttDiscoveryLightRuntime::extractAttributes($rawValue, $entity['metadata'] ?? []);
+    }
+
+    private function buildLightAttributeContext(array $entity, array $runtimeAttributes): array
+    {
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        $context = array_merge($metadata, $runtimeAttributes);
+        $context['effect_list'] = HASelectDefinitions::normalizeOptions($context['effect_list'] ?? null);
+        $context['supported_color_modes'] = HASelectDefinitions::normalizeOptions($context['supported_color_modes'] ?? null);
+        $context['supported_features'] = is_numeric($context['supported_features'] ?? null) ? (int) $context['supported_features'] : 0;
+        return $context;
+    }
+
+    private function maintainLightAttributeVariables(array $entity, array $attributeContext, int $basePosition): array
+    {
+        $idents = [];
+        foreach ($this->getOrderedLightAttributeNames() as $attribute) {
+            if (!$this->shouldCreateLightAttribute($attribute, $attributeContext)) {
+                continue;
+            }
+
+            $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+            if (!is_array($meta)) {
+                continue;
+            }
+
+            $ident = $this->buildLightAttributeIdent((string) ($entity['ident_prefix'] ?? $entity['ident']), $attribute);
+            $variableType = (int) ($meta['type'] ?? VARIABLETYPE_STRING);
+            $this->recreateVariableIfTypeChanged($ident, $variableType);
+            $presentation = $this->buildLightAttributePresentation($attribute, $attributeContext, $meta);
+            $position = $basePosition + $this->getLightAttributePositionOffset($attribute);
+            $this->MaintainVariable($ident, (string) ($meta['caption'] ?? $attribute), $variableType, $presentation, $position, true);
+
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId !== false) {
+                if ($this->isLightAttributeWritable($attribute, $attributeContext)) {
+                    $this->EnableAction($ident);
+                } else {
+                    IPS_SetVariableCustomAction($variableId, 0);
+                }
+            }
+
+            $idents[] = $ident;
+        }
+
+        return $idents;
+    }
+
+    private function applyLightRuntimeAttributes(array $entity, string $payload): void
+    {
+        $runtimeAttributes = $this->extractLightAttributesFromPayload($entity, $payload);
+        if ($runtimeAttributes === []) {
+            return;
+        }
+
+        $context = $this->buildLightAttributeContext($entity, $runtimeAttributes);
+        $this->maintainLightAttributeVariables($entity, $context, $this->getLightEntityBasePosition($entity));
+
+        foreach ($runtimeAttributes as $attribute => $value) {
+            if (!isset(HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute])) {
+                continue;
+            }
+
+            $ident = $this->buildLightAttributeIdent((string) ($entity['ident_prefix'] ?? $entity['ident']), $attribute);
+            if (@$this->GetIDForIdent($ident) === false) {
+                continue;
+            }
+
+            $storedValue = HAMqttDiscoveryLightRuntime::formatAttributeValueForStorage($attribute, $value);
+            if ($storedValue === null) {
+                continue;
+            }
+
+            $this->SetValue($ident, $storedValue);
+        }
+    }
+
+    private function shouldCreateLightAttribute(string $attribute, array $context): bool
+    {
+        if (array_key_exists($attribute, $context)) {
+            return true;
+        }
+
+        $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta)) {
+            return false;
+        }
+
+        if ($attribute === 'effect' && HASelectDefinitions::normalizeOptions($context['effect_list'] ?? null) !== []) {
+            return true;
+        }
+
+        if ($attribute === 'color_mode') {
+            return HASelectDefinitions::normalizeOptions($context['supported_color_modes'] ?? null) !== [];
+        }
+
+        return $this->checkLightAttributeFeatures($meta, $context) && $this->checkLightAttributeColorModes($meta, $context);
+    }
+
+    private function isLightAttributeWritable(string $attribute, array $context): bool
+    {
+        if (!array_key_exists($attribute, HAMqttDiscoveryLightRuntime::ATTRIBUTE_COMMANDS)) {
+            return false;
+        }
+
+        $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return false;
+        }
+
+        return $this->checkLightAttributeFeatures($meta, $context) && $this->checkLightAttributeColorModes($meta, $context);
+    }
+
+    private function checkLightAttributeFeatures(array $meta, array $context): bool
+    {
+        $requiredFeatures = $meta['requires_features'] ?? [];
+        if (!is_array($requiredFeatures) || $requiredFeatures === []) {
+            return true;
+        }
+
+        $supportedFeatures = is_numeric($context['supported_features'] ?? null) ? (int) $context['supported_features'] : 0;
+        foreach ($requiredFeatures as $feature) {
+            if (!is_numeric($feature) || (($supportedFeatures & (int) $feature) === 0)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function checkLightAttributeColorModes(array $meta, array $context): bool
+    {
+        $requiredModes = $meta['requires_color_modes'] ?? [];
+        if (!is_array($requiredModes) || $requiredModes === []) {
+            return true;
+        }
+
+        $supportedModes = array_map('strtolower', HASelectDefinitions::normalizeOptions($context['supported_color_modes'] ?? null));
+        if ($supportedModes === []) {
+            return false;
+        }
+
+        foreach ($requiredModes as $mode) {
+            if (in_array(strtolower((string) $mode), $supportedModes, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function buildLightAttributePresentation(string $attribute, array $context, array $meta): array|string
+    {
+        if ($attribute === 'brightness') {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                'MIN' => 0,
+                'MAX' => 255,
+                'STEP_SIZE' => 1,
+                'PERCENTAGE' => true,
+                'DIGITS' => 0,
+                'SUFFIX' => ' %'
+            ];
+        }
+
+        if ($attribute === 'color_temp' && is_numeric($context['min_mireds'] ?? null) && is_numeric($context['max_mireds'] ?? null)) {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                'MIN' => (float) $context['min_mireds'],
+                'MAX' => (float) $context['max_mireds'],
+                'STEP_SIZE' => 1,
+                'DIGITS' => 0,
+                'SUFFIX' => ' mired'
+            ];
+        }
+
+        if ($attribute === 'color_temp_kelvin' && is_numeric($context['min_color_temp_kelvin'] ?? null) && is_numeric($context['max_color_temp_kelvin'] ?? null)) {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                'MIN' => (float) $context['min_color_temp_kelvin'],
+                'MAX' => (float) $context['max_color_temp_kelvin'],
+                'STEP_SIZE' => 1,
+                'DIGITS' => 0,
+                'SUFFIX' => ' K'
+            ];
+        }
+
+        if ($attribute === 'effect') {
+            $options = $this->buildLightStringValueOptions($context['effect_list'] ?? []);
+            if ($options !== null) {
+                return [
+                    'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                    'OPTIONS' => $options
+                ];
+            }
+        }
+
+        if ($attribute === 'color_mode') {
+            $modes = $context['supported_color_modes'] ?? [];
+            $currentMode = $this->normalizeNullableString($context['color_mode'] ?? null);
+            if ($currentMode !== null && !in_array($currentMode, $modes, true)) {
+                $modes[] = $currentMode;
+            }
+            $options = $this->buildLightStringValueOptions($modes);
+            if ($options !== null) {
+                return [
+                    'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                    'OPTIONS' => $options
+                ];
+            }
+        }
+
+        if ($attribute === 'flash') {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                'OPTIONS' => $this->buildLightStringValueOptions(['short', 'long'])
+            ];
+        }
+
+        $suffix = trim((string) ($meta['suffix'] ?? ''));
+        return array_filter([
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
+        ], static fn(mixed $value): bool => $value !== null);
+    }
+
+    private function buildLightStringValueOptions(array $values): ?string
+    {
+        $options = [];
+        foreach (array_values(array_filter($values, static fn(mixed $value): bool => is_string($value) && trim($value) !== '')) as $value) {
+            $options[] = [
+                'Value' => (string) $value,
+                'Caption' => (string) $value,
+                'IconActive' => false,
+                'IconValue' => '',
+                'Color' => -1
+            ];
+        }
+
+        if ($options === []) {
+            return null;
+        }
+
+        return json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function getOrderedLightAttributeNames(): array
+    {
+        $ordered = HALightDefinitions::ATTRIBUTE_ORDER;
+        $remaining = array_diff(array_keys(HALightDefinitions::ATTRIBUTE_DEFINITIONS), $ordered);
+        sort($remaining, SORT_STRING);
+        return array_values(array_merge($ordered, $remaining));
+    }
+
+    private function getLightAttributePositionOffset(string $attribute): int
+    {
+        $ordered = $this->getOrderedLightAttributeNames();
+        $index = array_search($attribute, $ordered, true);
+        return ($index === false ? 90 : ((int) $index + 1));
+    }
+
+    private function getLightEntityBasePosition(array $entity): int
+    {
+        $variableId = @$this->GetIDForIdent((string) $entity['ident']);
+        if ($variableId === false) {
+            return 100;
+        }
+
+        return (int) (IPS_GetObject($variableId)['ObjectPosition'] ?? 100);
+    }
+
+    private function buildLightAttributeIdent(string $entityIdentPrefix, string $attribute): string
+    {
+        return $this->buildSharedAttributeIdentFromPrefix($entityIdentPrefix, $attribute);
+    }
+
+    private function getEntityVariableName(array $entity, bool $hasMultipleStatusEntities): string
+    {
+        return $this->buildSharedEntityVariableName((string)($entity['component'] ?? ''), $entity, $hasMultipleStatusEntities);
+    }
+
+    private function countActiveStatusEntities(array $entities): int
+    {
+        $count = 0;
+        foreach ($entities as $entity) {
+            if (!(bool) ($entity['create_var'] ?? false)) {
+                continue;
+            }
+
+            $component = (string) ($entity['component'] ?? '');
+            if (HADomainCatalog::isStatusDomain($component)) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
     private function recreateVariableIfTypeChanged(string $ident, int $variableType): void
     {
         $variableId = @$this->GetIDForIdent($ident);
@@ -1161,6 +1535,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'topics' => [],
             'warnings' => [],
             'state' => [],
+            'attributes' => [],
             'availability' => []
         ];
 
@@ -1195,6 +1570,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $attributesTopic = trim((string)($entity['json_attributes_topic'] ?? ''), '/');
             if ($attributesTopic !== '') {
                 $index['topics'][$attributesTopic] = true;
+                $index['attributes'][$attributesTopic][$entityKey] = true;
             }
 
             foreach (($entity['availability']['entries'] ?? []) as $entry) {
@@ -1272,6 +1648,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'topics' => array_keys($topics),
             'warnings' => $normalizeBucket($decoded['warnings'] ?? []),
             'state' => $normalizeBucket($decoded['state'] ?? []),
+            'attributes' => $normalizeBucket($decoded['attributes'] ?? []),
             'availability' => $normalizeBucket($decoded['availability'] ?? [])
         ];
     }
@@ -1365,6 +1742,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             }
 
             $this->applyStatePayload($entity, $topic, $payload, $receivedAt);
+        }
+
+        foreach (($topicIndex['attributes'][$topic] ?? []) as $entityKey) {
+            $entity = $entityLookup[$entityKey] ?? null;
+            if (!is_array($entity)) {
+                continue;
+            }
+
+            $this->applyAttributesPayload($entity, $payload);
         }
 
         $availabilityKeys = $topicIndex['availability'][$topic] ?? [];
@@ -1520,6 +1906,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 return;
             }
             $this->SetValue($ident, $boolValue);
+            if ($component === HALightDefinitions::DOMAIN) {
+                $this->applyLightRuntimeAttributes($entity, $payload);
+            }
             return;
         }
 
@@ -1543,6 +1932,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $this->SetValue($ident, $castValue);
+    }
+
+    private function applyAttributesPayload(array $entity, string $payload): void
+    {
+        if ((string)($entity['component'] ?? '') !== HALightDefinitions::DOMAIN) {
+            return;
+        }
+
+        $this->applyLightRuntimeAttributes($entity, $payload);
     }
 
     private function extractStateValue(array $entity, string $payload): mixed
@@ -1961,6 +2359,37 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->SendDataToParent(json_encode($packet, JSON_THROW_ON_ERROR));
     }
 
+    private function resolveActionTarget(array $entities, string $ident): ?array
+    {
+        $entity = $this->findEntityByIdent($entities, $ident);
+        if ($entity !== null) {
+            return [
+                'type' => 'entity',
+                'entity' => $entity
+            ];
+        }
+
+        foreach ($entities as $lightEntity) {
+            if ((string)($lightEntity['component'] ?? '') !== HALightDefinitions::DOMAIN) {
+                continue;
+            }
+
+            foreach (array_keys(HALightDefinitions::ATTRIBUTE_DEFINITIONS) as $attribute) {
+                if ($this->buildLightAttributeIdent((string) ($lightEntity['ident_prefix'] ?? $lightEntity['ident']), $attribute) !== $ident) {
+                    continue;
+                }
+
+                return [
+                    'type' => 'light_attribute',
+                    'entity' => $lightEntity,
+                    'attribute' => $attribute
+                ];
+            }
+        }
+
+        return null;
+    }
+
     private function findEntityByIdent(array $entities, string $ident): ?array
     {
         foreach ($entities as $entity) {
@@ -2130,49 +2559,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function buildEntityIdent(string $component, string $objectId): string
     {
-        return $this->sanitizeIdent($component . '_' . $objectId);
+        return (string)$this->createSharedIdentAssignment($component, $this->normalizeSharedIdentFragment($objectId), false)['ident'];
     }
 
     private function buildLocalObjectId(string $objectId, string $deviceName): string
     {
-        $normalizedObjectId = $this->sanitizeIdent(strtolower($objectId));
-        if ($normalizedObjectId === '') {
-            return '';
-        }
-
-        $deviceSlug = $this->sanitizeIdent(strtolower($deviceName));
-        if ($deviceSlug !== '' && str_starts_with($normalizedObjectId, $deviceSlug . '_')) {
-            return (string)substr($normalizedObjectId, strlen($deviceSlug) + 1);
-        }
-        if ($deviceSlug !== '' && $normalizedObjectId === $deviceSlug) {
-            return '';
-        }
-
-        return $normalizedObjectId;
-    }
-
-    private function normalizeEntityVariableName(?string $name, string $fallbackObjectId): string
-    {
-        if ($name === null || $name === '' || str_contains($name, '/')) {
-            return $this->humanizeObjectId($fallbackObjectId);
-        }
-
-        return $name;
-    }
-
-    private function humanizeObjectId(string $value): string
-    {
-        $normalized = $this->sanitizeIdent(strtolower($value));
-        if ($normalized === '') {
-            return $value;
-        }
-
-        $words = array_values(array_filter(explode('_', $normalized), static fn(string $word): bool => $word !== ''));
-        if ($words === []) {
-            return $value;
-        }
-
-        return ucfirst(implode(' ', $words));
+        return $this->buildSharedLocalObjectId($objectId, $deviceName);
     }
 
     private function sanitizeIdent(string $value): string

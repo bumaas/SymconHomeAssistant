@@ -162,6 +162,7 @@ Bereits im Repo sichtbar:
 - Zigbee2MQTT-`device_automation` ist im Parser und im Discovery-Device beruecksichtigt.
 - Reproduzierbare Fixtures und Doku decken `button` und `device_automation` bereits ab.
 - Fuer `light` existieren fixture-nahe Hilfsskripte und ein lokaler Runtime-Checker.
+- Der allgemeine Fixture-Checker behandelt `light`-Bundles ebenfalls als unterstuetzte Discovery-Komponenten.
 
 - Zigbee2MQTT-v1-Pfade mit echten Beispiel-Payloads absichern
 - Bridge-Entities und Endgeraete klar voneinander trennen
@@ -172,14 +173,13 @@ Bereits im Repo sichtbar:
 Status:
 
 - `button` ist im Discovery-Device bereits enthalten
-- `light` ist fachlich erkennbar angelaufen, aber noch nicht als stabil abgeschlossen dokumentiert
+- `light` ist im Repo fuer Parser, Gruppierung, Runtime-Extraktion und `command_topic`-Payloads dokumentiert und fixture-nah verifiziert
 
 Empfohlene Reihenfolge nach Nutzwert und Naehe zum bestehenden Mapping:
 
-1. `light` fachlich abschliessen, dokumentieren und manuell abnehmen
-2. `number`
-3. `cover`
-4. `climate`
+1. `number`
+2. `cover`
+3. `climate`
 
 Voraussetzung:
 

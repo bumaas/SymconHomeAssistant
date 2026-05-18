@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 trait HAPresentationTrait
 {
+    use HAEntityVariableNamingTrait;
 
     private function getEntityPresentation(string $domain, array $entity, int $type): array
     {
@@ -1021,13 +1022,7 @@ trait HAPresentationTrait
 
     private function getEntityVariableName(string $domain, array $entity): string
     {
-        $domain = HADomainCatalog::normalizeDomainAlias($domain);
-        $name = $this->getDomainEntityVariableName($domain, $entity);
-        if ($name !== null) {
-            return $name;
-        }
-
-        return $this->getDefaultEntityVariableName($domain, $entity);
+        return $this->buildSharedEntityVariableName($domain, $entity, $this->hasMultipleStatusEntities);
     }
 
     private function getDomainEntityVariableName(string $domain, array $entity): ?string

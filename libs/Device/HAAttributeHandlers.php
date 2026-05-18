@@ -248,7 +248,7 @@ trait HAAttributeHandlersTrait
         }
 
         $casted = $this->castVariableValue($original, $meta['type']);
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
         $this->setValueWithDebug($ident, $casted);
         $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $casted]);
         $this->storeEntityAttribute($entityId, $attribute, $casted);
@@ -274,7 +274,7 @@ trait HAAttributeHandlersTrait
         }
 
         $value = $this->mapMediaPlayerRepeatToValue($value);
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
         $this->setValueWithDebug($ident, $value);
         $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
         $this->updateEntityCache($entityId, null, [$attribute => $value]);
@@ -351,7 +351,7 @@ trait HAAttributeHandlersTrait
         }
 
         $value = $this->castVariableValue($value, $meta['type']);
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
         $this->setValueWithDebug($ident, $value);
         $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
         $this->updateEntityCache($entityId, null, [$attribute => $value]);
@@ -411,7 +411,7 @@ trait HAAttributeHandlersTrait
         }
 
         $value = $this->castVariableValue($value, $meta['type']);
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
         $this->setValueWithDebug($ident, $value);
         $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
         if ($storeDefined) {
@@ -517,7 +517,7 @@ trait HAAttributeHandlersTrait
         if ($mainValue === null) {
             return;
         }
-        $mainIdent = $this->sanitizeIdent($entityId);
+        $mainIdent = $this->getSharedEntityMainIdent($entityId);
         if (@$this->GetIDForIdent($mainIdent) === false) {
             return;
         }

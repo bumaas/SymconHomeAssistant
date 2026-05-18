@@ -4,6 +4,15 @@ declare(strict_types=1);
 
 final class HAMqttDiscoveryLightRuntime
 {
+    public const array ATTRIBUTE_COMMANDS = [
+        'brightness' => 'direct',
+        'color_temp' => 'direct',
+        'color_temp_kelvin' => 'kelvin_to_mired',
+        'effect' => 'direct',
+        'flash' => 'direct',
+        'transition' => 'direct'
+    ];
+
     public static function extractStateValue(mixed $value): mixed
     {
         if (!is_array($value) || !array_key_exists('state', $value)) {
@@ -11,6 +20,76 @@ final class HAMqttDiscoveryLightRuntime
         }
 
         return $value['state'];
+    }
+
+    public static function extractAttributes(mixed $value, array $metadata = []): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $attributes = [];
+
+        foreach (['brightness', 'color_temp', 'color_temp_kelvin'] as $key) {
+            if (is_numeric($value[$key] ?? null)) {
+                $attributes[$key] = (int) round((float) $value[$key]);
+            }
+        }
+
+        if (!isset($attributes['color_temp_kelvin']) && isset($attributes['color_temp']) && self::hasKelvinMetadata($metadata)) {
+            $attributes['color_temp_kelvin'] = self::convertMiredToKelvin($attributes['color_temp']);
+        }
+
+        if (!isset($attributes['color_temp']) && is_numeric($value['color_temp_kelvin'] ?? null)) {
+            $kelvin = (int) round((float) $value['color_temp_kelvin']);
+            $attributes['color_temp'] = self::convertKelvinToMired($kelvin);
+            $attributes['color_temp_kelvin'] = $kelvin;
+        }
+
+        foreach (['color_mode', 'effect', 'flash'] as $key) {
+            $normalized = self::normalizeNullableString($value[$key] ?? null);
+            if ($normalized !== null) {
+                $attributes[$key] = $normalized;
+            }
+        }
+
+        if (is_numeric($value['transition'] ?? null)) {
+            $attributes['transition'] = (float) $value['transition'];
+        }
+
+        foreach (['rgb_color' => 3, 'rgbw_color' => 4, 'rgbww_color' => 5, 'hs_color' => 2, 'xy_color' => 2] as $key => $expectedCount) {
+            $list = self::normalizeNumberList($value[$key] ?? null, $expectedCount);
+            if ($list !== null) {
+                $attributes[$key] = $list;
+            }
+        }
+
+        $color = $value['color'] ?? null;
+        if (is_array($color)) {
+            $xyColor = self::normalizeNumberList([$color['x'] ?? null, $color['y'] ?? null], 2);
+            if ($xyColor !== null && !isset($attributes['xy_color'])) {
+                $attributes['xy_color'] = $xyColor;
+            }
+
+            $hsColor = self::normalizeNumberList([
+                $color['h'] ?? $color['hue'] ?? null,
+                $color['s'] ?? $color['saturation'] ?? null
+            ], 2);
+            if ($hsColor !== null && !isset($attributes['hs_color'])) {
+                $attributes['hs_color'] = $hsColor;
+            }
+
+            $rgbColor = self::normalizeNumberList([
+                $color['r'] ?? null,
+                $color['g'] ?? null,
+                $color['b'] ?? null
+            ], 3, false);
+            if ($rgbColor !== null && !isset($attributes['rgb_color'])) {
+                $attributes['rgb_color'] = $rgbColor;
+            }
+        }
+
+        return $attributes;
     }
 
     public static function coerceBooleanActionValue(mixed $value): ?bool
@@ -45,5 +124,155 @@ final class HAMqttDiscoveryLightRuntime
             ['state' => $boolValue ? 'ON' : 'OFF'],
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
         );
+    }
+
+    public static function buildAttributeCommandPayload(string $attribute, mixed $value): ?string
+    {
+        $mode = self::ATTRIBUTE_COMMANDS[$attribute] ?? null;
+        if ($mode === null) {
+            return null;
+        }
+
+        $payloadValue = match ($mode) {
+            'direct' => self::parseAttributeValue($attribute, $value),
+            'kelvin_to_mired' => self::convertKelvinActionValue($value),
+            default => null
+        };
+        if ($payloadValue === null) {
+            return null;
+        }
+
+        $payloadKey = $attribute === 'color_temp_kelvin' ? 'color_temp' : $attribute;
+
+        return json_encode(
+            [$payloadKey => $payloadValue],
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+        );
+    }
+
+    public static function formatAttributeValueForStorage(string $attribute, mixed $value): string|int|float|null
+    {
+        $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta)) {
+            return null;
+        }
+
+        return match ($attribute) {
+            'brightness', 'color_temp', 'color_temp_kelvin' => is_numeric($value) ? (int) round((float) $value) : null,
+            'transition' => is_numeric($value) ? (float) $value : null,
+            'rgb_color' => self::formatRgbStorageValue($value),
+            'rgbw_color', 'rgbww_color', 'hs_color', 'xy_color' => self::formatListStorageValue($value),
+            default => self::normalizeNullableString($value)
+        };
+    }
+
+    private static function hasKelvinMetadata(array $metadata): bool
+    {
+        return is_numeric($metadata['min_color_temp_kelvin'] ?? null) || is_numeric($metadata['max_color_temp_kelvin'] ?? null);
+    }
+
+    private static function convertMiredToKelvin(int $mired): int
+    {
+        if ($mired <= 0) {
+            return 0;
+        }
+
+        return (int) round(1000000 / $mired);
+    }
+
+    private static function convertKelvinToMired(int $kelvin): ?int
+    {
+        if ($kelvin <= 0) {
+            return null;
+        }
+
+        return (int) round(1000000 / $kelvin);
+    }
+
+    private static function convertKelvinActionValue(mixed $value): ?int
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return self::convertKelvinToMired((int) round((float) $value));
+    }
+
+    private static function parseAttributeValue(string $attribute, mixed $value): string|int|float|null
+    {
+        return match ($attribute) {
+            'brightness', 'color_temp' => is_numeric($value) ? (int) round((float) $value) : null,
+            'transition' => is_numeric($value) ? (float) $value : null,
+            default => self::normalizeNullableString($value)
+        };
+    }
+
+    private static function normalizeNumberList(mixed $value, int $expectedCount, bool $allowFloat = true): ?array
+    {
+        if (!is_array($value)) {
+            return null;
+        }
+
+        $items = array_values($value);
+        if (count($items) !== $expectedCount) {
+            return null;
+        }
+
+        $result = [];
+        foreach ($items as $item) {
+            if (!is_numeric($item)) {
+                return null;
+            }
+
+            $number = (float) $item;
+            $result[] = $allowFloat ? $number : (int) round($number);
+        }
+
+        return $result;
+    }
+
+    private static function formatListStorageValue(mixed $value): ?string
+    {
+        if (!is_array($value)) {
+            return null;
+        }
+
+        return json_encode(
+            array_values($value),
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+        );
+    }
+
+    private static function formatRgbStorageValue(mixed $value): ?string
+    {
+        $rgb = self::normalizeNumberList($value, 3, false);
+        if ($rgb === null) {
+            return null;
+        }
+
+        return json_encode(
+            [
+                'r' => (int) $rgb[0],
+                'g' => (int) $rgb[1],
+                'b' => (int) $rgb[2]
+            ],
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+        );
+    }
+
+    private static function normalizeNullableString(mixed $value): ?string
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        return $value === '' ? null : $value;
     }
 }

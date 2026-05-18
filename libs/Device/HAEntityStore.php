@@ -30,7 +30,7 @@ trait HAEntityStoreTrait
 
     private function getEntityIdByIdent(string $ident): ?string
     {
-        return array_find_key($this->entities, fn($_data, $id) => $this->sanitizeIdent($id) === $ident);
+        return $this->getSharedEntityIdByMainIdent($ident);
     }
 
     private function findEntityByIdent(string $ident): ?array
@@ -42,13 +42,7 @@ trait HAEntityStoreTrait
             return $entity;
         }
 
-        foreach ($this->getConfiguredEntities(__FUNCTION__) as $row) {
-            if ($this->sanitizeIdent($row['entity_id']) !== $ident) {
-                continue;
-            }
-            return $row;
-        }
-        return null;
+        return $this->findSharedConfiguredEntityByMainIdent($ident);
     }
 
     private function findEntityByIdentSuffix(string $ident, string $suffix, string $domain): ?array
@@ -57,7 +51,7 @@ trait HAEntityStoreTrait
             if (($entity['domain'] ?? '') !== $domain) {
                 continue;
             }
-            if ($this->sanitizeIdent($entityId) . $suffix === $ident) {
+            if ($this->buildSharedSuffixIdent($entityId, $suffix) === $ident) {
                 $entity['entity_id'] ??= $entityId;
                 return $entity;
             }
@@ -71,8 +65,10 @@ trait HAEntityStoreTrait
             return null;
         }
 
-        $entity = $this->findEntityByIdent($baseIdent);
+        $entityId = $this->getSharedEntityIdByPrefix($baseIdent);
+        $entity = $entityId !== null && isset($this->entities[$entityId]) ? $this->entities[$entityId] : $this->findSharedConfiguredEntityByPrefix($baseIdent);
         if ($entity !== null && ($entity['domain'] ?? '') === $domain) {
+            $entity['entity_id'] ??= $entityId;
             return $entity;
         }
 
@@ -222,7 +218,7 @@ trait HAEntityStoreTrait
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId);
+        $ident = $this->getSharedEntityMainIdent($entityId);
         $exists = @$this->GetIDForIdent($ident) !== false;
         $type = $this->getVariableType($domain, $entity['attributes'] ?? []);
         $presentation = $this->getEntityPresentation($domain, $entity, $type);
@@ -252,7 +248,7 @@ trait HAEntityStoreTrait
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId);
+        $ident = $this->getSharedEntityMainIdent($entityId);
         if (@$this->GetIDForIdent($ident) === false) {
             return;
         }
@@ -354,7 +350,7 @@ trait HAEntityStoreTrait
                 continue;
             }
 
-            $entityIdent = $this->sanitizeIdent($entityId);
+            $entityIdent = $this->getSharedEntityMainIdent($entityId);
             $objectId = @$this->GetIDForIdent($entityIdent);
             if ($objectId === false) {
                 continue;

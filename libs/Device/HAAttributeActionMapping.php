@@ -150,7 +150,7 @@ trait HAAttributeActionMappingTrait
     // Holt Entity und Attribute sowohl aus dem Laufzeitcache als auch aus der Konfiguration.
     private function resolveEntityContextByBaseIdent(string $baseIdent): ?array
     {
-        $entityId = $this->getEntityIdByIdent($baseIdent);
+        $entityId = $this->getSharedEntityIdByPrefix($baseIdent);
         $entity = null;
         $attributes = [];
 
@@ -428,14 +428,6 @@ trait HAAttributeActionMappingTrait
     // Fallback für Attribute, die erst beim Schreiben wieder einer Konfigurations-Entität zugeordnet werden müssen.
     private function findEntityByBaseIdentInConfig(string $baseIdent): ?array
     {
-        foreach ($this->getConfiguredEntities(__FUNCTION__) as $row) {
-            $entityId = $row['entity_id'];
-            if ($this->sanitizeIdent($entityId) !== $baseIdent) {
-                continue;
-            }
-            return $row;
-        }
-
-        return null;
+        return $this->findSharedConfiguredEntityByPrefix($baseIdent);
     }
 }

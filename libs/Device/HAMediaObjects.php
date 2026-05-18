@@ -78,7 +78,7 @@ trait HAMediaObjectsTrait
         string $debugCategory,
         string $filePrefix
     ): bool {
-        $ident = $this->sanitizeIdent($entityId) . $suffix;
+        $ident = $this->buildSharedSuffixIdent($entityId, $suffix);
         $objectId = @$this->GetIDForIdent($ident);
         if ($objectId !== false) {
             $object = IPS_GetObject($objectId);
@@ -160,7 +160,7 @@ trait HAMediaObjectsTrait
         string $debugCategory,
         string $filePrefix
     ): void {
-        $ident = $this->sanitizeIdent($entityId) . $suffix;
+        $ident = $this->buildSharedSuffixIdent($entityId, $suffix);
         $mediaId = @$this->GetIDForIdent($ident);
         if ($mediaId === false) {
             if (!$this->ensureEntityPreviewMedia($entityId, $suffix, 0, $name, $debugCategory, $filePrefix)) {
@@ -271,7 +271,7 @@ trait HAMediaObjectsTrait
 
     private function ensureMediaPlayerCoverMedia(string $entityId, int $basePosition): bool
     {
-        $ident = $this->sanitizeIdent($entityId) . self::MEDIA_PLAYER_COVER_SUFFIX;
+        $ident = $this->buildSharedSuffixIdent($entityId, self::MEDIA_PLAYER_COVER_SUFFIX);
         $objectId = @$this->GetIDForIdent($ident);
         if ($objectId !== false) {
             $object = IPS_GetObject($objectId);
@@ -313,7 +313,7 @@ trait HAMediaObjectsTrait
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId) . self::MEDIA_PLAYER_COVER_SUFFIX;
+        $ident = $this->buildSharedSuffixIdent($entityId, self::MEDIA_PLAYER_COVER_SUFFIX);
         $mediaId = @$this->GetIDForIdent($ident);
         if ($mediaId === false) {
             if (!$this->ensureMediaPlayerCoverMedia($entityId, 0)) {

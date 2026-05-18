@@ -187,7 +187,7 @@ trait HADomainAttributeMaintenanceTrait
 
     private function getEventTypeIdent(string $entityId): string
     {
-        return $this->sanitizeIdent($entityId) . self::EVENT_TYPE_SUFFIX;
+        return $this->buildSharedSuffixIdent($entityId, self::EVENT_TYPE_SUFFIX);
     }
 
     private function maintainCameraStreamMedia(string $entityId, int $basePosition): void
@@ -197,7 +197,7 @@ trait HADomainAttributeMaintenanceTrait
 
     private function ensureCameraStreamMedia(string $entityId, int $basePosition): bool
     {
-        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_STREAM_SUFFIX;
+        $ident = $this->buildSharedSuffixIdent($entityId, self::CAMERA_STREAM_SUFFIX);
         $objectId = @$this->GetIDForIdent($ident);
         if ($objectId !== false) {
             $object = IPS_GetObject($objectId);
@@ -223,7 +223,7 @@ trait HADomainAttributeMaintenanceTrait
         if (is_string($ident) && str_ends_with($ident, self::CAMERA_STREAM_SUFFIX)) {
             $entityId = substr($ident, 0, -strlen(self::CAMERA_STREAM_SUFFIX));
         }
-        $resolvedEntityId = $entityId !== '' ? $this->getEntityIdByIdent($entityId) : null;
+        $resolvedEntityId = $entityId !== '' ? $this->getSharedEntityIdByPrefix($entityId) : null;
         $name = $resolvedEntityId !== null ? $this->getCameraStreamMediaName($resolvedEntityId) : $this->Translate('Stream');
         IPS_SetName($mediaId, $name);
         IPS_SetPosition($mediaId, $basePosition + 21);
@@ -237,7 +237,7 @@ trait HADomainAttributeMaintenanceTrait
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId) . self::CAMERA_STREAM_SUFFIX;
+        $ident = $this->buildSharedSuffixIdent($entityId, self::CAMERA_STREAM_SUFFIX);
         $mediaId = @$this->GetIDForIdent($ident);
         if ($mediaId === false) {
             if (!$this->ensureCameraStreamMedia($entityId, 0)) {
@@ -739,7 +739,7 @@ trait HADomainAttributeMaintenanceTrait
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId);
+        $ident = $this->getSharedEntityMainIdent($entityId);
         if (@$this->GetIDForIdent($ident) === false) {
             return;
         }
@@ -908,7 +908,7 @@ trait HADomainAttributeMaintenanceTrait
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId);
+        $ident = $this->getSharedEntityMainIdent($entityId);
         if (@$this->GetIDForIdent($ident) === false) {
             return;
         }
@@ -1372,7 +1372,7 @@ trait HADomainAttributeMaintenanceTrait
     ): void {
         if ($domain === HALightDefinitions::DOMAIN && $attribute === '*') {
             foreach (HALightDefinitions::ATTRIBUTE_DEFINITIONS as $key => $_meta) {
-                $ident = $this->sanitizeIdent($entityId . '_' . $key);
+                $ident = $this->buildSharedAttributeIdent($entityId, $key);
                 if ($this->attributeVariableExists($ident) || !$this->shouldCreateLightAttribute($key, $attributes)) {
                     continue;
                 }
@@ -1381,7 +1381,7 @@ trait HADomainAttributeMaintenanceTrait
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId . '_' . $attribute);
+        $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
         if ($this->attributeVariableExists($ident)) {
             return;
         }
@@ -1554,7 +1554,7 @@ trait HADomainAttributeMaintenanceTrait
                 $base = substr($baseEntity, 0, -strlen('_' . $suffix));
                 $expectedMediaPlayer = HAMediaPlayerDefinitions::DOMAIN . '.' . $base;
                 if (!isset($this->entities[$expectedMediaPlayer])) {
-                    $expectedIdent = $this->sanitizeIdent($expectedMediaPlayer);
+                    $expectedIdent = $this->getSharedEntityIdentPrefix($expectedMediaPlayer);
                     if ($this->findEntityByBaseIdentInConfig($expectedIdent) === null) {
                         return null;
                     }

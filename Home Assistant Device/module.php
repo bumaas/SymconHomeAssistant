@@ -42,6 +42,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     private const int STATUS_MQTT_BASE_TOPIC_MISSING = 202;
 
     use ModuleDebugTrait;
+    use HAIdentNamingTrait;
     use HADomainStateHandlersTrait;
     use HAAttributeHandlersTrait;
     use HADomainRegistryTrait;
@@ -233,7 +234,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
 
             $position = $this->computeMediaPlayerProgressPosition($base['base_position'], $base['updated_at_ts'], $attributes, $now);
-            $ident = $this->sanitizeIdent($entityId . '_media_position');
+            $ident = $this->buildSharedSuffixIdent($entityId, '_media_position');
             if (!$this->shouldUpdateMediaPlayerPosition($ident, $position)) {
                 continue;
             }
@@ -730,10 +731,13 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $previousEntities = $this->entities;
         $this->entities = [];
         $this->topicMapping = [];
+        $this->rebuildSharedEntityIdentIndexes();
         $filterTopics = [];
         $positionIndex = 0;
         $activeEntityIds = [];
         $inactiveEntityIds = [];
+        $activeEntities = [];
+        $renamedEntityIds = [];
         $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
 
         foreach ($configData as $row) {
@@ -754,6 +758,16 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 continue;
             }
 
+            $activeEntities[] = $entity;
+        }
+
+        $activeEntities = $this->applySharedEntityIdents($activeEntities);
+        foreach ($activeEntities as $entity) {
+            $entityId = (string)($entity['entity_id'] ?? '');
+            if ($entityId === '') {
+                continue;
+            }
+
             $activeEntityIds[] = $entityId;
             $positionIndex++;
             $basePosition                                = $positionIndex * 10;
@@ -768,6 +782,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 }
             }
             $this->entities[$entityId] = $entity;
+            if ($this->hasSharedManagedIdentChanged($previousEntities[$entityId] ?? null, $entity)) {
+                $renamedEntityIds[] = $entityId;
+            }
             $this->debugExpert('processEntities', 'Entity registriert', ['EntityID' => $entityId, 'Domain' => $entity['domain'] ?? null]);
 
             $this->maintainEntityVariable($entity);
@@ -780,17 +797,19 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 $this->debugExpert('processEntities', 'Topic Mapping', ['StateTopic' => $stateTopic, 'Prefix' => $entityPrefix]);
             }
         }
+        $this->rebuildSharedEntityIdentIndexes();
 
         $entityIdsToCleanup = array_values(array_unique(array_merge(
             array_diff(array_keys($previousEntities), $activeEntityIds),
-            $inactiveEntityIds
+            $inactiveEntityIds,
+            $renamedEntityIds
         )));
-        $this->cleanupManagedEntityObjects($entityIdsToCleanup, $activeEntityIds);
+        $this->cleanupManagedEntityObjects($entityIdsToCleanup, $activeEntityIds, $previousEntities);
 
         return $filterTopics;
     }
 
-    private function cleanupManagedEntityObjects(array $entityIds, array $activeEntityIds): void
+    private function cleanupManagedEntityObjects(array $entityIds, array $activeEntityIds, array $previousEntities): void
     {
         if ($entityIds === []) {
             return;
@@ -804,8 +823,26 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
-        $baseIdents = array_map(fn(string $entityId): string => $this->sanitizeIdent($entityId), $entityIds);
-        $activeBaseIdents = array_map(fn(string $entityId): string => $this->sanitizeIdent($entityId), $activeEntityIds);
+        $baseIdents = [];
+        foreach ($entityIds as $entityId) {
+            $baseIdents[] = $this->sanitizeIdent($entityId);
+            $previousIdent = trim((string)($previousEntities[$entityId]['ident'] ?? ''));
+            if ($previousIdent !== '') {
+                $baseIdents[] = $previousIdent;
+            }
+            $previousPrefix = trim((string)($previousEntities[$entityId]['ident_prefix'] ?? ''));
+            if ($previousPrefix !== '') {
+                $baseIdents[] = $previousPrefix;
+            }
+        }
+
+        $activeBaseIdents = [];
+        foreach ($activeEntityIds as $entityId) {
+            $activeBaseIdents[] = $this->sanitizeIdent($entityId);
+            $activeBaseIdents[] = $this->getSharedEntityIdentPrefix($entityId);
+        }
+        $baseIdents = array_values(array_unique(array_filter($baseIdents, static fn(string $ident): bool => $ident !== '')));
+        $activeBaseIdents = array_values(array_unique(array_filter($activeBaseIdents, static fn(string $ident): bool => $ident !== '')));
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
             $object = IPS_GetObject($childId);
             $ident = (string)($object['ObjectIdent'] ?? '');
@@ -856,6 +893,21 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         return false;
+    }
+
+    private function hasSharedManagedIdentChanged(?array $previousEntity, array $currentEntity): bool
+    {
+        if (!is_array($previousEntity)) {
+            return false;
+        }
+
+        $previousIdent = trim((string)($previousEntity['ident'] ?? ''));
+        $previousPrefix = trim((string)($previousEntity['ident_prefix'] ?? ''));
+        $currentIdent = trim((string)($currentEntity['ident'] ?? ''));
+        $currentPrefix = trim((string)($currentEntity['ident_prefix'] ?? ''));
+
+        return ($previousIdent !== '' && $previousIdent !== $currentIdent)
+            || ($previousPrefix !== '' && $previousPrefix !== $currentPrefix);
     }
 
     private function countStatusEntities(array $configData): int
@@ -941,7 +993,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
-        $ident = $this->sanitizeIdent($entityId);
+        $ident = $this->getSharedEntityMainIdent($entityId);
         $descriptor = $this->describeVariableByIdent($ident, $domain);
         if ($this->isTriggerVariableDescriptor($descriptor)) {
             $this->applyTriggerEntityStateUpdate($entityId, $parsed);

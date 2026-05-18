@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/HAIds.php';
+require_once __DIR__ . '/HAIdentNaming.php';
+require_once __DIR__ . '/HAEntityVariableNaming.php';
 require_once __DIR__ . '/ModuleDebug.php';
 require_once __DIR__ . '/HAParentConnection.php';
 require_once __DIR__ . '/HARestParentClient.php';

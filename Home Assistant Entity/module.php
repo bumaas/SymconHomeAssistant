@@ -35,6 +35,7 @@ require_once __DIR__ . '/../libs/Device/HADeviceCore.php';
 class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 {
     use ModuleDebugTrait;
+    use HAIdentNamingTrait;
     use HADomainStateHandlersTrait;
     use HAAttributeHandlersTrait;
     use HADomainRegistryTrait;
@@ -238,7 +239,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             $configuredEntities[] = $row;
         }
 
-        return $configuredEntities;
+        return $this->applySharedEntityIdents($configuredEntities);
     }
 
     private function decodeJsonArray(string $json, string $context): ?array

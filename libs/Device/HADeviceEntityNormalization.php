@@ -65,7 +65,7 @@ trait HADeviceEntityNormalizationTrait
             $configuredEntities[] = $row;
         }
 
-        return $configuredEntities;
+        return $this->applySharedEntityIdents($configuredEntities);
     }
 
     // Sucht die passende Konfigurationszeile zu einer Entity-ID.

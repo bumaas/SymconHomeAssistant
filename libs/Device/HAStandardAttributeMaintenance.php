@@ -18,7 +18,7 @@ trait HAStandardAttributeMaintenanceTrait
 
     private function getAttributeVariableIdent(string $entityId, string $attribute): string
     {
-        return $this->sanitizeIdent($entityId . '_' . $attribute);
+        return $this->buildSharedAttributeIdent($entityId, $attribute);
     }
 
     private function attributeVariableExists(string $ident): bool

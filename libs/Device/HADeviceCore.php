@@ -54,7 +54,7 @@ trait HADeviceCoreTrait
             }
 
             $position = $this->computeMediaPlayerProgressPosition($base['base_position'], $base['updated_at_ts'], $attributes, $now);
-            $ident = $this->sanitizeIdent($entityId . '_media_position');
+            $ident = $this->buildSharedSuffixIdent($entityId, '_media_position');
             if (!$this->shouldUpdateMediaPlayerPosition($ident, $position)) {
                 continue;
             }
@@ -398,9 +398,12 @@ trait HADeviceCoreTrait
         $previousEntities      = $this->entities;
         $this->entities        = [];
         $this->topicMapping    = [];
+        $this->rebuildSharedEntityIdentIndexes();
         $filterTopics          = [];
         $positionIndex         = 0;
         $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
+        $entities = [];
+        $renamedEntityIds = [];
 
         foreach ($configData as $row) {
             $entity = $this->normalizeEntityStructure($row);
@@ -412,6 +415,11 @@ trait HADeviceCoreTrait
                 continue;
             }
 
+            $entities[] = $entity;
+        }
+
+        $entities = $this->applySharedEntityIdents($entities);
+        foreach ($entities as $entity) {
             $positionIndex++;
             $basePosition                                = $positionIndex * 10;
             $entity['position_base']                     = $basePosition;
@@ -425,6 +433,9 @@ trait HADeviceCoreTrait
                 }
             }
             $this->entities[$entity['entity_id']]        = $entity;
+            if ($this->hasSharedManagedIdentChanged($previousEntities[$entity['entity_id']] ?? null, $entity)) {
+                $renamedEntityIds[] = $entity['entity_id'];
+            }
             $this->debugExpert('processEntities', 'Entity registriert', ['EntityID' => $entity['entity_id'], 'Domain' => $entity['domain'] ?? null]);
 
             $this->maintainEntityVariable($entity);
@@ -437,7 +448,88 @@ trait HADeviceCoreTrait
                 $this->debugExpert('processEntities', 'Topic Mapping', ['StateTopic' => $stateTopic, 'Prefix' => $entityPrefix]);
             }
         }
+        $this->rebuildSharedEntityIdentIndexes();
+        $this->cleanupRenamedSharedEntityObjects($renamedEntityIds, array_keys($this->entities), $previousEntities);
         return $filterTopics;
+    }
+
+    private function cleanupRenamedSharedEntityObjects(array $entityIds, array $activeEntityIds, array $previousEntities): void
+    {
+        if ($entityIds === []) {
+            return;
+        }
+
+        $entityIds = array_values(array_unique(array_filter(
+            $entityIds,
+            static fn(mixed $entityId): bool => is_string($entityId) && trim($entityId) !== ''
+        )));
+        if ($entityIds === []) {
+            return;
+        }
+
+        $baseIdents = [];
+        foreach ($entityIds as $entityId) {
+            $baseIdents[] = $this->sanitizeIdent($entityId);
+            $previousIdent = trim((string)($previousEntities[$entityId]['ident'] ?? ''));
+            if ($previousIdent !== '') {
+                $baseIdents[] = $previousIdent;
+            }
+            $previousPrefix = trim((string)($previousEntities[$entityId]['ident_prefix'] ?? ''));
+            if ($previousPrefix !== '') {
+                $baseIdents[] = $previousPrefix;
+            }
+        }
+
+        $activeBaseIdents = [];
+        foreach ($activeEntityIds as $entityId) {
+            $activeBaseIdents[] = $this->sanitizeIdent($entityId);
+            $activeBaseIdents[] = $this->getSharedEntityIdentPrefix($entityId);
+        }
+
+        $baseIdents = array_values(array_unique(array_filter($baseIdents, static fn(string $ident): bool => $ident !== '')));
+        $activeBaseIdents = array_values(array_unique(array_filter($activeBaseIdents, static fn(string $ident): bool => $ident !== '')));
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
+            $object = IPS_GetObject($childId);
+            $ident = (string)($object['ObjectIdent'] ?? '');
+            if ($ident === ''
+                || !$this->isSharedManagedEntityIdent($ident, $baseIdents)
+                || $this->isSharedManagedEntityIdent($ident, $activeBaseIdents)) {
+                continue;
+            }
+
+            $objectType = (int)($object['ObjectType'] ?? -1);
+            if ($objectType === OBJECTTYPE_VARIABLE) {
+                IPS_DeleteVariable($childId);
+            } elseif ($objectType === 5) {
+                IPS_DeleteMedia($childId);
+            }
+        }
+    }
+
+    private function isSharedManagedEntityIdent(string $ident, array $baseIdents): bool
+    {
+        foreach ($baseIdents as $baseIdent) {
+            if ($ident === $baseIdent || str_starts_with($ident, $baseIdent . '_')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasSharedManagedIdentChanged(?array $previousEntity, array $currentEntity): bool
+    {
+        if (!is_array($previousEntity)) {
+            return false;
+        }
+
+        $previousIdent = trim((string)($previousEntity['ident'] ?? ''));
+        $previousPrefix = trim((string)($previousEntity['ident_prefix'] ?? ''));
+        $currentIdent = trim((string)($currentEntity['ident'] ?? ''));
+        $currentPrefix = trim((string)($currentEntity['ident_prefix'] ?? ''));
+
+        return ($previousIdent !== '' && $previousIdent !== $currentIdent)
+            || ($previousPrefix !== '' && $previousPrefix !== $currentPrefix);
     }
 
     protected function countStatusEntities(array $configData): int
@@ -516,7 +608,7 @@ trait HADeviceCoreTrait
             self::KEY_ATTRIBUTES => $attributes
         ];
 
-        $ident = $this->sanitizeIdent($entityId);
+        $ident = $this->getSharedEntityMainIdent($entityId);
         if ($this->handleDomainUpdateEntityValue($domain, $entityId, $ident, $parsed)) {
             return;
         }
@@ -540,14 +632,16 @@ trait HADeviceCoreTrait
 
     protected function deriveEntityIdFromIdent(string $ident): string
     {
-        foreach (array_keys($this->entities) as $entityId) {
-            if ($this->sanitizeIdent($entityId) === $ident) {
-                return $entityId;
-            }
-            if (str_starts_with($ident, $this->sanitizeIdent($entityId) . '_')) {
-                return $entityId;
-            }
+        $entityId = $this->getSharedEntityIdByMainIdent($ident);
+        if ($entityId !== null) {
+            return $entityId;
         }
+
+        $entityId = $this->getSharedEntityIdByPrefix($ident);
+        if ($entityId !== null) {
+            return $entityId;
+        }
+
         return '';
     }
 
