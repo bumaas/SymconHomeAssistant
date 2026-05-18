@@ -16,10 +16,13 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
 
     public function Create(): void
     {
+        $this->LogMessage('Create | start', KL_MESSAGE);
         parent::Create();
+        $this->LogMessage('Create | after_parent', KL_MESSAGE);
 
         $this->RegisterPropertyBoolean('ShowBridgeDevices', true);
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
+        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
     }
 
     public function GetCompatibleParents(): string

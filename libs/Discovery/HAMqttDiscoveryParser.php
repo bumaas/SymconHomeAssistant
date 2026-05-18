@@ -815,23 +815,21 @@ final class HAMqttDiscoveryParser
             return $explicitName;
         }
 
-        $trimmedObjectId = $objectId;
+        $normalizedObjectId = $this->slugify($objectId);
+        $trimmedObjectId = $normalizedObjectId !== '' ? $normalizedObjectId : $objectId;
         $deviceSlug = $this->slugify($deviceName);
         if ($deviceSlug !== '' && str_starts_with($trimmedObjectId, $deviceSlug . '_')) {
             $trimmedObjectId = substr($trimmedObjectId, strlen($deviceSlug) + 1);
         }
+        if ($deviceSlug !== '' && $trimmedObjectId === $deviceSlug) {
+            $trimmedObjectId = '';
+        }
 
         if ($trimmedObjectId === '') {
-            $trimmedObjectId = $objectId;
+            $trimmedObjectId = $normalizedObjectId !== '' ? $normalizedObjectId : $objectId;
         }
 
-        $words = array_values(array_filter(explode('_', $trimmedObjectId), static fn(string $word): bool => $word !== ''));
-        if ($words === []) {
-            return $objectId;
-        }
-
-        $humanized = implode(' ', $words);
-        return ucfirst($humanized);
+        return $this->humanizeIdentifier($trimmedObjectId);
     }
 
     private function deriveDeviceAutomationName(array $config, string $eventType): string
@@ -852,7 +850,8 @@ final class HAMqttDiscoveryParser
 
     private function humanizeIdentifier(string $value): string
     {
-        $words = array_values(array_filter(explode('_', trim($value)), static fn(string $word): bool => $word !== ''));
+        $normalized = preg_replace('/[^A-Za-z0-9]+/', '_', trim($value)) ?? trim($value);
+        $words = array_values(array_filter(explode('_', $normalized), static fn(string $word): bool => $word !== ''));
         if ($words === []) {
             return $value;
         }

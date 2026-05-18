@@ -601,6 +601,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($objectId === null) {
             return null;
         }
+        $deviceName = $this->normalizeNullableString($row['device_name'] ?? null) ?? '';
+        $localObjectId = $this->buildLocalObjectId($objectId, $deviceName);
+        $resolvedName = $this->normalizeEntityVariableName(
+            $this->normalizeNullableString($row['name'] ?? null),
+            $localObjectId !== '' ? $localObjectId : $objectId
+        );
 
         $metadata = $this->normalizeMetadata($row['metadata'] ?? null);
         $createVar = array_key_exists('create_var', $row)
@@ -611,8 +617,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'entity_key' => $entityKey ?? ($component . '.' . $objectId),
             'component' => $component,
             'object_id' => $objectId,
-            'name' => $this->normalizeNullableString($row['name'] ?? null) ?? $objectId,
-            'ident' => $this->buildEntityIdent($component, $objectId),
+            'name' => $resolvedName,
+            'ident' => $this->buildEntityIdent($component, $localObjectId !== '' ? $localObjectId : $objectId),
             'create_var' => $createVar,
             'state_topic' => $this->normalizeNullableString($row['state_topic'] ?? null) ?? '',
             'command_topic' => $this->normalizeNullableString($row['command_topic'] ?? null) ?? '',
@@ -2125,6 +2131,48 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function buildEntityIdent(string $component, string $objectId): string
     {
         return $this->sanitizeIdent($component . '_' . $objectId);
+    }
+
+    private function buildLocalObjectId(string $objectId, string $deviceName): string
+    {
+        $normalizedObjectId = $this->sanitizeIdent(strtolower($objectId));
+        if ($normalizedObjectId === '') {
+            return '';
+        }
+
+        $deviceSlug = $this->sanitizeIdent(strtolower($deviceName));
+        if ($deviceSlug !== '' && str_starts_with($normalizedObjectId, $deviceSlug . '_')) {
+            return (string)substr($normalizedObjectId, strlen($deviceSlug) + 1);
+        }
+        if ($deviceSlug !== '' && $normalizedObjectId === $deviceSlug) {
+            return '';
+        }
+
+        return $normalizedObjectId;
+    }
+
+    private function normalizeEntityVariableName(?string $name, string $fallbackObjectId): string
+    {
+        if ($name === null || $name === '' || str_contains($name, '/')) {
+            return $this->humanizeObjectId($fallbackObjectId);
+        }
+
+        return $name;
+    }
+
+    private function humanizeObjectId(string $value): string
+    {
+        $normalized = $this->sanitizeIdent(strtolower($value));
+        if ($normalized === '') {
+            return $value;
+        }
+
+        $words = array_values(array_filter(explode('_', $normalized), static fn(string $word): bool => $word !== ''));
+        if ($words === []) {
+            return $value;
+        }
+
+        return ucfirst(implode(' ', $words));
     }
 
     private function sanitizeIdent(string $value): string

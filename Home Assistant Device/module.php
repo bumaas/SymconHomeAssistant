@@ -69,12 +69,15 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     public function Create(): void
     {
+        $this->LogMessage('Create | start', KL_MESSAGE);
         parent::Create();
+        $this->LogMessage('Create | after_parent', KL_MESSAGE);
 
         // Nachrichten registrieren, um auf Gateway-Änderungen zu reagieren.
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->LogMessage('Create | after_RegisterMessage', KL_MESSAGE);
 
         $this->RegisterAttributeString('MQTTBaseTopic', '');
         $this->RegisterAttributeString('CurrentFilter', '');
@@ -90,8 +93,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_UNAVAILABLE_ENTITIES_JSON, false);
         $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
+        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HA_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
+        $this->LogMessage('Create | after_RegisterTimer', KL_MESSAGE);
     }
 
 
@@ -115,7 +120,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     public function ApplyChanges(): void
     {
+        $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
         parent::ApplyChanges();
+        $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.');

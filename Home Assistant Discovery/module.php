@@ -19,18 +19,24 @@ class HomeAssistantDiscovery extends IPSModuleStrict
 
     public function Create(): void
     {
+        $this->LogMessage('Create | start', KL_MESSAGE);
         parent::Create();
+        $this->LogMessage('Create | after_parent', KL_MESSAGE);
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterTimer(self::TIMER_LOAD, 0, 'IPS_RequestAction($_IPS["TARGET"], "discover", "");');
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
+        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->SetBuffer(self::BUFFER_SERVERS, json_encode([], JSON_THROW_ON_ERROR));
         $this->SetBuffer(self::BUFFER_SEARCHACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
+        $this->LogMessage('Create | after_SetBuffer', KL_MESSAGE);
     }
 
     public function ApplyChanges(): void
     {
+        $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
         parent::ApplyChanges();
+        $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
         $this->SetBuffer(self::BUFFER_SEARCHACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
     }
 
@@ -434,4 +440,3 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     }
 
 }
-

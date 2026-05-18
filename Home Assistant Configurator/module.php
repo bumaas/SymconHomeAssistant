@@ -32,8 +32,9 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     public function Create(): void
     {
-        parent::Create();
         $this->LogMessage('Create | start', KL_MESSAGE);
+        parent::Create();
+        $this->LogMessage('Create | after_parent', KL_MESSAGE);
 
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyBoolean('AutoCreateVariables', true);

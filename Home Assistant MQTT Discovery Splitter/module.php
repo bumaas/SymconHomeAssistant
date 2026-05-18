@@ -89,6 +89,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         ]);
         parent::ApplyChanges();
         $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
+        $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
@@ -200,6 +201,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     public function RefreshDiscoveryDiagnostics(): void
     {
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
+        if ($this->isBundleMode()) {
+            $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
+            return;
+        }
         if (!$this->ReadAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY)) {
             return;
         }
@@ -574,14 +579,30 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private function applyBundleMode(): void
     {
         $startedAt = microtime(true);
+        $this->logPerformanceMarker(__FUNCTION__, 'start', [
+            'BundlePath' => $this->ReadPropertyString('BundlePath'),
+            'CurrentSessionOnly' => $this->ReadPropertyBoolean('BundleCurrentSessionOnly'),
+            'ReplayTopicsOnApply' => $this->ReadPropertyBoolean('ReplayTopicsOnApply')
+        ]);
+
+        $loadStartedAt = microtime(true);
         $loadResult = $this->loadConfiguredBundle();
+        $this->logPerformanceSample(__FUNCTION__ . '.loadConfiguredBundle', $loadStartedAt, [
+            'Ok' => (bool)($loadResult['ok'] ?? false),
+            'Status' => (int)($loadResult['status'] ?? 0)
+        ], true);
+
         if (!($loadResult['ok'] ?? false)) {
             $state = is_array($loadResult['state'] ?? null) ? $loadResult['state'] : $this->buildDefaultBundleState();
             $this->writeBundleState($state);
             $this->clearDiscoveryRuntimeCaches();
             $this->writeMqttSessionState($this->buildBundleSessionState([], $state));
             $this->WriteAttributeString('LastMQTTMessage', '');
+            $diagnosticsStartedAt = microtime(true);
             $this->updateDiagnosticsLabels();
+            $this->logPerformanceSample(__FUNCTION__ . '.updateDiagnosticsLabels', $diagnosticsStartedAt, [
+                'Result' => 'load_failed'
+            ], true);
 
             if (($loadResult['status'] ?? 204) === 202) {
                 $this->SetStatus(202);
@@ -602,13 +623,28 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $bundle = is_array($loadResult['bundle'] ?? null) ? $loadResult['bundle'] : [];
         $state = is_array($loadResult['state'] ?? null) ? $loadResult['state'] : $this->buildDefaultBundleState();
+
+        $hydrateStartedAt = microtime(true);
         $this->hydrateCachesFromBundle($bundle, $state);
+        $this->logPerformanceSample(__FUNCTION__ . '.hydrateCachesFromBundle', $hydrateStartedAt, [
+            'DiscoveryCount' => count($this->readDiscoveryCache()),
+            'TopicPayloadCount' => count($this->readTopicPayloadCache())
+        ], true);
+
         $this->WriteAttributeString('LastMQTTMessage', '');
+
+        $diagnosticsStartedAt = microtime(true);
         $this->updateDiagnosticsLabels();
+        $this->logPerformanceSample(__FUNCTION__ . '.updateDiagnosticsLabels', $diagnosticsStartedAt, [
+            'Result' => 'bundle_loaded'
+        ], true);
+
         $this->SetStatus(IS_ACTIVE);
 
         if ($this->ReadPropertyBoolean('ReplayTopicsOnApply')) {
+            $replayStartedAt = microtime(true);
             $this->replayCachedTopicPayloadsToChildren();
+            $this->logPerformanceSample(__FUNCTION__ . '.replayCachedTopicPayloadsToChildren', $replayStartedAt, [], true);
         }
 
         $this->logPerformanceSample(__FUNCTION__, $startedAt, [
@@ -620,6 +656,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function loadConfiguredBundle(): array
     {
+        $startedAt = microtime(true);
         $rawPath = trim($this->ReadPropertyString('BundlePath'));
         $path = $this->resolveBundlePath($rawPath);
         $state = $this->buildDefaultBundleState();
@@ -638,7 +675,13 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             ];
         }
 
+        $readStartedAt = microtime(true);
         $raw = @file_get_contents($path);
+        $this->logPerformanceSample(__FUNCTION__ . '.file_get_contents', $readStartedAt, [
+            'Path' => $path,
+            'Bytes' => is_string($raw) ? strlen($raw) : 0,
+            'Readable' => $raw !== false
+        ], true);
         if ($raw === false) {
             $state['error'] = $this->Translate('Bundle file could not be read.');
             return [
@@ -649,7 +692,11 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         }
 
         try {
+            $decodeStartedAt = microtime(true);
             $bundle = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+            $this->logPerformanceSample(__FUNCTION__ . '.json_decode', $decodeStartedAt, [
+                'TopLevelKeys' => is_array($bundle) ? count($bundle) : 0
+            ], true);
         } catch (JsonException $e) {
             $state['error'] = $this->Translate('Bundle is not valid JSON: ') . $e->getMessage();
             return [
@@ -740,27 +787,56 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function hydrateCachesFromBundle(array $bundle, array $state): void
     {
+        $startedAt = microtime(true);
         $bundleSessionState = $this->buildBundleSessionState($bundle, $state);
+
+        $normalizeStartedAt = microtime(true);
         $discoveryCache = $this->normalizeCacheRecords($bundle['discovery_configs'] ?? [], true);
         $runtimeCache = $this->normalizeCacheRecords($bundle['topic_payloads'] ?? [], false);
+        $this->logPerformanceSample(__FUNCTION__ . '.normalizeCacheRecords', $normalizeStartedAt, [
+            'DiscoveryCount' => count($discoveryCache),
+            'TopicPayloadCount' => count($runtimeCache)
+        ], true);
 
         if ($this->ReadPropertyBoolean('BundleCurrentSessionOnly')) {
+            $filterStartedAt = microtime(true);
             $discoveryCache = $this->filterBundleCacheToCurrentSession($discoveryCache, $bundleSessionState);
             $runtimeCache = $this->filterBundleCacheToCurrentSession($runtimeCache, $bundleSessionState);
+            $this->logPerformanceSample(__FUNCTION__ . '.filterBundleCacheToCurrentSession', $filterStartedAt, [
+                'DiscoveryCount' => count($discoveryCache),
+                'TopicPayloadCount' => count($runtimeCache)
+            ], true);
         }
 
+        $lookupStartedAt = microtime(true);
         $lookup = $this->buildReferencedTopicLookup($discoveryCache);
         $runtimeCache = $this->filterRuntimeCacheToReferencedTopics($runtimeCache, $lookup);
+        $this->logPerformanceSample(__FUNCTION__ . '.buildLookupAndFilterRuntime', $lookupStartedAt, [
+            'ReferencedTopicCount' => count($lookup),
+            'TopicPayloadCount' => count($runtimeCache)
+        ], true);
 
         $state['loaded'] = true;
         $state['discovery_config_count'] = count($discoveryCache);
         $state['topic_payload_count'] = count($runtimeCache);
 
+        $writeStartedAt = microtime(true);
         $this->writeBundleState($state);
         $this->writeDiscoveryCache($discoveryCache);
         $this->writeReferencedTopicLookup($lookup);
         $this->writeTopicPayloadCache($runtimeCache);
         $this->writeMqttSessionState($bundleSessionState);
+        $this->logPerformanceSample(__FUNCTION__ . '.writeAttributes', $writeStartedAt, [
+            'DiscoveryCount' => count($discoveryCache),
+            'ReferencedTopicCount' => count($lookup),
+            'TopicPayloadCount' => count($runtimeCache)
+        ], true);
+
+        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+            'DiscoveryCount' => count($discoveryCache),
+            'ReferencedTopicCount' => count($lookup),
+            'TopicPayloadCount' => count($runtimeCache)
+        ], true);
     }
 
     private function filterBundleCacheToCurrentSession(array $cache, array $sessionState): array
@@ -1119,22 +1195,14 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function readDiscoveryCache(): array
     {
-        try {
-            $decoded = json_decode($this->ReadAttributeString(self::ATTRIBUTE_DISCOVERY_CACHE), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
-        }
+        $decoded = $this->readJsonAttributeArraySafe(self::ATTRIBUTE_DISCOVERY_CACHE);
 
         return $this->normalizeCacheRecords($decoded, true);
     }
 
     private function readTopicPayloadCache(): array
     {
-        try {
-            $decoded = json_decode($this->ReadAttributeString(self::ATTRIBUTE_TOPIC_PAYLOAD_CACHE), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
-        }
+        $decoded = $this->readJsonAttributeArraySafe(self::ATTRIBUTE_TOPIC_PAYLOAD_CACHE);
 
         return $this->normalizeCacheRecords($decoded, false);
     }
@@ -1151,11 +1219,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function readReferencedTopicLookup(): array
     {
-        try {
-            $decoded = json_decode($this->ReadAttributeString(self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
-        }
+        $decoded = $this->readJsonAttributeArraySafe(self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP);
 
         if (!is_array($decoded)) {
             return [];
@@ -1204,11 +1268,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function readBundleState(): array
     {
-        try {
-            $decoded = json_decode($this->ReadAttributeString(self::ATTRIBUTE_BUNDLE_STATE), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            $decoded = [];
-        }
+        $decoded = $this->readJsonAttributeArraySafe(self::ATTRIBUTE_BUNDLE_STATE);
 
         if (!is_array($decoded)) {
             $decoded = [];
@@ -2117,11 +2177,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function readMqttSessionState(): array
     {
-        try {
-            $decoded = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MQTT_SESSION_STATE), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            $decoded = [];
-        }
+        $decoded = $this->readJsonAttributeArraySafe(self::ATTRIBUTE_MQTT_SESSION_STATE);
 
         if (!is_array($decoded)) {
             $decoded = [];
@@ -2142,6 +2198,43 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             self::ATTRIBUTE_MQTT_SESSION_STATE,
             json_encode($state, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
+    }
+
+    private function readJsonAttributeArraySafe(string $attribute): array
+    {
+        try {
+            $raw = $this->ReadAttributeString($attribute);
+        } catch (Throwable $e) {
+            $this->debugExpert(__FUNCTION__, 'Attribute konnte nicht gelesen werden.', [
+                'Attribute' => $attribute,
+                'Error' => $e->getMessage()
+            ], true);
+            return [];
+        }
+
+        if (!is_string($raw)) {
+            $this->debugExpert(__FUNCTION__, 'Attribute lieferte keinen String.', [
+                'Attribute' => $attribute,
+                'Type' => gettype($raw)
+            ], true);
+            return [];
+        }
+
+        if (trim($raw) === '') {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            $this->debugExpert(__FUNCTION__, 'Attribute enthaelt kein gueltiges JSON.', [
+                'Attribute' => $attribute,
+                'Error' => $e->getMessage()
+            ], true);
+            return [];
+        }
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function isRecordCurrentSession(array $record, ?array $sessionState = null): bool

@@ -65,11 +65,14 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
     public function Create(): void
     {
+        $this->LogMessage('Create | start', KL_MESSAGE);
         parent::Create();
+        $this->LogMessage('Create | after_parent', KL_MESSAGE);
 
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->LogMessage('Create | after_RegisterMessage', KL_MESSAGE);
 
         $this->RegisterPropertyString(self::PROP_ENTITY_ID, '');
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
@@ -78,6 +81,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_UNAVAILABLE_ENTITIES_JSON, false);
         $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
+        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
         $this->RegisterAttributeString('MQTTBaseTopic', '');
@@ -85,8 +89,10 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterAttributeString('LastMQTTMessage', '');
         $this->RegisterAttributeString('LastRESTFetch', '');
         $this->RegisterAttributeString('EntityStateCache', '{}');
+        $this->LogMessage('Create | after_RegisterAttributes', KL_MESSAGE);
 
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HAE_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
+        $this->LogMessage('Create | after_RegisterTimer', KL_MESSAGE);
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -105,7 +111,9 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
     public function ApplyChanges(): void
     {
+        $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
         parent::ApplyChanges();
+        $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert(__FUNCTION__, 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.');

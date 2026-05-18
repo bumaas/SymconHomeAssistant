@@ -94,6 +94,7 @@ final class HAMqttDiscoveryGrouping
             $deviceConfig['entities'][] = [
                 'entity_key'        => (string)($entity['unique_id'] ?? ''),
                 'component'         => (string)($entity['component'] ?? ''),
+                'device_name'       => (string)($group['name'] ?? ''),
                 'object_id'         => (string)($entity['object_id'] ?? ''),
                 'name'              => (string)($entity['name'] ?? ''),
                 'create_var'        => (bool)($entity['state']['enabled_by_default'] ?? true),

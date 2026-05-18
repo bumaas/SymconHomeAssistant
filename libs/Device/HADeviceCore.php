@@ -184,26 +184,52 @@ trait HADeviceCoreTrait
         $this->WriteAttributeString('LastMQTTMessage', $JSONString);
 
         $data = json_decode($JSONString, true);
-        if ($data === null) {
+        if (!is_array($data)) {
             return '';
         }
 
-        $topic = (string)($data['Topic'] ?? '');
-        $payloadString = (string)($data['Payload'] ?? '');
+        $topic = trim((string)($data['Topic'] ?? ''));
+        if ($topic === '') {
+            return '';
+        }
+
+        $payload = $this->decodeIncomingMqttPayload((string)($data['Payload'] ?? ''));
+        $this->debugExpert(__FUNCTION__, 'Eingangsdaten', ['Topic' => $topic, 'Payload' => $payload]);
+
+        if ($this->tryHandleStateFromTopic($topic, $payload)) {
+            return '';
+        }
 
         $entityId = $this->topicMapping[$topic] ?? null;
         if ($entityId === null) {
             return '';
         }
 
-        $payload = json_decode($payloadString, true);
-        if (!is_array($payload)) {
+        $this->applyParsedEntityState($entityId, $this->parseEntityPayload($payload), 'MQTT Update');
+
+        return '';
+    }
+
+    protected function decodeIncomingMqttPayload(string $payload): string
+    {
+        $trimmed = trim($payload);
+        if ($trimmed === '') {
             return '';
         }
 
-        $this->applyParsedEntityState($entityId, $payload, 'MQTT Update');
+        $firstChar = $trimmed[0];
+        if ($firstChar === '{' || $firstChar === '[' || $firstChar === '"') {
+            return $payload;
+        }
 
-        return '';
+        if ((strlen($payload) % 2) === 0 && ctype_xdigit($payload)) {
+            $decoded = hex2bin($payload);
+            if ($decoded !== false) {
+                return $decoded;
+            }
+        }
+
+        return $payload;
     }
     public function RequestAction($Ident, $Value): void
     {
