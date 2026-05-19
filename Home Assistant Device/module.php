@@ -838,7 +838,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         $activeBaseIdents = [];
         foreach ($activeEntityIds as $entityId) {
-            $activeBaseIdents[] = $this->sanitizeIdent($entityId);
             $activeBaseIdents[] = $this->getSharedEntityIdentPrefix($entityId);
         }
         $baseIdents = array_values(array_unique(array_filter($baseIdents, static fn(string $ident): bool => $ident !== '')));

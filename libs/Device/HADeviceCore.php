@@ -484,7 +484,6 @@ trait HADeviceCoreTrait
 
         $activeBaseIdents = [];
         foreach ($activeEntityIds as $entityId) {
-            $activeBaseIdents[] = $this->sanitizeIdent($entityId);
             $activeBaseIdents[] = $this->getSharedEntityIdentPrefix($entityId);
         }
 
