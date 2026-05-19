@@ -457,15 +457,11 @@ trait HADeviceCoreTrait
 
     private function cleanupRenamedSharedEntityObjects(array $entityIds, array $activeEntityIds, array $previousEntities): void
     {
-        if ($entityIds === []) {
-            return;
-        }
-
         $entityIds = array_values(array_unique(array_filter(
             $entityIds,
             static fn(mixed $entityId): bool => is_string($entityId) && trim($entityId) !== ''
         )));
-        if ($entityIds === []) {
+        if ($entityIds === [] && $activeEntityIds === []) {
             return;
         }
 
@@ -485,6 +481,13 @@ trait HADeviceCoreTrait
         $activeBaseIdents = [];
         foreach ($activeEntityIds as $entityId) {
             $activeBaseIdents[] = $this->getSharedEntityIdentPrefix($entityId);
+        }
+
+        foreach ($activeEntityIds as $entityId) {
+            $legacyBaseIdent = $this->sanitizeIdent($entityId);
+            if ($legacyBaseIdent !== '' && !$this->isSharedManagedEntityIdent($legacyBaseIdent, $activeBaseIdents)) {
+                $baseIdents[] = $legacyBaseIdent;
+            }
         }
 
         $baseIdents = array_values(array_unique(array_filter($baseIdents, static fn(string $ident): bool => $ident !== '')));
