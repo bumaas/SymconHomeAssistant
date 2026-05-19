@@ -23,19 +23,16 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const int DIAGNOSTIC_PREVIEW_LIMIT = 8;
     private const int OUTPUT_BUFFER_RESERVE_BYTES = 262144;
     private const int DIAGNOSTICS_REFRESH_INTERVAL_MS = 1000;
-    private const int PERFORMANCE_LOG_THRESHOLD_MS = 250;
     private const string SOURCE_MODE_MQTT = 'mqtt';
     private const string SOURCE_MODE_BUNDLE = 'bundle';
 
     public function Create(): void
     {
         parent::Create();
-        $this->LogMessage('Create | start', KL_MESSAGE);
 
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
-        $this->LogMessage('Create | after_RegisterMessage', KL_MESSAGE);
         $this->SetReceiveDataFilter('^$');
 
         $this->RegisterPropertyString('SourceMode', self::SOURCE_MODE_MQTT);
@@ -45,7 +42,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterPropertyBoolean('ReplayTopicsOnApply', false);
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
-        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->RegisterTimer(self::TIMER_DIAGNOSTICS_REFRESH, 0, 'HAMD_RefreshDiscoveryDiagnostics($_IPS["TARGET"]);');
         $this->RegisterAttributeString('LastMQTTMessage', '');
@@ -55,7 +51,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
         $this->RegisterAttributeString(self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP, '{}');
         $this->RegisterAttributeString(self::ATTRIBUTE_BUNDLE_STATE, '{}');
-        $this->LogMessage('Create | after_RegisterAttributes', KL_MESSAGE);
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -83,12 +78,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     public function ApplyChanges(): void
     {
         $startedAt = microtime(true);
-        $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
         $this->logPerformanceMarker(__FUNCTION__, 'start', [
             'SourceMode' => $this->getSourceMode()
         ]);
         parent::ApplyChanges();
-        $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
@@ -1477,33 +1470,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void
     {
-        $durationMs = (int)round((microtime(true) - $startedAt) * 1000);
-        if (!$force && $durationMs < self::PERFORMANCE_LOG_THRESHOLD_MS) {
-            return;
-        }
-
-        $message = $scope . ' | ' . $durationMs . ' ms';
-        if ($context !== []) {
-            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            if (is_string($encodedContext) && $encodedContext !== '') {
-                $message .= ' | ' . $encodedContext;
-            }
-        }
-
-        $this->LogMessage($message, KL_MESSAGE);
     }
 
     private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
     {
-        $message = $scope . ' | ' . $phase;
-        if ($context !== []) {
-            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            if (is_string($encodedContext) && $encodedContext !== '') {
-                $message .= ' | ' . $encodedContext;
-            }
-        }
-
-        $this->LogMessage($message, KL_MESSAGE);
     }
 
     private function applyCurrentDiagnosticsToForm(array &$form): void

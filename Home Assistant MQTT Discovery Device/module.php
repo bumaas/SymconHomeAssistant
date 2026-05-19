@@ -31,7 +31,6 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string ATTR_RESOLVED_DEVICE_DEFINITION = 'ResolvedDeviceDefinition';
     private const string ATTR_STATE_WARNINGS = 'StateWarnings';
     private const string ATTR_TOPIC_PROCESSING_INDEX = 'TopicProcessingIndex';
-    private const int PERFORMANCE_LOG_THRESHOLD_MS = 250;
     private const int ENTITY_POSITION_STEP = 10;
     private const int TRIGGER_RESET_VALUE = -1;
     private const string COVER_ACTION_SUFFIX = '_cover_action';
@@ -76,24 +75,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     public function Create(): void
     {
         parent::Create();
-        $this->LogMessage('Create | start', KL_MESSAGE);
 
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
-        $this->LogMessage('Create | after_RegisterMessage', KL_MESSAGE);
 
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
         $this->RegisterPropertyString(self::PROP_ENTITY_SELECTION, '[]');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
-        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->RegisterAttributeString(self::ATTR_LAST_MQTT_MESSAGE, '');
         $this->RegisterAttributeString(self::ATTR_AVAILABILITY_STATE, '{}');
         $this->RegisterAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION, '{}');
         $this->RegisterAttributeString(self::ATTR_STATE_WARNINGS, '{}');
         $this->RegisterAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX, '{}');
-        $this->LogMessage('Create | after_RegisterAttributes', KL_MESSAGE);
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -111,12 +106,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     public function ApplyChanges(): void
     {
         $startedAt = microtime(true);
-        $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
         $this->logPerformanceMarker(__FUNCTION__, 'start', [
             'DeviceID' => $this->getConfiguredDeviceId()
         ]);
         parent::ApplyChanges();
-        $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
@@ -3705,32 +3698,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void
     {
-        $durationMs = (int)round((microtime(true) - $startedAt) * 1000);
-        if (!$force && $durationMs < self::PERFORMANCE_LOG_THRESHOLD_MS) {
-            return;
-        }
-
-        $message = $scope . ' | ' . $durationMs . ' ms';
-        if ($context !== []) {
-            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            if (is_string($encodedContext) && $encodedContext !== '') {
-                $message .= ' | ' . $encodedContext;
-            }
-        }
-
-        $this->LogMessage($message, KL_MESSAGE);
     }
 
     private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
     {
-        $message = $scope . ' | ' . $phase;
-        if ($context !== []) {
-            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            if (is_string($encodedContext) && $encodedContext !== '') {
-                $message .= ' | ' . $encodedContext;
-            }
-        }
-
-        $this->LogMessage($message, KL_MESSAGE);
     }
 }
