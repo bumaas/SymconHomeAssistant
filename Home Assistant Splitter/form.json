@@ -23,6 +23,10 @@
           "type": "ValidationTextBox",
           "name": "HAToken",
           "caption": "Long-Lived Access Token"
+        },
+        {
+          "type": "Label",
+          "caption": "Hint: Create the token in Home Assistant under Profile > Security > Long-Lived Access Tokens."
         }
       ]
     },

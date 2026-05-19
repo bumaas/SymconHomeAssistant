@@ -11,6 +11,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     use ModuleDebugTrait;
     use HAIdentNamingTrait;
     use HAEntityVariableNamingTrait;
+    use HALegacyVariableMigrationTrait;
     use HAMqttDiscoveryParentClientTrait;
 
     private HAMqttDiscoveryParser $parser;
@@ -32,11 +33,19 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string ATTR_TOPIC_PROCESSING_INDEX = 'TopicProcessingIndex';
     private const int PERFORMANCE_LOG_THRESHOLD_MS = 250;
     private const int ENTITY_POSITION_STEP = 10;
+    private const int TRIGGER_RESET_VALUE = -1;
+    private const string COVER_ACTION_SUFFIX = '_cover_action';
+    private const string COVER_TILT_ACTION_SUFFIX = '_cover_tilt_action';
+    private const int COVER_ACTION_POSITION_OFFSET = 5;
+    private const int COVER_TILT_ACTION_POSITION_OFFSET = 6;
 
     /** @var string[] */
     private const array SUPPORTED_COMPONENTS = [
         HABinarySensorDefinitions::DOMAIN,
         HASensorDefinitions::DOMAIN,
+        HAClimateDefinitions::DOMAIN,
+        HANumberDefinitions::DOMAIN,
+        HACoverDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
         HASelectDefinitions::DOMAIN,
         HAButtonDefinitions::DOMAIN,
@@ -240,6 +249,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $target = $this->resolveActionTarget($entities, (string) $Ident);
         if ($target === null) {
             $this->debugExpert(__FUNCTION__, 'Entity fuer Ident nicht gefunden', ['Ident' => $Ident], true);
+            return;
+        }
+
+        if ($target['type'] === 'cover_action') {
+            $this->handleCoverActionRequest($Ident, $target['entity'], $Value, false);
+            return;
+        }
+
+        if ($target['type'] === 'cover_tilt_action') {
+            $this->handleCoverActionRequest($Ident, $target['entity'], $Value, true);
             return;
         }
 
@@ -706,6 +725,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'device_class' => $this->normalizeNullableString($metadata['device_class'] ?? null),
             'state_class' => $this->normalizeNullableString($metadata['state_class'] ?? null),
             'unit' => $this->normalizeNullableString($metadata['unit'] ?? null),
+            'min' => $this->normalizeNumericMetadataValue($metadata['min'] ?? null),
+            'max' => $this->normalizeNumericMetadataValue($metadata['max'] ?? null),
+            'step' => $this->normalizeNumericMetadataValue($metadata['step'] ?? null),
+            'native_min_value' => $this->normalizeNumericMetadataValue($metadata['native_min_value'] ?? null),
+            'native_max_value' => $this->normalizeNumericMetadataValue($metadata['native_max_value'] ?? null),
+            'native_step' => $this->normalizeNumericMetadataValue($metadata['native_step'] ?? null),
+            'mode' => $this->normalizeNullableString($metadata['mode'] ?? null),
             'entity_category' => $this->normalizeNullableString($metadata['entity_category'] ?? null),
             'enabled_by_default' => !array_key_exists('enabled_by_default', $metadata) || (bool)$metadata['enabled_by_default'],
             'icon' => $this->normalizeNullableString($metadata['icon'] ?? null),
@@ -720,8 +746,44 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'min_color_temp_kelvin' => is_numeric($metadata['min_color_temp_kelvin'] ?? null) ? (int)$metadata['min_color_temp_kelvin'] : null,
             'max_color_temp_kelvin' => is_numeric($metadata['max_color_temp_kelvin'] ?? null) ? (int)$metadata['max_color_temp_kelvin'] : null,
             'schema' => $this->normalizeNullableString($metadata['schema'] ?? null),
+            'reports_position' => $this->normalizeMetadataBoolean($metadata['reports_position'] ?? false),
+            'state_open' => $this->normalizeNullableString($metadata['state_open'] ?? null),
+            'state_closed' => $this->normalizeNullableString($metadata['state_closed'] ?? null),
+            'state_opening' => $this->normalizeNullableString($metadata['state_opening'] ?? null),
+            'state_closing' => $this->normalizeNullableString($metadata['state_closing'] ?? null),
+            'state_stopped' => $this->normalizeNullableString($metadata['state_stopped'] ?? null),
+            'action_topic' => $this->normalizeNullableString($metadata['action_topic'] ?? null),
+            'action_command_template' => $this->normalizeNullableString($metadata['action_command_template'] ?? null),
+            'tilt_action_topic' => $this->normalizeNullableString($metadata['tilt_action_topic'] ?? null),
+            'tilt_action_command_template' => $this->normalizeNullableString($metadata['tilt_action_command_template'] ?? null),
             'origin' => is_array($metadata['origin'] ?? null) ? $metadata['origin'] : []
         ];
+    }
+
+    private function normalizeMetadataBoolean(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (int)$value !== 0;
+        }
+
+        if (is_string($value)) {
+            return in_array(strtolower(trim($value)), ['1', 'true', 'on', 'yes', 'ja'], true);
+        }
+
+        return false;
+    }
+
+    private function normalizeNumericMetadataValue(mixed $value): ?float
+    {
+        if (is_string($value)) {
+            $value = str_replace(',', '.', trim($value));
+        }
+
+        return is_numeric($value) ? (float)$value : null;
     }
 
     private function normalizeAvailability(mixed $availability): array
@@ -1015,6 +1077,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 $lightAttributes = $this->extractLightAttributesFromCachedTopics($entity, $cachedTopics);
                 $attributeContext = $this->buildLightAttributeContext($entity, $lightAttributes);
                 $idents = array_merge($idents, $this->maintainLightAttributeVariables($entity, $attributeContext, $basePosition));
+                continue;
+            }
+
+            if ((string)($entity['component'] ?? '') === HACoverDefinitions::DOMAIN) {
+                $idents = array_merge($idents, $this->maintainCoverActionVariables($entity, $basePosition));
             }
         }
 
@@ -1027,9 +1094,25 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             HABinarySensorDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HALightDefinitions::DOMAIN => VARIABLETYPE_BOOLEAN,
             HASelectDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
             HAButtonDefinitions::DOMAIN, HAEventDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
+            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
+            HACoverDefinitions::DOMAIN => $this->determineCoverVariableType($entity, $cachedTopics),
+            HANumberDefinitions::DOMAIN => $this->determineNumberVariableType($entity, $cachedTopics),
             HASensorDefinitions::DOMAIN => $this->determineSensorVariableType($entity, $cachedTopics),
             default => VARIABLETYPE_STRING
         };
+    }
+
+    private function determineCoverVariableType(array $entity, array $cachedTopics): int
+    {
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        $value = $this->extractCachedEntityValue($entity, $cachedTopics);
+        return $this->isCoverPositionEntity($metadata, $value) ? VARIABLETYPE_FLOAT : VARIABLETYPE_STRING;
+    }
+
+    private function determineNumberVariableType(array $entity, array $cachedTopics): int
+    {
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        return $this->inferNumberVariableType($metadata, $this->extractCachedEntityValue($entity, $cachedTopics));
     }
 
     private function determineSensorVariableType(array $entity, array $cachedTopics): int
@@ -1093,6 +1176,18 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH];
         }
 
+        if ((string)($entity['component'] ?? '') === HANumberDefinitions::DOMAIN) {
+            return $this->buildNumberPresentation(is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [], $variableType);
+        }
+
+        if ((string)($entity['component'] ?? '') === HACoverDefinitions::DOMAIN) {
+            return $this->buildCoverPresentation(is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [], $variableType);
+        }
+
+        if ((string)($entity['component'] ?? '') === HAClimateDefinitions::DOMAIN) {
+            return $this->buildClimatePresentation(is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [], $variableType);
+        }
+
         if ($variableType === VARIABLETYPE_INTEGER || $variableType === VARIABLETYPE_FLOAT) {
             return $this->buildNumericPresentation($variableType, $entity);
         }
@@ -1147,6 +1242,184 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'DIGITS' => $variableType === VARIABLETYPE_FLOAT ? 2 : 0,
             'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
         ], static fn(mixed $value): bool => $value !== null);
+    }
+
+    private function buildCoverPresentation(array $metadata, int $variableType): array
+    {
+        if ($variableType === VARIABLETYPE_FLOAT) {
+            $deviceClass = trim((string)($metadata['device_class'] ?? ''));
+            if ($deviceClass !== '' && HACoverDefinitions::usesShutterPresentation($deviceClass)) {
+                return [
+                    'CLOSE_INSIDE_VALUE' => 0,
+                    'USAGE_TYPE' => 0,
+                    'OPEN_OUTSIDE_VALUE' => 100,
+                    'PRESENTATION' => VARIABLE_PRESENTATION_SHUTTER
+                ];
+            }
+
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                'MIN' => 0,
+                'MAX' => 100,
+                'STEP_SIZE' => 1,
+                'DIGITS' => 1,
+                'SUFFIX' => ' %'
+            ];
+        }
+
+        $options = [];
+        foreach (array_merge(HACoverDefinitions::STATE_OPTIONS, ['stopped' => 'Cover state: stopped']) as $value => $caption) {
+            $options[] = [
+                'Value' => $value,
+                'Caption' => $this->Translate($caption),
+                'IconActive' => false,
+                'IconValue' => '',
+                'Color' => -1
+            ];
+        }
+
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
+        ];
+    }
+
+    private function buildNumberPresentation(array $metadata, int $variableType): array|string
+    {
+        $min = $this->extractNumericMetadata($metadata, ['min', 'native_min_value']);
+        $max = $this->extractNumericMetadata($metadata, ['max', 'native_max_value']);
+        if ($min === null && $max !== null) {
+            $min = 0.0;
+        }
+        $step = $this->extractNumericMetadata($metadata, ['step', 'native_step']) ?? 1.0;
+        $suffix = $this->resolveNumberPresentationSuffix($metadata);
+        $digits = $this->getNumberPresentationDigits($metadata, $step);
+
+        if ($min !== null && $max !== null) {
+            $usageType = null;
+            $isPercentage = false;
+            $displaySuffix = $suffix === '' ? null : ' ' . $suffix;
+            if ($this->isNumberIntensityRange($min, $max) && $suffix === '' && $digits === 0) {
+                $usageType = 2;
+                $isPercentage = true;
+                $displaySuffix = ' %';
+            }
+
+            return array_filter([
+                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                'MIN' => $min,
+                'MAX' => $max,
+                'STEP_SIZE' => $step,
+                'DIGITS' => $digits,
+                'PERCENTAGE' => $isPercentage,
+                'USAGE_TYPE' => $usageType,
+                'SUFFIX' => $displaySuffix
+            ], static fn(mixed $value): bool => $value !== null);
+        }
+
+        return array_filter([
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'DIGITS' => $variableType === VARIABLETYPE_INTEGER ? 0 : $digits,
+            'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
+        ], static fn(mixed $value): bool => $value !== null);
+    }
+
+    private function buildClimatePresentation(array $metadata, int $variableType): array|string
+    {
+        $min = $this->extractNumericMetadata($metadata, ['min', 'native_min_value']);
+        $max = $this->extractNumericMetadata($metadata, ['max', 'native_max_value']);
+        $step = $this->extractNumericMetadata($metadata, ['step', 'native_step']) ?? 1.0;
+        $digits = $this->getNumberPresentationDigits($metadata, $step);
+        $suffix = $this->resolveClimatePresentationSuffix($metadata);
+
+        if ($min !== null && $max !== null) {
+            return array_filter([
+                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+                'MIN' => $min,
+                'MAX' => $max,
+                'STEP_SIZE' => $step,
+                'DIGITS' => $digits,
+                'USAGE_TYPE' => 1,
+                'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
+            ], static fn(mixed $value): bool => $value !== null);
+        }
+
+        return array_filter([
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'DIGITS' => $variableType === VARIABLETYPE_FLOAT ? $digits : 0,
+            'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
+        ], static fn(mixed $value): bool => $value !== null);
+    }
+
+    private function resolveClimatePresentationSuffix(array $metadata): string
+    {
+        $unit = trim((string)($metadata['unit'] ?? ''));
+        if ($unit !== '') {
+            return $unit;
+        }
+
+        return '°C';
+    }
+
+    private function resolveNumberPresentationSuffix(array $metadata): string
+    {
+        $unit = trim((string)($metadata['unit'] ?? ''));
+        if ($unit !== '') {
+            return $unit;
+        }
+
+        $deviceClass = trim((string)($metadata['device_class'] ?? ''));
+        if ($deviceClass !== '' && isset(HANumberDefinitions::DEVICE_CLASS_SUFFIX[$deviceClass])) {
+            return HANumberDefinitions::DEVICE_CLASS_SUFFIX[$deviceClass];
+        }
+
+        if ($deviceClass !== '' && isset(HASensorDefinitions::DEVICE_CLASS_SUFFIX[$deviceClass])) {
+            return HASensorDefinitions::DEVICE_CLASS_SUFFIX[$deviceClass];
+        }
+
+        return '';
+    }
+
+    private function getNumberPresentationDigits(array $metadata, ?float $step = null, mixed $value = null): int
+    {
+        $digits = null;
+        foreach ([$step, $metadata['step'] ?? null, $metadata['native_step'] ?? null, $value] as $candidate) {
+            if ($candidate === null) {
+                continue;
+            }
+
+            if (is_string($candidate)) {
+                $candidate = str_replace(',', '.', trim($candidate));
+            }
+
+            if (!is_numeric($candidate)) {
+                continue;
+            }
+
+            $number = (float)$candidate;
+            if (abs($number - round($number)) < 0.0000001) {
+                $digits = 0;
+                continue;
+            }
+
+            $text = rtrim(rtrim(sprintf('%.6F', $number), '0'), '.');
+            $decimalPos = strpos($text, '.');
+            if ($decimalPos === false) {
+                $digits = 0;
+                continue;
+            }
+
+            $digits = strlen(substr($text, $decimalPos + 1));
+            break;
+        }
+
+        return min(3, max(0, (int)($digits ?? 0)));
+    }
+
+    private function isNumberIntensityRange(float $min, float $max): bool
+    {
+        return abs($min - 0.0) < 0.0000001
+            && (abs($max - 100.0) < 0.0000001 || abs($max - 255.0) < 0.0000001);
     }
 
     private function extractLightAttributesFromCachedTopics(array $entity, array $cachedTopics): array
@@ -1216,6 +1489,131 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return $idents;
+    }
+
+    private function maintainCoverActionVariables(array $entity, int $basePosition): array
+    {
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        $idents = [];
+
+        $actionOptions = $this->buildCoverActionOptions($metadata);
+        if (($metadata['action_topic'] ?? '') !== '' && $actionOptions !== [] && $this->isCoverActionTemplateSupported($metadata, false)) {
+            $ident = $this->buildCoverActionIdent((string)($entity['ident_prefix'] ?? $entity['ident']));
+            $this->maintainEnumerationTriggerVariable(
+                $ident,
+                'Aktion',
+                $basePosition + self::COVER_ACTION_POSITION_OFFSET,
+                $actionOptions
+            );
+            $idents[] = $ident;
+        }
+
+        $tiltActionOptions = $this->buildCoverTiltActionOptions($metadata);
+        if (($metadata['tilt_action_topic'] ?? '') !== '' && $tiltActionOptions !== [] && $this->isCoverActionTemplateSupported($metadata, true)) {
+            $ident = $this->buildCoverTiltActionIdent((string)($entity['ident_prefix'] ?? $entity['ident']));
+            $this->maintainEnumerationTriggerVariable(
+                $ident,
+                $this->Translate('Tilt Action'),
+                $basePosition + self::COVER_TILT_ACTION_POSITION_OFFSET,
+                $tiltActionOptions
+            );
+            $idents[] = $ident;
+        }
+
+        return $idents;
+    }
+
+    private function maintainEnumerationTriggerVariable(string $ident, string $caption, int $position, array $options): void
+    {
+        if ($options === []) {
+            return;
+        }
+
+        $needsInitialization = @$this->GetIDForIdent($ident) === false;
+        $variableId = @$this->GetIDForIdent($ident);
+        if ($variableId !== false) {
+            $existingType = (int)(IPS_GetVariable($variableId)['VariableType'] ?? -1);
+            if ($existingType !== VARIABLETYPE_INTEGER) {
+                IPS_DeleteVariable($variableId);
+                $needsInitialization = true;
+            }
+        }
+
+        $this->MaintainVariable($ident, $caption, VARIABLETYPE_INTEGER, [
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
+        ], $position, true);
+        $this->EnableAction($ident);
+
+        if ($needsInitialization) {
+            $this->SetValue($ident, self::TRIGGER_RESET_VALUE);
+        }
+    }
+
+    private function buildCoverActionOptions(array $metadata): array
+    {
+        $supported = $this->getSupportedFeatureFlags($metadata);
+        $addAll = $supported === 0;
+        $options = [];
+
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_OPEN)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_OPEN, $this->Translate('Open'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_CLOSE)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_CLOSE, $this->Translate('Close'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_STOP)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_STOP, $this->Translate('Stop'));
+        }
+
+        return $options;
+    }
+
+    private function buildCoverTiltActionOptions(array $metadata): array
+    {
+        $supported = $this->getSupportedFeatureFlags($metadata);
+        $addAll = $supported === 0;
+        $options = [];
+
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_OPEN_TILT)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_OPEN_TILT, $this->Translate('Open Tilt'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_CLOSE_TILT)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_CLOSE_TILT, $this->Translate('Close Tilt'));
+        }
+        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_STOP_TILT)) {
+            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_STOP_TILT, $this->Translate('Stop Tilt'));
+        }
+
+        return $options;
+    }
+
+    private function buildEnumerationOption(int $value, string $caption): array
+    {
+        return [
+            'Value' => $value,
+            'Caption' => $caption,
+            'IconActive' => false,
+            'IconValue' => '',
+            'Color' => -1
+        ];
+    }
+
+    private function getSupportedFeatureFlags(array $metadata): int
+    {
+        return is_numeric($metadata['supported_features'] ?? null) ? (int)$metadata['supported_features'] : 0;
+    }
+
+    private function supportsFeatureFlag(int $supported, int $feature): bool
+    {
+        return ($supported & $feature) === $feature;
+    }
+
+    private function isCoverActionTemplateSupported(array $metadata, bool $tilt): bool
+    {
+        $templateKey = $tilt ? 'tilt_action_command_template' : 'action_command_template';
+        $template = HAMqttDiscoveryTemplate::parseCommandTemplate($this->normalizeNullableString($metadata[$templateKey] ?? null));
+        return $template === null || (bool)($template['supported'] ?? false);
     }
 
     private function applyLightRuntimeAttributes(array $entity, string $payload): void
@@ -1446,6 +1844,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return $this->buildSharedAttributeIdentFromPrefix($entityIdentPrefix, $attribute);
     }
 
+    private function buildCoverActionIdent(string $entityIdentPrefix): string
+    {
+        return $this->buildSharedSuffixIdentFromPrefix($entityIdentPrefix, self::COVER_ACTION_SUFFIX);
+    }
+
+    private function buildCoverTiltActionIdent(string $entityIdentPrefix): string
+    {
+        return $this->buildSharedSuffixIdentFromPrefix($entityIdentPrefix, self::COVER_TILT_ACTION_SUFFIX);
+    }
+
     private function getEntityVariableName(array $entity, bool $hasMultipleStatusEntities): string
     {
         return $this->buildSharedEntityVariableName((string)($entity['component'] ?? ''), $entity, $hasMultipleStatusEntities);
@@ -1496,7 +1904,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
-            IPS_DeleteVariable($childId);
+            if ($this->markVariableAsLegacy($childId)) {
+                $this->debugExpert(__FUNCTION__, 'Variable als veraltet markiert', [
+                    'ObjectID' => $childId,
+                    'Ident' => $ident
+                ]);
+            }
         }
     }
 
@@ -1997,11 +2410,74 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function normalizeComponentStateValue(array $entity, mixed $value): mixed
     {
-        if ((string)($entity['component'] ?? '') !== HALightDefinitions::DOMAIN) {
+        $component = (string)($entity['component'] ?? '');
+        if ($component === HALightDefinitions::DOMAIN) {
+            return HAMqttDiscoveryLightRuntime::extractStateValue($value);
+        }
+
+        if ($component === HACoverDefinitions::DOMAIN) {
+            return $this->normalizeCoverStateValue($value, is_array($entity['metadata'] ?? null) ? $entity['metadata'] : []);
+        }
+
+        return $value;
+    }
+
+    private function normalizeCoverStateValue(mixed $value, array $metadata): mixed
+    {
+        if (is_numeric($value)) {
+            return (float)$value;
+        }
+
+        $text = $this->normalizeNullableString($this->scalarToString($value));
+        if ($text === null) {
             return $value;
         }
 
-        return HAMqttDiscoveryLightRuntime::extractStateValue($value);
+        if ($this->isCoverPositionEntity($metadata, $text)) {
+            if (is_numeric(str_replace(',', '.', $text))) {
+                return (float)str_replace(',', '.', $text);
+            }
+
+            return match ($this->normalizeCoverStateToken($text, $metadata)) {
+                'open' => 100.0,
+                'closed' => 0.0,
+                default => null
+            };
+        }
+
+        return $this->normalizeCoverStateToken($text, $metadata) ?? strtolower($text);
+    }
+
+    private function normalizeCoverStateToken(string $value, array $metadata): ?string
+    {
+        $normalizedValue = strtolower(trim($value));
+        if ($normalizedValue === '') {
+            return null;
+        }
+
+        $candidates = [
+            'open' => $metadata['state_open'] ?? 'open',
+            'closed' => $metadata['state_closed'] ?? 'closed',
+            'opening' => $metadata['state_opening'] ?? 'opening',
+            'closing' => $metadata['state_closing'] ?? 'closing',
+            'stopped' => $metadata['state_stopped'] ?? 'stopped'
+        ];
+
+        foreach ($candidates as $normalized => $raw) {
+            $raw = strtolower(trim((string)$raw));
+            if ($raw !== '' && $normalizedValue === $raw) {
+                return $normalized;
+            }
+        }
+
+        return match ($normalizedValue) {
+            'open', 'opened' => 'open',
+            'close', 'closed' => 'closed',
+            'opening', 'up' => 'opening',
+            'closing', 'down' => 'closing',
+            'stop', 'stopped' => 'stopped',
+            default => null
+        };
     }
 
     private function resolveEventStateValue(array $entity, string $topic, string $payload): ?string
@@ -2208,6 +2684,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($component === HASelectDefinitions::DOMAIN) {
             return $entity['options'] !== [] && ($entity['command_mode'] === 'payload' || $entity['command_mode'] === 'template');
         }
+        if ($component === HAClimateDefinitions::DOMAIN) {
+            return in_array($entity['command_mode'], ['payload', 'template'], true);
+        }
+        if ($component === HANumberDefinitions::DOMAIN) {
+            return in_array($entity['command_mode'], ['payload', 'template'], true);
+        }
+        if ($component === HACoverDefinitions::DOMAIN) {
+            return in_array($entity['command_mode'], ['payload', 'template'], true);
+        }
 
         return false;
     }
@@ -2236,6 +2721,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return HAMqttDiscoveryLightRuntime::buildCommandPayload($value);
         }
 
+        if ($entity['component'] === HACoverDefinitions::DOMAIN) {
+            return $this->buildCoverCommandPayload($entity, $value);
+        }
+
+        if ($entity['component'] === HAClimateDefinitions::DOMAIN) {
+            return $this->buildClimateCommandPayload($entity, $value);
+        }
+
         if ($entity['component'] === HASelectDefinitions::DOMAIN) {
             $option = $this->resolveSelectOption($entity['options'], $value);
             if ($option === null) {
@@ -2249,7 +2742,200 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return $option;
         }
 
+        if ($entity['component'] === HANumberDefinitions::DOMAIN) {
+            $payload = $this->formatNumberCommandPayload($value, is_array($entity['metadata'] ?? null) ? $entity['metadata'] : []);
+            if ($payload === null) {
+                return null;
+            }
+
+            if ($entity['command_mode'] === 'template') {
+                return $this->renderCommandTemplate($entity['command_template'], $payload);
+            }
+
+            return $payload;
+        }
+
         return null;
+    }
+
+    private function buildCoverCommandPayload(array $entity, mixed $value): ?string
+    {
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        if ($this->isCoverPositionEntity($metadata)) {
+            $payload = $this->formatCoverPositionPayload($value);
+            if ($payload === null) {
+                return null;
+            }
+
+            if ($entity['command_mode'] === 'template') {
+                return $this->renderCommandTemplate($entity['command_template'], $payload);
+            }
+
+            return $payload;
+        }
+
+        $payload = $this->normalizeNullableString(HACoverDefinitions::normalizeCommand($value));
+        if ($payload === null) {
+            return null;
+        }
+
+        if ($entity['command_mode'] === 'template') {
+            return $this->renderCommandTemplate($entity['command_template'], $payload);
+        }
+
+        return $payload;
+    }
+
+    private function buildClimateCommandPayload(array $entity, mixed $value): ?string
+    {
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        $payload = $this->formatClimateCommandPayload($value, $metadata);
+        if ($payload === null) {
+            return null;
+        }
+
+        if ($entity['command_mode'] === 'template') {
+            return $this->renderCommandTemplate($entity['command_template'], $payload);
+        }
+
+        return $payload;
+    }
+
+    private function handleCoverActionRequest(string $ident, array $entity, mixed $value, bool $tilt): void
+    {
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        $action = is_numeric($value) ? (int)$value : null;
+        [$requiredFeature, $payload] = $this->resolveCoverActionCommand($action, $tilt);
+        if ($requiredFeature === 0 || $payload === null) {
+            return;
+        }
+
+        $supported = $this->getSupportedFeatureFlags($metadata);
+        if ($supported !== 0 && !$this->supportsFeatureFlag($supported, $requiredFeature)) {
+            return;
+        }
+
+        $topicKey = $tilt ? 'tilt_action_topic' : 'action_topic';
+        $templateKey = $tilt ? 'tilt_action_command_template' : 'action_command_template';
+        $topic = trim((string)($metadata[$topicKey] ?? ''));
+        if ($topic === '') {
+            $this->debugExpert(__FUNCTION__, 'Cover-Aktion ohne Topic', [
+                'Ident' => $ident,
+                'EntityKey' => $entity['entity_key'] ?? '',
+                'Tilt' => $tilt
+            ], true);
+            return;
+        }
+
+        $commandTemplate = HAMqttDiscoveryTemplate::parseCommandTemplate($this->normalizeNullableString($metadata[$templateKey] ?? null));
+        if ($commandTemplate !== null) {
+            if (!($commandTemplate['supported'] ?? false)) {
+                $this->debugExpert(__FUNCTION__, 'Cover-Aktionstemplate wird nicht unterstuetzt', [
+                    'Ident' => $ident,
+                    'EntityKey' => $entity['entity_key'] ?? '',
+                    'Template' => $commandTemplate['raw'] ?? '',
+                    'Tilt' => $tilt
+                ], true);
+                return;
+            }
+
+            $payload = $this->renderCommandTemplate($commandTemplate, $payload);
+            if ($payload === null) {
+                return;
+            }
+        }
+
+        $this->debugExpert(__FUNCTION__, 'Sende Cover-Aktion', [
+            'Ident' => $ident,
+            'EntityKey' => $entity['entity_key'] ?? '',
+            'Topic' => $topic,
+            'Payload' => $payload,
+            'Tilt' => $tilt
+        ]);
+
+        $this->sendMqttMessage($topic, $payload, (int)$entity['qos'], (bool)$entity['retain']);
+        $this->resetTriggerActionValue($ident);
+    }
+
+    private function resolveCoverActionCommand(?int $action, bool $tilt): array
+    {
+        if ($tilt) {
+            return match ($action) {
+                HACoverDefinitions::ACTION_OPEN_TILT => [HACoverDefinitions::FEATURE_OPEN_TILT, 'open_tilt'],
+                HACoverDefinitions::ACTION_CLOSE_TILT => [HACoverDefinitions::FEATURE_CLOSE_TILT, 'close_tilt'],
+                HACoverDefinitions::ACTION_STOP_TILT => [HACoverDefinitions::FEATURE_STOP_TILT, 'stop_tilt'],
+                default => [0, null]
+            };
+        }
+
+        return match ($action) {
+            HACoverDefinitions::ACTION_OPEN => [HACoverDefinitions::FEATURE_OPEN, 'open'],
+            HACoverDefinitions::ACTION_CLOSE => [HACoverDefinitions::FEATURE_CLOSE, 'close'],
+            HACoverDefinitions::ACTION_STOP => [HACoverDefinitions::FEATURE_STOP, 'stop'],
+            default => [0, null]
+        };
+    }
+
+    private function formatCoverPositionPayload(mixed $value): ?string
+    {
+        if (!is_numeric($value)) {
+            $normalized = trim((string)$value);
+            if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
+                return null;
+            }
+
+            $value = str_replace(',', '.', $normalized);
+        }
+
+        $position = max(0.0, min(100.0, (float)$value));
+        return (string)(int)round($position);
+    }
+
+    private function formatNumberCommandPayload(mixed $value, array $metadata): ?string
+    {
+        if (!is_numeric($value)) {
+            $normalized = trim((string)$value);
+            if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
+                return null;
+            }
+            $value = str_replace(',', '.', $normalized);
+        }
+
+        return $this->inferNumberVariableType($metadata, $value) === VARIABLETYPE_INTEGER
+            ? (string)(int)$value
+            : (string)(float)$value;
+    }
+
+    private function formatClimateCommandPayload(mixed $value, array $metadata): ?string
+    {
+        if (!is_numeric($value)) {
+            $normalized = trim((string)$value);
+            if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
+                return null;
+            }
+            $value = str_replace(',', '.', $normalized);
+        }
+
+        $numericValue = (float)$value;
+        $min = $this->extractNumericMetadata($metadata, ['min', 'native_min_value']);
+        if ($min !== null) {
+            $numericValue = max($min, $numericValue);
+        }
+
+        $max = $this->extractNumericMetadata($metadata, ['max', 'native_max_value']);
+        if ($max !== null) {
+            $numericValue = min($max, $numericValue);
+        }
+
+        $digits = $this->getNumberPresentationDigits(
+            $metadata,
+            $this->extractNumericMetadata($metadata, ['step', 'native_step']),
+            $numericValue
+        );
+
+        return $digits <= 0
+            ? (string)(int)round($numericValue)
+            : rtrim(rtrim(number_format($numericValue, $digits, '.', ''), '0'), '.');
     }
 
     private function resolveSelectOption(array $options, mixed $value): ?string
@@ -2323,7 +3009,142 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             if ($index !== false) {
                 $this->SetValue($ident, (int)$index);
             }
+            return;
         }
+
+        if ($entity['component'] === HANumberDefinitions::DOMAIN) {
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId === false) {
+                return;
+            }
+
+            $castValue = $this->castSensorValue(
+                $value,
+                (int)(IPS_GetVariable($variableId)['VariableType'] ?? VARIABLETYPE_FLOAT)
+            );
+            if ($castValue !== null) {
+                $this->SetValue($ident, $castValue);
+            }
+            return;
+        }
+
+        if ($entity['component'] === HAClimateDefinitions::DOMAIN) {
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId === false) {
+                return;
+            }
+
+            $castValue = $this->castSensorValue(
+                $value,
+                (int)(IPS_GetVariable($variableId)['VariableType'] ?? VARIABLETYPE_FLOAT)
+            );
+            if ($castValue !== null) {
+                $this->SetValue($ident, $castValue);
+            }
+            return;
+        }
+
+        if ($entity['component'] === HACoverDefinitions::DOMAIN) {
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId === false) {
+                return;
+            }
+
+            $normalized = $this->normalizeCoverStateValue($value, is_array($entity['metadata'] ?? null) ? $entity['metadata'] : []);
+            if ($normalized === null) {
+                return;
+            }
+
+            $castValue = $this->castSensorValue(
+                $normalized,
+                (int)(IPS_GetVariable($variableId)['VariableType'] ?? VARIABLETYPE_STRING)
+            );
+            if ($castValue !== null) {
+                $this->SetValue($ident, $castValue);
+            }
+        }
+    }
+
+    private function resetTriggerActionValue(string $ident): void
+    {
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        $this->SetValue($ident, self::TRIGGER_RESET_VALUE);
+    }
+
+    private function isCoverPositionEntity(array $metadata, mixed $value = null): bool
+    {
+        $supported = is_numeric($metadata['supported_features'] ?? null) ? (int)$metadata['supported_features'] : 0;
+        if (($supported & HACoverDefinitions::FEATURE_SET_POSITION) === HACoverDefinitions::FEATURE_SET_POSITION) {
+            return true;
+        }
+
+        if ($this->normalizeMetadataBoolean($metadata['reports_position'] ?? false)) {
+            return true;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return true;
+        }
+
+        if (is_string($value)) {
+            $normalized = str_replace(',', '.', trim($value));
+            return $normalized !== '' && is_numeric($normalized);
+        }
+
+        return false;
+    }
+
+    private function inferNumberVariableType(array $metadata, mixed $value = null): int
+    {
+        $step = $this->extractNumericMetadata($metadata, ['step', 'native_step']);
+        if ($step !== null && ($step <= 0.0 || !$this->isWholeNumber($step))) {
+            return VARIABLETYPE_FLOAT;
+        }
+
+        $min = $this->extractNumericMetadata($metadata, ['min', 'native_min_value']);
+        if ($min !== null && !$this->isWholeNumber($min)) {
+            return VARIABLETYPE_FLOAT;
+        }
+
+        $max = $this->extractNumericMetadata($metadata, ['max', 'native_max_value']);
+        if ($max !== null && !$this->isWholeNumber($max)) {
+            return VARIABLETYPE_FLOAT;
+        }
+
+        $currentValue = $this->extractNumericMetadata(['value' => $value], ['value']);
+        if ($currentValue !== null && !$this->isWholeNumber($currentValue)) {
+            return VARIABLETYPE_FLOAT;
+        }
+
+        return VARIABLETYPE_INTEGER;
+    }
+
+    private function extractNumericMetadata(array $metadata, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $metadata)) {
+                continue;
+            }
+
+            $value = $metadata[$key];
+            if (is_string($value)) {
+                $value = str_replace(',', '.', trim($value));
+            }
+
+            if (is_numeric($value)) {
+                return (float)$value;
+            }
+        }
+
+        return null;
+    }
+
+    private function isWholeNumber(float $value): bool
+    {
+        return abs($value - round($value)) < 0.0000001;
     }
 
     private function sendMqttMessage(string $topic, string $payload, int $qos, bool $retain): void
@@ -2371,6 +3192,23 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         foreach ($entities as $lightEntity) {
+            if ((string)($lightEntity['component'] ?? '') === HACoverDefinitions::DOMAIN) {
+                $identPrefix = (string)($lightEntity['ident_prefix'] ?? $lightEntity['ident']);
+                if ($this->buildCoverActionIdent($identPrefix) === $ident) {
+                    return [
+                        'type' => 'cover_action',
+                        'entity' => $lightEntity
+                    ];
+                }
+
+                if ($this->buildCoverTiltActionIdent($identPrefix) === $ident) {
+                    return [
+                        'type' => 'cover_tilt_action',
+                        'entity' => $lightEntity
+                    ];
+                }
+            }
+
             if ((string)($lightEntity['component'] ?? '') !== HALightDefinitions::DOMAIN) {
                 continue;
             }

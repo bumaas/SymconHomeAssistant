@@ -7,6 +7,8 @@ declare(strict_types=1);
  */
 trait HADeviceCoreTrait
 {
+    use HALegacyVariableMigrationTrait;
+
     private array $topicMapping = [];
     private array $entities = [];
     private bool $hasMultipleStatusEntities = false;
@@ -499,9 +501,19 @@ trait HADeviceCoreTrait
 
             $objectType = (int)($object['ObjectType'] ?? -1);
             if ($objectType === OBJECTTYPE_VARIABLE) {
-                IPS_DeleteVariable($childId);
+                if ($this->markVariableAsLegacy($childId)) {
+                    $this->debugExpert(__FUNCTION__, 'Variable als veraltet markiert', [
+                        'ObjectID' => $childId,
+                        'Ident' => $ident
+                    ]);
+                }
             } elseif ($objectType === 5) {
                 IPS_DeleteMedia($childId);
+                $this->debugExpert(__FUNCTION__, 'Medienobjekt entfernt', [
+                    'ObjectID' => $childId,
+                    'ObjectType' => $objectType,
+                    'Ident' => $ident
+                ]);
             }
         }
     }

@@ -5,6 +5,7 @@
       "MQTT Base Topic": "MQTT Basis-Topic",
       "HA URL": "HA URL",
       "Long-Lived Access Token": "Langzeit-Access-Token",
+      "Hint: Create the token in Home Assistant under Profile > Security > Long-Lived Access Tokens.": "Hinweis: Token in Home Assistant unter Profil > Sicherheit > Langzeit-Zugriffstoken erstellen.",
       "Behavior": "Verhalten",
       "Use REST for */set topics": "REST für */set Topics verwenden",
       "Expert": "Experte",
@@ -16,4 +17,3 @@
     }
   }
 }
-

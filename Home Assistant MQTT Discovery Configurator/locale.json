@@ -5,7 +5,7 @@
       "Show Zigbee2MQTT bridge devices": "Zigbee2MQTT-Bridge-Geraete anzeigen",
       "Expert Settings": "Experteneinstellungen",
       "Enable extended debug output": "Erweiterte Debug-Ausgabe aktivieren",
-      "No MQTT discovery configs found in splitter cache. MQTT parent must subscribe to the discovery prefix, for example homeassistant/# or #.": "Keine MQTT-Discovery-Configs im Splitter-Cache gefunden. Der MQTT-Parent muss den Discovery-Prefix abonnieren, zum Beispiel homeassistant/# oder #.",
+      "No MQTT discovery configs found in splitter cache yet. Check whether the MQTT parent receives the discovery prefix, for example 'homeassistant/#' or '#', and whether discovery payloads are available.": "Noch keine MQTT-Discovery-Configs im Splitter-Cache gefunden. Bitte pruefen, ob der MQTT-Parent den Discovery-Prefix empfaengt, zum Beispiel 'homeassistant/#' oder '#', und ob Discovery-Payloads verfuegbar sind.",
       "Discovery Diagnostics": "Discovery-Diagnose",
       "Parsed discovery records/entities/devices: %d/%d/%d": "Geparste Discovery-Records/Entitaeten/Geraete: %d/%d/%d",
       "Unsupported discovery components: none": "Nicht unterstuetzte Discovery-Komponenten: keine",

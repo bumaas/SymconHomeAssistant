@@ -6,17 +6,24 @@ Diese Datei buendelt die naechsten fachlichen und technischen Arbeitspakete fuer
 
 - Der klassische Home-Assistant-Pfad (`Discovery`, `Configurator`, `Splitter`, `Device`, `Entity`) bleibt stabil und wird fuer fehlende Domains schrittweise vervollstaendigt.
 - Der MQTT-Discovery-Pfad wird als eigenstaendige, quellenneutrale Laufzeit sauber fertiggestellt.
-- Gemeinsame Normalisierung, Gruppierung und Laufzeitlogik bleiben klar getrennt, damit neue Producer oder Domains nicht zu Speziallogik in den Modulen fuehren.
+- Gemeinsame Normalisierung, Gruppierung, Laufzeitlogik sowie Namensbildung bleiben klar getrennt und zentralisiert, damit neue Producer oder Domains nicht zu Speziallogik in den Modulen fuehren.
 - Vor weiteren groesseren Funktionsausbauten wird die Basis fuer Regressionstests und reproduzierbare Pruefungen verbessert.
 
 ## 2. Prioritaeten
 
-1. MQTT-Discovery-Pfad funktional abschliessen und stabilisieren
-2. Self-resolving `DeviceID`-Pfad sauber absichern
-3. Fehlende Domain-Funktionalitaet im klassischen Runtime-Pfad ergaenzen
-4. Verifikation, Fixtures und Dokumentation ausbauen
+1. Weitere Discovery-Komponenten nach dem stabilen `light`-Pfad ausbauen
+2. Fehlende Domain-Funktionalitaet im klassischen Runtime-Pfad ergaenzen
+3. Verifikation, Fixtures und kleine Pruefwerkzeuge weiter ausbauen
+4. Dokumentation und Migrationshinweise auf dem vereinheitlichten Stand halten
 
 ## 3. Arbeitspaket A: MQTT Discovery v1 abschliessen
+
+Kurzdefinition `v1`:
+
+- Mit `v1` ist in dieser Datei der erste bewusst begrenzte, alltagstaugliche Funktionsumfang des MQTT-Discovery-Pfads gemeint.
+- Gemeint ist also kein externes Discovery-Protokoll und auch keine eigene Bundle-Version, sondern der erste intern abgenommene Ausbauzustand des Discovery-Devices.
+- Zu diesem `v1`-Kern gehoeren die grundlegende self-resolving `DeviceID`-Architektur, stabile Cache-/Diagnosepfade sowie die zuerst priorisierten Discovery-Komponenten mit belastbarem Lese-, Schreib- und Reconnect-Verhalten.
+- Weitere Komponenten wie `number`, `cover` oder `climate` bauen auf diesem `v1`-Kern auf und erweitern ihn danach schrittweise.
 
 ### A1. `DeviceID`-only-Schnittstelle finalisieren
 
@@ -64,6 +71,8 @@ Verifiziert:
 - Verhalten nach MQTT-Reconnect mit Live-Diagnosen und aktualisiertem Export-Bundle.
 - Fixture-Austausch fuer `ebusd`-Bundle in `tests/fixtures`.
 
+Nachlauf:
+
 - Discovery-Cache und Topic-Cache auf Konsistenz pruefen
 - Verhalten bei leeren oder veralteten Retained-Payloads klaeren
 - Diagnoseinformationen im Formular auf fehlende Discovery- oder State-Topics ausrichten
@@ -105,7 +114,7 @@ Restnotiz:
 
 - Der Sonderfall `unknown` konnte fuer Testfall 2 im Live-Betrieb nicht gezielt provoziert werden.
 
-Aktuell im Fokus:
+Abgedeckter Kern fuer v1:
 
 - `sensor`
 - `binary_sensor`
@@ -155,16 +164,23 @@ Offen/Nachlauf:
 
 Status:
 
-- teilweise vorgezogen, aber noch nicht als abgeschlossen abgenommen
+- fuer den aktuellen v1-Umfang weitgehend umgesetzt; weitere Komponenten bleiben offen
 
 Bereits im Repo sichtbar:
 
 - Zigbee2MQTT-`device_automation` ist im Parser und im Discovery-Device beruecksichtigt.
 - Reproduzierbare Fixtures und Doku decken `button` und `device_automation` bereits ab.
-- Fuer `light` existieren fixture-nahe Hilfsskripte und ein lokaler Runtime-Checker.
-- Der allgemeine Fixture-Checker behandelt `light`-Bundles ebenfalls als unterstuetzte Discovery-Komponenten.
+- Fuer `light` sind Parser, Gruppierung, Runtime-Extraktion, Attributpflege, Schreibpfade und fixture-nahe Checks vorhanden.
+- Fuer `number` sind Parser, Gruppierung, Hauptvariable, Typableitung, Slider-Praesentation und Schreibpfade vorhanden.
+- Fuer `cover` sind Parser, Gruppierung, Positionspfad, Hauptvariable, Zusatzaktionen und Namensbildung vorhanden.
+- Fuer `climate` ist der Zieltemperatur-Kernpfad ueber `temperature_state_topic` und `temperature_command_topic` mit Slider-Praesentation und Schreibpfad vorhanden.
+- Der allgemeine Fixture-Checker behandelt `light`, `number`, `cover` und `climate` als unterstuetzte Discovery-Komponenten.
+- Die Namensbildung fuer `light`, `number`, `cover` und `climate` laeuft ueber dieselben gemeinsamen Routinen wie im klassischen Device-Pfad.
+
+Noch offen:
 
 - Zigbee2MQTT-v1-Pfade mit echten Beispiel-Payloads absichern
+- Komplexere Climate-Mode-/Action-Templates bleiben mit der aktuellen Template-Reduktion noch ausserhalb des robusten Discovery-Kernpfads
 - Bridge-Entities und Endgeraete klar voneinander trennen
 - Producer-spezifische Unterschiede ausschliesslich in Parser, Template-Reduktion oder vorgeschalteter Normalisierung behandeln
 
@@ -173,17 +189,14 @@ Bereits im Repo sichtbar:
 Status:
 
 - `button` ist im Discovery-Device bereits enthalten
-- `light` ist im Repo fuer Parser, Gruppierung, Runtime-Extraktion und `command_topic`-Payloads dokumentiert und fixture-nah verifiziert
+- `light` ist im Repo fuer Parser, Gruppierung, Runtime-Extraktion, Attributvariablen, `command_topic`-Payloads und Namensbildung umgesetzt und verifiziert
+- `number`, `cover` und `climate` sind im priorisierten Discovery-Block inzwischen ebenfalls umgesetzt
 
-Empfohlene Reihenfolge nach Nutzwert und Naehe zum bestehenden Mapping:
+Naechster Fokus nach dem priorisierten Block:
 
-1. `number`
-2. `cover`
-3. `climate`
-
-Voraussetzung:
-
-- Erst nach stabilem Abschluss von Arbeitspaket A erweitern
+1. Climate-Nachlauf fuer komplexere Mode-/Action-Templates nur dann erweitern, wenn dafuer ein sauberer template-reduzierter Pfad definiert ist
+2. Fixture-nahe Checks fuer `number`, `cover` und `climate` analog zum vorhandenen Light-Check ergaenzen
+3. Weitere Discovery-Komponenten erst bei belastbaren Real-World-Fixtures priorisieren
 
 ## 5. Arbeitspaket C: Klassischen Runtime-Pfad vervollstaendigen
 
@@ -283,14 +296,14 @@ Bereits im Repo sichtbar:
 
 Weiter offen:
 
-- Einfachen Lint- oder Pruef-Workflow dokumentieren oder skripten
-- Optional kleine parsernahe PHP-Tests fuer `libs/Discovery` und Gruppierung ergaenzen
+- Einfachen kombinierten Lint-/Pruef-Workflow fuer typische lokale Checks dokumentieren oder skripten
+- Optional kleine parsernahe PHP-Tests fuer `libs/Discovery`, Gruppierung und weitere Discovery-Komponenten ergaenzen
 
 ## 7. Arbeitspaket E: Dokumentation und Migration
 
 Status:
 
-- abgeschlossen am 13.05.2026
+- im Kern abgeschlossen; zuletzt nachgezogen am 19.05.2026
 
 Geliefert:
 
@@ -299,12 +312,14 @@ Geliefert:
 - Modul-READMEs der MQTT-Discovery-Module sind auf `DeviceID`-only-Laufzeitpfad, Bundle-Modus und Subscription-Anforderungen synchronisiert.
 - Eigene Migrationsnotiz in `docs/MIGRATION.md` dokumentiert `DeviceID`-only, Bundle-Properties und die reduzierte `create`-Konfiguration des klassischen Configurators.
 - Fixture-Doku liegt im versionierten Testbereich unter `tests/fixtures/README.md`.
+- `docs/ARCHITEKTUR.md` dokumentiert die gemeinsame Ident- und Variablennamensbildung ueber `HAIdentNamingTrait` und `HAEntityVariableNamingTrait`.
+- Die Benennungsregeln fuer Device, Entity und MQTT Discovery Device sind auf kuerzere, instanzlokale und domain-praefixbasierte Idents vereinheitlicht.
 
 ## 8. Empfohlene Reihenfolge der Umsetzung
 
-1. Arbeitspaket B mit `light` gezielt abschliessen und erst danach weitere Discovery-Komponenten angehen
-2. Arbeitspaket D3 schlank mitziehen, damit Parser-/Runtime-Aenderungen nicht wieder ohne lokale Checks wachsen
-3. Klassische Domains aus Arbeitspaket C schrittweise erweitern
+1. In Arbeitspaket B den Climate-Nachlauf fuer komplexere Mode-/Action-Templates nur bei klarer template-reduzierter Loesung weiterziehen
+2. Arbeitspaket D3 fuer `number`, `cover` und `climate` schlank mitziehen, damit Parser-/Runtime-Aenderungen nicht wieder ohne lokale Checks wachsen
+3. Danach die klassischen Domains aus Arbeitspaket C schrittweise erweitern
 
 ## 8.1 Geparkte Punkte
 

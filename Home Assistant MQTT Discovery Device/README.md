@@ -7,7 +7,7 @@ Laufzeitmodul fuer MQTT-Discovery-Geraete aus dem Home Assistant MQTT Discovery 
 
 - Empfaengt MQTT-Nachrichten ueber den Home Assistant MQTT Discovery Splitter.
 - Wertet `state_topic`, `command_topic` und `availability` quellenneutral fuer MQTT-Discovery aus.
-- Unterstuetzt aktuell die Komponenten `sensor`, `binary_sensor`, `switch`, `select`, `button` und `light`.
+- Unterstuetzt aktuell die Komponenten `sensor`, `binary_sensor`, `number`, `cover`, `climate`, `switch`, `select`, `button` und `light`.
 - Kann diese Komponenten sowohl aus klassischen Discovery-Topics `homeassistant/<component>/.../config` als auch aus HA-Device-Discovery `homeassistant/device/.../config` aufloesen.
 - Stellt Zigbee2MQTT-`device_automation` Trigger als read-only Event-Zeitstempel pro Trigger-Subtype dar.
 - Behaelt fuer Zigbee2MQTT-Trigger einen Root-Topic-JSON-Fallback bei, falls statt des deklarierten Trigger-Topics nur das Runtime-JSON mit Feld wie `action` ankommt.
@@ -16,6 +16,10 @@ Laufzeitmodul fuer MQTT-Discovery-Geraete aus dem Home Assistant MQTT Discovery 
 - Unterstuetzt fuer `light` den JSON-Schema-v1-Write-Pfad ueber `command_topic`, wertet den `state`-Schluessel aus Runtime-JSONs aus und uebernimmt Metadaten wie `supported_color_modes`, `brightness_scale` und `effect_list` in Diagnose und Laufzeitmodell.
 - Legt fuer Discovery-`light` zusaetzliche Laufzeitvariablen fuer erkannte Lichtattribute wie `brightness`, `color_mode`, `color_temp`, `xy_color`, `hs_color` oder `effect` an und aktualisiert sie aus State- beziehungsweise `json_attributes_topic`-Payloads.
 - Schreibt derzeit konservativ nur generisch ableitbare Light-Attribute direkt ueber `command_topic`, insbesondere `brightness`, `color_temp`, `color_temp_kelvin`, `effect`, `flash` und `transition`; komplexe Farb-Payloads wie `xy_color` oder `rgb_color` bleiben vorerst read-only.
+- Unterstuetzt fuer `number` numerische Hauptvariablen inklusive Typableitung (`Integer`/`Float`), Slider-Praesentation aus `min`/`max`/`step` und MQTT-Schreibpfade ueber `command_topic` beziehungsweise einfache `command_template`.
+- Unterstuetzt fuer `cover` den MQTT-Discovery-Positionspfad ueber `position_topic` und `set_position_topic`, leitet daraus automatisch Slider- beziehungsweise Shutter-Praesentationen ab und faellt ohne Positionsdaten auf textuelle Statuswerte zurueck.
+- Legt fuer Discovery-`cover` zusaetzliche Aktionsvariablen fuer `open`/`close`/`stop` und bei vorhandenem `tilt_command_topic` auch fuer `open_tilt`/`close_tilt`/`stop_tilt` an.
+- Unterstuetzt fuer `climate` den Zieltemperatur-Pfad ueber `temperature_state_topic` und `temperature_command_topic`, bildet daraus eine Temperatur-Slider-Hauptvariable und uebernimmt `min_temp`, `max_temp`, `temp_step` sowie `temperature_unit` in die Praesentation.
 - Markiert bei Event-Triggern auch den Fall, dass nur der Zigbee2MQTT-Fallback greift (`disc topic fehlt; root-json fallback`).
 - Kann auch manuell angelegt werden und laedt seine Entities dann ueber `DeviceID` selbst aus dem Discovery-Splitter.
 - Persistiert keine eigene `DeviceConfig` mehr. Die Laufzeit arbeitet mit `DeviceID` und einer aufgeloesten Cache-Definition aus dem Splitter.
@@ -38,6 +42,6 @@ Laufzeitmodul fuer MQTT-Discovery-Geraete aus dem Home Assistant MQTT Discovery 
 
 ## Hinweis
 
-Das Modul ist bewusst auf den aktuellen MQTT-Discovery-Kernpfad fuer `sensor`, `binary_sensor`, `switch`, `select`, `button`, `light` und einfache Zigbee2MQTT-Trigger begrenzt. Weitere Discovery-Komponenten koennen spaeter darauf aufbauen, ohne den bestehenden Home Assistant Runtime-Pfad zu vermischen.
+Das Modul ist bewusst auf den aktuellen MQTT-Discovery-Kernpfad fuer `sensor`, `binary_sensor`, `number`, `cover`, `climate`, `switch`, `select`, `button`, `light` und einfache Zigbee2MQTT-Trigger begrenzt. Weitere Discovery-Komponenten koennen spaeter darauf aufbauen, ohne den bestehenden Home Assistant Runtime-Pfad zu vermischen.
 
 Der Zigbee2MQTT-Fallback ist als Kompatibilitaetspfad gedacht, nicht als Discovery-Istzustand. Sobald das deklarierte Trigger-Topic selbst geliefert wird, verschwindet die Warnung automatisch und der regulaere Discovery-Pfad greift.

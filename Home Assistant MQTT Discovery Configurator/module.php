@@ -61,7 +61,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         if ($records === []) {
             $form['actions'][] = [
                 'type' => 'Label',
-                'caption' => $this->Translate('No MQTT discovery configs found in splitter cache. MQTT parent must subscribe to the discovery prefix, for example homeassistant/# or #.')
+                'caption' => $this->Translate("No MQTT discovery configs found in splitter cache yet. Check whether the MQTT parent receives the discovery prefix, for example 'homeassistant/#' or '#', and whether discovery payloads are available.")
             ];
         }
 

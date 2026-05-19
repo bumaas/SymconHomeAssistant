@@ -854,18 +854,23 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
             $objectType = (int)($object['ObjectType'] ?? -1);
             if ($objectType === OBJECTTYPE_VARIABLE) {
-                IPS_DeleteVariable($childId);
+                if ($this->markVariableAsLegacy($childId)) {
+                    $this->debugExpert(__FUNCTION__, 'Variable als veraltet markiert', [
+                        'ObjectID' => $childId,
+                        'ObjectType' => $objectType,
+                        'Ident' => $ident
+                    ]);
+                }
             } elseif ($objectType === 5) {
                 IPS_DeleteMedia($childId);
+                $this->debugExpert(__FUNCTION__, 'Medienobjekt entfernt', [
+                    'ObjectID' => $childId,
+                    'ObjectType' => $objectType,
+                    'Ident' => $ident
+                ]);
             } else {
                 continue;
             }
-
-            $this->debugExpert(__FUNCTION__, 'Objekt entfernt', [
-                'ObjectID' => $childId,
-                'ObjectType' => $objectType,
-                'Ident' => $ident
-            ]);
         }
 
         $cache = $this->readEntityStateCache();

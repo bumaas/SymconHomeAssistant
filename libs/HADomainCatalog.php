@@ -11,6 +11,7 @@ final class HADomainCatalog
             HALightDefinitions::DOMAIN => [
                 'configurator_default' => true,
                 'main_writable' => true,
+                'status_domain' => true,
                 'attribute_topics' => true,
                 'attribute_payload' => true,
                 'variable_type' => HALightDefinitions::VARIABLE_TYPE,
