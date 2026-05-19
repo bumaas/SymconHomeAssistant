@@ -31,6 +31,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string ATTR_STATE_WARNINGS = 'StateWarnings';
     private const string ATTR_TOPIC_PROCESSING_INDEX = 'TopicProcessingIndex';
     private const int PERFORMANCE_LOG_THRESHOLD_MS = 250;
+    private const int ENTITY_POSITION_STEP = 10;
 
     /** @var string[] */
     private const array SUPPORTED_COMPONENTS = [
@@ -992,7 +993,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $entityOrder++;
             $ident = $entity['ident'];
             $idents[] = $ident;
-            $basePosition = $entityOrder * 100;
+            $basePosition = $entityOrder * self::ENTITY_POSITION_STEP;
 
             $variableType = $this->determineVariableType($entity, $cachedTopics);
             $this->recreateVariableIfTypeChanged($ident, $variableType);
@@ -1434,10 +1435,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $variableId = @$this->GetIDForIdent((string) $entity['ident']);
         if ($variableId === false) {
-            return 100;
+            return self::ENTITY_POSITION_STEP;
         }
 
-        return (int) (IPS_GetObject($variableId)['ObjectPosition'] ?? 100);
+        return (int) (IPS_GetObject($variableId)['ObjectPosition'] ?? self::ENTITY_POSITION_STEP);
     }
 
     private function buildLightAttributeIdent(string $entityIdentPrefix, string $attribute): string
