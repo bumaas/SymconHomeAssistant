@@ -510,7 +510,7 @@ trait HADeviceCoreTrait
                     ]);
                 }
             } elseif ($objectType === 5) {
-                IPS_DeleteMedia($childId);
+                IPS_DeleteMedia($childId, true);
                 $this->debugExpert(__FUNCTION__, 'Medienobjekt entfernt', [
                     'ObjectID' => $childId,
                     'ObjectType' => $objectType,

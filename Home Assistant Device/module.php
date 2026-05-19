@@ -863,7 +863,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                     ]);
                 }
             } elseif ($objectType === 5) {
-                IPS_DeleteMedia($childId);
+                IPS_DeleteMedia($childId, true);
                 $this->debugExpert(__FUNCTION__, 'Medienobjekt entfernt', [
                     'ObjectID' => $childId,
                     'ObjectType' => $objectType,
