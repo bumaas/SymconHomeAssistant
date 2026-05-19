@@ -263,6 +263,38 @@ trait HAEntityStoreTrait
         $entity = $this->entities[$entityId];
         $entity['attributes'] = $mergedAttributes;
         $this->syncEntityPresentation($entity);
+        $this->refreshEntityMainValueFromCache($entityId, $entity, $mergedAttributes);
+    }
+
+    private function refreshEntityMainValueFromCache(string $entityId, array $entity, array $attributes): void
+    {
+        $rawState = $this->getCachedEntityRawState($entityId) ?? $this->getCachedEntityState($entityId);
+        if ($rawState === null || trim($rawState) === '') {
+            return;
+        }
+
+        $this->replayEntityMainValue($entityId, $entity, $attributes, $rawState);
+    }
+
+    protected function replayEntityMainValue(string $entityId, array $entity, array $attributes, string $rawState): void
+    {
+        $domain = (string)($entity['domain'] ?? $this->getEntityDomain($entityId));
+        if ($domain === '') {
+            return;
+        }
+
+        $ident = $this->getSharedEntityMainIdent($entityId);
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        $descriptor = $this->describeVariableByIdent($ident, $domain);
+        if ($this->isTriggerVariableDescriptor($descriptor)) {
+            return;
+        }
+
+        $finalValue = $this->convertValueByDomain($domain, $rawState, $attributes);
+        $this->setEntityMainValue($entityId, $ident, $finalValue, $rawState);
     }
 
     private function getCachedEntityAttributes(string $entityId): array
