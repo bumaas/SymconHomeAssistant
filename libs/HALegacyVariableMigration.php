@@ -13,6 +13,7 @@ trait HALegacyVariableMigrationTrait
 
         $currentIdent = trim((string)($object['ObjectIdent'] ?? ''));
         $currentName = trim((string)($object['ObjectName'] ?? ''));
+        $currentPosition = (int)($object['ObjectPosition'] ?? 0);
         $legacyIdent = $this->buildAvailableLegacyIdent($currentIdent, $variableId);
         $legacyName = $this->buildLegacyName($currentName);
         $changed = false;
@@ -27,8 +28,54 @@ trait HALegacyVariableMigrationTrait
             $changed = true;
         }
 
+        if ($this->shouldMoveLegacyVariableToEnd($variableId, $currentPosition)) {
+            IPS_SetPosition($variableId, $this->getLegacyVariableEndPosition($variableId));
+            $changed = true;
+        }
+
         IPS_SetVariableCustomAction($variableId, 0);
         return $changed;
+    }
+
+    private function shouldMoveLegacyVariableToEnd(int $variableId, int $currentPosition): bool
+    {
+        return $currentPosition <= $this->getLegacyBaselinePosition($variableId);
+    }
+
+    private function getLegacyVariableEndPosition(int $variableId): int
+    {
+        $maxPosition = 0;
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
+            if ($childId === $variableId) {
+                continue;
+            }
+
+            $position = (int)(IPS_GetObject($childId)['ObjectPosition'] ?? 0);
+            $maxPosition = max($maxPosition, $position);
+        }
+
+        return $maxPosition + $this->getLegacyPositionStep();
+    }
+
+    private function getLegacyBaselinePosition(int $variableId): int
+    {
+        $maxPosition = 0;
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
+            if ($childId === $variableId) {
+                continue;
+            }
+
+            $object = IPS_GetObject($childId);
+            $ident = trim((string)($object['ObjectIdent'] ?? ''));
+            if ($ident !== '' && $this->isLegacyIdent($ident)) {
+                continue;
+            }
+
+            $position = (int)($object['ObjectPosition'] ?? 0);
+            $maxPosition = max($maxPosition, $position);
+        }
+
+        return $maxPosition;
     }
 
     private function buildAvailableLegacyIdent(string $ident, int $objectId): string
@@ -84,5 +131,10 @@ trait HALegacyVariableMigrationTrait
     private function getLegacyNameSuffix(): string
     {
         return ' (veraltet)';
+    }
+
+    private function getLegacyPositionStep(): int
+    {
+        return 10;
     }
 }
