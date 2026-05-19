@@ -18,9 +18,9 @@ final class HAMqttDiscoveryTemplate
             return null;
         }
 
-        if (preg_match('/^\{\{\s*value_json((?:(?:\.[A-Za-z0-9_]+)|(?:\[(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\'|\d+)\]))+)\s*((?:\|\s*[A-Za-z_]+\s*)*)\}\}$/', $raw, $matches) === 1) {
+        if (preg_match('/^{{\s*value_json((?:\.\w+|\[(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\'|\d+)])+)\s*((?:\|\s*[A-Za-z_]+\s*)*)}}$/', $raw, $matches) === 1) {
             $filters = self::parseFilters($matches[2] ?? '');
-            $path = self::parseJsonAccessorPath((string)$matches[1]);
+            $path = self::parseJsonAccessorPath($matches[1]);
             if ($path === []) {
                 return [
                     'kind'      => 'raw_template',
@@ -40,7 +40,7 @@ final class HAMqttDiscoveryTemplate
             ];
         }
 
-        if (preg_match('/^\{\{\s*value\s*((?:\|\s*[A-Za-z_]+\s*)*)\}\}$/', $raw, $matches) === 1) {
+        if (preg_match('/^{{\s*value\s*((?:\|\s*[A-Za-z_]+\s*)*)}}$/', $raw, $matches) === 1) {
             $filters = self::parseFilters($matches[1] ?? '');
             return [
                 'kind'      => 'raw_value',
@@ -71,7 +71,7 @@ final class HAMqttDiscoveryTemplate
             return null;
         }
 
-        $placeholderPattern = '/\{\{\s*value\s*\}\}/';
+        $placeholderPattern = '/{{\s*value\s*}}/';
         $placeholderCount = preg_match_all($placeholderPattern, $raw);
         if ($placeholderCount === 1) {
             $withoutValuePlaceholder = preg_replace($placeholderPattern, '', $raw, 1);
@@ -98,16 +98,19 @@ final class HAMqttDiscoveryTemplate
         $length = strlen($path);
 
         while ($offset < $length) {
-            if (preg_match('/\G\.([A-Za-z0-9_]+)/A', $path, $matches, 0, $offset) === 1) {
+            if (preg_match('/\G\.(\w+)/A', $path, $matches, 0, $offset) === 1) {
                 $segments[] = $matches[1];
                 $offset += strlen($matches[0]);
                 continue;
             }
 
-            if (preg_match('/\G\[(?:"((?:[^"\\\\]|\\\\.)*)"|\'((?:[^\'\\\\]|\\\\.)*)\'|(\d+))\]/A', $path, $matches, 0, $offset) === 1) {
-                $segment = $matches[1] !== ''
-                    ? stripcslashes($matches[1])
-                    : ($matches[2] !== '' ? stripcslashes($matches[2]) : $matches[3]);
+            if (preg_match('/\G\[(?:"((?:[^"\\\\]|\\\\.)*)"|\'((?:[^\'\\\\]|\\\\.)*)\'|(\d+))]/A', $path, $matches, 0, $offset) === 1) {
+                $segment = $matches[3];
+                if ($matches[1] !== '') {
+                    $segment = stripcslashes($matches[1]);
+                } elseif ($matches[2] !== '') {
+                    $segment = stripcslashes($matches[2]);
+                }
                 $segments[] = $segment;
                 $offset += strlen($matches[0]);
                 continue;
@@ -139,12 +142,6 @@ final class HAMqttDiscoveryTemplate
 
     private static function areFiltersSupported(array $filters): bool
     {
-        foreach ($filters as $filter) {
-            if (!in_array($filter, self::SUPPORTED_FILTERS, true)) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($filters, static fn(string $filter): bool => in_array($filter, self::SUPPORTED_FILTERS, true));
     }
 }

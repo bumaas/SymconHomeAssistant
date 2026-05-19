@@ -105,7 +105,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         }
 
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
-            $this->debugExpert(__FUNCTION__, 'Verbindungsstatus ge�ndert. Aktualisiere...');
+            $this->debugExpert(__FUNCTION__, 'Verbindungsstatus geändert. Aktualisiere...');
             $this->ApplyChanges();
         }
     }
@@ -174,7 +174,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
             $this->SetSummary($entityId);
             $this->SetStatus(self::STATUS_ENTITY_INVALID);
-            $this->debugExpert(__FUNCTION__, 'Entity konnte nicht aufgel�st werden', ['EntityID' => $entityId]);
+            $this->debugExpert(__FUNCTION__, 'Entity konnte nicht aufgelöst werden', ['EntityID' => $entityId]);
             return;
         }
 
@@ -363,12 +363,12 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $attributes = $this->getResolvedAttributesForDisplay($resolved);
         $deviceClass = $this->getResolvedDeviceClass($resolved, $attributes);
 
-        $this->updateFormFieldSafe('ResolvedName', 'caption', 'Resolved Name: ' . (string)($resolved['name'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedDomain', 'caption', 'Resolved Domain: ' . (string)($resolved['domain'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedName', 'caption', 'Resolved Name: ' . ($resolved['name'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedDomain', 'caption', 'Resolved Domain: ' . ($resolved['domain'] ?? ''));
         $this->updateFormFieldSafe('ResolvedDeviceClass', 'caption', 'Resolved Device Class: ' . $deviceClass);
-        $this->updateFormFieldSafe('ResolvedDeviceID', 'caption', 'Resolved Device ID: ' . (string)($resolved['device_id'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedArea', 'caption', 'Resolved Area: ' . (string)($resolved['area'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedAttributeCount', 'caption', 'Resolved Attribute Count: ' . (string)count($attributes));
+        $this->updateFormFieldSafe('ResolvedDeviceID', 'caption', 'Resolved Device ID: ' . ($resolved['device_id'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedArea', 'caption', 'Resolved Area: ' . ($resolved['area'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedAttributeCount', 'caption', 'Resolved Attribute Count: ' . count($attributes));
         $this->updateFormFieldSafe(
             'ResolvedAttributes',
             'values',
@@ -384,11 +384,11 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
         foreach ($form['elements'] as &$element) {
             if (($element['name'] ?? '') === 'ResolvedName') {
-                $element['caption'] = 'Resolved Name: ' . (string)($resolved['name'] ?? '');
+                $element['caption'] = 'Resolved Name: ' . ($resolved['name'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDomain') {
-                $element['caption'] = 'Resolved Domain: ' . (string)($resolved['domain'] ?? '');
+                $element['caption'] = 'Resolved Domain: ' . ($resolved['domain'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDeviceClass') {
@@ -396,15 +396,15 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDeviceID') {
-                $element['caption'] = 'Resolved Device ID: ' . (string)($resolved['device_id'] ?? '');
+                $element['caption'] = 'Resolved Device ID: ' . ($resolved['device_id'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedArea') {
-                $element['caption'] = 'Resolved Area: ' . (string)($resolved['area'] ?? '');
+                $element['caption'] = 'Resolved Area: ' . ($resolved['area'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedAttributeCount') {
-                $element['caption'] = 'Resolved Attribute Count: ' . (string)count($attributes);
+                $element['caption'] = 'Resolved Attribute Count: ' . count($attributes);
                 continue;
             }
 
@@ -414,11 +414,11 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
             foreach ($element['items'] as &$item) {
                 if (($item['name'] ?? '') === 'ResolvedName') {
-                    $item['caption'] = 'Resolved Name: ' . (string)($resolved['name'] ?? '');
+                    $item['caption'] = 'Resolved Name: ' . ($resolved['name'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDomain') {
-                    $item['caption'] = 'Resolved Domain: ' . (string)($resolved['domain'] ?? '');
+                    $item['caption'] = 'Resolved Domain: ' . ($resolved['domain'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDeviceClass') {
@@ -426,15 +426,15 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDeviceID') {
-                    $item['caption'] = 'Resolved Device ID: ' . (string)($resolved['device_id'] ?? '');
+                    $item['caption'] = 'Resolved Device ID: ' . ($resolved['device_id'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedArea') {
-                    $item['caption'] = 'Resolved Area: ' . (string)($resolved['area'] ?? '');
+                    $item['caption'] = 'Resolved Area: ' . ($resolved['area'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedAttributeCount') {
-                    $item['caption'] = 'Resolved Attribute Count: ' . (string)count($attributes);
+                    $item['caption'] = 'Resolved Attribute Count: ' . count($attributes);
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedAttributes') {
@@ -462,7 +462,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $captions = [
             'DiagLastMQTT' => 'Letzte MQTT-Message: ' . $lastMqtt,
             'DiagLastREST' => 'Letzter REST-Abruf: ' . $lastRest,
-            'DiagEntityCount' => 'EntitÃ¤ten (aktiv): ' . $entityCount
+            'DiagEntityCount' => 'Entitäten (aktiv): ' . $entityCount
         ];
 
         foreach ($form['actions'] as &$action) {

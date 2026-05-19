@@ -84,16 +84,12 @@ trait HADomainValueMappingTrait
         return null;
     }
 
-    private function getVariableType(string $domain, array $attributes = []): int
+    protected function getVariableType(string $domain, array $attributes = []): int
     {
         $domain = $this->normalizeDomainAlias($domain);
 
         $staticType = HADomainCatalog::getMainVariableType($domain);
-        if ($staticType !== null) {
-            return $staticType;
-        }
-
-        return match ($domain) {
+        return $staticType ?? match ($domain) {
             HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes),
             HACoverDefinitions::DOMAIN => $this->inferCoverVariableType($attributes),
             HAValveDefinitions::DOMAIN => $this->inferValveVariableType($attributes),
@@ -171,7 +167,6 @@ trait HADomainValueMappingTrait
             'min' => 60,
             'ms' => 0.001,
             'µs', 'μs', 'us' => 0.000001,
-            's', '' => 1,
             default => 1,
         };
 

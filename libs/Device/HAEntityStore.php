@@ -4,19 +4,16 @@ declare(strict_types=1);
 
 trait HAEntityStoreTrait
 {
-    private function isManagedEntityId(string $entityId): bool
+    protected function isManagedEntityId(string $entityId): bool
     {
         if (isset($this->entities[$entityId]) && (($this->entities[$entityId]['create_var'] ?? true) !== false)) {
             return true;
         }
 
-        foreach ($this->getConfiguredEntities(__FUNCTION__) as $row) {
-            if (($row['entity_id'] ?? '') === $entityId) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(
+            $this->getConfiguredEntities(__FUNCTION__),
+            static fn(array $row): bool => ($row['entity_id'] ?? '') === $entityId
+        );
     }
 
     private function getEntityDomain(string $entityId): string
@@ -45,7 +42,7 @@ trait HAEntityStoreTrait
         return $this->findSharedConfiguredEntityByMainIdent($ident);
     }
 
-    private function findEntityByIdentSuffix(string $ident, string $suffix, string $domain): ?array
+    protected function findEntityByIdentSuffix(string $ident, string $suffix, string $domain): ?array
     {
         foreach ($this->entities as $entityId => $entity) {
             if (($entity['domain'] ?? '') !== $domain) {
@@ -101,7 +98,7 @@ trait HAEntityStoreTrait
 
         $domain = $this->getEntityDomain($entityId);
         if ($domain !== '') {
-            $attributes = $this->filterAttributesByDomain($domain, $attributes, __FUNCTION__);
+            $attributes = $this->filterAttributesByDomain($domain, $attributes);
         }
 
         $existing = $this->getStoredEntityAttributes($entityId);
@@ -198,11 +195,7 @@ trait HAEntityStoreTrait
         }
 
         $linkedPosition = $this->getMediaPlayerLinkedPosition($entityId, $domain);
-        if ($linkedPosition !== null) {
-            return $linkedPosition;
-        }
-
-        return $position;
+        return $linkedPosition ?? $position;
     }
 
     // Initiale Anlage und Refresh teilen sich einen Pfad für Hauptvariable und Domain-Extras.
@@ -315,7 +308,7 @@ trait HAEntityStoreTrait
         return $this->getCachedEntityStringValue($entityId, 'raw_state');
     }
 
-    private function updateAvailabilityValue(string $entityId, mixed $rawState): void
+    private function updateAvailabilityValue(mixed $rawState): void
     {
         if (!is_string($rawState) || trim($rawState) === '') {
             return;
@@ -389,7 +382,7 @@ trait HAEntityStoreTrait
             }
 
             $entries[$entityId] = [
-                'entity_id'    => (int)$objectId,
+                'entity_id'    => $objectId,
                 'state'        => $rawState,
                 'available'    => !$this->isUnavailableEntityState($rawState)
             ];

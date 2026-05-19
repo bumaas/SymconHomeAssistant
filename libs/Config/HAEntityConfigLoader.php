@@ -149,19 +149,6 @@ EOT;
         return $entities;
     }
 
-    private function resolveRawEntitiesByDeviceId(string $deviceId, ?array $domains = null): array
-    {
-        if ($deviceId === '') {
-            return [];
-        }
-
-        $entities = $this->fetchAllRawEntities($domains);
-        return array_values(array_filter(
-            $entities,
-            static fn(array $entity): bool => (($entity['device_id'] ?? 'none') === $deviceId)
-        ));
-    }
-
     private function resolveRawEntityByEntityId(string $entityId): ?array
     {
         if ($entityId === '') {
@@ -173,13 +160,10 @@ EOT;
             return null;
         }
 
-        foreach ($entities as $entity) {
-            if (is_array($entity) && (($entity['entity_id'] ?? '') === $entityId)) {
-                return $entity;
-            }
-        }
-
-        return null;
+        return array_find(
+            $entities,
+            static fn(mixed $entity): bool => is_array($entity) && (($entity['entity_id'] ?? '') === $entityId)
+        );
     }
 
     private function renderHATemplate(string $template): ?array

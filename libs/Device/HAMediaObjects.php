@@ -4,6 +4,44 @@ declare(strict_types=1);
 
 trait HAMediaObjectsTrait
 {
+    protected function ensureManagedMediaObject(
+        string $ident,
+        int $mediaType,
+        string $debugCategory,
+        callable $syncMeta
+    ): bool {
+        $objectId = @$this->GetIDForIdent($ident);
+        if ($objectId !== false) {
+            $object = IPS_GetObject($objectId);
+            if (($object['ObjectType'] ?? null) !== OBJECTTYPE_MEDIA) {
+                $this->debugExpert($debugCategory, 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
+                return false;
+            }
+            $syncMeta($objectId);
+            return true;
+        }
+
+        $mediaId = IPS_CreateMedia($mediaType);
+        IPS_SetParent($mediaId, $this->InstanceID);
+        IPS_SetIdent($mediaId, $ident);
+        $syncMeta($mediaId);
+        return true;
+    }
+
+    protected function resolveManagedMediaId(string $ident, callable $ensureMedia): int|false
+    {
+        $mediaId = @$this->GetIDForIdent($ident);
+        if ($mediaId !== false) {
+            return $mediaId;
+        }
+
+        if (!$ensureMedia()) {
+            return false;
+        }
+
+        return @$this->GetIDForIdent($ident);
+    }
+
     private function makeMediaImageUrlAbsolute(string $url): string
     {
         $trimmed = trim($url);
@@ -35,7 +73,7 @@ trait HAMediaObjectsTrait
         return rtrim($haUrl, '/');
     }
 
-    private function maintainCameraPreviewMedia(string $entityId, int $basePosition): void
+    protected function maintainCameraPreviewMedia(string $entityId, int $basePosition): void
     {
         $this->maintainEntityPreviewMedia(
             $entityId,
@@ -47,7 +85,7 @@ trait HAMediaObjectsTrait
         );
     }
 
-    private function maintainImagePreviewMedia(string $entityId, int $basePosition): void
+    protected function maintainImagePreviewMedia(string $entityId, int $basePosition): void
     {
         $this->maintainEntityPreviewMedia(
             $entityId,
@@ -79,22 +117,14 @@ trait HAMediaObjectsTrait
         string $filePrefix
     ): bool {
         $ident = $this->buildSharedSuffixIdent($entityId, $suffix);
-        $objectId = @$this->GetIDForIdent($ident);
-        if ($objectId !== false) {
-            $object = IPS_GetObject($objectId);
-            if (($object['ObjectType'] ?? null) !== 5) {
-                $this->debugExpert($debugCategory, 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
-                return false;
+        return $this->ensureManagedMediaObject(
+            $ident,
+            MEDIATYPE_IMAGE,
+            $debugCategory,
+            function (int $mediaId) use ($basePosition, $name, $filePrefix): void {
+                $this->syncEntityPreviewMeta($mediaId, $basePosition, $name, $filePrefix);
             }
-            $this->syncEntityPreviewMeta($objectId, $basePosition, $name, $filePrefix);
-            return true;
-        }
-
-        $mediaId = IPS_CreateMedia(MEDIATYPE_IMAGE);
-        IPS_SetParent($mediaId, $this->InstanceID);
-        IPS_SetIdent($mediaId, $ident);
-        $this->syncEntityPreviewMeta($mediaId, $basePosition, $name, $filePrefix);
-        return true;
+        );
     }
 
     private function syncEntityPreviewMeta(int $mediaId, int $basePosition, string $name, string $filePrefix): void
@@ -108,7 +138,7 @@ trait HAMediaObjectsTrait
         }
     }
 
-    private function updateCameraPreviewMedia(string $entityId): void
+    protected function updateCameraPreviewMedia(string $entityId): void
     {
         $absoluteUrl = $this->buildCameraPreviewUrl($entityId);
         if ($absoluteUrl === '') {
@@ -135,7 +165,7 @@ trait HAMediaObjectsTrait
         return $baseUrl . '/api/camera_proxy/' . $entityId;
     }
 
-    private function resolveImagePreviewUrl(string $entityId, ?array $attributes = null): string
+    protected function resolveImagePreviewUrl(string $entityId, ?array $attributes = null): string
     {
         $entity = $this->entities[$entityId] ?? null;
         if (!is_array($attributes)) {
@@ -161,15 +191,12 @@ trait HAMediaObjectsTrait
         string $filePrefix
     ): void {
         $ident = $this->buildSharedSuffixIdent($entityId, $suffix);
-        $mediaId = @$this->GetIDForIdent($ident);
+        $mediaId = $this->resolveManagedMediaId(
+            $ident,
+            fn(): bool => $this->ensureEntityPreviewMedia($entityId, $suffix, 0, $name, $debugCategory, $filePrefix)
+        );
         if ($mediaId === false) {
-            if (!$this->ensureEntityPreviewMedia($entityId, $suffix, 0, $name, $debugCategory, $filePrefix)) {
-                return;
-            }
-            $mediaId = @$this->GetIDForIdent($ident);
-            if ($mediaId === false) {
-                return;
-            }
+            return;
         }
 
         $content = $this->fetchMediaImageContent($absoluteUrl);
@@ -182,7 +209,7 @@ trait HAMediaObjectsTrait
         $this->debugExpert($debugCategory, 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
     }
 
-    private function getCameraStreamMediaName(string $entityId): string
+    protected function getCameraStreamMediaName(string $entityId): string
     {
         return $this->getEntityFriendlyName($entityId) ?? $this->Translate('Stream');
     }
@@ -264,7 +291,7 @@ trait HAMediaObjectsTrait
         }
     }
 
-    private function maintainMediaPlayerCoverMedia(string $entityId, int $basePosition): void
+    protected function maintainMediaPlayerCoverMedia(string $entityId, int $basePosition): void
     {
         $this->ensureMediaPlayerCoverMedia($entityId, $basePosition);
     }
@@ -272,22 +299,14 @@ trait HAMediaObjectsTrait
     private function ensureMediaPlayerCoverMedia(string $entityId, int $basePosition): bool
     {
         $ident = $this->buildSharedSuffixIdent($entityId, self::MEDIA_PLAYER_COVER_SUFFIX);
-        $objectId = @$this->GetIDForIdent($ident);
-        if ($objectId !== false) {
-            $object = IPS_GetObject($objectId);
-            if (($object['ObjectType'] ?? null) !== 5) {
-                $this->debugExpert('MediaCover', 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
-                return false;
+        return $this->ensureManagedMediaObject(
+            $ident,
+            MEDIATYPE_IMAGE,
+            'MediaCover',
+            function (int $mediaId) use ($basePosition): void {
+                $this->syncMediaPlayerCoverMeta($mediaId, $basePosition);
             }
-            $this->syncMediaPlayerCoverMeta($objectId, $basePosition);
-            return true;
-        }
-
-        $mediaId = IPS_CreateMedia(MEDIATYPE_IMAGE);
-        IPS_SetParent($mediaId, $this->InstanceID);
-        IPS_SetIdent($mediaId, $ident);
-        $this->syncMediaPlayerCoverMeta($mediaId, $basePosition);
-        return true;
+        );
     }
 
     private function syncMediaPlayerCoverMeta(int $mediaId, int $basePosition): void
@@ -302,7 +321,7 @@ trait HAMediaObjectsTrait
         }
     }
 
-    private function updateMediaPlayerCoverMedia(string $entityId, string $url): void
+    protected function updateMediaPlayerCoverMedia(string $entityId, string $url): void
     {
         $trimmed = trim($url);
         if ($trimmed === '') {
@@ -314,15 +333,12 @@ trait HAMediaObjectsTrait
         }
 
         $ident = $this->buildSharedSuffixIdent($entityId, self::MEDIA_PLAYER_COVER_SUFFIX);
-        $mediaId = @$this->GetIDForIdent($ident);
+        $mediaId = $this->resolveManagedMediaId(
+            $ident,
+            fn(): bool => $this->ensureMediaPlayerCoverMedia($entityId, 0)
+        );
         if ($mediaId === false) {
-            if (!$this->ensureMediaPlayerCoverMedia($entityId, 0)) {
-                return;
-            }
-            $mediaId = @$this->GetIDForIdent($ident);
-            if ($mediaId === false) {
-                return;
-            }
+            return;
         }
 
         $content = $this->fetchMediaImageContent($absoluteUrl);

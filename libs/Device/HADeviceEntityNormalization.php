@@ -20,7 +20,7 @@ trait HADeviceEntityNormalizationTrait
         if ($configured !== null) {
             $configuredAttributes = $configured['attributes'] ?? [];
             if (is_string($configuredAttributes)) {
-                $configuredAttributes = json_decode($configuredAttributes, true) ?? [];
+                $configuredAttributes = json_decode($configuredAttributes, true, 512, JSON_THROW_ON_ERROR) ?? [];
             }
             if (is_array($configuredAttributes) && $configuredAttributes !== []) {
                 $resolved = array_merge($configuredAttributes, $resolved);
@@ -56,9 +56,8 @@ trait HADeviceEntityNormalizationTrait
 
         $configuredEntities = [];
         foreach ($configData as $row) {
-            // Nutzt die zentrale Normalisierung
-            $row = $this->normalizeEntityStructure($row);
-            if ($row === null || (($row['create_var'] ?? true) === false)) {
+            $row = $this->normalizeActiveConfiguredEntity($row);
+            if ($row === null) {
                 continue;
             }
 
@@ -71,12 +70,9 @@ trait HADeviceEntityNormalizationTrait
     // Sucht die passende Konfigurationszeile zu einer Entity-ID.
     private function findConfiguredEntityById(string $entityId): ?array
     {
-        foreach ($this->getConfiguredEntities(__FUNCTION__) as $row) {
-            if (($row['entity_id'] ?? '') === $entityId) {
-                return $row;
-            }
-        }
-
-        return null;
+        return array_find(
+            $this->getConfiguredEntities(__FUNCTION__),
+            static fn(array $row): bool => ($row['entity_id'] ?? '') === $entityId
+        );
     }
 }

@@ -153,16 +153,12 @@ trait HADeviceCoreTrait
         }
 
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntityStructure($row);
-            if ($entity === null || !($entity['create_var'] ?? true)) {
+            $entity = $this->normalizeActiveConfiguredEntity($row);
+            if ($entity === null) {
                 continue;
             }
 
-            $entityId = $entity['entity_id'] ?? '';
-            if ($entityId === '') {
-                continue;
-            }
-
+            $entityId = $entity['entity_id'];
             $state = $this->requestHaState($entityId);
             if (is_array($state)) {
                 $this->applyInitialState($entityId, $state);
@@ -185,7 +181,7 @@ trait HADeviceCoreTrait
         $this->debugExpert(__FUNCTION__, 'MQTT Payload empfangen', ['Payload' => $JSONString]);
         $this->WriteAttributeString('LastMQTTMessage', $JSONString);
 
-        $data = json_decode($JSONString, true);
+        $data = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($data)) {
             return '';
         }
@@ -237,113 +233,19 @@ trait HADeviceCoreTrait
     {
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
 
-        if ($this->handleLockAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleCoverAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleCoverTiltAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleValveAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleVacuumAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleVacuumFanSpeedAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleLawnMowerAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleCameraPowerAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleMediaPlayerPowerAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleMediaPlayerAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleClimatePowerAction($Ident, $Value)) {
+        if ($this->handleDirectDomainActions($Ident, $Value)) {
             return;
         }
 
-        $entity = $this->findEntityByIdent($Ident);
-        if ($entity !== null && !empty($entity['entity_id'])) {
-            $entityId = $entity['entity_id'];
-            $domain = $entity['domain'] ?? null;
-            if ($domain === null && str_contains($entityId, '.')) {
-                [$domain] = explode('.', $entityId, 2);
-            }
-            $this->debugExpert('RequestAction', 'Entity aufgelöst', ['EntityID' => $entityId, 'Domain' => $domain]);
-
-            if (!$this->isEntityWritable($domain ?? '', $entity['attributes'] ?? [])) {
-                $this->debugExpert('RequestAction', 'Variable ist nicht schreibbar', ['EntityID' => $entityId], true);
-                return;
-            }
-
-            $mqttPayload = $this->formatPayloadForMqtt($domain ?? '', $Value, $entity['attributes'] ?? []);
-            if ($mqttPayload === '') {
-                $this->debugExpert('RequestAction', 'Payload leer', ['Domain' => $domain, 'Value' => $Value], true);
-                return;
-            }
-            $this->debugExpert('RequestAction', 'Payload formatiert', ['Payload' => $mqttPayload]);
-
-            if ($this->trySendMainEntityValueViaRest($entityId, (string)($domain ?? ''), $mqttPayload, $Ident, $entity['attributes'] ?? [])) {
-                return;
-            }
-
-            $topic = $this->getSetTopicForEntity($entityId);
-            if ($topic === '') {
-                return;
-            }
-            $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $mqttPayload, [], true);
-
-            $this->sendMqttMessage($topic, $mqttPayload);
-            $optimisticValue = $this->convertValueByDomain($domain ?? '', (string)$mqttPayload, $entity['attributes'] ?? []);
-            $this->setEntityMainValue($entityId, $Ident, $optimisticValue, (string)$mqttPayload);
-            $this->updateEntityRawStateCache($entityId, (string)$mqttPayload);
-            $this->updateEntityCache($entityId, (string)$mqttPayload, null);
-            $this->resetVariableByDescriptor($Ident, $this->describeVariableByIdent($Ident, $domain));
+        if ($this->handleMainEntityRequestAction($Ident, $Value)) {
             return;
         }
 
-        $attributeInfo = $this->resolveAttributeByIdent($Ident);
-        if ($attributeInfo === null) {
-            $this->debugExpert(__FUNCTION__, 'Entity/Attribut nicht gefunden', ['Ident' => $Ident], true);
+        if ($this->handleAttributeRequestAction($Ident, $Value)) {
             return;
         }
 
-        $entityId = $attributeInfo['entity_id'];
-        $attribute = $attributeInfo['attribute'];
-
-        $payload = $this->buildDomainAttributePayload($attributeInfo['domain'], $attribute, $Value);
-        if ($payload === '' && !HADomainCatalog::supportsAttributePayload($attributeInfo['domain'])) {
-            $this->debugExpert(__FUNCTION__, 'Attribut-Domain nicht unterstützt', ['Attribute' => $attribute, 'Domain' => $attributeInfo['domain']], true);
-            return;
-        }
-        if ($payload === '') {
-            $this->debugExpert(__FUNCTION__, 'Attribut Payload leer', ['Attribute' => $attribute], true);
-            return;
-        }
-        $topic = $this->getSetTopicForEntity($entityId);
-        if ($topic === '') {
-            $this->debugExpert('Action', 'Kein Set-Topic für Entity | EntityID=' . $entityId, [], true);
-            return;
-        }
-        $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $payload, [], true);
-        $this->sendMqttMessage($topic, $payload);
-        if ($attributeInfo['domain'] === HAClimateDefinitions::DOMAIN && $attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
-            $hvacMode = trim((string)$Value);
-            if ($hvacMode !== '') {
-                $this->storeEntityAttribute($entityId, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $hvacMode);
-                $this->updateEntityCache($entityId, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $hvacMode]);
-                $this->setValueWithDebug($Ident, $hvacMode);
-            }
-        }
+        $this->debugExpert(__FUNCTION__, 'Entity/Attribut nicht gefunden', ['Ident' => $Ident], true);
     }
 
     protected function trySendMainEntityValueViaRest(
@@ -387,12 +289,149 @@ trait HADeviceCoreTrait
             'Data' => $requestData
         ], true);
 
-        $optimisticValue = $this->convertValueByDomain($domain, $formattedPayload, is_array($attributes) ? $attributes : []);
-        $this->setEntityMainValue($entityId, $ident, $optimisticValue, $formattedPayload);
-        $this->updateEntityRawStateCache($entityId, $formattedPayload);
-        $this->updateEntityCache($entityId, $formattedPayload, null);
-        $this->resetVariableByDescriptor($ident, $this->describeVariableByIdent($ident, $domain));
+        $this->applyOptimisticEntityValue($entityId, $ident, $domain, $formattedPayload, $attributes);
         return true;
+    }
+
+    private function handleDirectDomainActions(string $ident, mixed $value): bool
+    {
+        return array_any(
+            $this->getDirectDomainActionHandlers(),
+            fn(string $handler): bool => $this->{$handler}($ident, $value)
+        );
+    }
+
+    private function getDirectDomainActionHandlers(): array
+    {
+        return [
+            'handleLockAction',
+            'handleCoverAction',
+            'handleCoverTiltAction',
+            'handleValveAction',
+            'handleVacuumAction',
+            'handleVacuumFanSpeedAction',
+            'handleLawnMowerAction',
+            'handleCameraPowerAction',
+            'handleMediaPlayerPowerAction',
+            'handleMediaPlayerAction',
+            'handleClimatePowerAction'
+        ];
+    }
+
+    private function handleMainEntityRequestAction(string $ident, mixed $value): bool
+    {
+        $entity = $this->findEntityByIdent($ident);
+        if ($entity === null || empty($entity['entity_id'])) {
+            return false;
+        }
+
+        $entityId = (string) $entity['entity_id'];
+        $domain = $this->resolveEntityActionDomain($entityId, $entity);
+        $attributes = is_array($entity['attributes'] ?? null) ? $entity['attributes'] : [];
+        $this->debugExpert(__FUNCTION__, 'Entity aufgelöst', ['EntityID' => $entityId, 'Domain' => $domain]);
+
+        if (!$this->isEntityWritable($domain, $attributes)) {
+            $this->debugExpert(__FUNCTION__, 'Variable ist nicht schreibbar', ['EntityID' => $entityId], true);
+            return true;
+        }
+
+        $mqttPayload = $this->formatPayloadForMqtt($domain, $value, $attributes);
+        if ($mqttPayload === '') {
+            $this->debugExpert(__FUNCTION__, 'Payload leer', ['Domain' => $domain, 'Value' => $value], true);
+            return true;
+        }
+
+        $this->debugExpert(__FUNCTION__, 'Payload formatiert', ['Payload' => $mqttPayload]);
+        if ($this->trySendMainEntityValueViaRest($entityId, $domain, $mqttPayload, $ident, $attributes)) {
+            return true;
+        }
+
+        $topic = $this->getSetTopicForEntity($entityId);
+        if ($topic === '') {
+            return true;
+        }
+
+        $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $mqttPayload, [], true);
+        $this->sendMqttMessage($topic, $mqttPayload);
+        $this->applyOptimisticEntityValue($entityId, $ident, $domain, $mqttPayload, $attributes);
+        return true;
+    }
+
+    private function handleAttributeRequestAction(string $ident, mixed $value): bool
+    {
+        $attributeInfo = $this->resolveAttributeByIdent($ident);
+        if ($attributeInfo === null) {
+            return false;
+        }
+
+        $entityId = (string) $attributeInfo['entity_id'];
+        $attribute = (string) $attributeInfo['attribute'];
+        $domain = (string) ($attributeInfo['domain'] ?? '');
+        $payload = $this->buildDomainAttributePayload($domain, $attribute, $value);
+        if ($payload === '' && !HADomainCatalog::supportsAttributePayload($domain)) {
+            $this->debugExpert(__FUNCTION__, 'Attribut-Domain nicht unterstützt', ['Attribute' => $attribute, 'Domain' => $domain], true);
+            return true;
+        }
+        if ($payload === '') {
+            $this->debugExpert(__FUNCTION__, 'Attribut Payload leer', ['Attribute' => $attribute], true);
+            return true;
+        }
+
+        $topic = $this->getSetTopicForEntity($entityId);
+        if ($topic === '') {
+            $this->debugExpert('Action', 'Kein Set-Topic für Entity | EntityID=' . $entityId, [], true);
+            return true;
+        }
+
+        $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $payload, [], true);
+        $this->sendMqttMessage($topic, $payload);
+        $this->applyAttributeOptimisticValue($entityId, $domain, $attribute, $value);
+        return true;
+    }
+
+    private function resolveEntityActionDomain(string $entityId, array $entity): string
+    {
+        $domain = trim((string) ($entity['domain'] ?? ''));
+        if ($domain === '' && str_contains($entityId, '.')) {
+            [$domain] = explode('.', $entityId, 2);
+        }
+
+        return $domain;
+    }
+
+    private function applyOptimisticEntityValue(
+        string $entityId,
+        string $ident,
+        string $domain,
+        string $payload,
+        mixed $attributes
+    ): void {
+        $resolvedAttributes = is_array($attributes) ? $attributes : [];
+        $optimisticValue = $this->convertValueByDomain($domain, $payload, $resolvedAttributes);
+        $this->setEntityMainValue($entityId, $ident, $optimisticValue, $payload);
+        $this->updateEntityRawStateCache($entityId, $payload);
+        $this->updateEntityCache($entityId, $payload, null);
+        $this->resetVariableByDescriptor($ident, $this->describeVariableByIdent($ident, $domain));
+    }
+
+    private function applyAttributeOptimisticValue(
+        string $entityId,
+        string $domain,
+        string $attribute,
+        mixed $value
+    ): void {
+        if ($attribute !== HAClimateDefinitions::ATTRIBUTE_HVAC_MODE
+            || $this->normalizeDomainAlias($domain) !== HAClimateDefinitions::DOMAIN) {
+            return;
+        }
+
+        $meta = HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        $hvacMode = trim((string) $value);
+        if (!is_array($meta) || $hvacMode === '') {
+            return;
+        }
+
+        $this->applyAttributeVariableValue($entityId, $attribute, $hvacMode, $meta, true);
     }
 
     protected function processEntities(array $configData, string $baseTopic): array
@@ -408,8 +447,8 @@ trait HADeviceCoreTrait
         $renamedEntityIds = [];
 
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntityStructure($row);
-            if ($entity === null || !($entity['create_var'] ?? true)) {
+            $entity = $this->normalizeActiveConfiguredEntity($row);
+            if ($entity === null) {
                 continue;
             }
             if (($entity['domain'] ?? '') === '') {
@@ -457,31 +496,13 @@ trait HADeviceCoreTrait
 
     private function cleanupRenamedSharedEntityObjects(array $entityIds, array $activeEntityIds, array $previousEntities): void
     {
-        $entityIds = array_values(array_unique(array_filter(
-            $entityIds,
-            static fn(mixed $entityId): bool => is_string($entityId) && trim($entityId) !== ''
-        )));
+        $entityIds = $this->normalizeDistinctEntityIds($entityIds);
         if ($entityIds === [] && $activeEntityIds === []) {
             return;
         }
 
-        $baseIdents = [];
-        foreach ($entityIds as $entityId) {
-            $baseIdents[] = $this->sanitizeIdent($entityId);
-            $previousIdent = trim((string)($previousEntities[$entityId]['ident'] ?? ''));
-            if ($previousIdent !== '') {
-                $baseIdents[] = $previousIdent;
-            }
-            $previousPrefix = trim((string)($previousEntities[$entityId]['ident_prefix'] ?? ''));
-            if ($previousPrefix !== '') {
-                $baseIdents[] = $previousPrefix;
-            }
-        }
-
-        $activeBaseIdents = [];
-        foreach ($activeEntityIds as $entityId) {
-            $activeBaseIdents[] = $this->getSharedEntityIdentPrefix($entityId);
-        }
+        $baseIdents = $this->collectPreviousBaseIdents($entityIds, $previousEntities);
+        $activeBaseIdents = $this->collectActiveBaseIdents($activeEntityIds);
 
         foreach ($activeEntityIds as $entityId) {
             $legacyBaseIdent = $this->sanitizeIdent($entityId);
@@ -490,45 +511,22 @@ trait HADeviceCoreTrait
             }
         }
 
-        $baseIdents = array_values(array_unique(array_filter($baseIdents, static fn(string $ident): bool => $ident !== '')));
-        $activeBaseIdents = array_values(array_unique(array_filter($activeBaseIdents, static fn(string $ident): bool => $ident !== '')));
+        $baseIdents = $this->normalizeDistinctIdents($baseIdents);
+        $activeBaseIdents = $this->normalizeDistinctIdents($activeBaseIdents);
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
             $object = IPS_GetObject($childId);
             $ident = (string)($object['ObjectIdent'] ?? '');
-            if ($ident === ''
-                || !$this->isSharedManagedEntityIdent($ident, $baseIdents)
-                || $this->isSharedManagedEntityIdent($ident, $activeBaseIdents)) {
+            if ($this->shouldSkipSharedEntityCleanup($ident, $baseIdents, $activeBaseIdents)) {
                 continue;
             }
 
-            $objectType = (int)($object['ObjectType'] ?? -1);
-            if ($objectType === OBJECTTYPE_VARIABLE) {
-                if ($this->markVariableAsLegacy($childId)) {
-                    $this->debugExpert(__FUNCTION__, 'Variable als veraltet markiert', [
-                        'ObjectID' => $childId,
-                        'Ident' => $ident
-                    ]);
-                }
-            } elseif ($objectType === 5) {
-                IPS_DeleteMedia($childId, true);
-                $this->debugExpert(__FUNCTION__, 'Medienobjekt entfernt', [
-                    'ObjectID' => $childId,
-                    'ObjectType' => $objectType,
-                    'Ident' => $ident
-                ]);
-            }
+            $this->cleanupRenamedSharedEntityObject($childId, $ident, (int)($object['ObjectType'] ?? -1));
         }
     }
 
     private function isSharedManagedEntityIdent(string $ident, array $baseIdents): bool
     {
-        foreach ($baseIdents as $baseIdent) {
-            if ($ident === $baseIdent || str_starts_with($ident, $baseIdent . '_')) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($baseIdents, static fn(string $baseIdent): bool => $ident === $baseIdent || str_starts_with($ident, $baseIdent . '_'));
     }
 
     private function hasSharedManagedIdentChanged(?array $previousEntity, array $currentEntity): bool
@@ -537,21 +535,126 @@ trait HADeviceCoreTrait
             return false;
         }
 
-        $previousIdent = trim((string)($previousEntity['ident'] ?? ''));
-        $previousPrefix = trim((string)($previousEntity['ident_prefix'] ?? ''));
-        $currentIdent = trim((string)($currentEntity['ident'] ?? ''));
-        $currentPrefix = trim((string)($currentEntity['ident_prefix'] ?? ''));
+        $previousIdent = $this->getConfiguredEntityIdent($previousEntity);
+        $previousPrefix = $this->getConfiguredEntityIdentPrefix($previousEntity);
+        $currentIdent = $this->getConfiguredEntityIdent($currentEntity);
+        $currentPrefix = $this->getConfiguredEntityIdentPrefix($currentEntity);
 
         return ($previousIdent !== '' && $previousIdent !== $currentIdent)
             || ($previousPrefix !== '' && $previousPrefix !== $currentPrefix);
+    }
+
+    protected function normalizeActiveConfiguredEntity(array $row): ?array
+    {
+        $entity = $this->normalizeEntityStructure($row);
+        if ($entity === null || !($entity['create_var'] ?? true)) {
+            return null;
+        }
+
+        $entityId = $entity['entity_id'] ?? '';
+        if (!is_string($entityId) || $entityId === '') {
+            return null;
+        }
+
+        return $entity;
+    }
+
+    private function normalizeDistinctEntityIds(array $entityIds): array
+    {
+        $filtered = array_filter(
+            $entityIds,
+            static fn(mixed $entityId): bool => is_string($entityId) && trim($entityId) !== ''
+        );
+        $unique = array_unique($filtered);
+        return array_values($unique);
+    }
+
+    private function normalizeDistinctIdents(array $idents): array
+    {
+        $filtered = array_filter(
+            $idents,
+            static fn(string $ident): bool => $ident !== ''
+        );
+        $unique = array_unique($filtered);
+        return array_values($unique);
+    }
+
+    private function collectPreviousBaseIdents(array $entityIds, array $previousEntities): array
+    {
+        $baseIdents = [];
+        foreach ($entityIds as $entityId) {
+            $baseIdents[] = $this->sanitizeIdent($entityId);
+            $previousEntity = is_array($previousEntities[$entityId] ?? null) ? $previousEntities[$entityId] : [];
+            $previousIdent = $this->getConfiguredEntityIdent($previousEntity);
+            if ($previousIdent !== '') {
+                $baseIdents[] = $previousIdent;
+            }
+            $previousPrefix = $this->getConfiguredEntityIdentPrefix($previousEntity);
+            if ($previousPrefix !== '') {
+                $baseIdents[] = $previousPrefix;
+            }
+        }
+
+        return $baseIdents;
+    }
+
+    private function collectActiveBaseIdents(array $activeEntityIds): array
+    {
+        $activeBaseIdents = [];
+        foreach ($activeEntityIds as $entityId) {
+            $activeBaseIdents[] = $this->getSharedEntityIdentPrefix($entityId);
+        }
+
+        return $activeBaseIdents;
+    }
+
+    private function shouldSkipSharedEntityCleanup(string $ident, array $baseIdents, array $activeBaseIdents): bool
+    {
+        return $ident === ''
+            || !$this->isSharedManagedEntityIdent($ident, $baseIdents)
+            || $this->isSharedManagedEntityIdent($ident, $activeBaseIdents);
+    }
+
+    private function cleanupRenamedSharedEntityObject(int $objectId, string $ident, int $objectType): void
+    {
+        if ($objectType === OBJECTTYPE_VARIABLE) {
+            if ($this->markVariableAsLegacy($objectId)) {
+                $this->debugExpert(__FUNCTION__, 'Variable als veraltet markiert', [
+                    'ObjectID' => $objectId,
+                    'Ident' => $ident
+                ]);
+            }
+            return;
+        }
+
+        if ($objectType !== OBJECTTYPE_MEDIA) {
+            return;
+        }
+
+        IPS_DeleteMedia($objectId, true);
+        $this->debugExpert(__FUNCTION__, 'Medienobjekt entfernt', [
+            'ObjectID' => $objectId,
+            'ObjectType' => $objectType,
+            'Ident' => $ident
+        ]);
+    }
+
+    private function getConfiguredEntityIdent(array $entity): string
+    {
+        return trim((string)($entity['ident'] ?? ''));
+    }
+
+    private function getConfiguredEntityIdentPrefix(array $entity): string
+    {
+        return trim((string)($entity['ident_prefix'] ?? ''));
     }
 
     protected function countStatusEntities(array $configData): int
     {
         $count = 0;
         foreach ($configData as $row) {
-            $entity = $this->normalizeEntityStructure($row);
-            if ($entity === null || !($entity['create_var'] ?? true)) {
+            $entity = $this->normalizeActiveConfiguredEntity($row);
+            if ($entity === null) {
                 continue;
             }
             $domain = (string)($entity['domain'] ?? '');
@@ -628,7 +731,7 @@ trait HADeviceCoreTrait
         }
 
         $this->updateEntityRawStateCache($entityId, $state);
-        $this->updateAvailabilityValue($entityId, $state);
+        $this->updateAvailabilityValue($state);
 
         $resolvedAttributes = $this->resolveEntityStateAttributes($entityId, $attributes);
         $finalValue = $this->convertValueByDomain($domain, $state, $resolvedAttributes);
@@ -652,11 +755,7 @@ trait HADeviceCoreTrait
         }
 
         $entityId = $this->getSharedEntityIdByPrefix($ident);
-        if ($entityId !== null) {
-            return $entityId;
-        }
-
-        return '';
+        return $entityId ?? '';
     }
 
     protected function deriveStateTopic(string $baseTopic, string $entityId): string

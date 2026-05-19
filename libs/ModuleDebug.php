@@ -17,11 +17,9 @@ trait ModuleDebugTrait
 
     private function debugExpert(string $category, string $message, array $context = [], bool $always = false): void
     {
-        $expertDebugEnabled = (bool)@($this->ReadPropertyBoolean('EnableExpertDebug'));
-        if (!$always && !$expertDebugEnabled) {
-            if (!in_array($category, self::BASIC_DEBUG_CATEGORIES, true)) {
-                return;
-            }
+        $expertDebugEnabled = @$this->ReadPropertyBoolean('EnableExpertDebug');
+        if (!$always && !$expertDebugEnabled && !in_array($category, self::BASIC_DEBUG_CATEGORIES, true)) {
+            return;
         }
 
         $suffix = '';

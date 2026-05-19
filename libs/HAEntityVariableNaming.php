@@ -8,11 +8,7 @@ trait HAEntityVariableNamingTrait
     {
         $domain = HADomainCatalog::normalizeDomainAlias($domain);
         $name = $this->getSharedDomainEntityVariableName($domain, $entity, $hasMultipleStatusEntities);
-        if ($name !== null) {
-            return $name;
-        }
-
-        return $this->getSharedDefaultEntityVariableName($domain, $entity);
+        return $name ?? $this->getSharedDefaultEntityVariableName($domain, $entity);
     }
 
     private function getSharedDomainEntityVariableName(string $domain, array $entity, bool $hasMultipleStatusEntities): ?string
@@ -35,8 +31,8 @@ trait HAEntityVariableNamingTrait
             return null;
         }
 
-        if ($this->supportsSharedClimateTargetTemperature($attributes)
-            || array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)) {
+        if (array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)
+            || $this->supportsSharedClimateTargetTemperature($attributes)) {
             return $this->Translate('Target Temperature');
         }
 
@@ -129,7 +125,9 @@ trait HAEntityVariableNamingTrait
             return $this->Translate($caption);
         }
 
-        return $this->Translate(ucwords(str_replace('_', ' ', $deviceClass)));
+        $caption = str_replace('_', ' ', $deviceClass);
+        $caption = ucwords($caption);
+        return $this->Translate($caption);
     }
 
     private function getSharedCoverVariableName(array $entity, bool $hasMultipleStatusEntities): string
@@ -253,7 +251,8 @@ trait HAEntityVariableNamingTrait
             return $name;
         }
 
-        return trim(substr($name, strlen($prefix)));
+        $name = substr($name, strlen($prefix));
+        return trim($name);
     }
 
     private function getSharedCurrentInstanceDeviceId(): string
@@ -261,15 +260,13 @@ trait HAEntityVariableNamingTrait
         if (defined(static::class . '::PROP_DEVICE_ID')) {
             $prop = constant(static::class . '::PROP_DEVICE_ID');
             if (is_string($prop) && $prop !== '') {
-                return trim((string)$this->ReadPropertyString($prop));
+                return trim($this->ReadPropertyString($prop));
             }
         }
 
         if (method_exists($this, 'getConfiguredDeviceId')) {
             $deviceId = $this->getConfiguredDeviceId();
-            if (is_string($deviceId)) {
-                return trim($deviceId);
-            }
+            return trim($deviceId);
         }
 
         return '';
@@ -280,7 +277,7 @@ trait HAEntityVariableNamingTrait
         if (defined(static::class . '::PROP_DEVICE_NAME')) {
             $prop = constant(static::class . '::PROP_DEVICE_NAME');
             if (is_string($prop) && $prop !== '') {
-                $name = trim((string)$this->ReadPropertyString($prop));
+                $name = trim($this->ReadPropertyString($prop));
                 if ($name !== '') {
                     return $name;
                 }
@@ -288,7 +285,7 @@ trait HAEntityVariableNamingTrait
         }
 
         if (property_exists($this, 'InstanceID')) {
-            $instanceId = (int)($this->InstanceID ?? 0);
+            $instanceId = $this->InstanceID ?? 0;
             if ($instanceId > 0) {
                 $object = @IPS_GetObject($instanceId);
                 $name = trim((string)($object['ObjectName'] ?? ''));
@@ -300,11 +297,9 @@ trait HAEntityVariableNamingTrait
 
         if (method_exists($this, 'readResolvedDeviceDefinition')) {
             $definition = $this->readResolvedDeviceDefinition();
-            if (is_array($definition)) {
-                $name = trim((string)($definition['device_name'] ?? ''));
-                if ($name !== '') {
-                    return $name;
-                }
+            $name = trim((string)($definition['device_name'] ?? ''));
+            if ($name !== '') {
+                return $name;
             }
         }
 
@@ -319,10 +314,11 @@ trait HAEntityVariableNamingTrait
 
     private function isSharedCoverPositionEntity(array $attributes): bool
     {
-        foreach ([HACoverDefinitions::ATTRIBUTE_POSITION, HACoverDefinitions::ATTRIBUTE_POSITION_ALT] as $key) {
-            if (is_numeric($attributes[$key] ?? null)) {
-                return true;
-            }
+        if (array_any(
+            [HACoverDefinitions::ATTRIBUTE_POSITION, HACoverDefinitions::ATTRIBUTE_POSITION_ALT],
+            static fn(string $key): bool => is_numeric($attributes[$key] ?? null)
+        )) {
+            return true;
         }
 
         $supported = (int)($attributes['supported_features'] ?? 0);
@@ -331,10 +327,11 @@ trait HAEntityVariableNamingTrait
 
     private function isSharedValvePositionEntity(array $attributes): bool
     {
-        foreach ([HAValveDefinitions::ATTRIBUTE_POSITION, HAValveDefinitions::ATTRIBUTE_POSITION_ALT] as $key) {
-            if (is_numeric($attributes[$key] ?? null)) {
-                return true;
-            }
+        if (array_any(
+            [HAValveDefinitions::ATTRIBUTE_POSITION, HAValveDefinitions::ATTRIBUTE_POSITION_ALT],
+            static fn(string $key): bool => is_numeric($attributes[$key] ?? null)
+        )) {
+            return true;
         }
 
         $supported = (int)($attributes['supported_features'] ?? 0);
@@ -350,7 +347,8 @@ trait HAEntityVariableNamingTrait
             return (int)$reportsPosition !== 0;
         }
         if (is_string($reportsPosition)) {
-            return in_array(strtolower(trim($reportsPosition)), ['1', 'true', 'on', 'yes'], true);
+            $reportsPosition = strtolower(trim($reportsPosition));
+            return in_array($reportsPosition, ['1', 'true', 'on', 'yes'], true);
         }
 
         return false;

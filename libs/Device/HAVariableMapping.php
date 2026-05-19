@@ -36,7 +36,7 @@ trait HAVariableMappingTrait
     }
 
     // Buttons werden in Symcon immer als Trigger statt als persistenter Zustand geführt.
-    private function describeEntityMainVariable(array $entity): array
+    protected function describeEntityMainVariable(array $entity): array
     {
         $domain = $this->normalizeDomainAlias((string) ($entity['domain'] ?? ''));
         if ($domain === HAButtonDefinitions::DOMAIN) {
@@ -71,7 +71,7 @@ trait HAVariableMappingTrait
     }
 
     // Neue Trigger werden direkt auf ihren Resetwert initialisiert.
-    private function initializeVariableDescriptorValue(string $ident, array $descriptor, bool $exists): void
+    protected function initializeVariableDescriptorValue(string $ident, array $descriptor, bool $exists): void
     {
         if ($exists || !$this->isTriggerVariableDescriptor($descriptor)) {
             return;
@@ -99,7 +99,7 @@ trait HAVariableMappingTrait
     }
 
     // Einheitlicher Cast verhindert verteilte Typkonvertierungen im Modul.
-    private function castVariableValue(mixed $value, int $type): string|int|bool|float
+    protected function castVariableValue(mixed $value, int $type): string|int|bool|float
     {
         return match ($type) {
             VARIABLETYPE_BOOLEAN => (bool) $value,

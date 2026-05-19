@@ -20,7 +20,7 @@ final class HAMqttDiscoveryGrouping
 
             $groupKey = (string)($device['discovery_device_id'] ?? '');
             if ($groupKey === '') {
-                $groupKey = 'entity:' . (string)($entity['unique_id'] ?? '');
+                $groupKey = 'entity:' . ($entity['unique_id'] ?? '');
             }
             if ($groupKey === 'entity:') {
                 continue;

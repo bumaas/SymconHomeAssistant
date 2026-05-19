@@ -17,7 +17,7 @@ trait HAEntityGroupingTrait
 
             $isRealDevice = (($entity['device_id'] ?? 'none') !== 'none');
             $uniqueDeviceKey = $isRealDevice
-                ? 'HA_DEV_' . (string)$entity['device_id']
+                ? 'HA_DEV_' . $entity['device_id']
                 : 'HA_ENT_' . str_replace('.', '_', (string)($entity['entity_id'] ?? ''));
 
             if (!isset($devices[$uniqueDeviceKey])) {

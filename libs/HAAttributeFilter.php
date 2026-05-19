@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+/** @noinspection PhpUnused */
 final class HAAttributeFilter
 {
     /**
@@ -11,6 +12,7 @@ final class HAAttributeFilter
      * @param array<string, mixed> $context
      * @return array<string, mixed>
      */
+    /** @noinspection PhpUnused */
     public static function filterAllowedAttributes(
         array $attributes,
         array $allowedAttributes,

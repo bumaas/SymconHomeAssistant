@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 trait HAAttributeHandlersTrait
 {
-    private function tryHandleAttributeFromTopic(string $topic, string $payload): bool
+    protected function tryHandleAttributeFromTopic(string $topic, string $payload): bool
     {
         // Attribute topics come as .../<domain>/<entity>/<attribute>
         $parts = explode('/', trim($topic, '/'));
@@ -70,7 +70,7 @@ trait HAAttributeHandlersTrait
         return $handlers[$domain] ?? null;
     }
 
-    private function handleGenericAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleGenericAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         $value = $this->parseAttributePayload($payload);
         if ($value === null) {
@@ -81,7 +81,7 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
-    private function handleEventAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleEventAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         if (!in_array($attribute, [HAEventDefinitions::ATTRIBUTE_EVENT_TYPES, HAEventDefinitions::ATTRIBUTE_EVENT_TYPE], true)) {
             return true;
@@ -95,7 +95,7 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
-    private function handleClimateAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleClimateAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         $climateAliases = [
             'temperature' => HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
@@ -125,7 +125,7 @@ trait HAAttributeHandlersTrait
         return $handled;
     }
 
-    private function handleFanAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleFanAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         return $this->handleAttributeTopicWithDefinitions(
             $entityId,
@@ -140,7 +140,7 @@ trait HAAttributeHandlersTrait
         );
     }
 
-    private function handleHumidifierAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleHumidifierAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         return $this->handleAttributeTopicWithDefinitions(
             $entityId,
@@ -158,7 +158,7 @@ trait HAAttributeHandlersTrait
         );
     }
 
-    private function handleLockAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleLockAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         return $this->handleAttributeTopicWithDefinitions(
             $entityId,
@@ -175,7 +175,7 @@ trait HAAttributeHandlersTrait
         );
     }
 
-    private function handleVacuumAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleVacuumAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         $value = $this->parseAttributePayload($payload);
         if ($value === null) {
@@ -188,7 +188,7 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
-    private function handleLawnMowerAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleLawnMowerAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         $value = $this->parseAttributePayload($payload);
         if ($value === null) {
@@ -200,7 +200,7 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
-    private function handleMediaPlayerAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleMediaPlayerAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         if ($attribute === 'entity_picture') {
             $attribute = 'media_image_url';
@@ -237,22 +237,15 @@ trait HAAttributeHandlersTrait
 
         $original = (string)$value;
         $absolute = $this->makeMediaImageUrlAbsolute($original);
-        if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
-            $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+        if (!$this->ensureAttributeTopicVariable($entityId, $attribute, [$this, 'ensureMediaPlayerAttributeVariable'])) {
             return false;
         }
-        $meta = HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        $meta = $this->getRequiredAttributeMeta(HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
         if ($meta === null) {
-            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
             return false;
         }
 
-        $casted = $this->castVariableValue($original, $meta['type']);
-        $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
-        $this->setValueWithDebug($ident, $casted);
-        $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $casted]);
-        $this->storeEntityAttribute($entityId, $attribute, $casted);
-        $this->updateEntityCache($entityId, null, [$attribute => $casted]);
+        $this->applyAttributeVariableValue($entityId, $attribute, $original, $meta, true);
         if ($absolute !== '') {
             $this->updateMediaPlayerCoverMedia($entityId, $absolute);
         }
@@ -262,8 +255,7 @@ trait HAAttributeHandlersTrait
 
     private function handleMediaPlayerRepeatAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
-        if (!$this->ensureMediaPlayerAttributeVariable($entityId, $attribute)) {
-            $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+        if (!$this->ensureAttributeTopicVariable($entityId, $attribute, [$this, 'ensureMediaPlayerAttributeVariable'])) {
             return false;
         }
 
@@ -281,7 +273,7 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
-    private function handleCameraAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleCameraAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         $value = $this->parseAttributePayload($payload);
         if ($value === null) {
@@ -292,7 +284,7 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
-    private function handleImageAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleImageAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         $value = $this->parseAttributePayload($payload);
         if ($value === null) {
@@ -303,7 +295,7 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
-    private function handleSelectAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleSelectAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         $value = $this->parseAttributePayload($payload);
         if ($value !== null) {
@@ -313,7 +305,7 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
-    private function handleLightAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleLightAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         if (!array_key_exists($attribute, HALightDefinitions::ATTRIBUTE_DEFINITIONS)) {
             $value = $this->parseAttributePayload($payload);
@@ -327,8 +319,7 @@ trait HAAttributeHandlersTrait
             return true;
         }
 
-        if (!$this->ensureLightAttributeVariable($entityId, $attribute)) {
-            $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+        if (!$this->ensureAttributeTopicVariable($entityId, $attribute, [$this, 'ensureLightAttributeVariable'])) {
             return false;
         }
 
@@ -338,9 +329,8 @@ trait HAAttributeHandlersTrait
             return true;
         }
 
-        $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        $meta = $this->getRequiredAttributeMeta(HALightDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
         if ($meta === null) {
-            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
             return false;
         }
 
@@ -350,11 +340,7 @@ trait HAAttributeHandlersTrait
             $value = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
 
-        $value = $this->castVariableValue($value, $meta['type']);
-        $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
-        $this->setValueWithDebug($ident, $value);
-        $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-        $this->updateEntityCache($entityId, null, [$attribute => $value]);
+        $this->applyAttributeVariableValue($entityId, $attribute, $value, $meta);
 
         return true;
     }
@@ -393,8 +379,7 @@ trait HAAttributeHandlersTrait
             return true;
         }
 
-        if (!$ensureVariable($entityId, $attribute)) {
-            $this->debugExpert('AttributeTopic', 'Keine Variable für Attribut', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+        if (!$this->ensureAttributeTopicVariable($entityId, $attribute, $ensureVariable)) {
             return false;
         }
 
@@ -404,20 +389,12 @@ trait HAAttributeHandlersTrait
             return true;
         }
 
-        $meta = $definitions[$attribute] ?? null;
+        $meta = $this->getRequiredAttributeMeta($definitions, $attribute);
         if ($meta === null) {
-            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
             return false;
         }
 
-        $value = $this->castVariableValue($value, $meta['type']);
-        $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
-        $this->setValueWithDebug($ident, $value);
-        $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $value]);
-        if ($storeDefined) {
-            $this->storeEntityAttribute($entityId, $attribute, $value);
-        }
-        $this->updateEntityCache($entityId, null, [$attribute => $value]);
+        $value = $this->applyAttributeVariableValue($entityId, $attribute, $value, $meta, $storeDefined);
         if ($updatePresentationDefined) {
             $this->refreshAttributeTopicPresentation($entityId);
         }
@@ -427,25 +404,23 @@ trait HAAttributeHandlersTrait
         return true;
     }
 
-    private function handleCoverAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleCoverAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
-        if (!array_key_exists($attribute, HACoverDefinitions::ATTRIBUTE_DEFINITIONS)) {
-            $value = $this->parseAttributePayload($payload);
-            if ($value !== null) {
-                $this->storeAttributeTopicValue($entityId, $attribute, $value);
+        $value = $this->parseAttributePayload($payload);
+        if ($value === null) {
+            if (array_key_exists($attribute, HACoverDefinitions::ATTRIBUTE_DEFINITIONS)) {
+                $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
             }
             return true;
         }
 
-        $value = $this->parseAttributePayload($payload);
-        if ($value === null) {
-            $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
+        if (!array_key_exists($attribute, HACoverDefinitions::ATTRIBUTE_DEFINITIONS)) {
+            $this->storeAttributeTopicValue($entityId, $attribute, $value);
             return true;
         }
 
-        $meta = HACoverDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if (!is_array($meta)) {
-            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+        $meta = $this->getRequiredAttributeMeta(HACoverDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
+        if ($meta === null) {
             return false;
         }
 
@@ -453,17 +428,16 @@ trait HAAttributeHandlersTrait
         $this->storeEntityAttribute($entityId, $attribute, $casted);
         $this->updateEntityCache($entityId, null, [$attribute => $casted]);
         $this->refreshAttributeTopicPresentation($entityId);
-
-        $attributes = $this->getStoredAttributeTopicAttributes($entityId);
-        if ($attributes !== []) {
-            $state = $this->getCachedEntityRawState($entityId) ?? $this->getCachedEntityState($entityId) ?? '';
-            $this->updateCoverAttributeValues($entityId, $attributes, $state);
-        }
+        $this->refreshStatefulAttributeValues(
+            $entityId,
+            static fn(array $attributes): bool => $attributes !== [],
+            fn(string $id, array $attributes, string $state): bool => $this->updateCoverAttributeValues($id, $attributes, $state)
+        );
 
         return true;
     }
 
-    private function handleValveAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    protected function handleValveAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
         $value = $this->parseAttributePayload($payload);
         if ($value === null) {
@@ -471,14 +445,65 @@ trait HAAttributeHandlersTrait
         }
 
         $this->storeAttributeTopicValue($entityId, $attribute, $value);
-        $attributes = $this->getStoredAttributeTopicAttributes($entityId);
-        if ($attributes === []) {
+        $this->refreshStatefulAttributeValues(
+            $entityId,
+            static fn(array $attributes): bool => $attributes !== [],
+            fn(string $id, array $attributes, string $state): bool => $this->updateValveAttributeValues($id, $attributes, $state)
+        );
+        return true;
+    }
+
+    private function getRequiredAttributeMeta(array $definitions, string $attribute): ?array
+    {
+        $meta = $definitions[$attribute] ?? null;
+        if (!is_array($meta)) {
+            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+            return null;
+        }
+
+        return $meta;
+    }
+
+    private function ensureAttributeTopicVariable(string $entityId, string $attribute, callable $ensureVariable): bool
+    {
+        if ($ensureVariable($entityId, $attribute)) {
             return true;
         }
 
+        return false;
+    }
+
+    private function applyAttributeVariableValue(
+        string $entityId,
+        string $attribute,
+        mixed $value,
+        array $meta,
+        bool $storeEntityAttribute = false
+    ): string|int|bool|float {
+        $casted = $this->castVariableValue($value, $meta['type']);
+        $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
+        $this->setValueWithDebug($ident, $casted);
+        $this->debugExpert('AttributeTopic', 'SetValue', ['Ident' => $ident, 'Value' => $casted]);
+        if ($storeEntityAttribute) {
+            $this->storeEntityAttribute($entityId, $attribute, $casted);
+        }
+        $this->updateEntityCache($entityId, null, [$attribute => $casted]);
+
+        return $casted;
+    }
+
+    private function refreshStatefulAttributeValues(
+        string $entityId,
+        callable $shouldUpdate,
+        callable $updater
+    ): void {
+        $attributes = $this->getStoredAttributeTopicAttributes($entityId);
+        if (!$shouldUpdate($attributes)) {
+            return;
+        }
+
         $state = $this->getCachedEntityRawState($entityId) ?? $this->getCachedEntityState($entityId) ?? '';
-        $this->updateValveAttributeValues($entityId, $attributes, $state);
-        return true;
+        $updater($entityId, $attributes, $state);
     }
 
     private function storeAttributeTopicValue(string $entityId, string $attribute, mixed $value, bool $refreshPresentation = true): void
@@ -524,3 +549,4 @@ trait HAAttributeHandlersTrait
         $this->setEntityMainValue($entityId, $mainIdent, $mainValue);
     }
 }
+

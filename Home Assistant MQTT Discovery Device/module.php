@@ -241,7 +241,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $entities = $this->getConfiguredEntities();
         $target = $this->resolveActionTarget($entities, (string) $Ident);
         if ($target === null) {
-            $this->debugExpert(__FUNCTION__, 'Entity fuer Ident nicht gefunden', ['Ident' => $Ident], true);
+            $this->debugExpert(__FUNCTION__, 'Entity für Ident nicht gefunden', ['Ident' => $Ident], true);
             return;
         }
 
@@ -255,8 +255,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
+        $entity = $target['entity'];
         if ($target['type'] === 'light_attribute') {
-            $entity = $target['entity'];
             $attribute = $target['attribute'];
             $context = $this->buildLightAttributeContext($entity, []);
             if (!$this->isLightAttributeWritable($attribute, $context)) {
@@ -299,7 +299,6 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        $entity = $target['entity'];
         if (!$this->isEntityWritable($entity)) {
             $this->debugExpert(__FUNCTION__, 'Entity ist nicht schreibbar', ['Ident' => $Ident, 'EntityKey' => $entity['entity_key']], true);
             return;
@@ -327,7 +326,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             (bool)$entity['retain']
         );
 
-        if ((bool)$entity['optimistic'] || $entity['state_topic'] === '') {
+        if ($entity['optimistic'] || $entity['state_topic'] === '') {
             $this->applyOptimisticValue($entity, $Value);
         }
     }
@@ -380,11 +379,6 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function normalizeConfiguredEntities(array $rows): array
     {
-        try {
-            $rows = is_array($rows) ? $rows : [];
-        } catch (Throwable) {
-            $rows = [];
-        }
         $entities = [];
         foreach ($rows as $row) {
             if (!is_array($row)) {
@@ -478,11 +472,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function buildOfflineDeviceDefinition(): array
     {
         $cachedDefinition = $this->readCachedResolvedDeviceDefinition();
-        if ($cachedDefinition !== null) {
-            return $cachedDefinition;
-        }
-
-        return $this->buildPropertyDeviceDefinition();
+        return $cachedDefinition ?? $this->buildPropertyDeviceDefinition();
     }
 
     private function buildPropertyDeviceDefinition(): array
@@ -518,11 +508,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function readResolvedDeviceDefinition(): array
     {
         $decoded = $this->readCachedResolvedDeviceDefinition();
-        if ($decoded !== null) {
-            return $decoded;
-        }
-
-        return $this->buildPropertyDeviceDefinition();
+        return $decoded ?? $this->buildPropertyDeviceDefinition();
     }
 
     private function readCachedResolvedDeviceDefinition(): ?array
@@ -570,17 +556,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 }
 
                 if ($name === 'ResolvedDeviceName') {
-                    $item['caption'] = 'Device Name: ' . (string)($deviceDefinition['device_name'] ?? '');
+                    $item['caption'] = 'Device Name: ' . ($deviceDefinition['device_name'] ?? '');
                     continue;
                 }
 
                 if ($name === 'ResolvedManufacturer') {
-                    $item['caption'] = 'Manufacturer: ' . (string)($deviceDefinition['manufacturer'] ?? '');
+                    $item['caption'] = 'Manufacturer: ' . ($deviceDefinition['manufacturer'] ?? '');
                     continue;
                 }
 
                 if ($name === 'ResolvedModel') {
-                    $item['caption'] = 'Model: ' . (string)($deviceDefinition['model'] ?? '');
+                    $item['caption'] = 'Model: ' . ($deviceDefinition['model'] ?? '');
                 }
             }
             unset($item);
@@ -726,7 +712,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'native_step' => $this->normalizeNumericMetadataValue($metadata['native_step'] ?? null),
             'mode' => $this->normalizeNullableString($metadata['mode'] ?? null),
             'entity_category' => $this->normalizeNullableString($metadata['entity_category'] ?? null),
-            'enabled_by_default' => !array_key_exists('enabled_by_default', $metadata) || (bool)$metadata['enabled_by_default'],
+            'enabled_by_default' => !array_key_exists('enabled_by_default', $metadata) || $metadata['enabled_by_default'],
             'icon' => $this->normalizeNullableString($metadata['icon'] ?? null),
             'brightness' => (bool)($metadata['brightness'] ?? false),
             'brightness_scale' => is_numeric($metadata['brightness_scale'] ?? null) ? (int)$metadata['brightness_scale'] : null,
@@ -764,7 +750,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         if (is_string($value)) {
-            return in_array(strtolower(trim($value)), ['1', 'true', 'on', 'yes', 'ja'], true);
+            return $value
+                   |> trim(...)
+                   |> strtolower(...)
+                   |> (static fn($x) => in_array($x, ['1', 'true', 'on', 'yes', 'ja'], true));
         }
 
         return false;
@@ -958,15 +947,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($entities === []) {
             return [
                 'status' => self::STATUS_DISCOVERY_CACHE_MISSING,
-                'message' => 'Keine Discovery-Infos fuer diese DeviceID im Splitter-Cache gefunden.',
-                'resolution' => 'keine Discovery-Infos fuer DeviceID im Cache'
+                'message' => 'Keine Discovery-Infos für diese DeviceID im Splitter-Cache gefunden.',
+                'resolution' => 'keine Discovery-Infos für DeviceID im Cache'
             ];
         }
 
         return [
             'status' => IS_ACTIVE,
             'message' => '',
-            'resolution' => 'aus MQTT Discovery Splitter aufgeloest'
+            'resolution' => 'aus MQTT Discovery Splitter aufgelöst'
         ];
     }
 
@@ -995,7 +984,6 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function normalizeResolvedEntitiesWithoutSelection(array $rows): array
     {
-        $rows = is_array($rows) ? $rows : [];
         $entities = [];
         foreach ($rows as $row) {
             if (!is_array($row)) {
@@ -1041,7 +1029,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $entityOrder = 0;
         $hasMultipleStatusEntities = $this->countActiveStatusEntities($entities) > 1;
         foreach ($entities as $entity) {
-            if (!(bool)$entity['create_var']) {
+            if (!$entity['create_var']) {
                 continue;
             }
 
@@ -1085,8 +1073,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         return match ($entity['component']) {
             HABinarySensorDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HALightDefinitions::DOMAIN => VARIABLETYPE_BOOLEAN,
-            HASelectDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
-            HAButtonDefinitions::DOMAIN, HAEventDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
+            HASelectDefinitions::DOMAIN, HAButtonDefinitions::DOMAIN, HAEventDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
             HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
             HACoverDefinitions::DOMAIN => $this->determineCoverVariableType($entity, $cachedTopics),
             HANumberDefinitions::DOMAIN => $this->determineNumberVariableType($entity, $cachedTopics),
@@ -1292,7 +1279,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $usageType = null;
             $isPercentage = false;
             $displaySuffix = $suffix === '' ? null : ' ' . $suffix;
-            if ($this->isNumberIntensityRange($min, $max) && $suffix === '' && $digits === 0) {
+            if ($suffix === '' && $digits === 0 && $this->isNumberIntensityRange($min, $max)) {
                 $usageType = 2;
                 $isPercentage = true;
                 $displaySuffix = ' %';
@@ -1395,7 +1382,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
-            $text = rtrim(rtrim(sprintf('%.6F', $number), '0'), '.');
+            $text = sprintf('%.6F', $number)
+                    |> (static fn($x) => rtrim($x, '0'))
+                    |> (static function ($x) {
+                        return rtrim($x, '.');
+                    });
             $decimalPos = strpos($text, '.');
             if ($decimalPos === false) {
                 $digits = 0;
@@ -1406,7 +1397,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             break;
         }
 
-        return min(3, max(0, (int)($digits ?? 0)));
+        return min(3, max(0, ($digits ?? 0)));
     }
 
     private function isNumberIntensityRange(float $min, float $max): bool
@@ -1424,10 +1415,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
-            $attributes = array_merge(
-                $attributes,
-                $this->extractLightAttributesFromPayload($entity, (string) ($cachedTopics[$topic]['payload'] ?? ''))
-            );
+            foreach ($this->extractLightAttributesFromPayload($entity, (string) ($cachedTopics[$topic]['payload'] ?? '')) as $name => $value) {
+                $attributes[$name] = $value;
+            }
         }
 
         return $attributes;
@@ -1606,7 +1596,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $templateKey = $tilt ? 'tilt_action_command_template' : 'action_command_template';
         $template = HAMqttDiscoveryTemplate::parseCommandTemplate($this->normalizeNullableString($metadata[$templateKey] ?? null));
-        return $template === null || (bool)($template['supported'] ?? false);
+        return $template === null || ($template['supported'] ?? false);
     }
 
     private function applyLightRuntimeAttributes(array $entity, string $payload): void
@@ -1682,13 +1672,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $supportedFeatures = is_numeric($context['supported_features'] ?? null) ? (int) $context['supported_features'] : 0;
-        foreach ($requiredFeatures as $feature) {
-            if (!is_numeric($feature) || (($supportedFeatures & (int) $feature) === 0)) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($requiredFeatures, static fn($feature) => is_numeric($feature) && ($supportedFeatures & (int)$feature) !== 0);
     }
 
     private function checkLightAttributeColorModes(array $meta, array $context): bool
@@ -1703,13 +1687,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return false;
         }
 
-        foreach ($requiredModes as $mode) {
-            if (in_array(strtolower((string) $mode), $supportedModes, true)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($requiredModes, static fn($mode) => in_array(strtolower((string)$mode), $supportedModes, true));
     }
 
     private function buildLightAttributePresentation(string $attribute, array $context, array $meta): array|string
@@ -1790,7 +1768,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function buildLightStringValueOptions(array $values): ?string
     {
         $options = [];
-        foreach (array_values(array_filter($values, static fn(mixed $value): bool => is_string($value) && trim($value) !== '')) as $value) {
+        foreach (array_filter($values, static fn(mixed $value): bool => is_string($value) && trim($value) !== '') as $value) {
             $options[] = [
                 'Value' => (string) $value,
                 'Caption' => (string) $value,
@@ -1856,7 +1834,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $count = 0;
         foreach ($entities as $entity) {
-            if (!(bool) ($entity['create_var'] ?? false)) {
+            if (!($entity['create_var'] ?? false)) {
                 continue;
             }
 
@@ -1910,7 +1888,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $topics = [];
         foreach ($entities as $entity) {
-            if (!(bool)$entity['create_var']) {
+            if (!$entity['create_var']) {
                 continue;
             }
 
@@ -1956,13 +1934,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             if ($stateTopic !== '') {
                 $index['topics'][$stateTopic] = true;
                 $index['warnings'][$stateTopic][$entityKey] = true;
-                if ((bool)$entity['create_var']) {
+                if ($entity['create_var']) {
                     $index['state'][$stateTopic][$entityKey] = true;
                 }
             }
 
             $eventFallback = $this->getEventStateFallback($entity);
-            if ((bool)$entity['create_var'] && $eventFallback !== null) {
+            if ($entity['create_var'] && $eventFallback !== null) {
                 $fallbackTopic = trim((string)($eventFallback['topic'] ?? ''), '/');
                 if ($fallbackTopic !== '') {
                     $index['topics'][$fallbackTopic] = true;
@@ -1970,7 +1948,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 }
             }
 
-            if (!(bool)$entity['create_var']) {
+            if (!$entity['create_var']) {
                 continue;
             }
 
@@ -2024,7 +2002,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
             $result = [];
             foreach ($bucket as $topic => $keys) {
-                if (!is_string($topic) || trim($topic, '/') === '' || !is_array($keys)) {
+                if (!is_string($topic) || !is_array($keys) || trim($topic, '/') === '') {
                     continue;
                 }
 
@@ -2511,7 +2489,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         $segments = explode('/', $stateTopic);
         $field = trim((string)end($segments));
-        if ($field === '' || !preg_match('/^[A-Za-z0-9_]+$/', $field)) {
+        if ($field === '' || !preg_match('/^\w+$/', $field)) {
             return null;
         }
 
@@ -2556,7 +2534,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         if (is_int($value) || is_float($value)) {
-            return $value != 0;
+            return $value !== 0;
         }
 
         $stringValue = $this->scalarToString($value);
@@ -2657,7 +2635,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function isEntityWritable(array $entity): bool
     {
-        if (!(bool)$entity['create_var']) {
+        if (!$entity['create_var']) {
             return false;
         }
         if ($entity['command_topic'] === '') {
@@ -2823,7 +2801,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $commandTemplate = HAMqttDiscoveryTemplate::parseCommandTemplate($this->normalizeNullableString($metadata[$templateKey] ?? null));
         if ($commandTemplate !== null) {
             if (!($commandTemplate['supported'] ?? false)) {
-                $this->debugExpert(__FUNCTION__, 'Cover-Aktionstemplate wird nicht unterstuetzt', [
+                $this->debugExpert(__FUNCTION__, 'Cover-Aktionstemplate wird nicht unterstützt', [
                     'Ident' => $ident,
                     'EntityKey' => $entity['entity_key'] ?? '',
                     'Template' => $commandTemplate['raw'] ?? '',
@@ -2928,7 +2906,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         return $digits <= 0
             ? (string)(int)round($numericValue)
-            : rtrim(rtrim(number_format($numericValue, $digits, '.', ''), '0'), '.');
+            : number_format($numericValue, $digits, '.', '')
+              |> (static fn($x) => rtrim($x, '0'))
+              |> (static fn($x) => rtrim($x, '.'));
     }
 
     private function resolveSelectOption(array $options, mixed $value): ?string
@@ -2955,7 +2935,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return null;
         }
 
-        return preg_replace('/\{\{\s*value\s*\}\}/', $value, $raw, 1);
+        return preg_replace('/{{\s*value\s*}}/', $value, $raw, 1);
     }
 
     private function coerceBooleanActionValue(mixed $value): ?bool
@@ -3145,9 +3125,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $parentState = $this->getDiscoveryParentRuntimeState();
         if ($parentState !== 'active') {
             $message = match ($parentState) {
-                'missing' => 'MQTT Send uebersprungen, kein Parent verbunden',
-                'inactive' => 'MQTT Send uebersprungen, Parent nicht aktiv',
-                default => 'MQTT Send uebersprungen, Parent ist nicht Home Assistant MQTT Discovery Splitter'
+                'missing' => 'MQTT Send übersprungen, kein Parent verbunden',
+                'inactive' => 'MQTT Send übersprungen, Parent nicht aktiv',
+                default => 'MQTT Send übersprungen, Parent ist nicht Home Assistant MQTT Discovery Splitter'
             };
             $this->debugExpert(__FUNCTION__, $message, [
                 'Topic' => $topic,
@@ -3165,7 +3145,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'Payload' => bin2hex($payload)
         ];
 
-        $this->debugExpert(__FUNCTION__, 'MQTT Command an Splitter uebergeben', [
+        $this->debugExpert(__FUNCTION__, 'MQTT Command an Splitter übergeben', [
             'Topic' => $topic,
             'Payload' => $payload,
             'QoS' => max(0, min(2, $qos)),
@@ -3224,13 +3204,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function findEntityByIdent(array $entities, string $ident): ?array
     {
-        foreach ($entities as $entity) {
-            if ($entity['ident'] === $ident) {
-                return $entity;
-            }
-        }
-
-        return null;
+        return array_find($entities, static fn($entity) => $entity['ident'] === $ident);
     }
 
     private function buildEntityLookup(array $entities): array
@@ -3286,7 +3260,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $notApplicable = 0;
 
         foreach ($entities as $entity) {
-            if (!(bool)$entity['create_var']) {
+            if (!$entity['create_var']) {
                 continue;
             }
 
@@ -3401,7 +3375,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function sanitizeIdent(string $value): string
     {
-        $value = preg_replace('/[^A-Za-z0-9_]+/', '_', $value) ?? $value;
+        $value = preg_replace('/\W+/', '_', $value) ?? $value;
         return trim($value, '_');
     }
 
@@ -3450,14 +3424,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         $record = $cachedTopics[$topic] ?? null;
         if (is_array($record)) {
-            return (bool)($record['is_current_session'] ?? false) ? 'current' : 'stale';
+            return ($record['is_current_session'] ?? false) ? 'current' : 'stale';
         }
 
         $eventFallback = $this->getEventStateFallback($entity);
         if ($eventFallback !== null) {
             $fallbackRecord = $cachedTopics[$eventFallback['topic']] ?? null;
             if (is_array($fallbackRecord)) {
-                return (bool)($fallbackRecord['is_current_session'] ?? false) ? 'current' : 'stale';
+                return ($fallbackRecord['is_current_session'] ?? false) ? 'current' : 'stale';
             }
         }
 
@@ -3502,7 +3476,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             }
         }
 
-        return implode(' | ', array_values(array_filter($parts, static fn(string $part): bool => $part !== '')));
+        return array_filter($parts, static fn(string $part): bool => $part !== '')
+               |> array_values(...)
+               |> (static fn($x) => implode(' | ', $x));
     }
 
     private function buildTemplateSummary(?array $template): string

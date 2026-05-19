@@ -11,6 +11,7 @@ final class HAButtonDefinitions
     public const int ACTION_PRESS = 0;
 
     // Map MQTT "set" payloads to HA button services/data.
+    /** @noinspection PhpUnusedParameterInspection */
     public static function buildRestServicePayload(mixed $value): array
     {
         return HARestPayloadBuilder::buildServiceOnlyPayload('press');

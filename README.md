@@ -47,35 +47,35 @@ Weitere interne Doku:
 
 **Unterstützte Domains**
 
-| Domain          | Status    | Hinweise                                                                                                                             | Offen                                         |
-|-----------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------|
-| `light`         | voll      | Attribute + schreibbar                                                                                                               | -                                             |
-| `switch`        | voll      | schaltbar                                                                                                                            | -                                             |
-| `binary_sensor` | voll      | `device_class` + Icons                                                                                                               | -                                             |
-| `number`        | voll      | Slider/Min/Max/Step, REST `set_value` (gilt auch fuer `input_number`)                                                                | -                                             |
-| `sensor`        | voll      | Units/Suffix, `enum` als Enumeration                                                                                                 | -                                             |
-| `select`        | voll      | Enumeration                                                                                                                          | -                                             |
-| `climate`       | voll      | Heizen/Kühlen steuerbar: Solltemperatur, Modus (z. B. Heizen/Kühlen), Preset-, Lüfter- und Swing-Modus sowie Ein/Aus und Zielfeuchte | -                                             |
-| `lock`          | voll      | REST `lock`/`unlock`/`open`, Hauptvariable Wertanzeige, Aktion als Enumeration                                                       | Code-Handling bei `open` (falls erforderlich) |
-| `cover`         | teilweise | Position/Tilt, REST `open`/`close`/`stop` + `set_position`, eigene Aktionsvariable für `open`/`close`/`stop`, separate Tilt-Aktion | Device-Class-Spezifika/weitere Attribute      |
+| Domain          | Status    | Hinweise                                                                                                                              | Offen                                         |
+|-----------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------|
+| `light`         | voll      | Attribute + schreibbar                                                                                                                | -                                             |
+| `switch`        | voll      | schaltbar                                                                                                                             | -                                             |
+| `binary_sensor` | voll      | `device_class` + Icons                                                                                                                | -                                             |
+| `number`        | voll      | Slider/Min/Max/Step, REST `set_value` (gilt auch fuer `input_number`)                                                                 | -                                             |
+| `sensor`        | voll      | Units/Suffix, `enum` als Enumeration                                                                                                  | -                                             |
+| `select`        | voll      | Enumeration                                                                                                                           | -                                             |
+| `climate`       | voll      | Heizen/Kühlen steuerbar: Solltemperatur, Modus (z. B. Heizen/Kühlen), Preset-, Lüfter- und Swing-Modus sowie Ein/Aus und Zielfeuchte  | -                                             |
+| `lock`          | voll      | REST `lock`/`unlock`/`open`, Hauptvariable Wertanzeige, Aktion als Enumeration                                                        | Code-Handling bei `open` (falls erforderlich) |
+| `cover`         | teilweise | Position/Tilt, REST `open`/`close`/`stop` + `set_position`, eigene Aktionsvariable für `open`/`close`/`stop`, separate Tilt-Aktion    | Device-Class-Spezifika/weitere Attribute      |
 | `valve`         | teilweise | Reine Ventile als Status, Positionsventile als 0-100 Hauptvariable; MQTT/REST `open`/`close`/`stop` + `set_position`, Aktionsvariable | Weitere ventilspezifische Attribute/Details   |
-| `event`         | teilweise | Enumeration aus `event_type`                                                                                                         | Weitere Event-Attribute                       |
-| `fan`           | teilweise | Status (On/Off), Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`)                                                | Weitere Dienste/Features je Modell            |
-| `humidifier`    | teilweise | Status (On/Off), Attribute (`target_humidity`, `current_humidity`, `mode`, `action`)                                                | Weitere Dienste/Features je Modell            |
-| `vacuum`        | teilweise | REST `start`/`stop`/`pause`/`return_to_base`, `clean_spot`, `locate`, `fan_speed`                                                   | Weitere Dienste/Features je Modell            |
-| `lawn_mower`    | teilweise | Status + Aktionen `start_mowing`/`pause`/`dock`                                                                                      | Weitere Dienste/Features je Modell            |
-| `media_player`  | teilweise | Status, Aktionen, Attribute, Cover als Medienobjekt                                                                                  | Weitere Dienste/Features je Modell            |
-| `camera`        | teilweise | Status + Kamera-Bild als Medienobjekt; Vorschau wird stabil über `camera_proxy/<entity_id>` geladen                                 | Kamera-Aktionen/Services                      |
-| `image`         | teilweise | Bild-Entität als Medienobjekt; Status wird als Zeitstempel mit Datum/Uhrzeit dargestellt                                            | Weitere image-spezifische Attribute           |
-| `button`        | voll      | `press` als Aktion                                                                                                                   | -                                             |
-| `input_button`  | voll      | `press` als Aktion                                                                                                                   | -                                             |
+| `event`         | teilweise | Enumeration aus `event_type`                                                                                                          | Weitere Event-Attribute                       |
+| `fan`           | teilweise | Status (On/Off), Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`)                                                  | Weitere Dienste/Features je Modell            |
+| `humidifier`    | teilweise | Status (On/Off), Attribute (`target_humidity`, `current_humidity`, `mode`, `action`)                                                  | Weitere Dienste/Features je Modell            |
+| `vacuum`        | teilweise | REST `start`/`stop`/`pause`/`return_to_base`, `clean_spot`, `locate`, `fan_speed`                                                     | Weitere Dienste/Features je Modell            |
+| `lawn_mower`    | teilweise | Status + Aktionen `start_mowing`/`pause`/`dock`                                                                                       | Weitere Dienste/Features je Modell            |
+| `media_player`  | teilweise | Status, Aktionen, Attribute, Cover als Medienobjekt                                                                                   | Weitere Dienste/Features je Modell            |
+| `camera`        | teilweise | Status + Kamera-Bild als Medienobjekt; Vorschau wird stabil über `camera_proxy/<entity_id>` geladen                                   | Kamera-Aktionen/Services                      |
+| `image`         | teilweise | Bild-Entität als Medienobjekt; Status wird als Zeitstempel mit Datum/Uhrzeit dargestellt                                              | Weitere image-spezifische Attribute           |
+| `button`        | voll      | `press` als Aktion                                                                                                                    | -                                             |
+| `input_button`  | voll      | `press` als Aktion                                                                                                                    | -                                             |
 
 ## 2. Voraussetzungen
 
 - Symcon ab Version 9.0
 - MQTT Broker in Home Assistant und eine MQTT Client-Instanz in Symcon oder alternativ ein Symcon MQTT Server
-- Fuer den MQTT-Discovery-Pfad wird im Live-Betrieb ein MQTT Client benoetigt, der den Discovery-Prefix empfaengt, z. B. `homeassistant/#` oder `#`.
-- Fuer MQTT Discovery Devices muessen ueber denselben MQTT Client zusaetzlich die Laufzeit-Topics der Quelle empfangen werden, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
+- Für den MQTT-Discovery-Pfad wird im Live-Betrieb ein MQTT Client benötigt, der den Discovery-Prefix empfängt, z. B. `homeassistant/#` oder `#`.
+- Für MQTT Discovery Devices müssen über denselben MQTT-Client zusätzlich die Laufzeit-Topics der Quelle empfangen werden, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 - Wichtig: Die MQTT-Subscription des Clients darf Wildcards wie `#` enthalten. Im `Home Assistant MQTT Discovery Splitter` selbst muss als `MQTTDiscoveryPrefix` dagegen der echte Discovery-Prefix eingetragen werden, typischerweise `homeassistant` und nicht `#`.
 - Home Assistant mit aktivierter MQTT Integration (Statestream)
 - Optional: mDNS/DNS-SD (Discovery)
@@ -89,10 +89,10 @@ Weitere interne Doku:
 
 **Migrationshinweis**
 
-- Die Discovery-Migration ist in [Migration](docs/MIGRATION.md) gebuendelt.
-- Wichtig fuer Updates:
+- Die Discovery-Migration ist in [Migration](docs/MIGRATION.md) gebündelt.
+- Wichtig für Updates:
   - `Home Assistant MQTT Discovery Device` arbeitet `DeviceID`-only und zieht seine Definition aus dem MQTT Discovery Splitter.
-  - `Home Assistant MQTT Discovery Splitter` hat zusaetzliche Bundle-Properties (`SourceMode`, `BundlePath`, `BundleCurrentSessionOnly`, `ReplayTopicsOnApply`).
+  - `Home Assistant MQTT Discovery Splitter` hat zusätzliche Bundle-Properties (`SourceMode`, `BundlePath`, `BundleCurrentSessionOnly`, `ReplayTopicsOnApply`).
   - Der klassische `Home Assistant Configurator` fuehrt im `create`-Block nur noch stabile Strukturattribute.
 
 ## 4. Funktionsreferenz
@@ -113,13 +113,13 @@ Keine öffentlichen Funktionen im Root-Modul. Siehe die jeweiligen Modul-READMEs
 
 1. MQTT Client in Symcon einrichten und mit dem Broker verbinden.
 2. Der MQTT Client muss mindestens `homeassistant/#` empfangen; fuer die Runtime der Discovery-Devices zusaetzlich die Quell-Topics, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
-3. `Home Assistant MQTT Discovery Splitter` anlegen und mit diesem MQTT Client verbinden.
+3. `Home Assistant MQTT Discovery Splitter` anlegen und mit diesem MQTT-Client verbinden.
 4. Im Splitter `MQTTDiscoveryPrefix` als literalen Discovery-Prefix setzen, typischerweise `homeassistant`, nicht `#`.
 5. `Home Assistant MQTT Discovery Configurator` ausfuehren und daraus `Home Assistant MQTT Discovery Device` Instanzen erzeugen.
 
 **MQTT-Discovery Bundle-Modus**
 
-- Fuer Entwicklung und Analyse kann der `Home Assistant MQTT Discovery Splitter` statt Live-MQTT ein exportiertes Discovery-Bundle nutzen.
+- Für Entwicklung und Analyse kann der `Home Assistant MQTT Discovery Splitter` statt Live-MQTT ein exportiertes Discovery-Bundle nutzen.
 - Dazu `SourceMode = bundle` setzen und `BundlePath` auf ein passendes V2-Bundle zeigen lassen.
 - `ReplayTopicsOnApply` ist sinnvoll, wenn Discovery-Devices ihren Receive-Pfad nach dem Laden des Bundles direkt noch einmal durchlaufen sollen.
 - Im Bundle-Modus werden ausgehende Commands aktuell verworfen.
@@ -139,10 +139,10 @@ mqtt_statestream:
 **Typische MQTT-Subscriptions**
 
 - Klassischer Runtime-Pfad:
-  - MQTT Client oder MQTT Server empfaengt typischerweise `homeassistant/#`
+  - MQTT Client oder MQTT Server empfängt typischerweise `homeassistant/#`
 - MQTT-Discovery-Pfad:
-  - derselbe MQTT Client am Discovery-Splitter empfaengt mindestens `homeassistant/#`
-  - fuer Zigbee2MQTT zusaetzlich typischerweise `zigbee2mqtt/#`
+  - derselbe MQTT-Client am Discovery-Splitter empfängt mindestens `homeassistant/#`
+  - für Zigbee2MQTT zusätzlich typischerweise `zigbee2mqtt/#`
 - Wildcards wie `#` oder `+` gehoeren nur in die Subscription des MQTT-Clients.
 - `MQTTBaseTopic` und `MQTTDiscoveryPrefix` enthalten dagegen den literalen Prefix ohne Wildcards.
 
@@ -193,14 +193,14 @@ Home Assistant MQTT Discovery Configurator / Device
 
 **Hinweise zur Fehlersuche**
 
-- Wenn im Splitter `Kein aktiver MQTT Parent gefunden` steht: Parent-Verbindung im Splitter, MQTT-Client-Status und Subscription in Symcon pruefen (Discovery-Prefix, z. B. `homeassistant/#` oder `#`).
+- Wenn im Splitter `Kein aktiver MQTT Parent gefunden` steht: Parent-Verbindung im Splitter, MQTT-Client-Status und Subscription in Symcon prüfen (Discovery-Prefix, z. B. `homeassistant/#` oder `#`).
 - Wenn es im Datenfluss hakt: Mithilfe des [MQTT Explorer](https://mqtt-explorer.com/) kann komfortabel geprüft werden, ob der MQTT-Server mit Daten versorgt wird (Topic, Payload, Attribute).
 - IP-Adressen und Ports prüfen: MQTT standardmäßig `1883` (TLS `8883`), Home Assistant REST standardmäßig `8123`.
-- MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.
+- MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.
 
-- Wenn MQTT Discovery Devices keine Werte bekommen: pruefen, ob derselbe MQTT Client neben `homeassistant/#` auch die Runtime-Topics der Quelle sieht, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
+- Wenn MQTT Discovery Devices keine Werte bekommen: prüfen, ob derselbe MQTT Client neben `homeassistant/#` auch die Runtime-Topics der Quelle sieht, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 - Wenn beim MQTT Discovery Splitter bereits vorhandene Discovery-Geraete nicht sofort auftauchen, obwohl sie retained am Broker liegen: `MQTT-IO reconnecten` ausfuehren. Dadurch wird der IO des MQTT-Clients neu verbunden und das retained Replay erneut eingelesen.
-- Fuer Support und Analyse gibt es zwei Exportwege im MQTT Discovery Splitter:
+- Für Support und Analyse gibt es zwei Exportwege im MQTT Discovery Splitter:
   - `Discovery-Bundle herunterladen` fuer den gesamten Cache.
   - `Discovery-Bundle aktuelle Session herunterladen` fuer nur die aktuelle MQTT-Session nach einem frischen Connect oder Reconnect.
 
@@ -212,16 +212,16 @@ Home Assistant MQTT Discovery Configurator / Device
 
 ### GUIDs der Module
 
-| Modul                       | Typ          | GUID                                     |
-|-----------------------------|--------------|------------------------------------------|
-| Home Assistant Discovery    | Discovery    | `{C36FEFA4-4732-CBD6-0216-A1DB30D036CF}` |
-| Home Assistant Configurator | Configurator | `{B9830F89-98E6-106C-CD6C-A3AD76FD5AE9}` |
-| Home Assistant MQTT Discovery Splitter | Splitter | `{68522B48-8638-4AA1-995F-84DD1CF32CD8}` |
+| Modul                                      | Typ          | GUID                                     |
+|--------------------------------------------|--------------|------------------------------------------|
+| Home Assistant Discovery                   | Discovery    | `{C36FEFA4-4732-CBD6-0216-A1DB30D036CF}` |
+| Home Assistant Configurator                | Configurator | `{B9830F89-98E6-106C-CD6C-A3AD76FD5AE9}` |
+| Home Assistant MQTT Discovery Splitter     | Splitter     | `{68522B48-8638-4AA1-995F-84DD1CF32CD8}` |
 | Home Assistant MQTT Discovery Configurator | Configurator | `{E5739B2D-7732-4398-9AD1-BECF0B8738C5}` |
-| Home Assistant MQTT Discovery Device | Device | `{5A6C7B2A-14B4-4D6C-AC3C-07D7D6A7568D}` |
-| Home Assistant Splitter     | Splitter     | `{0A4C4B31-2F59-4D21-8F62-3A12A0A0F3E1}` |
-| Home Assistant Device       | Device       | `{72D6A284-1870-4E11-92D8-0402C8233C29}` |
-| Home Assistant Entity       | Device       | `{C27D957C-3761-497B-8A30-A223405E04F2}` |
+| Home Assistant MQTT Discovery Device       | Device       | `{5A6C7B2A-14B4-4D6C-AC3C-07D7D6A7568D}` |
+| Home Assistant Splitter                    | Splitter     | `{0A4C4B31-2F59-4D21-8F62-3A12A0A0F3E1}` |
+| Home Assistant Device                      | Device       | `{72D6A284-1870-4E11-92D8-0402C8233C29}` |
+| Home Assistant Entity                      | Device       | `{C27D957C-3761-497B-8A30-A223405E04F2}` |
 
 ### FAQ
 
@@ -239,6 +239,6 @@ Home Assistant MQTT Discovery Configurator / Device
 
 ### Spenden
 
-Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fühlen, aber wenn das Modul gefällt, dann freue ich mich über eine Spende.
+Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fühlen, aber wenn das Modul gefällt, freue ich mich über eine Spende.
 
 <a href="https://www.paypal.me/bumaas" target="_blank"><img src="https://www.paypalobjects.com/de_DE/DE/i/btn/btn_donate_LG.gif" border="0" /></a>

@@ -34,12 +34,12 @@ trait HADomainStateHandlersTrait
         $parsed = $this->parseEntityPayload($payload);
         $rawState = (string)($parsed[self::KEY_STATE] ?? '');
         $this->updateEntityRawStateCache($entityId, $rawState);
-        $this->updateAvailabilityValue($entityId, $rawState);
+        $this->updateAvailabilityValue($rawState);
         $this->applyParsedEntityState($entityId, $parsed);
         return true;
     }
 
-    private function shouldSkipStateSetValue(string $ident, mixed $value): bool
+    protected function shouldSkipStateSetValue(string $ident, mixed $value): bool
     {
         if (!is_string($value)) {
             return false;

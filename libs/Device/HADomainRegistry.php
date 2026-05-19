@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 trait HADomainRegistryTrait
 {
-    private function applyDomainActionState(string $domain, string $ident, array $entity): void
+    protected function applyDomainActionState(string $domain, string $ident, array $entity): void
     {
         $handler = $this->getDomainActionHandlerMethod($domain);
         if ($handler !== null) {
-            $this->{$handler}($ident, $entity);
+            $this->invokeDomainActionHandler($handler, $ident, $entity);
             return;
         }
 
@@ -32,12 +32,12 @@ trait HADomainRegistryTrait
         return $handlers[$domain] ?? null;
     }
 
-    private function applyLockActionState(string $ident, array $entity): void
+    protected function applyLockActionState(string $ident): void
     {
         $this->DisableAction($ident);
     }
 
-    private function applyValveActionState(string $ident, array $entity): void
+    protected function applyValveActionState(string $ident, array $entity): void
     {
         if ($this->isValveMainWritable($entity[self::KEY_ATTRIBUTES] ?? [])) {
             $this->EnableAction($ident);
@@ -47,14 +47,14 @@ trait HADomainRegistryTrait
         $this->DisableAction($ident);
     }
 
-    private function applyClimateActionState(string $ident, array $entity): void
+    protected function applyClimateActionState(string $ident, array $entity): void
     {
         if ($this->isClimateTargetWritable($entity[self::KEY_ATTRIBUTES] ?? [])) {
             $this->EnableAction($ident);
         }
     }
 
-    private function applyCoverActionState(string $ident, array $entity): void
+    protected function applyCoverActionState(string $ident, array $entity): void
     {
         if ($this->isCoverMainWritable($entity[self::KEY_ATTRIBUTES] ?? [])) {
             $this->EnableAction($ident);
@@ -64,14 +64,14 @@ trait HADomainRegistryTrait
         $this->DisableAction($ident);
     }
 
-    private function applyFanActionState(string $ident, array $entity): void
+    protected function applyFanActionState(string $ident, array $entity): void
     {
         if ($this->isFanToggleSupported($entity[self::KEY_ATTRIBUTES] ?? [])) {
             $this->EnableAction($ident);
         }
     }
 
-    private function applySelectActionState(string $ident, array $entity): void
+    protected function applySelectActionState(string $ident, array $entity): void
     {
         if ($this->isSelectWritable($entity[self::KEY_ATTRIBUTES] ?? [])) {
             $this->EnableAction($ident);
@@ -81,9 +81,19 @@ trait HADomainRegistryTrait
         $this->DisableAction($ident);
     }
 
-    private function applyHumidifierActionState(string $ident, array $entity): void
+    protected function applyHumidifierActionState(string $ident): void
     {
         $this->EnableAction($ident);
+    }
+
+    private function invokeDomainActionHandler(string $handler, string $ident, array $entity): void
+    {
+        if ($handler === 'applyLockActionState' || $handler === 'applyHumidifierActionState') {
+            $this->{$handler}($ident);
+            return;
+        }
+
+        $this->{$handler}($ident, $entity);
     }
 
     private function isSelectWritable(mixed $attributes): bool
@@ -95,14 +105,14 @@ trait HADomainRegistryTrait
         return HASelectDefinitions::normalizeOptions($attributes['options'] ?? null) !== [];
     }
 
-    private function applyDomainExtraMaintenance(string $domain, array $entity): void
+    protected function applyDomainExtraMaintenance(string $domain, array $entity): void
     {
         foreach ($this->getDomainExtraMaintainerMethods($domain) as $method) {
             $this->{$method}($entity);
         }
     }
 
-    private function shouldApplyDomainActionStateOnExisting(string $domain): bool
+    protected function shouldApplyDomainActionStateOnExisting(string $domain): bool
     {
         return $domain === HASelectDefinitions::DOMAIN;
     }
@@ -193,7 +203,7 @@ trait HADomainRegistryTrait
         return $handlers[$domain] ?? null;
     }
 
-    private function updateEventEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateEventEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $state = $parsed[self::KEY_STATE] ?? '';
         if (is_string($state) && $state !== '') {
@@ -213,12 +223,12 @@ trait HADomainRegistryTrait
         }
     }
 
-    private function updateClimateEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateClimateEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $state = $parsed[self::KEY_STATE] ?? null;
         $attributes = $parsed[self::KEY_ATTRIBUTES] ?? [];
         if (is_array($attributes) && $attributes !== []) {
-            $attributes = $this->mapClimateAttributeAliases($attributes, __FUNCTION__);
+            $attributes = $this->mapClimateAttributeAliases($attributes);
             $hasHvacActionUpdate = array_key_exists(HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION, $attributes);
             if (is_string($state) && $state !== '' && ($hasHvacActionUpdate || !array_key_exists(HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $attributes))) {
                 $attributes[HAClimateDefinitions::ATTRIBUTE_HVAC_MODE] = $state;
@@ -263,15 +273,9 @@ trait HADomainRegistryTrait
         $this->updateClimatePowerValue($entityId, $state);
     }
 
-    private function updateCoverEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateCoverEntityValue(string $entityId, string $ident, array $parsed): void
     {
-        $state = (string)($parsed[self::KEY_STATE] ?? '');
-        $rawState = $parsed[self::KEY_STATE] ?? null;
-        $attributes = $this->getStoredEntityAttributes($entityId);
-        $rawAttributes = $parsed[self::KEY_ATTRIBUTES] ?? null;
-        if (is_array($rawAttributes) && $rawAttributes !== []) {
-            $attributes = $this->storeEntityAttributes($entityId, $rawAttributes);
-        }
+        [$state, $rawState, $attributes] = $this->extractPositionEntityUpdateContext($entityId, $parsed);
 
         if ($this->isCoverPositionEntity($attributes, $state)) {
             $mainValue = $this->resolveCoverMainValue($attributes, $state);
@@ -289,16 +293,9 @@ trait HADomainRegistryTrait
         $this->updateCoverAttributeValues($entityId, $attributes, $state);
     }
 
-    private function updateValveEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateValveEntityValue(string $entityId, string $ident, array $parsed): void
     {
-        $state = (string)($parsed[self::KEY_STATE] ?? '');
-        $rawState = $parsed[self::KEY_STATE] ?? null;
-
-        $attributes = $this->getStoredEntityAttributes($entityId);
-        $rawAttributes = $parsed[self::KEY_ATTRIBUTES] ?? null;
-        if (is_array($rawAttributes) && $rawAttributes !== []) {
-            $attributes = $this->storeEntityAttributes($entityId, $rawAttributes);
-        }
+        [$state, $rawState, $attributes] = $this->extractPositionEntityUpdateContext($entityId, $parsed);
 
         if ($this->isValvePositionEntity($attributes, $state)) {
             $mainValue = $this->resolveValveMainValue($attributes, $state);
@@ -315,7 +312,7 @@ trait HADomainRegistryTrait
         $this->finalizeEntityStateUpdate($entityId, $rawState, $attributes);
     }
 
-    private function updateLockEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateLockEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $attributes = $this->storeUpdatedEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $displayState = $this->resolveLockDisplayState((string)($parsed[self::KEY_STATE] ?? ''), $attributes !== [] ? $attributes : null);
@@ -332,7 +329,7 @@ trait HADomainRegistryTrait
         $this->updateLockAttributeValues($entityId, $attributes);
     }
 
-    private function updateVacuumEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateVacuumEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $attributes = $this->storeUpdatedEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $state = $parsed[self::KEY_STATE] ?? null;
@@ -344,7 +341,7 @@ trait HADomainRegistryTrait
         $this->finalizeEntityStateUpdate($entityId, $state, $attributes);
     }
 
-    private function updateLawnMowerEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateLawnMowerEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $attributes = $this->storeUpdatedEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $state = $parsed[self::KEY_STATE] ?? null;
@@ -355,7 +352,7 @@ trait HADomainRegistryTrait
         $this->finalizeEntityStateUpdate($entityId, $state, $attributes);
     }
 
-    private function updateFanEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateFanEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $attributes = $this->storeUpdatedEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $state = $parsed[self::KEY_STATE] ?? null;
@@ -372,7 +369,7 @@ trait HADomainRegistryTrait
         $this->finalizeEntityStateUpdate($entityId, $state, $attributes);
     }
 
-    private function updateHumidifierEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateHumidifierEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $attributes = $this->storeUpdatedEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $state = $parsed[self::KEY_STATE] ?? null;
@@ -389,7 +386,7 @@ trait HADomainRegistryTrait
         $this->finalizeEntityStateUpdate($entityId, $state, $attributes);
     }
 
-    private function updateMediaPlayerEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateMediaPlayerEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $attributes = $this->storeUpdatedEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $state = $parsed[self::KEY_STATE] ?? null;
@@ -402,7 +399,7 @@ trait HADomainRegistryTrait
         $this->finalizeEntityStateUpdate($entityId, $state, $attributes);
     }
 
-    private function updateCameraEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateCameraEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $attributes = $this->storeUpdatedEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $state = $parsed[self::KEY_STATE] ?? null;
@@ -416,7 +413,7 @@ trait HADomainRegistryTrait
         $this->finalizeEntityStateUpdate($entityId, $state, $attributes);
     }
 
-    private function updateImageEntityValue(string $entityId, string $ident, array $parsed): void
+    protected function updateImageEntityValue(string $entityId, string $ident, array $parsed): void
     {
         $attributes = $this->storeUpdatedEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $state = $parsed[self::KEY_STATE] ?? null;
@@ -435,6 +432,19 @@ trait HADomainRegistryTrait
         }
 
         return $this->storeEntityAttributes($entityId, $attributes);
+    }
+
+    private function extractPositionEntityUpdateContext(string $entityId, array $parsed): array
+    {
+        $state = (string)($parsed[self::KEY_STATE] ?? '');
+        $rawState = $parsed[self::KEY_STATE] ?? null;
+        $attributes = $this->getStoredEntityAttributes($entityId);
+        $rawAttributes = $parsed[self::KEY_ATTRIBUTES] ?? null;
+        if (is_array($rawAttributes) && $rawAttributes !== []) {
+            $attributes = $this->storeEntityAttributes($entityId, $rawAttributes);
+        }
+
+        return [$state, $rawState, $attributes];
     }
 
     private function finalizeEntityStateUpdate(string $entityId, mixed $state, array $attributes): void

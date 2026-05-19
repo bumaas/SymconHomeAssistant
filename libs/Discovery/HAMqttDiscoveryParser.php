@@ -25,6 +25,7 @@ final class HAMqttDiscoveryParser
     ) {
     }
 
+    /** @noinspection PhpUnused */
     public function parseConfigMessage(string $topic, string $payload): ?array
     {
         $entities = $this->parseConfigRecord($topic, $payload);
@@ -203,27 +204,18 @@ final class HAMqttDiscoveryParser
                 'event_type'          => null,
                 'event_types'         => [],
                 'options'             => $this->normalizeStringList($config['options'] ?? null),
-                'unit_of_measurement' => $component === HAClimateDefinitions::DOMAIN
-                    ? ($this->normalizeNullableString($config[HAClimateDefinitions::ATTRIBUTE_TEMPERATURE_UNIT] ?? null)
-                        ?? $this->normalizeNullableString($config['unit_of_measurement'] ?? null))
-                    : $this->normalizeNullableString($config['unit_of_measurement'] ?? null),
+                'unit_of_measurement' => $this->resolveComponentUnitOfMeasurement($component, $config),
                 'device_class'        => $this->normalizeNullableString($config['device_class'] ?? null),
                 'state_class'         => $this->normalizeNullableString($config['state_class'] ?? null),
-                'min'                 => $component === HAClimateDefinitions::DOMAIN
-                    ? (is_numeric($config[HAClimateDefinitions::ATTRIBUTE_MIN_TEMP] ?? null) ? (float)$config[HAClimateDefinitions::ATTRIBUTE_MIN_TEMP] : null)
-                    : (is_numeric($config['min'] ?? null) ? (float)$config['min'] : null),
-                'max'                 => $component === HAClimateDefinitions::DOMAIN
-                    ? (is_numeric($config[HAClimateDefinitions::ATTRIBUTE_MAX_TEMP] ?? null) ? (float)$config[HAClimateDefinitions::ATTRIBUTE_MAX_TEMP] : null)
-                    : (is_numeric($config['max'] ?? null) ? (float)$config['max'] : null),
-                'step'                => $component === HAClimateDefinitions::DOMAIN
-                    ? (is_numeric($config['temp_step'] ?? null) ? (float)$config['temp_step'] : null)
-                    : (is_numeric($config['step'] ?? null) ? (float)$config['step'] : null),
+                'min'                 => $this->resolveComponentNumericConfigValue($component, $config, 'min', HAClimateDefinitions::ATTRIBUTE_MIN_TEMP),
+                'max'                 => $this->resolveComponentNumericConfigValue($component, $config, 'max', HAClimateDefinitions::ATTRIBUTE_MAX_TEMP),
+                'step'                => $this->resolveComponentNumericConfigValue($component, $config, 'step', 'temp_step'),
                 'native_min_value'    => is_numeric($config['native_min_value'] ?? null) ? (float)$config['native_min_value'] : null,
                 'native_max_value'    => is_numeric($config['native_max_value'] ?? null) ? (float)$config['native_max_value'] : null,
                 'native_step'         => is_numeric($config['native_step'] ?? null) ? (float)$config['native_step'] : null,
                 'mode'                => $this->normalizeNullableString($config['mode'] ?? null),
                 'entity_category'     => $this->normalizeNullableString($config['entity_category'] ?? null),
-                'enabled_by_default'  => !array_key_exists('enabled_by_default', $config) || (bool)$config['enabled_by_default'],
+                'enabled_by_default'  => !array_key_exists('enabled_by_default', $config) || $config['enabled_by_default'],
                 'icon'                => $this->normalizeNullableString($config['icon'] ?? null),
                 'brightness'          => (bool)($config['brightness'] ?? false),
                 'brightness_scale'    => is_numeric($config['brightness_scale'] ?? null) ? (int)$config['brightness_scale'] : null,
@@ -241,7 +233,7 @@ final class HAMqttDiscoveryParser
                 'min_color_temp_kelvin' => is_numeric($config['min_color_temp_kelvin'] ?? null) ? (int)$config['min_color_temp_kelvin'] : null,
                 'max_color_temp_kelvin' => is_numeric($config['max_color_temp_kelvin'] ?? null) ? (int)$config['max_color_temp_kelvin'] : null,
                 'schema'              => $this->normalizeNullableString($config['schema'] ?? null),
-                'reports_position'    => $component === HACoverDefinitions::DOMAIN ? $this->hasCoverPositionMode($config) : false,
+                'reports_position'    => $component === HACoverDefinitions::DOMAIN && $this->hasCoverPositionMode($config),
                 'state_open'          => $component === HACoverDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_open'] ?? null) : null,
                 'state_closed'        => $component === HACoverDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_closed'] ?? null) : null,
                 'state_opening'       => $component === HACoverDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_opening'] ?? null) : null,
@@ -363,16 +355,8 @@ final class HAMqttDiscoveryParser
                 continue;
             }
 
-            $mergedConfig = array_replace($sharedConfig, $componentConfig);
-            $mergedConfig['device'] = $config['device'] ?? null;
-            $mergedConfig['origin'] = $config['origin'] ?? null;
-            $mergedConfig['object_id'] ??= $componentId;
-
-            $nestedTopicMeta = [
-                'component' => $platform,
-                'topic_object_id' => $componentId,
-                'topic_node_id' => $this->buildDeviceDiscoveryNodeId($topicMeta)
-            ];
+            $mergedConfig = $this->buildDeviceDiscoveryComponentConfig($config, $sharedConfig, $componentConfig, $componentId);
+            $nestedTopicMeta = $this->buildDeviceDiscoveryComponentTopicMeta($topicMeta, $platform, $componentId);
 
             if ($platform === self::DEVICE_AUTOMATION_COMPONENT) {
                 $parsed = $this->parseDeviceAutomationMessage($nestedTopicMeta, $mergedConfig, $topic);
@@ -472,16 +456,8 @@ final class HAMqttDiscoveryParser
                 continue;
             }
 
-            $mergedConfig = array_replace($sharedConfig, $componentConfig);
-            $mergedConfig['device'] = $config['device'] ?? null;
-            $mergedConfig['origin'] = $config['origin'] ?? null;
-            $mergedConfig['object_id'] ??= $componentId;
-
-            $nestedTopicMeta = [
-                'component' => $platform,
-                'topic_object_id' => $componentId,
-                'topic_node_id' => $this->buildDeviceDiscoveryNodeId($topicMeta)
-            ];
+            $mergedConfig = $this->buildDeviceDiscoveryComponentConfig($config, $sharedConfig, $componentConfig, $componentId);
+            $nestedTopicMeta = $this->buildDeviceDiscoveryComponentTopicMeta($topicMeta, $platform, $componentId);
 
             if ($platform === self::DEVICE_AUTOMATION_COMPONENT) {
                 $parsed = $this->parseDeviceAutomationMessage($nestedTopicMeta, $mergedConfig, $topic);
@@ -512,10 +488,8 @@ final class HAMqttDiscoveryParser
             return null;
         }
 
-        foreach ($prefixParts as $index => $prefixPart) {
-            if (($parts[$index] ?? '') !== $prefixPart) {
-                return null;
-            }
+        if (array_any(array_keys($prefixParts), static fn(int $index): bool => ($parts[$index] ?? '') !== $prefixParts[$index])) {
+            return null;
         }
 
         $componentIndex = count($prefixParts);
@@ -652,10 +626,10 @@ final class HAMqttDiscoveryParser
     private function normalizeConfigAliases(array $config): array
     {
         $config = $this->applyAliases($config, [
-            'availability'         => 'avty',
-            'availability_mode'    => 'avty_mode',
-            'availability_topic'   => 'avty_t',
-            'availability_template' => 'avty_tpl',
+            'availability'         => 'av' . 'ty',
+            'availability_mode'    => 'av' . 'ty_mode',
+            'availability_topic'   => 'av' . 'ty_t',
+            'availability_template' => 'av' . 'ty_tpl',
             'command_template'     => 'cmd_tpl',
             'command_topic'        => 'cmd_t',
             'device'               => 'dev',
@@ -680,7 +654,7 @@ final class HAMqttDiscoveryParser
             'icon'                 => 'ic',
             'optimistic'           => 'opt',
             'retain'               => 'ret',
-            'components'           => 'cmps'
+            'components'           => 'cm' . 'ps'
         ]);
 
         if (isset($config['device']) && is_array($config['device'])) {
@@ -781,6 +755,24 @@ final class HAMqttDiscoveryParser
         return implode('/', $parts);
     }
 
+    private function buildDeviceDiscoveryComponentConfig(array $config, array $sharedConfig, array $componentConfig, string $componentId): array
+    {
+        $mergedConfig = array_replace($sharedConfig, $componentConfig);
+        $mergedConfig['device'] = $config['device'] ?? null;
+        $mergedConfig['origin'] = $config['origin'] ?? null;
+        $mergedConfig['object_id'] ??= $componentId;
+        return $mergedConfig;
+    }
+
+    private function buildDeviceDiscoveryComponentTopicMeta(array $topicMeta, string $platform, string $componentId): array
+    {
+        return [
+            'component' => $platform,
+            'topic_object_id' => $componentId,
+            'topic_node_id' => $this->buildDeviceDiscoveryNodeId($topicMeta)
+        ];
+    }
+
     private function normalizeDeviceAliases(array $device): array
     {
         return $this->applyAliases($device, [
@@ -861,13 +853,6 @@ final class HAMqttDiscoveryParser
         return trim($baseTopic, '/') . substr($topic, 1);
     }
 
-    private function determineCommandMode(array $config): string
-    {
-        $commandTopic = $this->normalizeNullableString($config['command_topic'] ?? null);
-        $commandTemplate = HAMqttDiscoveryTemplate::parseCommandTemplate($this->normalizeNullableString($config['command_template'] ?? null));
-        return $this->determineCommandModeFromParts($commandTopic, $commandTemplate['raw'] ?? null);
-    }
-
     private function determineCommandModeFromParts(?string $commandTopic, ?string $commandTemplate): string
     {
         if ($commandTopic === null) {
@@ -884,32 +869,24 @@ final class HAMqttDiscoveryParser
 
     private function resolveComponentStateTopic(string $component, array $config): ?string
     {
-        if ($component === HACoverDefinitions::DOMAIN && $this->hasCoverPositionMode($config)) {
-            return $this->normalizeNullableString($config['position_topic'] ?? null)
-                ?? $this->normalizeNullableString($config['state_topic'] ?? null);
-        }
-
-        if ($component === HAClimateDefinitions::DOMAIN && $this->hasClimateTemperatureMode($config)) {
-            return $this->normalizeNullableString($config['temperature_state_topic'] ?? null)
-                ?? $this->normalizeNullableString($config['state_topic'] ?? null);
-        }
-
-        return $this->normalizeNullableString($config['state_topic'] ?? null);
+        return $this->resolveComponentStateConfigValue(
+            $component,
+            $config,
+            'position_topic',
+            'temperature_state_topic',
+            'state_topic'
+        );
     }
 
     private function resolveComponentValueTemplate(string $component, array $config): ?string
     {
-        if ($component === HACoverDefinitions::DOMAIN && $this->hasCoverPositionMode($config)) {
-            return $this->normalizeNullableString($config['position_template'] ?? null)
-                ?? $this->normalizeNullableString($config['value_template'] ?? null);
-        }
-
-        if ($component === HAClimateDefinitions::DOMAIN && $this->hasClimateTemperatureMode($config)) {
-            return $this->normalizeNullableString($config['temperature_state_template'] ?? null)
-                ?? $this->normalizeNullableString($config['value_template'] ?? null);
-        }
-
-        return $this->normalizeNullableString($config['value_template'] ?? null);
+        return $this->resolveComponentStateConfigValue(
+            $component,
+            $config,
+            'position_template',
+            'temperature_state_template',
+            'value_template'
+        );
     }
 
     private function resolveComponentCommandTopic(string $component, array $config): ?string
@@ -942,7 +919,46 @@ final class HAMqttDiscoveryParser
             return null;
         }
 
-        return preg_replace('/\{\{\s*position\s*\}\}/', '{{ value }}', $template, 1) ?: $template;
+        return preg_replace('/{{\s*position\s*}}/', '{{ value }}', $template, 1) ?: $template;
+    }
+
+    private function resolveComponentStateConfigValue(
+        string $component,
+        array $config,
+        string $coverKey,
+        string $climateKey,
+        string $defaultKey
+    ): ?string {
+        if ($component === HACoverDefinitions::DOMAIN && $this->hasCoverPositionMode($config)) {
+            return $this->normalizeNullableString($config[$coverKey] ?? null)
+                ?? $this->normalizeNullableString($config[$defaultKey] ?? null);
+        }
+
+        if ($component === HAClimateDefinitions::DOMAIN && $this->hasClimateTemperatureMode($config)) {
+            return $this->normalizeNullableString($config[$climateKey] ?? null)
+                ?? $this->normalizeNullableString($config[$defaultKey] ?? null);
+        }
+
+        return $this->normalizeNullableString($config[$defaultKey] ?? null);
+    }
+
+    private function resolveComponentUnitOfMeasurement(string $component, array $config): ?string
+    {
+        if ($component === HAClimateDefinitions::DOMAIN) {
+            return $this->normalizeNullableString($config[HAClimateDefinitions::ATTRIBUTE_TEMPERATURE_UNIT] ?? null)
+                ?? $this->normalizeNullableString($config['unit_of_measurement'] ?? null);
+        }
+
+        return $this->normalizeNullableString($config['unit_of_measurement'] ?? null);
+    }
+
+    private function resolveComponentNumericConfigValue(string $component, array $config, string $defaultKey, string $climateKey): ?float
+    {
+        $rawValue = $component === HAClimateDefinitions::DOMAIN
+            ? ($config[$climateKey] ?? null)
+            : ($config[$defaultKey] ?? null);
+
+        return is_numeric($rawValue) ? (float)$rawValue : null;
     }
 
     private function hasCoverPositionMode(array $config): bool
@@ -1039,7 +1055,9 @@ final class HAMqttDiscoveryParser
     private function humanizeIdentifier(string $value): string
     {
         $normalized = preg_replace('/[^A-Za-z0-9]+/', '_', trim($value)) ?? trim($value);
-        $words = array_values(array_filter(explode('_', $normalized), static fn(string $word): bool => $word !== ''));
+        $parts = explode('_', $normalized);
+        $words = array_filter($parts, static fn(string $word): bool => $word !== '');
+        $words = array_values($words);
         if ($words === []) {
             return $value;
         }

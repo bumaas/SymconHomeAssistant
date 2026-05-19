@@ -34,6 +34,7 @@ final class HACoverDefinitions
     public const string DEVICE_CLASS_SHUTTER = 'shutter';
     public const string DEVICE_CLASS_WINDOW = 'window';
 
+    /** @noinspection PhpUnused */
     public const array DEVICE_CLASSES = [
         self::DEVICE_CLASS_AWNING,
         self::DEVICE_CLASS_BLIND,
@@ -119,6 +120,7 @@ final class HACoverDefinitions
         ]
     ];
 
+    /** @noinspection PhpUnused */
     public const array ALLOWED_ATTRIBUTES = [
         self::ATTRIBUTE_POSITION,
         self::ATTRIBUTE_TILT_POSITION,

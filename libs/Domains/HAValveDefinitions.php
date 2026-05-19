@@ -13,7 +13,9 @@ final class HAValveDefinitions
 
     public const string PAYLOAD_POSITION = 'position';
 
+    /** @noinspection PhpUnused */
     public const string DEVICE_CLASS_GAS = 'gas';
+    /** @noinspection PhpUnused */
     public const string DEVICE_CLASS_WATER = 'water';
 
     public const int FEATURE_OPEN = 1;
@@ -60,10 +62,8 @@ final class HAValveDefinitions
 
     public static function buildRestServicePayload(mixed $value): array
     {
-        if (is_array($value)) {
-            if (isset($value[self::PAYLOAD_POSITION]) && is_numeric($value[self::PAYLOAD_POSITION])) {
-                return ['set_valve_position', ['position' => (float)$value[self::PAYLOAD_POSITION]]];
-            }
+        if (is_array($value) && isset($value[self::PAYLOAD_POSITION]) && is_numeric($value[self::PAYLOAD_POSITION])) {
+            return ['set_valve_position', ['position' => (float)$value[self::PAYLOAD_POSITION]]];
         }
 
         if (is_numeric($value)) {

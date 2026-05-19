@@ -319,7 +319,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
 
             $parts[] = sprintf(
                 '%s (%d)',
-                (string)($entry['component'] ?? 'unknown'),
+                ($entry['component'] ?? 'unknown'),
                 (int)($entry['count'] ?? 0)
             );
         }
@@ -340,7 +340,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
                 continue;
             }
 
-            $parts[] = (string)($entry['component'] ?? 'unknown') . ' -> ' . implode(', ', $examples);
+            $parts[] = ($entry['component'] ?? 'unknown') . ' -> ' . implode(', ', $examples);
         }
 
         return $parts === [] ? $this->Translate('none') : implode(' | ', $parts);

@@ -11,11 +11,6 @@ trait HARestParentClientTrait
         return $this->hasCompatibleParentModule(HAIds::MODULE_SPLITTER);
     }
 
-    private function hasActiveSplitterParent(): bool
-    {
-        return $this->hasCompatibleActiveParentModule(HAIds::MODULE_SPLITTER);
-    }
-
     private function getCurrentParentDebugContext(): array
     {
         return $this->buildCurrentParentDebugContext();
@@ -76,7 +71,7 @@ trait HARestParentClientTrait
         return $decoded;
     }
 
-    private function sendServiceRequestToParent(string $domain, string $service, array $data): bool
+    protected function sendServiceRequestToParent(string $domain, string $service, array $data): bool
     {
         $endpoint = '/api/services/' . rawurlencode($domain) . '/' . rawurlencode($service);
         $payload = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

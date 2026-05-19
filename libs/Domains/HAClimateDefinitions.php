@@ -149,6 +149,7 @@ final class HAClimateDefinitions
         self::ATTRIBUTE_SWING_HORIZONTAL_MODE => [self::ATTRIBUTE_SWING_HORIZONTAL_MODES]
     ];
 
+    /** @noinspection PhpUnused */
     public const array ALLOWED_ATTRIBUTES = [
         self::ATTRIBUTE_CURRENT_TEMPERATURE,
         self::ATTRIBUTE_TARGET_TEMPERATURE,
@@ -213,9 +214,6 @@ final class HAClimateDefinitions
                 }
                 if (array_key_exists('temperature', $value) && is_numeric($value['temperature'])) {
                     $data['temperature'] = (float)$value['temperature'];
-                }
-                if (array_key_exists(self::ATTRIBUTE_HVAC_MODE, $value) && is_string($value[self::ATTRIBUTE_HVAC_MODE])) {
-                    $data[self::ATTRIBUTE_HVAC_MODE] = $value[self::ATTRIBUTE_HVAC_MODE];
                 }
                 if ($data !== []) {
                     return ['set_temperature', $data];

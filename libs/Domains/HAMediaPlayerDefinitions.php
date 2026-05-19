@@ -14,6 +14,7 @@ final class HAMediaPlayerDefinitions
     public const int ACTION_PAUSE = 3;
     public const int ACTION_NEXT = 4;
 
+    /** @noinspection PhpUnused */
     public const array ACTION_DEFINITIONS = [
         self::ACTION_PREVIOUS => [
             'caption' => 'Previous Track',
@@ -339,6 +340,7 @@ final class HAMediaPlayerDefinitions
         'treble'
     ];
 
+    /** @noinspection PhpUnused */
     public const array ALLOWED_ATTRIBUTES = [
         'app_id',
         'app_name',

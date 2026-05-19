@@ -473,7 +473,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         }
 
         $result = $this->sendHaImageRequest($url, $token);
-        return $this->encodeImageResponseForTransport($url, $result);
+        return $this->encodeImageResponseForTransport($result);
     }
 
     private function sendHaImageRequest(string $url, string $token): array
@@ -556,7 +556,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return preg_match('#^image/#i', $contentType) === 1;
     }
 
-    private function encodeImageResponseForTransport(string $url, array $result): string
+    private function encodeImageResponseForTransport(array $result): string
     {
         $responseJson = json_encode($result, JSON_THROW_ON_ERROR);
         $jsonBytes = strlen($responseJson);
@@ -944,15 +944,20 @@ class HomeAssistantSplitter extends IPSModuleStrict
                 continue;
             }
 
-            foreach ($action['items'] as &$item) {
-                $name = (string)($item['name'] ?? '');
-                if ($name === '' || !array_key_exists($name, $captions)) {
-                    continue;
-                }
-                $item['caption'] = $captions[$name];
-            }
-            unset($item);
+            $this->applyDiagnosticsCaptionsToItems($action['items'], $captions);
         }
         unset($action);
+    }
+
+    private function applyDiagnosticsCaptionsToItems(array &$items, array $captions): void
+    {
+        foreach ($items as &$item) {
+            $name = (string)($item['name'] ?? '');
+            if ($name === '' || !array_key_exists($name, $captions)) {
+                continue;
+            }
+            $item['caption'] = $captions[$name];
+        }
+        unset($item);
     }
 }

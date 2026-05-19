@@ -334,11 +334,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             $entityId = (string)($entity['entity_id'] ?? '');
             $cached = $this->entities[$entityId] ?? null;
 
-            if ($cached !== null) {
-                $finalEntity = $cached;
-            } else {
-                $finalEntity = $entity;
-            }
+            $finalEntity = $cached ?? $entity;
 
             if (isset($cleanedNameById[$entityId])) {
                 $finalEntity['name'] = $cleanedNameById[$entityId];
@@ -545,22 +541,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     private function enrichSupportedFeaturesList(array &$entity): void
     {
-        if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
-            return;
-        }
-        if (isset($entity['attributes']['supported_features_list'])) {
-            return;
-        }
-        if (!isset($entity['attributes']['supported_features']) || !is_numeric($entity['attributes']['supported_features'])) {
-            return;
-        }
-
-        $domain = (string)($entity['domain'] ?? '');
-        if ($domain === '' && isset($entity['entity_id']) && str_contains($entity['entity_id'], '.')) {
-            [$domain] = explode('.', (string)$entity['entity_id'], 2);
-        }
-
-        $list = $this->mapSupportedFeaturesByDomain($domain, (int)$entity['attributes']['supported_features']);
+        $list = $this->buildSupportedFeaturesList($entity, false);
         if ($list !== []) {
             $entity['attributes']['supported_features_list'] = $list;
         }
@@ -598,7 +579,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             return;
         }
 
-        foreach ($this->buildResolvedEntities(array_values($rawEntities), true) as $resolved) {
+        foreach ($this->buildResolvedEntities(array_values($rawEntities)) as $resolved) {
             if ($resolved !== null) {
                 $newEntities[$resolved['entity_id']] = $resolved;
             }
@@ -691,7 +672,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
         $message = $scope . ' | ' . $durationMs . ' ms';
         if ($context !== []) {
-            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $encodedContext = json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             if (is_string($encodedContext) && $encodedContext !== '') {
                 $message .= ' | ' . $encodedContext;
             }
@@ -704,7 +685,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     {
         $message = $scope . ' | ' . $phase;
         if ($context !== []) {
-            $encodedContext = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $encodedContext = json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             if (is_string($encodedContext) && $encodedContext !== '') {
                 $message .= ' | ' . $encodedContext;
             }

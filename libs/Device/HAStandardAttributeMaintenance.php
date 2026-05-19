@@ -26,7 +26,7 @@ trait HAStandardAttributeMaintenanceTrait
         return @$this->GetIDForIdent($ident) !== false;
     }
 
-    private function syncAttributeActionState(string $ident, bool $enabled): void
+    protected function syncAttributeActionState(string $ident, bool $enabled): void
     {
         if ($enabled) {
             $this->EnableAction($ident);
@@ -57,7 +57,7 @@ trait HAStandardAttributeMaintenanceTrait
         $this->MaintainVariable($ident, $name, (int)$meta['type'], $presentation, $position, true);
 
         if ($applyActionState !== null && ($applyActionStateOnExisting || !$exists)) {
-            $applyActionState($attribute, $attributes, $ident, $presentation, $meta);
+            $applyActionState($attribute, $attributes, $ident, $presentation);
         }
 
         if ($afterMaintain !== null) {
@@ -65,7 +65,7 @@ trait HAStandardAttributeMaintenanceTrait
         }
     }
 
-    private function maintainStandardAttributeVariables(
+    protected function maintainStandardAttributeVariables(
         array $entity,
         array $definitions,
         callable $shouldCreate,
@@ -109,7 +109,7 @@ trait HAStandardAttributeMaintenanceTrait
         }
     }
 
-    private function ensureStandardAttributeVariable(
+    protected function ensureStandardAttributeVariable(
         string $entityId,
         string $attribute,
         array $definitions,
@@ -159,7 +159,7 @@ trait HAStandardAttributeMaintenanceTrait
         return true;
     }
 
-    private function updateStandardAttributeValues(
+    protected function updateStandardAttributeValues(
         string $entityId,
         array $attributes,
         array $definitions,
@@ -191,7 +191,7 @@ trait HAStandardAttributeMaintenanceTrait
         }
     }
 
-    private function refreshStandardAttributePresentationIfExists(
+    protected function refreshStandardAttributePresentationIfExists(
         string $entityId,
         string $attribute,
         array $attributes,

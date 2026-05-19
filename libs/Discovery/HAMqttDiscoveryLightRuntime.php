@@ -99,7 +99,7 @@ final class HAMqttDiscoveryLightRuntime
         }
 
         if (is_int($value) || is_float($value)) {
-            return $value != 0;
+            return $value !== 0;
         }
 
         if (!is_string($value)) {

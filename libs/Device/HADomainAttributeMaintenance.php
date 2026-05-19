@@ -27,7 +27,7 @@ trait HADomainAttributeMaintenanceTrait
 
 
     // Media-Player bündelt viele abgeleitete Attribute und zusätzliche Medienobjekte.
-    private function maintainMediaPlayerAttributeVariables(array $entity): void
+    protected function maintainMediaPlayerAttributeVariables(array $entity): void
     {
         $this->maintainStandardAttributeVariables(
             $entity,
@@ -35,7 +35,7 @@ trait HADomainAttributeMaintenanceTrait
             fn(string $attribute, array $meta, array $attributes): bool => $this->shouldCreateMediaPlayerAttribute($attribute, $meta, $attributes),
             fn(string $attribute, array $attributes, array $meta): array => $this->getMediaPlayerAttributePresentation($attribute, $attributes, $meta),
             fn(string $attribute, int $basePosition): int => $this->getMediaPlayerAttributePosition($attribute, $basePosition),
-            function (string $attribute, array $attributes, string $ident, array $presentation, array $_meta): void {
+            function (string $attribute, array $attributes, string $ident, array $presentation): void {
                 $this->applyMediaPlayerAttributeActionState($attribute, $attributes, $presentation, $ident);
             },
             0,
@@ -50,7 +50,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Erstellt fehlende Media-Player-Attribute lazily bei Bedarf.
-    private function ensureMediaPlayerAttributeVariable(string $entityId, string $attribute): bool
+    protected function ensureMediaPlayerAttributeVariable(string $entityId, string $attribute): bool
     {
         return $this->ensureStandardAttributeVariable(
             $entityId,
@@ -59,7 +59,7 @@ trait HADomainAttributeMaintenanceTrait
             fn(string $attributeName, array $meta, array $attributes): bool => $this->shouldCreateMediaPlayerAttribute($attributeName, $meta, $attributes),
             fn(string $attributeName, array $attributes, array $meta): array => $this->getMediaPlayerAttributePresentation($attributeName, $attributes, $meta),
             fn(string $attributeName, int $basePosition): int => $this->getMediaPlayerAttributePosition($attributeName, $basePosition),
-            function (string $attributeName, array $attributes, string $ident, array $presentation, array $_meta): void {
+            function (string $attributeName, array $attributes, string $ident, array $presentation): void {
                 $this->applyMediaPlayerAttributeActionState($attributeName, $attributes, $presentation, $ident);
             },
             0,
@@ -75,7 +75,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Kamera-Variablen bestehen hauptsächlich aus den zugehörigen Medienobjekten.
-    private function maintainCameraAttributeVariables(array $entity): void
+    protected function maintainCameraAttributeVariables(array $entity): void
     {
         $attributes = $entity['attributes'] ?? [];
         if (!is_array($attributes)) {
@@ -89,7 +89,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Image erzeugt nur die Vorschau und hält den Zustandswert separat.
-    private function maintainImageAttributeVariables(array $entity): void
+    protected function maintainImageAttributeVariables(array $entity): void
     {
         $attributes = $entity['attributes'] ?? [];
         if (!is_array($attributes)) {
@@ -102,7 +102,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Event trennt Zeitstempel und Ereignistyp in zwei eigene Symcon-Variablen.
-    private function maintainEventAttributeVariables(array $entity): void
+    protected function maintainEventAttributeVariables(array $entity): void
     {
         $entityId = $entity['entity_id'] ?? '';
         if ($entityId === '') {
@@ -140,7 +140,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Kamera-Updates pflegen Vorschau und optional den RTSP-Stream.
-    private function updateCameraAttributeValues(string $entityId, array $attributes): void
+    protected function updateCameraAttributeValues(string $entityId, array $attributes): void
     {
         $attributes = $this->normalizeCameraAttributes($attributes, __FUNCTION__);
         $this->updateCameraPreviewMedia($entityId);
@@ -152,7 +152,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Image kennt nur eine Vorschauquelle, die auf ein Medienobjekt gespiegelt wird.
-    private function updateImageAttributeValues(string $entityId, array $attributes): void
+    protected function updateImageAttributeValues(string $entityId, array $attributes): void
     {
         $attributes = $this->normalizeImageAttributes($attributes, __FUNCTION__);
         $previewUrl = $this->resolveImagePreviewUrl($entityId, $attributes);
@@ -171,7 +171,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Image-Status wird als Zeitstempelwert auf die Hauptvariable geschrieben.
-    private function updateImageStateValue(string $ident, string $state): void
+    protected function updateImageStateValue(string $ident, string $state): void
     {
         if ($state === '') {
             return;
@@ -198,22 +198,14 @@ trait HADomainAttributeMaintenanceTrait
     private function ensureCameraStreamMedia(string $entityId, int $basePosition): bool
     {
         $ident = $this->buildSharedSuffixIdent($entityId, self::CAMERA_STREAM_SUFFIX);
-        $objectId = @$this->GetIDForIdent($ident);
-        if ($objectId !== false) {
-            $object = IPS_GetObject($objectId);
-            if (($object['ObjectType'] ?? null) !== 5) {
-                $this->debugExpert('CameraStream', 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
-                return false;
+        return $this->ensureManagedMediaObject(
+            $ident,
+            MEDIATYPE_STREAM,
+            'CameraStream',
+            function (int $mediaId) use ($basePosition): void {
+                $this->syncCameraStreamMeta($mediaId, $basePosition);
             }
-            $this->syncCameraStreamMeta($objectId, $basePosition);
-            return true;
-        }
-
-        $mediaId = IPS_CreateMedia(MEDIATYPE_STREAM);
-        IPS_SetParent($mediaId, $this->InstanceID);
-        IPS_SetIdent($mediaId, $ident);
-        $this->syncCameraStreamMeta($mediaId, $basePosition);
-        return true;
+        );
     }
 
     private function syncCameraStreamMeta(int $mediaId, int $basePosition): void
@@ -238,15 +230,12 @@ trait HADomainAttributeMaintenanceTrait
         }
 
         $ident = $this->buildSharedSuffixIdent($entityId, self::CAMERA_STREAM_SUFFIX);
-        $mediaId = @$this->GetIDForIdent($ident);
+        $mediaId = $this->resolveManagedMediaId(
+            $ident,
+            fn(): bool => $this->ensureCameraStreamMedia($entityId, 0)
+        );
         if ($mediaId === false) {
-            if (!$this->ensureCameraStreamMedia($entityId, 0)) {
-                return;
-            }
-            $mediaId = @$this->GetIDForIdent($ident);
-            if ($mediaId === false) {
-                return;
-            }
+            return;
         }
 
         $media = IPS_GetMedia($mediaId);
@@ -291,17 +280,12 @@ trait HADomainAttributeMaintenanceTrait
 
     private function isWritableFanAttribute(string $attribute, array $entityAttributes = []): bool
     {
-        $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if (!is_array($meta) || !($meta['writable'] ?? false)) {
-            return false;
-        }
-        if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
-            return false;
-        }
-        if (!empty($entityAttributes) && !$this->hasFanSelectableValues($attribute, $entityAttributes)) {
-            return false;
-        }
-        return true;
+        return $this->isWritableSelectableAttribute(
+            HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
+            $attribute,
+            $entityAttributes,
+            fn(string $attributeName, array $attributes): bool => $this->hasFanSelectableValues($attributeName, $attributes)
+        );
     }
 
     // Listenbasierte Fan-Attribute werden nur mit belastbaren HA-Optionen schreibbar.
@@ -429,7 +413,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Light-Attribute werden nur angelegt, wenn sie im aktuellen Entity-Kontext sinnvoll sind.
-    private function maintainLightAttributeVariables(array $entity): void
+    protected function maintainLightAttributeVariables(array $entity): void
     {
         $attributes = $entity['attributes'] ?? [];
         if (!is_array($attributes)) {
@@ -461,7 +445,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Erstellt Light-Attribute bei nachgelieferten Attributen aus Laufzeitdaten.
-    private function ensureLightAttributeVariable(string $entityId, string $attribute): bool
+    protected function ensureLightAttributeVariable(string $entityId, string $attribute): bool
     {
         return $this->ensureStandardAttributeVariable(
             $entityId,
@@ -487,13 +471,13 @@ trait HADomainAttributeMaintenanceTrait
             }
         );
     }
-    private function updateLightAttributeValues(string $entityId, array $attributes): void
+    protected function updateLightAttributeValues(string $entityId, array $attributes): void
     {
         $this->updateStandardAttributeValues(
             $entityId,
             $attributes,
             HALightDefinitions::ATTRIBUTE_DEFINITIONS,
-            function (string $attribute, mixed $value, array $meta): mixed {
+            function (string $attribute, mixed $value, array $meta): string|int|bool|float {
                 if ($attribute === 'rgb_color') {
                     $value = $this->formatRgbColorStorageValue($value);
                 } elseif (is_array($value)) {
@@ -507,7 +491,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Lock-Zusatzattribute spiegeln optionale HA-Metadaten wie Auslöser und Codeformat.
-    private function maintainLockAttributeVariables(array $entity): void
+    protected function maintainLockAttributeVariables(array $entity): void
     {
         $basePosition = $this->getEntityPosition((string)($entity['entity_id'] ?? ''));
 
@@ -524,7 +508,7 @@ trait HADomainAttributeMaintenanceTrait
         );
     }
 
-    private function ensureLockAttributeVariable(string $entityId, string $attribute): bool
+    protected function ensureLockAttributeVariable(string $entityId, string $attribute): bool
     {
         $basePosition = $this->getEntityPosition($entityId);
 
@@ -543,18 +527,18 @@ trait HADomainAttributeMaintenanceTrait
         );
     }
 
-    private function updateLockAttributeValues(string $entityId, array $attributes): void
+    protected function updateLockAttributeValues(string $entityId, array $attributes): void
     {
         $this->updateStandardAttributeValues(
             $entityId,
             $attributes,
             HALockDefinitions::ATTRIBUTE_DEFINITIONS,
-            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type'])
+            fn(string $_attribute, mixed $value, array $meta): string|int|bool|float => $this->castVariableValue($value, $meta['type'])
         );
     }
 
     // Climate erzeugt Attribute auch dann, wenn nur die Optionslisten vorhanden sind.
-    private function maintainClimateAttributeVariables(array $entity): void
+    protected function maintainClimateAttributeVariables(array $entity): void
     {
         $attributes = $entity['attributes'] ?? [];
         if (!is_array($attributes)) {
@@ -580,7 +564,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Climate-Attribute können erst nach dem ersten State vollständig beurteilbar sein.
-    private function ensureClimateAttributeVariable(string $entityId, string $attribute): bool
+    protected function ensureClimateAttributeVariable(string $entityId, string $attribute): bool
     {
         $basePosition = $this->getEntityPosition($entityId);
 
@@ -606,7 +590,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Für HVAC-Mode wird notfalls der Hauptzustand als Fallback verwendet.
-    private function updateClimateAttributeValues(string $entityId, array $attributes): void
+    protected function updateClimateAttributeValues(string $entityId, array $attributes): void
     {
         $attributesWithFallback = $attributes;
         if (!array_key_exists(HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $attributesWithFallback)) {
@@ -620,7 +604,7 @@ trait HADomainAttributeMaintenanceTrait
             $entityId,
             $attributesWithFallback,
             HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
-            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type']),
+            fn(string $_attribute, mixed $value, array $meta): string|int|bool|float => $this->castVariableValue($value, $meta['type']),
             null,
             HAClimateDefinitions::DOMAIN
         );
@@ -638,7 +622,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Der Hauptwert bevorzugt je nach Featurelage Soll- oder Ist-Temperatur.
-    private function extractClimateMainValue(array $attributes): ?float
+    protected function extractClimateMainValue(array $attributes): ?float
     {
         $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
         $preferTarget = ($supported & 1) === 1;
@@ -664,7 +648,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Cover-Attribute sind klein genug, um direkt am Hauptwert zu hängen.
-    private function maintainCoverAttributeVariables(array $entity): void
+    protected function maintainCoverAttributeVariables(array $entity): void
     {
         $attributes = $entity['attributes'] ?? [];
         if (!is_array($attributes)) {
@@ -688,7 +672,7 @@ trait HADomainAttributeMaintenanceTrait
         );
     }
 
-    private function ensureCoverAttributeVariable(string $entityId, string $attribute): bool
+    protected function ensureCoverAttributeVariable(string $entityId, string $attribute): bool
     {
         $entity = $this->entities[$entityId] ?? [
             'entity_id'  => $entityId,
@@ -716,7 +700,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Cover spiegelt Positionsattribute auf Zusatzvariablen und Hauptwert.
-    private function updateCoverAttributeValues(string $entityId, array $attributes, string $state = ''): void
+    protected function updateCoverAttributeValues(string $entityId, array $attributes, string $state = ''): void
     {
         $definitions = $this->getMaintainedCoverAttributeDefinitions($attributes);
         $attributeValues = [];
@@ -731,7 +715,7 @@ trait HADomainAttributeMaintenanceTrait
             $entityId,
             $attributeValues,
             $definitions,
-            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type'])
+            fn(string $_attribute, mixed $value, array $meta): string|int|bool|float => $this->castVariableValue($value, $meta['type'])
         );
 
         $mainValue = $this->resolveCoverMainValue($attributes, $state);
@@ -844,7 +828,7 @@ trait HADomainAttributeMaintenanceTrait
         return null;
     }
 
-    private function isCoverPositionEntity(array $attributes, string $state = ''): bool
+    protected function isCoverPositionEntity(array $attributes, string $state = ''): bool
     {
         if ($this->extractCoverPosition($attributes) !== null) {
             return true;
@@ -857,18 +841,14 @@ trait HADomainAttributeMaintenanceTrait
         return is_numeric(trim($state));
     }
 
-    // Cover bevorzugt numerische Positionsattribute vor textuellen Statuswerten.
+    // Cover bevorzugt numerische Positionswerte vor textuellen Statuswerten.
     private function resolveCoverMainValue(array $attributes, string $state): ?float
     {
         $position = $this->extractCoverPosition($attributes);
-        if ($position !== null) {
-            return $position;
-        }
-
-        return $this->normalizeCoverStateToLevel($state);
+        return $position ?? $this->normalizeCoverStateToLevel($state);
     }
 
-    // Textzustände werden auf eine Prozentposition abgebildet, wenn kein Zahlenwert vorliegt.
+    // Der Textstatus wird auf einer Prozentposition abgebildet, wenn kein Zahlenwert vorliegt.
     private function normalizeCoverStateToLevel(string $state): ?float
     {
         $text = strtolower(trim($state));
@@ -885,7 +865,7 @@ trait HADomainAttributeMaintenanceTrait
         };
     }
 
-    private function normalizeCoverState(string $state): string
+    protected function normalizeCoverState(string $state): string
     {
         $text = strtolower(trim($state));
         return match ($text) {
@@ -897,7 +877,7 @@ trait HADomainAttributeMaintenanceTrait
         };
     }
 
-    private function updateValveAttributeValues(string $entityId, array $attributes, string $state = ''): void
+    protected function updateValveAttributeValues(string $entityId, array $attributes, string $state = ''): void
     {
         if (!$this->isValvePositionEntity($attributes, $state)) {
             return;
@@ -993,7 +973,8 @@ trait HADomainAttributeMaintenanceTrait
             return false;
         }
 
-        return in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true);
+        $normalized = strtolower(trim($value));
+        return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
     }
 
     // Light hat eine bevorzugte Reihenfolge und sortiert den Rest stabil dahinter ein.
@@ -1043,7 +1024,7 @@ trait HADomainAttributeMaintenanceTrait
         $this->syncAttributeActionState($ident, $this->isWritableFanAttribute($attribute, $attributes));
     }
 
-    private function maintainFanAttributeVariables(array $entity): void
+    protected function maintainFanAttributeVariables(array $entity): void
     {
         $this->maintainStandardAttributeVariables(
             $entity,
@@ -1051,7 +1032,7 @@ trait HADomainAttributeMaintenanceTrait
             fn(string $attribute, array $meta, array $attributes): bool => $this->shouldCreateFanAttribute($attribute, $meta, $attributes),
             fn(string $attribute, array $attributes, array $meta): array => $this->getFanAttributePresentation($attribute, $attributes, $meta),
             fn(string $attribute, int $basePosition): int => $this->getFanAttributePosition($attribute, $basePosition),
-            function (string $attribute, array $attributes, string $ident, array $_presentation, array $_meta): void {
+            function (string $attribute, array $attributes, string $ident): void {
                 $this->applyFanAttributeActionState($attribute, $attributes, $ident);
             },
             0,
@@ -1061,7 +1042,7 @@ trait HADomainAttributeMaintenanceTrait
         );
     }
 
-    private function ensureFanAttributeVariable(string $entityId, string $attribute): bool
+    protected function ensureFanAttributeVariable(string $entityId, string $attribute): bool
     {
         return $this->ensureStandardAttributeVariable(
             $entityId,
@@ -1070,7 +1051,7 @@ trait HADomainAttributeMaintenanceTrait
             fn(string $attributeName, array $meta, array $attributes): bool => $this->shouldCreateFanAttribute($attributeName, $meta, $attributes),
             fn(string $attributeName, array $attributes, array $meta): array => $this->getFanAttributePresentation($attributeName, $attributes, $meta),
             fn(string $attributeName, int $basePosition): int => $this->getFanAttributePosition($attributeName, $basePosition),
-            function (string $attributeName, array $attributes, string $ident, array $_presentation, array $_meta): void {
+            function (string $attributeName, array $attributes, string $ident): void {
                 $this->applyFanAttributeActionState($attributeName, $attributes, $ident);
             },
             0,
@@ -1084,19 +1065,19 @@ trait HADomainAttributeMaintenanceTrait
         );
     }
 
-    private function updateFanAttributeValues(string $entityId, array $attributes): void
+    protected function updateFanAttributeValues(string $entityId, array $attributes): void
     {
         $this->updateStandardAttributeValues(
             $entityId,
             $attributes,
             HAFanDefinitions::ATTRIBUTE_DEFINITIONS,
-            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type']),
+            fn(string $_attribute, mixed $value, array $meta): string|int|bool|float => $this->castVariableValue($value, $meta['type']),
             null,
             HAFanDefinitions::DOMAIN
         );
     }
 
-    private function buildFanAttributePayload(string $attribute, mixed $value): string
+    protected function buildFanAttributePayload(string $attribute, mixed $value): string
     {
         $meta = HAFanDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
         if (!is_array($meta) || !($meta['writable'] ?? false)) {
@@ -1118,17 +1099,12 @@ trait HADomainAttributeMaintenanceTrait
 
     private function isWritableHumidifierAttribute(string $attribute, array $entityAttributes = []): bool
     {
-        $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
-        if (!is_array($meta) || !($meta['writable'] ?? false)) {
-            return false;
-        }
-        if (!empty($entityAttributes) && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
-            return false;
-        }
-        if (!empty($entityAttributes) && !$this->hasHumidifierSelectableValues($attribute, $entityAttributes)) {
-            return false;
-        }
-        return true;
+        return $this->isWritableSelectableAttribute(
+            HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
+            $attribute,
+            $entityAttributes,
+            fn(string $attributeName, array $attributes): bool => $this->hasHumidifierSelectableValues($attributeName, $attributes)
+        );
     }
 
     // Listenbasierte Humidifier-Attribute werden nur mit belastbaren HA-Optionen schreibbar.
@@ -1163,7 +1139,7 @@ trait HADomainAttributeMaintenanceTrait
         $this->syncAttributeActionState($ident, $this->isWritableHumidifierAttribute($attribute, $attributes));
     }
 
-    private function maintainHumidifierAttributeVariables(array $entity): void
+    protected function maintainHumidifierAttributeVariables(array $entity): void
     {
         $this->maintainStandardAttributeVariables(
             $entity,
@@ -1171,7 +1147,7 @@ trait HADomainAttributeMaintenanceTrait
             fn(string $attribute, array $meta, array $attributes): bool => $this->shouldCreateHumidifierAttribute($attribute, $meta, $attributes),
             fn(string $attribute, array $attributes, array $meta): array => $this->getHumidifierAttributePresentation($attribute, $attributes, $meta),
             fn(string $attribute, int $basePosition): int => $this->getHumidifierAttributePosition($attribute, $basePosition),
-            function (string $attribute, array $attributes, string $ident, array $_presentation, array $_meta): void {
+            function (string $attribute, array $attributes, string $ident): void {
                 $this->applyHumidifierAttributeActionState($attribute, $attributes, $ident);
             },
             0,
@@ -1181,7 +1157,7 @@ trait HADomainAttributeMaintenanceTrait
         );
     }
 
-    private function ensureHumidifierAttributeVariable(string $entityId, string $attribute): bool
+    protected function ensureHumidifierAttributeVariable(string $entityId, string $attribute): bool
     {
         return $this->ensureStandardAttributeVariable(
             $entityId,
@@ -1190,7 +1166,7 @@ trait HADomainAttributeMaintenanceTrait
             fn(string $attributeName, array $meta, array $attributes): bool => $this->shouldCreateHumidifierAttribute($attributeName, $meta, $attributes),
             fn(string $attributeName, array $attributes, array $meta): array => $this->getHumidifierAttributePresentation($attributeName, $attributes, $meta),
             fn(string $attributeName, int $basePosition): int => $this->getHumidifierAttributePosition($attributeName, $basePosition),
-            function (string $attributeName, array $attributes, string $ident, array $_presentation, array $_meta): void {
+            function (string $attributeName, array $attributes, string $ident): void {
                 $this->applyHumidifierAttributeActionState($attributeName, $attributes, $ident);
             },
             0,
@@ -1204,19 +1180,19 @@ trait HADomainAttributeMaintenanceTrait
         );
     }
 
-    private function updateHumidifierAttributeValues(string $entityId, array $attributes): void
+    protected function updateHumidifierAttributeValues(string $entityId, array $attributes): void
     {
         $this->updateStandardAttributeValues(
             $entityId,
             $attributes,
             HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS,
-            fn(string $_attribute, mixed $value, array $meta): mixed => $this->castVariableValue($value, $meta['type']),
+            fn(string $_attribute, mixed $value, array $meta): string|int|bool|float => $this->castVariableValue($value, $meta['type']),
             null,
             HAHumidifierDefinitions::DOMAIN
         );
     }
 
-    private function buildHumidifierAttributePayload(string $attribute, mixed $value): string
+    protected function buildHumidifierAttributePayload(string $attribute, mixed $value): string
     {
         $meta = HAHumidifierDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
         if (!is_array($meta) || !($meta['writable'] ?? false)) {
@@ -1235,7 +1211,7 @@ trait HADomainAttributeMaintenanceTrait
         };
     }
 
-    private function refreshAttributePresentation(
+    protected function refreshAttributePresentation(
         string $ident,
         string $caption,
         int $type,
@@ -1246,7 +1222,7 @@ trait HADomainAttributeMaintenanceTrait
     }
 
     // Capability-Updates dürfen bestehende Action-Flags nicht nachträglich umschalten.
-    private function refreshDomainAttributePresentations(string $domain, string $entityId, array $attributes): void
+    protected function refreshDomainAttributePresentations(string $domain, string $entityId, array $attributes): void
     {
         $attributeTriggers = $this->getDomainAttributeRefreshTriggers($domain);
         foreach ($attributeTriggers as $attribute => $triggerKeys) {
@@ -1267,6 +1243,25 @@ trait HADomainAttributeMaintenanceTrait
     private function hasAnyAttributeKey(array $attributes, array $keys): bool
     {
         return array_any($keys, static fn($key) => array_key_exists($key, $attributes));
+    }
+
+    private function isWritableSelectableAttribute(
+        array $definitions,
+        string $attribute,
+        array $entityAttributes,
+        callable $hasSelectableValues
+    ): bool {
+        $meta = $definitions[$attribute] ?? null;
+        if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return false;
+        }
+        if ($entityAttributes !== [] && !$this->checkSupportedFeatures($meta, $entityAttributes)) {
+            return false;
+        }
+        if ($entityAttributes !== [] && !$hasSelectableValues($attribute, $entityAttributes)) {
+            return false;
+        }
+        return true;
     }
 
     private function getDomainAttributeRefreshTriggers(string $domain): array
@@ -1403,13 +1398,13 @@ trait HADomainAttributeMaintenanceTrait
         }
     }
 
-    private function updateMediaPlayerAttributeValues(string $entityId, array $attributes): void
+    protected function updateMediaPlayerAttributeValues(string $entityId, array $attributes): void
     {
         $this->updateStandardAttributeValues(
             $entityId,
             $attributes,
             HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS,
-            function (string $attribute, mixed $value, array $meta): mixed {
+            function (string $attribute, mixed $value, array $meta): string|int|bool|float {
                 if ($attribute === 'repeat') {
                     return $this->mapMediaPlayerRepeatToValue($value);
                 }
@@ -1452,7 +1447,7 @@ trait HADomainAttributeMaintenanceTrait
         }
         return $basePosition + 6 + $index;
     }
-    private function getMediaPlayerCoverPosition(int $basePosition): int
+    protected function getMediaPlayerCoverPosition(int $basePosition): int
     {
         return $this->getMediaPlayerOrderPosition($basePosition, 'media_cover');
     }
@@ -1497,7 +1492,7 @@ trait HADomainAttributeMaintenanceTrait
         return $basePosition + (($index + 1) * 10);
     }
 
-    // Featurebits werden domainübergreifend für Schreibbarkeit und Sichtbarkeit verwendet.
+    // Feature-Flags werden domainübergreifend für Verfügbarkeit und Sichtbarkeit verwendet.
     private function checkSupportedFeatures(array $meta, array $attributes): bool
     {
         $required = $meta['requires_features'] ?? [];
@@ -1525,7 +1520,7 @@ trait HADomainAttributeMaintenanceTrait
         return array_any($required, static fn($mode) => in_array($mode, $modes, true));
     }
 
-    private function getMediaPlayerLinkedPosition(string $entityId, string $domain): ?int
+    protected function getMediaPlayerLinkedPosition(string $entityId, string $domain): ?int
     {
         if ($domain === HASwitchDefinitions::DOMAIN) {
             $suffixMap = [

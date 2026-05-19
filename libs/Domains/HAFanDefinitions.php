@@ -91,22 +91,13 @@ final class HAFanDefinitions
                 return ['oscillate', ['oscillating' => (bool)$value['oscillating']]];
             }
             if (isset($value['preset_mode'])) {
-                return ['set_preset_mode', ['preset_mode' => (string)$value['preset_mode']]];
+                return HARestPayloadBuilder::buildSimpleValuePayload($value['preset_mode'], 'set_preset_mode', 'preset_mode');
             }
             if (isset($value['direction'])) {
-                return ['set_direction', ['direction' => (string)$value['direction']]];
+                return HARestPayloadBuilder::buildSimpleValuePayload($value['direction'], 'set_direction', 'direction');
             }
         }
 
-        if (is_bool($value)) {
-            return [$value ? 'turn_on' : 'turn_off', []];
-        }
-
-        $command = strtolower(trim((string)$value));
-        return match ($command) {
-            'on', 'turn_on' => ['turn_on', []],
-            'off', 'turn_off' => ['turn_off', []],
-            default => ['', []],
-        };
+        return HARestPayloadBuilder::buildBooleanTogglePayload($value, 'turn_on', 'turn_off');
     }
 }

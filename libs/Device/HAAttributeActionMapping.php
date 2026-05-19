@@ -5,7 +5,7 @@ declare(strict_types=1);
 trait HAAttributeActionMappingTrait
 {
     // Media-Player-Attribute brauchen teils zusätzliche Laufzeitbedingungen.
-    private function isWritableMediaPlayerAttribute(string $attribute, array $entityAttributes = []): bool
+    protected function isWritableMediaPlayerAttribute(string $attribute, array $entityAttributes = []): bool
     {
         $meta = $this->getWritableAttributeMeta(HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
         if ($meta === null) {
@@ -41,7 +41,7 @@ trait HAAttributeActionMappingTrait
         return HASelectDefinitions::normalizeOptions($entityAttributes[$listAttribute] ?? null);
     }
 
-    private function isWritableCoverAttribute(string $attribute, array $entityAttributes = []): bool
+    protected function isWritableCoverAttribute(string $attribute, array $entityAttributes = []): bool
     {
         $meta = $this->getWritableAttributeMeta(HACoverDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
         if ($meta === null || $entityAttributes === []) {
@@ -193,7 +193,7 @@ trait HAAttributeActionMappingTrait
     }
 
     // Light-Payloads werden pro Attribut in das erwartete HA-Format gebracht.
-    private function buildLightAttributePayload(string $attribute, mixed $value): string
+    protected function buildLightAttributePayload(string $attribute, mixed $value): string
     {
         if ($this->getWritableAttributeMeta(HALightDefinitions::ATTRIBUTE_DEFINITIONS, $attribute) === null) {
             return '';
@@ -203,7 +203,7 @@ trait HAAttributeActionMappingTrait
     }
 
     // Cover nutzt teils andere Payload-Schlüssel als den Attributnamen.
-    private function buildCoverAttributePayload(string $attribute, mixed $value): string
+    protected function buildCoverAttributePayload(string $attribute, mixed $value): string
     {
         $meta = $this->getWritableAttributeMeta(HACoverDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
         if ($meta === null) {
@@ -218,7 +218,7 @@ trait HAAttributeActionMappingTrait
     }
 
     // Climate unterscheidet zwischen numerischen Zielwerten und textuellen Modi.
-    private function buildClimateAttributePayload(string $attribute, mixed $value): string
+    protected function buildClimateAttributePayload(string $attribute, mixed $value): string
     {
         if ($this->getWritableAttributeMeta(HAClimateDefinitions::ATTRIBUTE_DEFINITIONS, $attribute) === null) {
             return '';
@@ -237,7 +237,7 @@ trait HAAttributeActionMappingTrait
     }
 
     // Media-Player-Attribute werden vor dem Senden auf HA-konforme Werte normalisiert.
-    private function buildMediaPlayerAttributePayload(string $attribute, mixed $value): string
+    protected function buildMediaPlayerAttributePayload(string $attribute, mixed $value): string
     {
         if ($this->getWritableAttributeMeta(HAMediaPlayerDefinitions::ATTRIBUTE_DEFINITIONS, $attribute) === null) {
             return '';
@@ -311,7 +311,7 @@ trait HAAttributeActionMappingTrait
     }
 
     // RGB wird intern als kompaktes JSON gespeichert, damit Symcon den Wert stabil hält.
-    private function formatRgbColorStorageValue(mixed $value): string
+    protected function formatRgbColorStorageValue(mixed $value): string
     {
         $rgb = $this->parseRgbColorComponents($value);
         if ($rgb === null) {

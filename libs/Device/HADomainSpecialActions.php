@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 trait HADomainSpecialActionsTrait
 {
-    private function resolveLockDisplayState(string $state, ?array $attributes): ?string
+    protected function resolveLockDisplayState(string $state, ?array $attributes): ?string
     {
         $state = strtolower(trim($state));
         if ($state !== '' && array_key_exists($state, HALockDefinitions::STATE_OPTIONS)) {
@@ -95,13 +95,7 @@ trait HADomainSpecialActionsTrait
 
     private function supportsAnyFeatureFlag(int $supported, array $features): bool
     {
-        foreach ($features as $feature) {
-            if ($this->supportsFeatureFlag($supported, (int)$feature)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($features, fn($feature) => $this->supportsFeatureFlag($supported, (int)$feature));
     }
 
     private function buildEnumerationOption(int $value, string $caption): array
@@ -139,6 +133,68 @@ trait HADomainSpecialActionsTrait
 
         $this->MaintainVariable($ident, $caption, VARIABLETYPE_INTEGER, $presentation, $position, true);
         $this->initializeTriggerActionVariable($ident, $exists);
+    }
+
+    private function extractEntityActionState(array $entity): ?array
+    {
+        $entityId = $entity['entity_id'] ?? '';
+        if ($entityId === '') {
+            return null;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        return [
+            'entityId' => $entityId,
+            'attributes' => $attributes
+        ];
+    }
+
+    private function extractEntityActionMaintenanceContext(array $entity, int $positionOffset): ?array
+    {
+        $context = $this->extractEntityActionState($entity);
+        if ($context === null) {
+            return null;
+        }
+
+        $context['position'] = $this->getEntityPosition($context['entityId']) + $positionOffset;
+        return $context;
+    }
+
+    private function maintainEntityActionVariable(
+        array $entity,
+        int $positionOffset,
+        callable $optionsResolver,
+        callable $identResolver,
+        string $caption,
+        bool $hideWhenEmpty
+    ): void {
+        $context = $this->extractEntityActionMaintenanceContext($entity, $positionOffset);
+        if ($context === null) {
+            return;
+        }
+
+        $options = $optionsResolver($context['attributes']);
+        $ident = $identResolver($context['entityId']);
+        $this->maintainEnumerationTriggerVariable($ident, $caption, $context['position'], $options, $hideWhenEmpty);
+    }
+
+    private function appendEnumerationOptionIfSupported(
+        array &$options,
+        int $supported,
+        int $feature,
+        int $action,
+        string $caption,
+        bool $addAll = false
+    ): void {
+        if (!$addAll && !$this->supportsFeatureFlag($supported, $feature)) {
+            return;
+        }
+
+        $options[] = $this->buildEnumerationOption($action, $caption);
     }
 
     private function resolveSpecialActionEntity(string $ident, string $suffix, string $domain): ?array
@@ -180,163 +236,82 @@ trait HADomainSpecialActionsTrait
         return true;
     }
 
-    private function resetTriggerActionValue(string $ident): void
-    {
-        $this->resetVariableByDescriptor($ident, $this->describeVariableByIdent($ident));
-    }
-
-    private function maintainLockActionVariable(array $entity): void
-    {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return;
+    private function handleServiceBackedEnumerationAction(
+        string $ident,
+        mixed $value,
+        string $suffix,
+        string $domain,
+        array $actionMap,
+        array $featureMap,
+        string $debugMessage
+    ): bool {
+        $entity = $this->resolveSpecialActionEntity($ident, $suffix, $domain);
+        if ($entity === null) {
+            return false;
         }
 
-        $attributes = $entity['attributes'] ?? [];
-        $options = $this->getLockActionOptions(is_array($attributes) ? $attributes : []);
-        $ident = $this->getLockActionIdent($entityId);
-        $position = $this->getEntityPosition($entityId) + 5;
-        $this->maintainEnumerationTriggerVariable($ident, 'Aktion', $position, $options, false);
-    }
-
-    private function maintainCoverActionVariable(array $entity): void
-    {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return;
+        $context = $this->extractEntityActionState($entity);
+        if ($context === null) {
+            return true;
         }
 
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
+        $action = is_numeric($value) ? (int)$value : null;
+        $definition = $action !== null ? ($actionMap[$action] ?? null) : null;
+        if (!is_array($definition)) {
+            return true;
         }
 
-        $options = $this->getCoverActionOptions($attributes);
-        $ident = $this->getCoverActionIdent($entityId);
-        $position = $this->getEntityPosition($entityId) + 5;
-        $this->maintainEnumerationTriggerVariable($ident, 'Aktion', $position, $options, true);
-    }
-
-    private function maintainCoverTiltActionVariable(array $entity): void
-    {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $options = $this->getCoverTiltActionOptions($attributes);
-        $ident = $this->getCoverTiltActionIdent($entityId);
-        $position = $this->getEntityPosition($entityId) + 6;
-        $this->maintainEnumerationTriggerVariable($ident, $this->Translate('Tilt Action'), $position, $options, true);
-    }
-
-    private function maintainValveActionVariable(array $entity): void
-    {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $options = $this->getValveActionOptions($attributes);
-        $ident = $this->getValveActionIdent($entityId);
-        $position = $this->getEntityPosition($entityId) + 5;
-        $this->maintainEnumerationTriggerVariable($ident, 'Aktion', $position, $options, true);
-    }
-
-    private function maintainVacuumActionVariable(array $entity): void
-    {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $options = $this->getVacuumActionOptions($attributes);
-        $ident = $this->getVacuumActionIdent($entityId);
-        $position = $this->getEntityPosition($entityId) + 5;
-        $this->maintainEnumerationTriggerVariable($ident, $this->Translate('Aktion'), $position, $options, true);
-    }
-
-    private function maintainVacuumFanSpeedVariable(array $entity): void
-    {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            return;
-        }
-
-        $ident = $this->getVacuumFanSpeedIdent($entityId);
-        $fanSpeedList = $attributes['fan_speed_list'] ?? null;
-        $exists = @$this->GetIDForIdent($ident) !== false;
-        if (!$this->supportsVacuumFanSpeed($attributes) || !is_array($fanSpeedList) || $fanSpeedList === []) {
-            if (!$exists) {
-                $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, '', 0, false);
+        $supported = $this->getSupportedFeatureFlags($context['attributes']);
+        if ($supported !== 0) {
+            $requiredFeature = $featureMap[$action] ?? 0;
+            if ($requiredFeature === 0 || !$this->supportsFeatureFlag($supported, $requiredFeature)) {
+                return true;
             }
+        }
+
+        [$service, $payload] = $definition;
+        if ($this->sendServiceRequestToParent($domain, $service, ['entity_id' => $context['entityId']])) {
+            $this->debugExpert('RequestAction', $debugMessage . ' (REST)', ['EntityID' => $context['entityId'], 'Command' => $service], true);
+            $this->resetTriggerActionValue($ident);
+            return true;
+        }
+
+        if ($this->sendTopicCommandToEntity(
+            $context['entityId'],
+            $payload,
+            $debugMessage,
+            ['EntityID' => $context['entityId'], 'Command' => $payload],
+            true
+        )) {
+            $this->resetTriggerActionValue($ident);
+        }
+
+        return true;
+    }
+
+    private function updateBinaryStateValue(string $ident, string $state, array $offStates): void
+    {
+        if (@$this->GetIDForIdent($ident) === false) {
             return;
         }
 
-        $position = $this->getEntityPosition($entityId) + 6;
-        $presentation = [
-            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-            'OPTIONS'      => $this->getPresentationOptions($fanSpeedList)
-        ];
-
-        $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, $presentation, $position, true);
-        $this->EnableAction($ident);
-    }
-
-    private function maintainLawnMowerActionVariable(array $entity): void
-    {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
+        $normalized = strtolower(trim($state));
+        if ($normalized === '' || $normalized === 'unknown' || $normalized === 'unavailable') {
             return;
         }
 
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $options = $this->getLawnMowerActionOptions($attributes);
-        $ident = $this->getLawnMowerActionIdent($entityId);
-        $position = $this->getEntityPosition($entityId) + 5;
-        $this->maintainEnumerationTriggerVariable($ident, $this->Translate('Aktion'), $position, $options, true);
+        $this->setValueWithDebug($ident, !in_array($normalized, $offStates, true));
     }
 
-    private function supportsCameraPower(array $attributes): bool
-    {
-        return $this->supportsFeatureFlag($this->getSupportedFeatureFlags($attributes), HACameraDefinitions::FEATURE_ON_OFF);
-    }
-
-    private function maintainCameraPowerVariable(array $entity): void
-    {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return;
-        }
-
-        $ident = $this->getCameraPowerIdent($entityId);
-        $attributes = $entity['attributes'] ?? [];
+    private function maintainSupportedPowerVariable(
+        string $entityId,
+        string $ident,
+        bool $supported,
+        ?string $state,
+        callable $valueUpdater
+    ): void {
         $exists = @$this->GetIDForIdent($ident) !== false;
-        if (!is_array($attributes) || !$this->supportsCameraPower($attributes)) {
+        if (!$supported) {
             if (!$exists) {
                 $this->MaintainVariable($ident, $this->Translate('Power'), VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], 1, false);
             }
@@ -354,46 +329,174 @@ trait HADomainSpecialActionsTrait
         );
         $this->EnableAction($ident);
 
-        $state = $entity[self::KEY_STATE] ?? $this->getCachedEntityState($entityId);
         if (is_string($state) && $state !== '') {
-            $this->updateCameraPowerValue($entityId, $state);
+            $valueUpdater($entityId, $state);
         }
+    }
+
+    private function maintainEntityPowerVariable(
+        array $entity,
+        callable $identResolver,
+        callable $supportsPower,
+        callable $valueUpdater
+    ): void {
+        $context = $this->extractEntityActionState($entity);
+        if ($context === null) {
+            return;
+        }
+
+        $ident = $identResolver($context['entityId']);
+        $state = $entity[self::KEY_STATE] ?? $this->getCachedEntityState($context['entityId']);
+        $this->maintainSupportedPowerVariable(
+            $context['entityId'],
+            $ident,
+            $supportsPower($context['attributes']),
+            is_string($state) ? $state : null,
+            $valueUpdater
+        );
+    }
+
+    private function handleSupportedPowerAction(
+        string $ident,
+        mixed $value,
+        string $suffix,
+        string $domain,
+        callable $supportsPower,
+        int $turnOnFeature,
+        int $turnOffFeature,
+        string $debugMessage,
+        string $supportedFeatureAttribute = self::KEY_SUPPORTED_FEATURES
+    ): bool {
+        $entity = $this->resolveSpecialActionEntity($ident, $suffix, $domain);
+        if ($entity === null) {
+            return false;
+        }
+
+        $context = $this->extractEntityActionState($entity);
+        if ($context === null) {
+            return true;
+        }
+
+        if (!$supportsPower($context['attributes'])) {
+            return true;
+        }
+
+        $supported = $this->getSupportedFeatureFlags($context['attributes'], $supportedFeatureAttribute);
+        $turnOn = (bool)$value;
+        if ($turnOn && !$this->supportsFeatureFlag($supported, $turnOnFeature)) {
+            return true;
+        }
+        if (!$turnOn && !$this->supportsFeatureFlag($supported, $turnOffFeature)) {
+            return true;
+        }
+
+        $command = $turnOn ? 'turn_on' : 'turn_off';
+        return $this->sendServiceOrTopicCommandToEntity($domain, $context['entityId'], $command, $debugMessage, true);
+    }
+
+    private function buildFeatureEnumerationOptions(array $attributes, array $definitions, bool $addAll = false): array
+    {
+        $supported = $this->getSupportedFeatureFlags($attributes);
+        $options = [];
+
+        foreach ($definitions as [$feature, $action, $caption]) {
+            $this->appendEnumerationOptionIfSupported($options, $supported, $feature, $action, $caption, $addAll);
+        }
+
+        return $options;
+    }
+
+    private function resetTriggerActionValue(string $ident): void
+    {
+        $this->resetVariableByDescriptor($ident, $this->describeVariableByIdent($ident));
+    }
+
+    protected function maintainLockActionVariable(array $entity): void
+    {
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getLockActionOptions'], [$this, 'getLockActionIdent'], 'Aktion', false);
+    }
+
+    protected function maintainCoverActionVariable(array $entity): void
+    {
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getCoverActionOptions'], [$this, 'getCoverActionIdent'], 'Aktion', true);
+    }
+
+    protected function maintainCoverTiltActionVariable(array $entity): void
+    {
+        $this->maintainEntityActionVariable($entity, 6, [$this, 'getCoverTiltActionOptions'], [$this, 'getCoverTiltActionIdent'], $this->Translate('Tilt Action'), true);
+    }
+
+    protected function maintainValveActionVariable(array $entity): void
+    {
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getValveActionOptions'], [$this, 'getValveActionIdent'], 'Aktion', true);
+    }
+
+    protected function maintainVacuumActionVariable(array $entity): void
+    {
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getVacuumActionOptions'], [$this, 'getVacuumActionIdent'], $this->Translate('Aktion'), true);
+    }
+
+    protected function maintainVacuumFanSpeedVariable(array $entity): void
+    {
+        $context = $this->extractEntityActionMaintenanceContext($entity, 6);
+        if ($context === null) {
+            return;
+        }
+
+        $attributes = $context['attributes'];
+        $ident = $this->getVacuumFanSpeedIdent($context['entityId']);
+        $fanSpeedList = $attributes['fan_speed_list'] ?? null;
+        $exists = @$this->GetIDForIdent($ident) !== false;
+        if (!is_array($fanSpeedList) || $fanSpeedList === [] || !$this->supportsVacuumFanSpeed($attributes)) {
+            if (!$exists) {
+                $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, '', 0, false);
+            }
+            return;
+        }
+
+        $position = $context['position'];
+        $presentation = [
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
+            'OPTIONS'      => $this->getPresentationOptions($fanSpeedList)
+        ];
+
+        $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, $presentation, $position, true);
+        $this->EnableAction($ident);
+    }
+
+    protected function maintainLawnMowerActionVariable(array $entity): void
+    {
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getLawnMowerActionOptions'], [$this, 'getLawnMowerActionIdent'], $this->Translate('Aktion'), true);
+    }
+
+    private function supportsCameraPower(array $attributes): bool
+    {
+        return $this->supportsFeatureFlag($this->getSupportedFeatureFlags($attributes), HACameraDefinitions::FEATURE_ON_OFF);
+    }
+
+    protected function maintainCameraPowerVariable(array $entity): void
+    {
+        $this->maintainEntityPowerVariable($entity, [$this, 'getCameraPowerIdent'], [$this, 'supportsCameraPower'], [$this, 'updateCameraPowerValue']);
     }
 
     private function updateCameraPowerValue(string $entityId, string $state): void
     {
         $ident = $this->getCameraPowerIdent($entityId);
-        if (@$this->GetIDForIdent($ident) === false) {
-            return;
-        }
-
-        $normalized = strtolower(trim($state));
-        if ($normalized === '' || $normalized === 'unknown' || $normalized === 'unavailable') {
-            return;
-        }
-
-        $this->setValueWithDebug($ident, $normalized !== 'off');
+        $this->updateBinaryStateValue($ident, $state, ['off']);
     }
 
     private function handleCameraPowerAction(string $ident, mixed $value): bool
     {
-        $entity = $this->resolveSpecialActionEntity($ident, '_camera_power', HACameraDefinitions::DOMAIN);
-        if ($entity === null) {
-            return false;
-        }
-
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return true;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes) || !$this->supportsCameraPower($attributes)) {
-            return true;
-        }
-
-        $command = (bool)$value ? 'turn_on' : 'turn_off';
-        return $this->sendServiceOrTopicCommandToEntity(HACameraDefinitions::DOMAIN, $entityId, $command, 'Camera power', true);
+        return $this->handleSupportedPowerAction(
+            $ident,
+            $value,
+            '_camera_power',
+            HACameraDefinitions::DOMAIN,
+            [$this, 'supportsCameraPower'],
+            HACameraDefinitions::FEATURE_ON_OFF,
+            HACameraDefinitions::FEATURE_ON_OFF,
+            'Camera power'
+        );
     }
 
     private function getLockActionOptions(array $attributes): array
@@ -462,164 +565,65 @@ trait HADomainSpecialActionsTrait
 
     private function handleCoverAction(string $ident, mixed $value): bool
     {
-        $entity = $this->resolveSpecialActionEntity($ident, self::COVER_ACTION_SUFFIX, HACoverDefinitions::DOMAIN);
-        if ($entity === null) {
-            return false;
-        }
-
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return true;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $action = is_numeric($value) ? (int)$value : null;
-        [$service, $payload] = match ($action) {
-            HACoverDefinitions::ACTION_OPEN => ['open_cover', 'open'],
-            HACoverDefinitions::ACTION_CLOSE => ['close_cover', 'close'],
-            HACoverDefinitions::ACTION_STOP => ['stop_cover', 'stop'],
-            default => ['', '']
-        };
-        if ($service === '' || $payload === '') {
-            return true;
-        }
-
-        $supported = $this->getSupportedFeatureFlags($attributes);
-        $addAll = $supported === 0;
-        if (!$addAll) {
-            $requiredFeature = match ($action) {
+        return $this->handleServiceBackedEnumerationAction(
+            $ident,
+            $value,
+            self::COVER_ACTION_SUFFIX,
+            HACoverDefinitions::DOMAIN,
+            [
+                HACoverDefinitions::ACTION_OPEN => ['open_cover', 'open'],
+                HACoverDefinitions::ACTION_CLOSE => ['close_cover', 'close'],
+                HACoverDefinitions::ACTION_STOP => ['stop_cover', 'stop']
+            ],
+            [
                 HACoverDefinitions::ACTION_OPEN => HACoverDefinitions::FEATURE_OPEN,
                 HACoverDefinitions::ACTION_CLOSE => HACoverDefinitions::FEATURE_CLOSE,
-                HACoverDefinitions::ACTION_STOP => HACoverDefinitions::FEATURE_STOP,
-                default => 0
-            };
-            if ($requiredFeature === 0 || !$this->supportsFeatureFlag($supported, $requiredFeature)) {
-                return true;
-            }
-        }
-
-        if ($this->sendServiceRequestToParent(HACoverDefinitions::DOMAIN, $service, ['entity_id' => $entityId])) {
-            $this->debugExpert('RequestAction', 'Cover action (REST)', ['EntityID' => $entityId, 'Command' => $service], true);
-            $this->resetTriggerActionValue($ident);
-            return true;
-        }
-
-        if ($this->sendTopicCommandToEntity($entityId, $payload, 'Cover action', ['EntityID' => $entityId, 'Command' => $payload], true)) {
-            $this->resetTriggerActionValue($ident);
-        }
-        return true;
+                HACoverDefinitions::ACTION_STOP => HACoverDefinitions::FEATURE_STOP
+            ],
+            'Cover action'
+        );
     }
 
     private function handleCoverTiltAction(string $ident, mixed $value): bool
     {
-        $entity = $this->resolveSpecialActionEntity($ident, self::COVER_TILT_ACTION_SUFFIX, HACoverDefinitions::DOMAIN);
-        if ($entity === null) {
-            return false;
-        }
-
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return true;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $action = is_numeric($value) ? (int)$value : null;
-        [$service, $payload] = match ($action) {
-            HACoverDefinitions::ACTION_OPEN_TILT => ['open_cover_tilt', 'open_tilt'],
-            HACoverDefinitions::ACTION_CLOSE_TILT => ['close_cover_tilt', 'close_tilt'],
-            HACoverDefinitions::ACTION_STOP_TILT => ['stop_cover_tilt', 'stop_tilt'],
-            default => ['', '']
-        };
-        if ($service === '' || $payload === '') {
-            return true;
-        }
-
-        $supported = $this->getSupportedFeatureFlags($attributes);
-        $addAll = $supported === 0;
-        if (!$addAll) {
-            $requiredFeature = match ($action) {
+        return $this->handleServiceBackedEnumerationAction(
+            $ident,
+            $value,
+            self::COVER_TILT_ACTION_SUFFIX,
+            HACoverDefinitions::DOMAIN,
+            [
+                HACoverDefinitions::ACTION_OPEN_TILT => ['open_cover_tilt', 'open_tilt'],
+                HACoverDefinitions::ACTION_CLOSE_TILT => ['close_cover_tilt', 'close_tilt'],
+                HACoverDefinitions::ACTION_STOP_TILT => ['stop_cover_tilt', 'stop_tilt']
+            ],
+            [
                 HACoverDefinitions::ACTION_OPEN_TILT => HACoverDefinitions::FEATURE_OPEN_TILT,
                 HACoverDefinitions::ACTION_CLOSE_TILT => HACoverDefinitions::FEATURE_CLOSE_TILT,
-                HACoverDefinitions::ACTION_STOP_TILT => HACoverDefinitions::FEATURE_STOP_TILT,
-                default => 0
-            };
-            if ($requiredFeature === 0 || !$this->supportsFeatureFlag($supported, $requiredFeature)) {
-                return true;
-            }
-        }
-
-        if ($this->sendServiceRequestToParent(HACoverDefinitions::DOMAIN, $service, ['entity_id' => $entityId])) {
-            $this->debugExpert('RequestAction', 'Cover tilt action (REST)', ['EntityID' => $entityId, 'Command' => $service], true);
-            $this->resetTriggerActionValue($ident);
-            return true;
-        }
-
-        if ($this->sendTopicCommandToEntity($entityId, $payload, 'Cover tilt action', ['EntityID' => $entityId, 'Command' => $payload], true)) {
-            $this->resetTriggerActionValue($ident);
-        }
-        return true;
+                HACoverDefinitions::ACTION_STOP_TILT => HACoverDefinitions::FEATURE_STOP_TILT
+            ],
+            'Cover tilt action'
+        );
     }
 
     private function handleValveAction(string $ident, mixed $value): bool
     {
-        $entity = $this->resolveSpecialActionEntity($ident, self::VALVE_ACTION_SUFFIX, HAValveDefinitions::DOMAIN);
-        if ($entity === null) {
-            return false;
-        }
-
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return true;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $action = is_numeric($value) ? (int)$value : null;
-        [$service, $payload] = match ($action) {
-            HAValveDefinitions::ACTION_OPEN => ['open_valve', 'open'],
-            HAValveDefinitions::ACTION_CLOSE => ['close_valve', 'close'],
-            HAValveDefinitions::ACTION_STOP => ['stop_valve', 'stop'],
-            default => ['', '']
-        };
-        if ($service === '' || $payload === '') {
-            return true;
-        }
-
-        $supported = $this->getSupportedFeatureFlags($attributes);
-        $addAll = $supported === 0;
-        if (!$addAll) {
-            $requiredFeature = match ($action) {
+        return $this->handleServiceBackedEnumerationAction(
+            $ident,
+            $value,
+            self::VALVE_ACTION_SUFFIX,
+            HAValveDefinitions::DOMAIN,
+            [
+                HAValveDefinitions::ACTION_OPEN => ['open_valve', 'open'],
+                HAValveDefinitions::ACTION_CLOSE => ['close_valve', 'close'],
+                HAValveDefinitions::ACTION_STOP => ['stop_valve', 'stop']
+            ],
+            [
                 HAValveDefinitions::ACTION_OPEN => HAValveDefinitions::FEATURE_OPEN,
                 HAValveDefinitions::ACTION_CLOSE => HAValveDefinitions::FEATURE_CLOSE,
-                HAValveDefinitions::ACTION_STOP => HAValveDefinitions::FEATURE_STOP,
-                default => 0
-            };
-            if ($requiredFeature === 0 || !$this->supportsFeatureFlag($supported, $requiredFeature)) {
-                return true;
-            }
-        }
-
-        if ($this->sendServiceRequestToParent(HAValveDefinitions::DOMAIN, $service, ['entity_id' => $entityId])) {
-            $this->debugExpert('RequestAction', 'Valve action (REST)', ['EntityID' => $entityId, 'Command' => $service], true);
-            $this->resetTriggerActionValue($ident);
-            return true;
-        }
-
-        if ($this->sendTopicCommandToEntity($entityId, $payload, 'Valve action', ['EntityID' => $entityId, 'Command' => $payload], true)) {
-            $this->resetTriggerActionValue($ident);
-        }
-        return true;
+                HAValveDefinitions::ACTION_STOP => HAValveDefinitions::FEATURE_STOP
+            ],
+            'Valve action'
+        );
     }
 
     private function handleVacuumAction(string $ident, mixed $value): bool
@@ -687,7 +691,7 @@ trait HADomainSpecialActionsTrait
         return true;
     }
 
-    private function updateVacuumFanSpeedValue(string $entityId, ?array $attributes): void
+    protected function updateVacuumFanSpeedValue(string $entityId, ?array $attributes): void
     {
         if (!is_array($attributes)) {
             return;
@@ -770,90 +774,48 @@ trait HADomainSpecialActionsTrait
 
     private function handleMediaPlayerPowerAction(string $ident, mixed $value): bool
     {
-        $entity = $this->resolveSpecialActionEntity($ident, self::MEDIA_PLAYER_POWER_SUFFIX, HAMediaPlayerDefinitions::DOMAIN);
-        if ($entity === null) {
-            return false;
-        }
-
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return true;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-        if (!$this->supportsMediaPlayerPower($attributes)) {
-            return true;
-        }
-
-        $supported = $this->getSupportedFeatureFlags($attributes);
-        $turnOn = (bool)$value;
-        if ($turnOn && !$this->supportsFeatureFlag($supported, HAMediaPlayerDefinitions::FEATURE_TURN_ON)) {
-            return true;
-        }
-        if (!$turnOn && !$this->supportsFeatureFlag($supported, HAMediaPlayerDefinitions::FEATURE_TURN_OFF)) {
-            return true;
-        }
-
-        $command = $turnOn ? 'turn_on' : 'turn_off';
-        return $this->sendServiceOrTopicCommandToEntity(HAMediaPlayerDefinitions::DOMAIN, $entityId, $command, 'Media player power', true);
+        return $this->handleSupportedPowerAction(
+            $ident,
+            $value,
+            self::MEDIA_PLAYER_POWER_SUFFIX,
+            HAMediaPlayerDefinitions::DOMAIN,
+            [$this, 'supportsMediaPlayerPower'],
+            HAMediaPlayerDefinitions::FEATURE_TURN_ON,
+            HAMediaPlayerDefinitions::FEATURE_TURN_OFF,
+            'Media player power'
+        );
     }
 
     private function handleClimatePowerAction(string $ident, mixed $value): bool
     {
-        $entity = $this->resolveSpecialActionEntity($ident, self::CLIMATE_POWER_SUFFIX, HAClimateDefinitions::DOMAIN);
-        if ($entity === null) {
-            return false;
-        }
-
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return true;
-        }
-
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-        if (!$this->supportsClimatePower($attributes)) {
-            return true;
-        }
-
-        $supported = $this->getSupportedFeatureFlags($attributes, HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES);
-        $turnOn = (bool)$value;
-        if ($turnOn && !$this->supportsFeatureFlag($supported, HAClimateDefinitions::FEATURE_TURN_ON)) {
-            return true;
-        }
-        if (!$turnOn && !$this->supportsFeatureFlag($supported, HAClimateDefinitions::FEATURE_TURN_OFF)) {
-            return true;
-        }
-
-        $command = $turnOn ? 'turn_on' : 'turn_off';
-        return $this->sendServiceOrTopicCommandToEntity(HAClimateDefinitions::DOMAIN, $entityId, $command, 'Climate power', true);
+        return $this->handleSupportedPowerAction(
+            $ident,
+            $value,
+            self::CLIMATE_POWER_SUFFIX,
+            HAClimateDefinitions::DOMAIN,
+            [$this, 'supportsClimatePower'],
+            HAClimateDefinitions::FEATURE_TURN_ON,
+            HAClimateDefinitions::FEATURE_TURN_OFF,
+            'Climate power',
+            HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES
+        );
     }
 
-    private function maintainMediaPlayerActionVariable(array $entity): void
+    protected function maintainMediaPlayerActionVariable(array $entity): void
     {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
+        $context = $this->extractEntityActionState($entity);
+        if ($context === null) {
             return;
         }
 
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-
-        $options = $this->getMediaPlayerActionOptions($attributes);
+        $options = $this->getMediaPlayerActionOptions($context['attributes']);
         if ($options === []) {
             return;
         }
 
         $this->debugExpert(__FUNCTION__, 'Options', ['Options' => $options]);
 
-        $ident = $this->getMediaPlayerActionIdent($entityId);
+        $ident = $this->getMediaPlayerActionIdent($context['entityId']);
         $exists = @$this->GetIDForIdent($ident) !== false;
         $position = $this->getMediaPlayerOrderPosition(0, 'action');
 
@@ -866,22 +828,18 @@ trait HADomainSpecialActionsTrait
         $this->initializeTriggerActionVariable($ident, $exists);
     }
 
-    private function maintainMediaPlayerPowerVariable(array $entity): void
+    protected function maintainMediaPlayerPowerVariable(array $entity): void
     {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
+        $context = $this->extractEntityActionState($entity);
+        if ($context === null) {
             return;
         }
 
-        $attributes = $entity['attributes'] ?? [];
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-        if (!$this->supportsMediaPlayerPower($attributes)) {
+        if (!$this->supportsMediaPlayerPower($context['attributes'])) {
             return;
         }
 
-        $ident = $this->getMediaPlayerPowerIdent($entityId);
+        $ident = $this->getMediaPlayerPowerIdent($context['entityId']);
         $position = $this->getMediaPlayerOrderPosition(0, 'power');
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_SWITCH
@@ -889,9 +847,9 @@ trait HADomainSpecialActionsTrait
 
         $this->MaintainVariable($ident, $this->Translate('Power'), VARIABLETYPE_BOOLEAN, $presentation, $position, true);
         $this->EnableAction($ident);
-        $cachedState = $this->getCachedEntityState($entityId);
+        $cachedState = $this->getCachedEntityState($context['entityId']);
         if ($cachedState !== null) {
-            $this->updateMediaPlayerPowerValue($entityId, $cachedState);
+            $this->updateMediaPlayerPowerValue($context['entityId'], $cachedState);
         }
     }
 
@@ -973,70 +931,18 @@ trait HADomainSpecialActionsTrait
     private function updateMediaPlayerPowerValue(string $entityId, string $state): void
     {
         $ident = $this->getMediaPlayerPowerIdent($entityId);
-        if (@$this->GetIDForIdent($ident) === false) {
-            return;
-        }
-
-        $normalized = strtolower(trim($state));
-        if ($normalized === '' || $normalized === 'unknown' || $normalized === 'unavailable') {
-            return;
-        }
-
-        $isOn = !in_array($normalized, ['off', 'standby'], true);
-        $this->setValueWithDebug($ident, $isOn);
+        $this->updateBinaryStateValue($ident, $state, ['off', 'standby']);
     }
 
-    private function maintainClimatePowerVariable(array $entity): void
+    protected function maintainClimatePowerVariable(array $entity): void
     {
-        $entityId = $entity['entity_id'] ?? '';
-        if ($entityId === '') {
-            return;
-        }
-
-        $ident = $this->getClimatePowerIdent($entityId);
-        $attributes = $entity['attributes'] ?? [];
-        $exists = @$this->GetIDForIdent($ident) !== false;
-        if (!is_array($attributes)) {
-            $attributes = [];
-        }
-        if (!$this->supportsClimatePower($attributes)) {
-            if (!$exists) {
-                $this->MaintainVariable($ident, $this->Translate('Power'), VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], 1, false);
-            }
-            return;
-        }
-
-        $position = $this->getEntityPosition($entityId) + 1;
-        $this->MaintainVariable(
-            $ident,
-            $this->Translate('Power'),
-            VARIABLETYPE_BOOLEAN,
-            ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH],
-            $position,
-            true
-        );
-        $this->EnableAction($ident);
-
-        $state = $entity[self::KEY_STATE] ?? $this->getCachedEntityState($entityId);
-        if (is_string($state) && $state !== '') {
-            $this->updateClimatePowerValue($entityId, $state);
-        }
+        $this->maintainEntityPowerVariable($entity, [$this, 'getClimatePowerIdent'], [$this, 'supportsClimatePower'], [$this, 'updateClimatePowerValue']);
     }
 
     private function updateClimatePowerValue(string $entityId, string $state): void
     {
         $ident = $this->getClimatePowerIdent($entityId);
-        if (@$this->GetIDForIdent($ident) === false) {
-            return;
-        }
-
-        $normalized = strtolower(trim($state));
-        if ($normalized === '' || $normalized === 'unknown' || $normalized === 'unavailable') {
-            return;
-        }
-
-        $isOn = $normalized !== 'off';
-        $this->setValueWithDebug($ident, $isOn);
+        $this->updateBinaryStateValue($ident, $state, ['off']);
     }
 
     private function getVacuumActionOptions(array $attributes): array
@@ -1044,64 +950,32 @@ trait HADomainSpecialActionsTrait
         $supported = $this->getSupportedFeatureFlags($attributes);
         $options = [];
 
-        if ($this->supportsFeatureFlag($supported, HAVacuumDefinitions::FEATURE_START)) {
-            $options[] = $this->buildEnumerationOption(HAVacuumDefinitions::ACTION_START, $this->Translate('Start'));
-        }
-        if ($this->supportsFeatureFlag($supported, HAVacuumDefinitions::FEATURE_STOP)) {
-            $options[] = $this->buildEnumerationOption(HAVacuumDefinitions::ACTION_STOP, $this->Translate('Stop'));
-        }
-        if ($this->supportsFeatureFlag($supported, HAVacuumDefinitions::FEATURE_PAUSE)) {
-            $options[] = $this->buildEnumerationOption(HAVacuumDefinitions::ACTION_PAUSE, $this->Translate('Pause'));
-        }
-        if ($this->supportsFeatureFlag($supported, HAVacuumDefinitions::FEATURE_RETURN_HOME)) {
-            $options[] = $this->buildEnumerationOption(HAVacuumDefinitions::ACTION_RETURN_HOME, $this->Translate('Zur Basis'));
-        }
-        if ($this->supportsFeatureFlag($supported, HAVacuumDefinitions::FEATURE_CLEAN_SPOT)) {
-            $options[] = $this->buildEnumerationOption(HAVacuumDefinitions::ACTION_CLEAN_SPOT, $this->Translate('Punktreinigung'));
-        }
-        if ($this->supportsFeatureFlag($supported, HAVacuumDefinitions::FEATURE_LOCATE)) {
-            $options[] = $this->buildEnumerationOption(HAVacuumDefinitions::ACTION_LOCATE, $this->Translate('Lokalisieren'));
-        }
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_START, HAVacuumDefinitions::ACTION_START, $this->Translate('Start'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_STOP, HAVacuumDefinitions::ACTION_STOP, $this->Translate('Stop'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_PAUSE, HAVacuumDefinitions::ACTION_PAUSE, $this->Translate('Pause'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_RETURN_HOME, HAVacuumDefinitions::ACTION_RETURN_HOME, $this->Translate('Zur Basis'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_CLEAN_SPOT, HAVacuumDefinitions::ACTION_CLEAN_SPOT, $this->Translate('Punktreinigung'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_LOCATE, HAVacuumDefinitions::ACTION_LOCATE, $this->Translate('Lokalisieren'));
 
         return $options;
     }
 
     private function getCoverActionOptions(array $attributes): array
     {
-        $supported = $this->getSupportedFeatureFlags($attributes);
-        $addAll = $supported === 0;
-        $options = [];
-
-        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_OPEN)) {
-            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_OPEN, $this->Translate('Open'));
-        }
-        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_CLOSE)) {
-            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_CLOSE, $this->Translate('Close'));
-        }
-        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_STOP)) {
-            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_STOP, $this->Translate('Stop'));
-        }
-
-        return $options;
+        return $this->buildFeatureEnumerationOptions($attributes, [
+            [HACoverDefinitions::FEATURE_OPEN, HACoverDefinitions::ACTION_OPEN, $this->Translate('Open')],
+            [HACoverDefinitions::FEATURE_CLOSE, HACoverDefinitions::ACTION_CLOSE, $this->Translate('Close')],
+            [HACoverDefinitions::FEATURE_STOP, HACoverDefinitions::ACTION_STOP, $this->Translate('Stop')]
+        ], $this->getSupportedFeatureFlags($attributes) === 0);
     }
 
     private function getCoverTiltActionOptions(array $attributes): array
     {
-        $supported = $this->getSupportedFeatureFlags($attributes);
-        $addAll = $supported === 0;
-        $options = [];
-
-        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_OPEN_TILT)) {
-            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_OPEN_TILT, $this->Translate('Open Tilt'));
-        }
-        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_CLOSE_TILT)) {
-            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_CLOSE_TILT, $this->Translate('Close Tilt'));
-        }
-        if ($addAll || $this->supportsFeatureFlag($supported, HACoverDefinitions::FEATURE_STOP_TILT)) {
-            $options[] = $this->buildEnumerationOption(HACoverDefinitions::ACTION_STOP_TILT, $this->Translate('Stop Tilt'));
-        }
-
-        return $options;
+        return $this->buildFeatureEnumerationOptions($attributes, [
+            [HACoverDefinitions::FEATURE_OPEN_TILT, HACoverDefinitions::ACTION_OPEN_TILT, $this->Translate('Open Tilt')],
+            [HACoverDefinitions::FEATURE_CLOSE_TILT, HACoverDefinitions::ACTION_CLOSE_TILT, $this->Translate('Close Tilt')],
+            [HACoverDefinitions::FEATURE_STOP_TILT, HACoverDefinitions::ACTION_STOP_TILT, $this->Translate('Stop Tilt')]
+        ], $this->getSupportedFeatureFlags($attributes) === 0);
     }
 
     private function getValveActionOptions(array $attributes): array
@@ -1110,15 +984,9 @@ trait HADomainSpecialActionsTrait
         $addAll = $supported === 0;
         $options = [];
 
-        if ($addAll || $this->supportsFeatureFlag($supported, HAValveDefinitions::FEATURE_OPEN)) {
-            $options[] = $this->buildEnumerationOption(HAValveDefinitions::ACTION_OPEN, $this->Translate('Open'));
-        }
-        if ($addAll || $this->supportsFeatureFlag($supported, HAValveDefinitions::FEATURE_CLOSE)) {
-            $options[] = $this->buildEnumerationOption(HAValveDefinitions::ACTION_CLOSE, $this->Translate('Close'));
-        }
-        if ($addAll || $this->supportsFeatureFlag($supported, HAValveDefinitions::FEATURE_STOP)) {
-            $options[] = $this->buildEnumerationOption(HAValveDefinitions::ACTION_STOP, $this->Translate('Stop'));
-        }
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAValveDefinitions::FEATURE_OPEN, HAValveDefinitions::ACTION_OPEN, $this->Translate('Open'), $addAll);
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAValveDefinitions::FEATURE_CLOSE, HAValveDefinitions::ACTION_CLOSE, $this->Translate('Close'), $addAll);
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAValveDefinitions::FEATURE_STOP, HAValveDefinitions::ACTION_STOP, $this->Translate('Stop'), $addAll);
 
         return $options;
     }
@@ -1128,15 +996,9 @@ trait HADomainSpecialActionsTrait
         $supported = $this->getSupportedFeatureFlags($attributes);
         $options = [];
 
-        if ($this->supportsFeatureFlag($supported, HALawnMowerDefinitions::FEATURE_START_MOWING)) {
-            $options[] = $this->buildEnumerationOption(HALawnMowerDefinitions::ACTION_START_MOWING, $this->Translate('Start'));
-        }
-        if ($this->supportsFeatureFlag($supported, HALawnMowerDefinitions::FEATURE_PAUSE)) {
-            $options[] = $this->buildEnumerationOption(HALawnMowerDefinitions::ACTION_PAUSE, $this->Translate('Pause'));
-        }
-        if ($this->supportsFeatureFlag($supported, HALawnMowerDefinitions::FEATURE_DOCK)) {
-            $options[] = $this->buildEnumerationOption(HALawnMowerDefinitions::ACTION_DOCK, $this->Translate('Zur Basis'));
-        }
+        $this->appendEnumerationOptionIfSupported($options, $supported, HALawnMowerDefinitions::FEATURE_START_MOWING, HALawnMowerDefinitions::ACTION_START_MOWING, $this->Translate('Start'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HALawnMowerDefinitions::FEATURE_PAUSE, HALawnMowerDefinitions::ACTION_PAUSE, $this->Translate('Pause'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HALawnMowerDefinitions::FEATURE_DOCK, HALawnMowerDefinitions::ACTION_DOCK, $this->Translate('Zur Basis'));
 
         return $options;
     }

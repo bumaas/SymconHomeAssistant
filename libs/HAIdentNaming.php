@@ -161,13 +161,7 @@ trait HAIdentNamingTrait
 
     private function getSharedEntityMainIdent(string $entityId): string
     {
-        $ident = trim((string)($this->entities[$entityId]['ident'] ?? ''));
-        if ($ident !== '') {
-            return $ident;
-        }
-
-        $entity = $this->findSharedConfiguredEntityByEntityId($entityId);
-        $ident = trim((string)($entity['ident'] ?? ''));
+        $ident = $this->getSharedConfiguredEntityFieldValue($entityId, 'ident');
         if ($ident !== '') {
             return $ident;
         }
@@ -177,13 +171,7 @@ trait HAIdentNamingTrait
 
     private function getSharedEntityIdentPrefix(string $entityId): string
     {
-        $prefix = trim((string)($this->entities[$entityId]['ident_prefix'] ?? ''));
-        if ($prefix !== '') {
-            return $prefix;
-        }
-
-        $entity = $this->findSharedConfiguredEntityByEntityId($entityId);
-        $prefix = trim((string)($entity['ident_prefix'] ?? ''));
+        $prefix = $this->getSharedConfiguredEntityFieldValue($entityId, 'ident_prefix');
         if ($prefix !== '') {
             return $prefix;
         }
@@ -191,7 +179,7 @@ trait HAIdentNamingTrait
         return $this->getSharedEntityMainIdent($entityId);
     }
 
-    private function buildSharedAttributeIdent(string $entityId, string $attribute): string
+    protected function buildSharedAttributeIdent(string $entityId, string $attribute): string
     {
         return $this->buildSharedAttributeIdentFromPrefix($this->getSharedEntityIdentPrefix($entityId), $attribute);
     }
@@ -201,7 +189,7 @@ trait HAIdentNamingTrait
         return $this->normalizeSharedIdentFragment($identPrefix . '_' . $attribute);
     }
 
-    private function buildSharedSuffixIdent(string $entityId, string $suffix): string
+    protected function buildSharedSuffixIdent(string $entityId, string $suffix): string
     {
         return $this->buildSharedSuffixIdentFromPrefix($this->getSharedEntityIdentPrefix($entityId), $suffix);
     }
@@ -211,47 +199,38 @@ trait HAIdentNamingTrait
         return $this->normalizeSharedIdentFragment($identPrefix . $suffix);
     }
 
-    private function getSharedEntityIdByMainIdent(string $ident): ?string
+    protected function getSharedEntityIdByMainIdent(string $ident): ?string
     {
         return $this->sharedEntityIdentIndex[$ident] ?? null;
     }
 
-    private function getSharedEntityIdByPrefix(string $prefix): ?string
+    protected function getSharedEntityIdByPrefix(string $prefix): ?string
     {
         return $this->sharedEntityPrefixIndex[$prefix] ?? null;
     }
 
-    private function findSharedConfiguredEntityByMainIdent(string $ident): ?array
+    protected function findSharedConfiguredEntityByMainIdent(string $ident): ?array
     {
-        foreach ($this->getSharedConfiguredEntitiesForNaming() as $row) {
-            if (($row['ident'] ?? '') === $ident) {
-                return $row;
-            }
-        }
-
-        return null;
+        return array_find(
+            $this->getSharedConfiguredEntitiesForNaming(),
+            static fn(array $row): bool => ($row['ident'] ?? '') === $ident
+        );
     }
 
-    private function findSharedConfiguredEntityByPrefix(string $prefix): ?array
+    protected function findSharedConfiguredEntityByPrefix(string $prefix): ?array
     {
-        foreach ($this->getSharedConfiguredEntitiesForNaming() as $row) {
-            if (($row['ident_prefix'] ?? '') === $prefix) {
-                return $row;
-            }
-        }
-
-        return null;
+        return array_find(
+            $this->getSharedConfiguredEntitiesForNaming(),
+            static fn(array $row): bool => ($row['ident_prefix'] ?? '') === $prefix
+        );
     }
 
     private function findSharedConfiguredEntityByEntityId(string $entityId): ?array
     {
-        foreach ($this->getSharedConfiguredEntitiesForNaming() as $row) {
-            if (($row['entity_id'] ?? '') === $entityId) {
-                return $row;
-            }
-        }
-
-        return null;
+        return array_find(
+            $this->getSharedConfiguredEntitiesForNaming(),
+            static fn(array $row): bool => ($row['entity_id'] ?? '') === $entityId
+        );
     }
 
     private function buildSharedLocalObjectId(string $objectId, string $deviceName): string
@@ -263,7 +242,7 @@ trait HAIdentNamingTrait
 
         foreach ($this->getSharedRedundantObjectNameCandidates($deviceName) as $candidate) {
             if (str_starts_with($normalizedObjectId, $candidate . '_')) {
-                return (string)substr($normalizedObjectId, strlen($candidate) + 1);
+                return substr($normalizedObjectId, strlen($candidate) + 1);
             }
             if ($normalizedObjectId === $candidate) {
                 return '';
@@ -283,7 +262,7 @@ trait HAIdentNamingTrait
         }
 
         if (method_exists($this, 'getSharedCurrentInstanceDeviceName')) {
-            $instanceDeviceName = $this->normalizeSharedIdentFragment((string)$this->getSharedCurrentInstanceDeviceName());
+            $instanceDeviceName = $this->normalizeSharedIdentFragment($this->getSharedCurrentInstanceDeviceName());
             if ($instanceDeviceName !== '') {
                 $candidates[] = $instanceDeviceName;
             }
@@ -306,6 +285,17 @@ trait HAIdentNamingTrait
         }
 
         return $domain . '.' . $objectId;
+    }
+
+    private function getSharedConfiguredEntityFieldValue(string $entityId, string $field): string
+    {
+        $value = trim((string)($this->entities[$entityId][$field] ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+
+        $entity = $this->findSharedConfiguredEntityByEntityId($entityId);
+        return trim((string)($entity[$field] ?? ''));
     }
 
     private function getSharedEntityDomain(array $entity): string
@@ -393,16 +383,11 @@ trait HAIdentNamingTrait
             return [];
         }
 
-        try {
-            $method = new ReflectionMethod($this, 'getConfiguredEntities');
-        } catch (ReflectionException) {
-            return [];
-        }
-
+        $method = new ReflectionMethod($this, 'getConfiguredEntities');
         $entities = $method->getNumberOfParameters() === 0
             ? $this->getConfiguredEntities()
             : $this->getConfiguredEntities(__FUNCTION__);
 
-        return is_array($entities) ? $entities : [];
+        return $entities;
     }
 }

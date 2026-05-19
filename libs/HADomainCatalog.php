@@ -210,7 +210,7 @@ final class HADomainCatalog
             $caption = ucfirst(str_replace('_', ' ', (string)$domain)) . ' (' . $domain . ')';
             $options[] = ['caption' => $caption, 'value' => $domain];
         }
-        usort($options, fn ($a, $b) => strcmp($a['caption'], $b['caption']));
+        usort($options, static fn ($a, $b) => strcmp($a['caption'], $b['caption']));
         return $options;
     }
 

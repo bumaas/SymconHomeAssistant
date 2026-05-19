@@ -62,12 +62,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     use HARestParentClientTrait;
     use HADeviceCoreTrait;
 
-    private array $topicMapping    = [];
-
-    private array $entities        = [];
-
-    private bool $hasMultipleStatusEntities = false;
-
     public function Create(): void
     {
         $this->LogMessage('Create | start', KL_MESSAGE);
@@ -112,7 +106,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
-        // Wenn sich die Verbindung ändert, die Konfiguration neu laden.
+        // Wenn sich die Verbindung ändert, ist die Konfiguration neu zu laden.
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...');
             $this->ApplyChanges();
@@ -188,140 +182,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         if ($baseTopic !== '' && $this->hasMediaPlayerEntities()) {
             $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 1000);
         }
-    }
-
-    private function hasMediaPlayerEntities(): bool
-    {
-        foreach ($this->entities as $entityId => $entity) {
-            $domain = $entity['domain'] ?? $this->getEntityDomain($entityId);
-            if ($domain !== HAMediaPlayerDefinitions::DOMAIN) {
-                continue;
-            }
-            if (($entity['create_var'] ?? true) === false) {
-                continue;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    /** @noinspection PhpUnused */
-    public function UpdateMediaPlayerProgress(): void
-    {
-        $cache = $this->readEntityStateCache();
-        if ($cache === []) {
-            return;
-        }
-
-        $now = time();
-        foreach ($cache as $entityId => $entry) {
-            if ($this->getEntityDomain($entityId) !== HAMediaPlayerDefinitions::DOMAIN) {
-                continue;
-            }
-
-            if (!$this->isMediaPlayerPlaying($entry)) {
-                continue;
-            }
-
-            $attributes = $this->getMediaPlayerProgressAttributes($entityId, $entry);
-            if ($attributes === null) {
-                continue;
-            }
-
-            $base = $this->getMediaPlayerProgressBase($attributes, $entry);
-            if ($base === null) {
-                continue;
-            }
-
-            $position = $this->computeMediaPlayerProgressPosition($base['base_position'], $base['updated_at_ts'], $attributes, $now);
-            $ident = $this->buildSharedSuffixIdent($entityId, '_media_position');
-            if (!$this->shouldUpdateMediaPlayerPosition($ident, $position)) {
-                continue;
-            }
-            $this->setValueWithDebug($ident, $position);
-        }
-    }
-
-    private function isMediaPlayerPlaying(array $entry): bool
-    {
-        $state = strtolower((string)($entry[self::KEY_STATE] ?? ''));
-        return $state === 'playing';
-    }
-
-    private function getMediaPlayerProgressAttributes(string $entityId, array $entry): ?array
-    {
-        $attributes = [];
-        $stored = $this->entities[$entityId]['attributes'] ?? null;
-        if (is_array($stored)) {
-            $attributes = $stored;
-        }
-        if (isset($entry[self::KEY_ATTRIBUTES]) && is_array($entry[self::KEY_ATTRIBUTES])) {
-            $attributes = array_merge($attributes, $entry[self::KEY_ATTRIBUTES]);
-        }
-
-        $basePosition = $attributes['media_position'] ?? null;
-        if (!is_numeric($basePosition)) {
-            return null;
-        }
-
-        return $attributes;
-    }
-
-    private function getMediaPlayerProgressBase(array $attributes, array $entry): ?array
-    {
-        $updatedAt = $attributes['media_position_updated_at'] ?? null;
-        $updatedAtTs = $this->parseMediaPositionUpdatedAt($updatedAt);
-        if ($updatedAtTs === null) {
-            $updatedAtTs = is_numeric($entry['ts'] ?? null) ? (int)$entry['ts'] : null;
-        }
-        if ($updatedAtTs === null) {
-            return null;
-        }
-
-        return [
-            'base_position' => (float)$attributes['media_position'],
-            'updated_at_ts' => $updatedAtTs
-        ];
-    }
-
-    private function computeMediaPlayerProgressPosition(
-        float $basePosition,
-        int $updatedAtTs,
-        array $attributes,
-        int $now
-    ): int {
-        $elapsed = max(0, $now - $updatedAtTs);
-        $position = (int)max(0, $basePosition + $elapsed);
-        $duration = $attributes['media_duration'] ?? null;
-        if (is_numeric($duration)) {
-            $position = min($position, (int)$duration);
-        }
-        return $position;
-    }
-
-    private function shouldUpdateMediaPlayerPosition(string $ident, int $position): bool
-    {
-        if (@$this->GetIDForIdent($ident) === false) {
-            return false;
-        }
-
-        $current = $this->GetValue($ident);
-        return !(is_int($current) && $current === $position);
-    }
-
-    private function parseMediaPositionUpdatedAt(mixed $value): ?int
-    {
-        if (!is_string($value) || trim($value) === '') {
-            return null;
-        }
-
-        try {
-            $dt = new DateTimeImmutable($value);
-        } catch (Exception) {
-            return null;
-        }
-
-        return $dt->getTimestamp();
     }
 
     /**
@@ -580,13 +440,13 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         $activeEntityCount = count(array_filter($values, static function (array $row): bool {
-            return !array_key_exists('create_var', $row) || (bool)$row['create_var'];
+            return !array_key_exists('create_var', $row) || $row['create_var'];
         }));
 
         $captions = [
             'DiagLastMQTT' => 'Letzte MQTT-Message: ' . $lastMqtt,
             'DiagLastREST' => 'Letzter REST-Abruf: ' . $lastRest,
-            'DiagEntityCount' => 'EntitÃ¤ten (aktiv): ' . $activeEntityCount
+            'DiagEntityCount' => 'Entitäten (aktiv): ' . $activeEntityCount
         ];
 
         foreach ($form['actions'] as &$action) {
@@ -799,11 +659,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
         $this->rebuildSharedEntityIdentIndexes();
 
-        $entityIdsToCleanup = array_values(array_unique(array_merge(
-            array_diff(array_keys($previousEntities), $activeEntityIds),
-            $inactiveEntityIds,
-            $renamedEntityIds
-        )));
+        $entityIdsToCleanup = $previousEntities
+                              |> array_keys(...)
+                              |> (static fn($x) => array_diff($x, $activeEntityIds))
+                              |> (static fn($x) => array_merge($x, $inactiveEntityIds, $renamedEntityIds))
+                              |> array_unique(...)
+                              |> array_values(...);
         $this->cleanupManagedEntityObjects($entityIdsToCleanup, $activeEntityIds, $previousEntities);
 
         return $filterTopics;
@@ -811,10 +672,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     private function cleanupManagedEntityObjects(array $entityIds, array $activeEntityIds, array $previousEntities): void
     {
-        $entityIds = array_values(array_unique(array_filter(
-            $entityIds,
-            static fn(mixed $entityId): bool => is_string($entityId) && trim($entityId) !== ''
-        )));
+        $entityIds = array_filter(
+                         $entityIds,
+                         static fn(mixed $entityId): bool => is_string($entityId) && trim($entityId) !== ''
+                     )
+                     |> array_unique(...)
+                     |> array_values(...);
         if ($entityIds === [] && $activeEntityIds === []) {
             return;
         }
@@ -842,8 +705,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 $baseIdents[] = $legacyBaseIdent;
             }
         }
-        $baseIdents = array_values(array_unique(array_filter($baseIdents, static fn(string $ident): bool => $ident !== '')));
-        $activeBaseIdents = array_values(array_unique(array_filter($activeBaseIdents, static fn(string $ident): bool => $ident !== '')));
+        $baseIdents = array_filter($baseIdents, static fn(string $ident): bool => $ident !== '')
+                      |> array_unique(...)
+                      |> array_values(...);
+        $activeBaseIdents = array_filter($activeBaseIdents, static fn(string $ident): bool => $ident !== '')
+                            |> array_unique(...)
+                            |> array_values(...);
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
             $object = IPS_GetObject($childId);
             $ident = (string)($object['ObjectIdent'] ?? '');
@@ -869,8 +736,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                     'ObjectType' => $objectType,
                     'Ident' => $ident
                 ]);
-            } else {
-                continue;
             }
         }
 
@@ -892,90 +757,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     private function isManagedEntityIdent(string $ident, array $baseIdents): bool
     {
-        foreach ($baseIdents as $baseIdent) {
-            if ($ident === $baseIdent || str_starts_with($ident, $baseIdent . '_')) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($baseIdents, static fn($baseIdent) => $ident === $baseIdent || str_starts_with($ident, $baseIdent . '_'));
     }
-
-    private function hasSharedManagedIdentChanged(?array $previousEntity, array $currentEntity): bool
-    {
-        if (!is_array($previousEntity)) {
-            return false;
-        }
-
-        $previousIdent = trim((string)($previousEntity['ident'] ?? ''));
-        $previousPrefix = trim((string)($previousEntity['ident_prefix'] ?? ''));
-        $currentIdent = trim((string)($currentEntity['ident'] ?? ''));
-        $currentPrefix = trim((string)($currentEntity['ident_prefix'] ?? ''));
-
-        return ($previousIdent !== '' && $previousIdent !== $currentIdent)
-            || ($previousPrefix !== '' && $previousPrefix !== $currentPrefix);
-    }
-
-    private function countStatusEntities(array $configData): int
-    {
-        $count = 0;
-        foreach ($configData as $row) {
-            $entity = $this->normalizeEntityStructure($row);
-            if ($entity === null || !($entity['create_var'] ?? true)) {
-                continue;
-            }
-            $domain = (string)($entity['domain'] ?? '');
-            if ($domain === '') {
-                continue;
-            }
-            if ($this->isStatusDomain($domain)) {
-                $count++;
-                if ($count > 1) {
-                    return $count;
-                }
-            }
-        }
-        return $count;
-    }
-
-    /**
-     * Erstellt den JSON-Filter für den Datenaustausch
-     */
-    private function updateReceiveFilter(array $topics): void
-    {
-        if (count($topics) === 0) {
-            $filter = '.*ThisShouldNotMatchAnything.*';
-            $this->SetReceiveDataFilter($filter);
-            $this->WriteAttributeString('CurrentFilter', $filter);
-            $this->updateFormFieldSafe('CURRENT_FILTER', 'caption', 'Aktueller Filter (Regex): ' . $filter);
-            return;
-        }
-
-        $regexParts = [];
-        foreach ($topics as $t) {
-            // Topic sicher für die Regex maskieren.
-            $quoted = preg_quote($t, '/');
-            // JSON kann Slashes maskiert oder unmaskiert enthalten.
-            $quoted       = str_replace('\/', '\\\\?\/', $quoted);
-            $regexParts[] = $quoted . '(\\\\?\/[^"]*)?';
-        }
-
-        $filter = '.*"Topic":"(' . implode('|', $regexParts) . ')".*';
-        $this->debugExpert('Filter', 'Setze Filter', ['Regex' => $filter]);
-        $this->SetReceiveDataFilter($filter);
-        $this->WriteAttributeString('CurrentFilter', $filter);
-        $this->updateFormFieldSafe('CURRENT_FILTER', 'caption', 'Aktueller Filter (Regex): ' . $filter);
-    }
-
-    /**
-     * Erstellt oder aktualisiert die Symcon Variable für eine Entität
-     */
-    // Hauptvariable einer Entität anlegen oder aktualisieren.
-    private function maintainEntityVariable(array $entity): void
-    {
-        $this->syncEntityPresentation($entity, true);
-    }
-
     /**
      * Aktualisiert den Wert einer Variable basierend auf dem MQTT Payload.
      * Hält dabei Hauptvariable und Attributcache synchron.
@@ -1024,7 +807,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
     }
 
-    // Trigger domains keep metadata, but do not persist a main state value.
+    // Trigger domains keep metadata but do not persist a main state value.
     private function applyTriggerEntityStateUpdate(string $entityId, array $parsed): void
     {
         $attributes = $parsed[self::KEY_ATTRIBUTES] ?? null;
@@ -1094,42 +877,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     // --- Technische Helper ---
 
-    private function deriveStateTopic(string $base, string $entityId): string
-    {
-        [$domain, $name] = explode('.', $entityId, 2);
-        if ($domain === HAEventDefinitions::DOMAIN) {
-            return HAEventDefinitions::buildStateTopic($base, $name);
-        }
-        return "$base/$domain/$name/state";
-    }
-
-    private function deriveEntityTopicPrefix(string $base, string $entityId): string
-    {
-        [$domain, $name] = explode('.', $entityId, 2);
-        return "$base/$domain/$name";
-    }
-
-    private function sendMqttMessage(string $topic, string $payload): void
-    {
-        if (!$this->hasActiveParent()) {
-            $this->debugExpert(__FUNCTION__, 'No active parent', [],true);
-            return;
-        }
-        $this->debugExpert(__FUNCTION__, 'SendDataToParent', ['Topic' => $topic, 'Payload' => $payload], true);
-
-        $json = json_encode([
-                                'DataID'           => HAIds::DATA_DEVICE_TO_SPLITTER,
-                                'PacketType'       => 3,
-                                'QualityOfService' => 0,
-                                'Retain'           => false,
-                                'Topic'            => $topic,
-                                'Payload'          => bin2hex($payload)
-                            ],
-                            JSON_THROW_ON_ERROR);
-
-        $this->SendDataToParent($json);
-    }
-
     private function decodeJsonArray(string $json, string $context): ?array
     {
         try {
@@ -1154,166 +901,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     {
         return HADomainCatalog::isMainWritable($this->normalizeDomainAlias($domain));
     }
-
-    private function formatPayloadForMqtt(string $domain, mixed $value, array $attributes = []): string
-    {
-        $domain = $this->normalizeDomainAlias($domain);
-        return match ($domain) {
-            HALightDefinitions::DOMAIN, HAFanDefinitions::DOMAIN, HAHumidifierDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
-            HASwitchDefinitions::DOMAIN => $value ? HASwitchDefinitions::STATE_ON : HASwitchDefinitions::STATE_OFF,
-            HACoverDefinitions::DOMAIN => HACoverDefinitions::normalizeCommand($value),
-            HAValveDefinitions::DOMAIN => HAValveDefinitions::normalizeCommand($value),
-            HALockDefinitions::DOMAIN => HALockDefinitions::normalizeCommand($value),
-            HANumberDefinitions::DOMAIN => $this->formatNumberPayload($value, $attributes),
-            HASelectDefinitions::DOMAIN => $this->formatSelectPayload($value, $attributes),
-            HAButtonDefinitions::DOMAIN => 'press',
-            default => (string)$value,
-        };
-    }
-
-    private function formatNumberPayload(mixed $value, array $attributes): string
-    {
-        if (!is_numeric($value)) {
-            $normalized = trim((string)$value);
-            if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
-                $this->debugExpert('Number', 'Ungültiger Wert', ['Value' => $value], true);
-                return '';
-            }
-            $value = str_replace(',', '.', $normalized);
-        }
-
-        return $this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER
-            ? (string)(int)$value
-            : (string)(float)$value;
-    }
-
-    private function formatSelectPayload(mixed $value, array $attributes): string
-    {
-        $options = $attributes['options'] ?? null;
-        $normalized = HASelectDefinitions::normalizeSelection($value, $options);
-        if ($normalized !== null) {
-            return $normalized;
-        }
-        $this->debugExpert(
-            'Select',
-            'Ungültige Option',
-            [
-                'Value'   => trim((string)$value),
-                'Options' => HASelectDefinitions::normalizeOptions($options)
-            ],
-            true
-        );
-        return '';
-    }
-
-    private function isClimateTargetWritable(mixed $attributes): bool
-    {
-        if (!is_array($attributes)) {
-            return false;
-        }
-        $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
-        $hasTargetFeature = ($supported & 1) === 1;
-        $hasTargetAttribute = array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)
-            || array_key_exists('temperature', $attributes);
-        return $hasTargetFeature || $hasTargetAttribute;
-    }
-
-    private function isFanToggleSupported(mixed $attributes): bool
-    {
-        if (!is_array($attributes)) {
-            return false;
-        }
-        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
-        return (($supported & HAFanDefinitions::FEATURE_TURN_ON) === HAFanDefinitions::FEATURE_TURN_ON)
-               || (($supported & HAFanDefinitions::FEATURE_TURN_OFF) === HAFanDefinitions::FEATURE_TURN_OFF);
-    }
-
-    private function isCoverMainWritable(mixed $attributes): bool
-    {
-        if (!is_array($attributes)) {
-            return true;
-        }
-
-        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
-        if ($supported === 0) {
-            return true;
-        }
-
-        if (($supported & HACoverDefinitions::FEATURE_SET_POSITION) === HACoverDefinitions::FEATURE_SET_POSITION) {
-            return true;
-        }
-
-        return (($supported & HACoverDefinitions::FEATURE_OPEN) === HACoverDefinitions::FEATURE_OPEN)
-               || (($supported & HACoverDefinitions::FEATURE_CLOSE) === HACoverDefinitions::FEATURE_CLOSE);
-    }
-
-    private function isValveMainWritable(mixed $attributes): bool
-    {
-        if (!is_array($attributes)) {
-            return true;
-        }
-
-        $supported = (int)($attributes[self::KEY_SUPPORTED_FEATURES] ?? 0);
-        if ($supported === 0) {
-            return true;
-        }
-
-        if (($supported & HAValveDefinitions::FEATURE_SET_POSITION) === HAValveDefinitions::FEATURE_SET_POSITION) {
-            return true;
-        }
-
-        return (($supported & HAValveDefinitions::FEATURE_OPEN) === HAValveDefinitions::FEATURE_OPEN)
-               || (($supported & HAValveDefinitions::FEATURE_CLOSE) === HAValveDefinitions::FEATURE_CLOSE);
-    }
-
-    private function isEntityWritable(string $domain, mixed $attributes): bool
-    {
-        if (!$this->isWriteable($domain)) {
-            return false;
-        }
-        if ($domain === HAClimateDefinitions::DOMAIN) {
-            return $this->isClimateTargetWritable($attributes);
-        }
-        if ($domain === HAFanDefinitions::DOMAIN) {
-            return $this->isFanToggleSupported($attributes);
-        }
-        if ($domain === HACoverDefinitions::DOMAIN) {
-            return $this->isCoverMainWritable($attributes);
-        }
-        if ($domain === HAValveDefinitions::DOMAIN) {
-            return $this->isValveMainWritable($attributes);
-        }
-        return true;
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    private function getSetTopicForEntity(string $entityId): string
-    {
-        $baseTopic = $this->ReadAttributeString('MQTTBaseTopic');
-        if ($baseTopic === '') {
-            $baseTopic = $this->determineBaseTopic();
-        }
-        if ($baseTopic === '') {
-            $this->debugExpert('Error', 'Kein BaseTopic vorhanden, kann nicht senden.');
-            return '';
-        }
-
-        [$domain, $name] = explode('.', $entityId, 2);
-        return "$baseTopic/$domain/$name/set";
-    }
-
     private function initializeStatesFromHa(array $configData): void
     {
         // Ohne aktiven Parent ist keine REST-Abfrage möglich.
@@ -1437,116 +1024,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         $this->applyParsedEntityState($entityId, $parsed);
     }
-
-    private function setValueWithDebug(string $ident, mixed $value): void
-    {
-        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] ?? '';
-        if ($caller !== 'UpdateMediaPlayerProgress' || $this->shouldLogMediaPlayerProgress($ident)) {
-            $this->debugExpert('SetValue', $caller, [
-                'Ident' => $ident,
-                'ValueType' => get_debug_type($value),
-                'Value' => $value
-            ], true);
-        }
-        $variableId = @$this->GetIDForIdent($ident);
-        if ($variableId === false) {
-            return;
-        }
-
-        $type = IPS_GetVariable($variableId)['VariableType'];
-        if (($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT)
-            && !is_numeric($value)
-            && !is_bool($value)) {
-            $this->debugExpert('SetValue', 'Type mismatch', [
-                'Ident' => $ident,
-                'ValueType' => get_debug_type($value),
-                'Value' => $value,
-                'TargetType' => $type
-            ], true);
-            return;
-        }
-        if ($type === VARIABLETYPE_BOOLEAN
-            && !is_bool($value)
-            && !is_numeric($value)) {
-            $this->debugExpert('SetValue', 'Type mismatch', [
-                'Ident' => $ident,
-                'ValueType' => get_debug_type($value),
-                'Value' => $value,
-                'TargetType' => $type
-            ], true);
-            return;
-        }
-
-        $this->SetValue($ident, $this->castVariableValue($value, $type));
-    }
-
-    private function setEntityMainValue(string $entityId, string $ident, mixed $value, mixed $rawState = null): void
-    {
-        if ($value === null || !$this->shouldApplyEntityMainValue($entityId, $rawState)) {
-            return;
-        }
-
-        $this->setValueWithDebug($ident, $value);
-    }
-
-    private function shouldApplyEntityMainValue(string $entityId, mixed $rawState = null): bool
-    {
-        $effectiveState = $rawState;
-        if (!is_string($effectiveState) || trim($effectiveState) === '') {
-            // Attribut-Updates dürfen den letzten fachlichen Wert nicht bei unknown/unavailable überschreiben.
-            $effectiveState = $this->getCachedEntityRawState($entityId) ?? $this->getCachedEntityState($entityId);
-        }
-
-        return !$this->isIndeterminateEntityState($effectiveState);
-    }
-
-    private function isUnavailableEntityState(mixed $state): bool
-    {
-        return $this->normalizeEntityStateToken($state) === 'unavailable';
-    }
-
-    private function isUnknownEntityState(mixed $state): bool
-    {
-        return $this->normalizeEntityStateToken($state) === 'unknown';
-    }
-
-    private function isIndeterminateEntityState(mixed $state): bool
-    {
-        return $this->isUnavailableEntityState($state) || $this->isUnknownEntityState($state);
-    }
-
-    private function normalizeEntityStateToken(mixed $state): string
-    {
-        if (!is_string($state)) {
-            return '';
-        }
-
-        return strtolower(trim($state));
-    }
-
-    private function shouldLogMediaPlayerProgress(string $ident): bool
-    {
-        $buffer = $this->GetBuffer(self::BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG);
-        $map = [];
-        if ($buffer !== '') {
-            $decoded = json_decode($buffer, true, 512, JSON_THROW_ON_ERROR);
-            if (is_array($decoded)) {
-                $map = $decoded;
-            }
-        }
-
-        $now = time();
-        $last = isset($map[$ident]) && is_int($map[$ident]) ? $map[$ident] : 0;
-        if ($now - $last < self::MEDIA_PLAYER_PROGRESS_DEBUG_INTERVAL) {
-            return false;
-        }
-
-        $map[$ident] = $now;
-        $this->SetBuffer(self::BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG, json_encode($map, JSON_THROW_ON_ERROR));
-        return true;
-    }
-
-
     private function updateFormFieldSafe(string $name, string $property, mixed $value): void
     {
         @ $this->UpdateFormField($name, $property, $value);

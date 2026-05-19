@@ -32,9 +32,12 @@ trait HAEntityNormalizationTrait
     private function normalizeEntityAttributes(array $row): array
     {
         if (isset($row['attributes']) && is_string($row['attributes'])) {
-            $decoded = json_decode($row['attributes'], true);
-            if (is_array($decoded)) {
-                $row['attributes'] = $decoded;
+            try {
+                $decoded = json_decode($row['attributes'], true, 512, JSON_THROW_ON_ERROR);
+                if (is_array($decoded)) {
+                    $row['attributes'] = $decoded;
+                }
+            } catch (JsonException) {
             }
         }
 
@@ -167,8 +170,9 @@ trait HAEntityNormalizationTrait
         return $attributes;
     }
 
-    private function normalizeCameraAttributes(array $attributes): array
+    protected function normalizeCameraAttributes(array $attributes, ?string $context = null): array
     {
+        unset($context);
         foreach (['stream_source', 'rtsp_url'] as $key) {
             if (isset($attributes[$key]) && is_string($attributes[$key])) {
                 $attributes[$key] = trim($attributes[$key]);
@@ -178,8 +182,9 @@ trait HAEntityNormalizationTrait
         return $attributes;
     }
 
-    private function normalizeImageAttributes(array $attributes): array
+    protected function normalizeImageAttributes(array $attributes, ?string $context = null): array
     {
+        unset($context);
         foreach (['entity_picture', 'entity_picture_local', 'url'] as $key) {
             if (isset($attributes[$key]) && is_string($attributes[$key])) {
                 $attributes[$key] = trim($attributes[$key]);
@@ -199,25 +204,30 @@ trait HAEntityNormalizationTrait
 
     private function enrichSupportedFeaturesList(array &$row): void
     {
-        if (!isset($row['attributes']) || !is_array($row['attributes'])) {
-            return;
-        }
-        if (isset($row['attributes']['supported_features_list'])) {
-            return;
-        }
-        if (!isset($row['attributes']['supported_features']) || !is_numeric($row['attributes']['supported_features'])) {
-            return;
-        }
-
-        $domain = (string) ($row['domain'] ?? '');
-        if ($domain === '' && isset($row['entity_id'])) {
-            $domain = $this->deriveDomainFromEntityId((string) $row['entity_id']);
-        }
-
-        $list = $this->mapSupportedFeaturesByDomain($domain, (int) $row['attributes']['supported_features'], true);
+        $list = $this->buildSupportedFeaturesList($row, true);
         if ($list !== []) {
             $row['attributes']['supported_features_list'] = $list;
         }
+    }
+
+    private function buildSupportedFeaturesList(array $row, bool $stripPrefix): array
+    {
+        if (!isset($row['attributes']) || !is_array($row['attributes'])) {
+            return [];
+        }
+        if (isset($row['attributes']['supported_features_list'])) {
+            return [];
+        }
+        if (!isset($row['attributes']['supported_features']) || !is_numeric($row['attributes']['supported_features'])) {
+            return [];
+        }
+
+        $domain = (string)($row['domain'] ?? '');
+        if ($domain === '' && isset($row['entity_id'])) {
+            $domain = $this->deriveDomainFromEntityId((string)$row['entity_id']);
+        }
+
+        return $this->mapSupportedFeaturesByDomain($domain, (int)$row['attributes']['supported_features'], $stripPrefix);
     }
 
     private function deriveDomainFromEntityId(string $entityId): string

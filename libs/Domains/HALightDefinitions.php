@@ -131,6 +131,7 @@ final class HALightDefinitions
         '*' => ['supported_features', 'effect_list', 'supported_color_modes']
     ];
 
+    /** @noinspection PhpUnused */
     public const array ALLOWED_ATTRIBUTES = [
         'brightness',
         'color_mode',
