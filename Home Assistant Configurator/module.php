@@ -127,17 +127,17 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $form['actions'][] = [
             'type'     => 'Configurator',
             'name'     => 'HomeAssistantDevices',
-            'caption'  => 'Found Devices',
+            'caption'  => $this->Translate('Found Devices'),
             'rowCount' => 20,
             'add'      => false,
             'delete'   => true,
             'columns'  => [
-                ['caption' => 'Type', 'name' => 'Type', 'width' => '90px'],
-                ['caption' => 'Area', 'name' => 'Area', 'width' => '150px'],
-                ['caption' => 'Device', 'name' => 'name', 'width' => '250px'],
-                ['caption' => 'Manufacturer', 'name' => 'Manufacturer', 'width' => '200px'],
-                ['caption' => 'Model', 'name' => 'Model', 'width' => '200px'],
-                ['caption' => 'Entities', 'name' => 'Summary', 'width' => 'auto']
+                ['caption' => $this->Translate('Type'), 'name' => 'Type', 'width' => '90px'],
+                ['caption' => $this->Translate('Area'), 'name' => 'Area', 'width' => '150px'],
+                ['caption' => $this->Translate('Device'), 'name' => 'name', 'width' => '250px'],
+                ['caption' => $this->Translate('Manufacturer'), 'name' => 'Manufacturer', 'width' => '200px'],
+                ['caption' => $this->Translate('Model'), 'name' => 'Model', 'width' => '200px'],
+                ['caption' => $this->Translate('Entities'), 'name' => 'Summary', 'width' => 'auto']
             ],
             'values'   => $values
         ];
@@ -363,6 +363,8 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     private function buildDeviceRow(array $dev, int $instanceID, array $cleanedEntities, array $entitiesForConfig, bool $isBlocked, string $type = 'Device'): array
     {
+        $area = $this->translateConfiguratorArea((string)($dev['area'] ?? HAConfigDefaults::AREA_NONE));
+        $summary = $this->translateEntitySummaryForDisplay($this->generateResolvedEntitySummary($cleanedEntities));
         $entitiesForDeviceProperty = [];
         foreach ($entitiesForConfig as $entity) {
             if (!is_array($entity)) {
@@ -384,14 +386,14 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
         $row = [
             'instanceID' => $instanceID,
-            'Type'       => $type,
+            'Type'       => $this->Translate($type),
             'name'       => $dev['name'],
-            'Area'       => $dev['area'],
+            'Area'       => $area,
             'Manufacturer' => $dev['manufacturer'] ?? '',
             'Model'      => $dev['model'] ?? '',
             'DeviceID'   => $dev['device_id'],
-            'Summary'    => $this->generateResolvedEntitySummary($cleanedEntities),
-            'group'      => $dev['area']
+            'Summary'    => $summary,
+            'group'      => $area
         ];
         if (!$isBlocked) {
             $row['create'] = [
@@ -399,7 +401,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
                 'configuration' => [
                     // Zentrale Properties setzen
                     'DeviceID'     => $dev['device_id'],
-                    'DeviceArea'   => $dev['area'],
+                    'DeviceArea'   => $area,
                     'DeviceName'   => $dev['name'],
                     // Bereinigte Liste übergeben
                     'DeviceConfig' => json_encode($entitiesForDeviceProperty, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
@@ -414,17 +416,17 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     {
         $entityId = (string)($dev['device_id'] ?? '');
         $entityName = (string)($dev['name'] ?? $entityId);
-        $area = (string)($dev['area'] ?? 'Sonstiges');
+        $area = $this->translateConfiguratorArea((string)($dev['area'] ?? HAConfigDefaults::AREA_OTHER));
 
         $row = [
             'instanceID' => $instanceID,
-            'Type' => 'Entity',
+            'Type' => $this->Translate('Entity'),
             'name' => $entityName,
             'Area' => $area,
             'Manufacturer' => '',
             'Model' => '',
             'DeviceID' => $entityId,
-            'Summary' => $this->generateResolvedEntitySummary($cleanedEntities),
+            'Summary' => $this->translateEntitySummaryForDisplay($this->generateResolvedEntitySummary($cleanedEntities)),
             'group' => $area
         ];
 
@@ -459,7 +461,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
                 continue;
             }
             foreach ($instanceIds as $instanceId) {
-                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('In Home Assistant nicht gefunden'));
+                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('Not found in Home Assistant'));
             }
         }
     }
@@ -472,7 +474,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             }
             // Show additional instances with the same DeviceID (misconfiguration).
             foreach (array_slice($instanceIds, 1) as $instanceId) {
-                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('Doppelte Geräte-ID'));
+                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('Duplicate device ID'));
             }
         }
     }
@@ -484,7 +486,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
                 continue;
             }
             foreach ($instanceIds as $instanceId) {
-                $values[] = $this->buildEntityStatusRow($instanceId, $entityId, $this->Translate('In Home Assistant nicht gefunden'));
+                $values[] = $this->buildEntityStatusRow($instanceId, $entityId, $this->Translate('Not found in Home Assistant'));
             }
         }
     }
@@ -496,7 +498,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
                 continue;
             }
             foreach (array_slice($instanceIds, 1) as $instanceId) {
-                $values[] = $this->buildEntityStatusRow($instanceId, $entityId, $this->Translate('Doppelte Entity-ID'));
+                $values[] = $this->buildEntityStatusRow($instanceId, $entityId, $this->Translate('Duplicate entity ID'));
             }
         }
     }
@@ -505,11 +507,11 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     {
         $deviceName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
         $deviceArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
-        $area = $deviceArea !== '' ? $deviceArea : 'Unbekannt';
+        $area = $this->translateConfiguratorArea($deviceArea !== '' ? $deviceArea : HAConfigDefaults::NAME_UNKNOWN);
 
         return [
             'instanceID'   => $instanceId,
-            'Type'         => 'Device',
+            'Type'         => $this->Translate('Device'),
             'name'         => $deviceName !== '' ? $deviceName : IPS_GetName($instanceId),
             'Area'         => $area,
             'Manufacturer' => '',
@@ -524,11 +526,11 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     {
         $entityName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
         $entityArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
-        $area = $entityArea !== '' ? $entityArea : 'Sonstiges';
+        $area = $this->translateConfiguratorArea($entityArea !== '' ? $entityArea : HAConfigDefaults::AREA_OTHER);
 
         return [
             'instanceID' => $instanceId,
-            'Type' => 'Entity',
+            'Type' => $this->Translate('Entity'),
             'name' => $entityName !== '' ? $entityName : IPS_GetName($instanceId),
             'Area' => $area,
             'Manufacturer' => '',
@@ -634,8 +636,8 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     {
         $debugList = $this->entities;
         uasort($debugList, static function ($a, $b) {
-            $areaA = ($a['area'] === 'Kein Bereich' || empty($a['area'])) ? 'zzz' : $a['area'];
-            $areaB = ($b['area'] === 'Kein Bereich' || empty($b['area'])) ? 'zzz' : $b['area'];
+            $areaA = ((($a['area'] ?? '') === HAConfigDefaults::AREA_NONE) || (($a['area'] ?? '') === 'Kein Bereich') || empty($a['area'])) ? 'zzz' : $a['area'];
+            $areaB = ((($b['area'] ?? '') === HAConfigDefaults::AREA_NONE) || (($b['area'] ?? '') === 'Kein Bereich') || empty($b['area'])) ? 'zzz' : $b['area'];
             $res   = strcasecmp($areaA, $areaB);
             if (strcasecmp($a['device'], $b['device'])) {
                 return ($res !== 0) ? $res : (strcasecmp($a['device'], $b['device']));
@@ -661,6 +663,25 @@ class HomeAssistantConfigurator extends IPSModuleStrict
                 )
             );
         }
+    }
+
+    private function translateConfiguratorArea(string $area): string
+    {
+        return match ($area) {
+            '', HAConfigDefaults::NAME_UNKNOWN, 'Unbekannt' => $this->Translate('Unknown'),
+            HAConfigDefaults::AREA_NONE, 'Kein Bereich' => $this->Translate('No area'),
+            HAConfigDefaults::AREA_OTHER, 'Sonstiges' => $this->Translate('Other'),
+            default => $area
+        };
+    }
+
+    private function translateEntitySummaryForDisplay(string $summary): string
+    {
+        if (preg_match('/^(\d+) entities$/', $summary, $matches) === 1) {
+            return sprintf($this->Translate('%d entities'), (int)$matches[1]);
+        }
+
+        return $summary;
     }
 
     private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void

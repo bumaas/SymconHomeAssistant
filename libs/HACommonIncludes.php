@@ -10,6 +10,7 @@ require_once __DIR__ . '/ModuleDebug.php';
 require_once __DIR__ . '/HAParentConnection.php';
 require_once __DIR__ . '/HARestParentClient.php';
 require_once __DIR__ . '/HARestPayloadBuilder.php';
+require_once __DIR__ . '/Config/HAConfigDefaults.php';
 require_once __DIR__ . '/Config/HAEntityConfigLoader.php';
 require_once __DIR__ . '/Config/HAEntityNormalization.php';
 require_once __DIR__ . '/Config/HAEntityConfigBuilder.php';

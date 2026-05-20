@@ -1,7 +1,7 @@
 [![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant Device
 
-Stellt ein einzelnes Home-Assistant-Gerät in Symcon dar und mappt dessen Entitäten auf Variablen und Medienobjekte.
+Stellt ein einzelnes Gerät aus einer bestehenden Home-Assistant-Installation in Symcon dar und mappt dessen Entitäten auf Variablen und Medienobjekte.
 
 ## Dokumentation
 
@@ -21,6 +21,7 @@ Interne Wartungsdoku: [Architektur](../docs/ARCHITEKTUR.md)
 
 ## 1. Funktionsumfang
 
+- Gehört zum klassischen Bridge-Pfad und übernimmt Geräte aus Home Assistant nach Symcon.
 - Legt Hauptvariablen je Entität an und abonniert deren MQTT-Topics.
 - Schreibt Werte aus `state`- und Attribut-Topics in Symcon-Variablen.
 - Sendet Steuerbefehle an `*/set`-Topics oder, falls vorgesehen, per REST über den Splitter.
@@ -31,6 +32,7 @@ Interne Wartungsdoku: [Architektur](../docs/ARCHITEKTUR.md)
 ## 2. Voraussetzungen
 
 - Parent: Home Assistant Splitter.
+- Bestehende Home-Assistant-Installation als Quelle des Geräts.
 - `DeviceConfig` wird vom Configurator erzeugt oder manuell gepflegt.
 - Home Assistant `mqtt_statestream` ist aktiv.
 - `mqtt_statestream.base_topic` passt zu `MQTTBaseTopic`.
@@ -122,57 +124,57 @@ Keine öffentlichen Funktionen.
 
 ### Binary Sensor
 
-| Quelle | Wert | Icon |
-| --- | --- | --- |
-| `device_class` | `battery` | `battery-exclamation` |
-| `device_class` | `battery_charging` | `battery-bolt` |
-| `device_class` | `co` | `triangle-exclamation` |
-| `device_class` | `cold` | `snowflake` |
-| `device_class` | `connectivity` | `wifi` |
-| `device_class` | `door` | `door-open` |
-| `device_class` | `garage_door` | `garage-open` |
-| `device_class` | `gas` | `cloud-bolt` |
-| `device_class` | `heat` | `fire` |
-| `device_class` | `light` | `lightbulb-on` |
-| `device_class` | `lock` | `lock-open` |
-| `device_class` | `moisture` | `droplet` |
-| `device_class` | `motion` | `person-running` |
-| `device_class` | `moving` | `person-running` |
-| `device_class` | `occupancy` | `house-person-return` |
-| `device_class` | `opening` | `up-right-from-square` |
-| `device_class` | `plug` | `plug` |
-| `device_class` | `power` | `bolt` |
-| `device_class` | `presence` | `user` |
-| `device_class` | `problem` | `triangle-exclamation` |
-| `device_class` | `running` | `play` |
-| `device_class` | `safety` | `shield-exclamation` |
-| `device_class` | `smoke` | `fire-smoke` |
-| `device_class` | `sound` | `volume-high` |
-| `device_class` | `tamper` | `hand` |
-| `device_class` | `update` | `arrows-rotate` |
-| `device_class` | `vibration` | `chart-fft` |
-| `device_class` | `window` | `window-frame-open` |
+| Quelle         | Wert               | Icon                   |
+|----------------|--------------------|------------------------|
+| `device_class` | `battery`          | `battery-exclamation`  |
+| `device_class` | `battery_charging` | `battery-bolt`         |
+| `device_class` | `co`               | `triangle-exclamation` |
+| `device_class` | `cold`             | `snowflake`            |
+| `device_class` | `connectivity`     | `wifi`                 |
+| `device_class` | `door`             | `door-open`            |
+| `device_class` | `garage_door`      | `garage-open`          |
+| `device_class` | `gas`              | `cloud-bolt`           |
+| `device_class` | `heat`             | `fire`                 |
+| `device_class` | `light`            | `lightbulb-on`         |
+| `device_class` | `lock`             | `lock-open`            |
+| `device_class` | `moisture`         | `droplet`              |
+| `device_class` | `motion`           | `person-running`       |
+| `device_class` | `moving`           | `person-running`       |
+| `device_class` | `occupancy`        | `house-person-return`  |
+| `device_class` | `opening`          | `up-right-from-square` |
+| `device_class` | `plug`             | `plug`                 |
+| `device_class` | `power`            | `bolt`                 |
+| `device_class` | `presence`         | `user`                 |
+| `device_class` | `problem`          | `triangle-exclamation` |
+| `device_class` | `running`          | `play`                 |
+| `device_class` | `safety`           | `shield-exclamation`   |
+| `device_class` | `smoke`            | `fire-smoke`           |
+| `device_class` | `sound`            | `volume-high`          |
+| `device_class` | `tamper`           | `hand`                 |
+| `device_class` | `update`           | `arrows-rotate`        |
+| `device_class` | `vibration`        | `chart-fft`            |
+| `device_class` | `window`           | `window-frame-open`    |
 
 ### Vacuum
 
-| Quelle | Wert | Icon |
-| --- | --- | --- |
-| `state` | `cleaning` | `robot` |
-| `state` | `docked` | `house` |
-| `state` | `idle` | `robot` |
-| `state` | `paused` | `pause` |
-| `state` | `returning` | `arrow-rotate-left` |
-| `state` | `error` | `triangle-exclamation` |
+| Quelle  | Wert        | Icon                   |
+|---------|-------------|------------------------|
+| `state` | `cleaning`  | `robot`                |
+| `state` | `docked`    | `house`                |
+| `state` | `idle`      | `robot`                |
+| `state` | `paused`    | `pause`                |
+| `state` | `returning` | `arrow-rotate-left`    |
+| `state` | `error`     | `triangle-exclamation` |
 
 ### Lawn Mower
 
-| Quelle | Wert | Icon |
-| --- | --- | --- |
-| `state` | `mowing` | `leaf` |
-| `state` | `docked` | `house` |
-| `state` | `paused` | `pause` |
-| `state` | `returning` | `arrow-rotate-left` |
-| `state` | `error` | `triangle-exclamation` |
+| Quelle  | Wert        | Icon                   |
+|---------|-------------|------------------------|
+| `state` | `mowing`    | `leaf`                 |
+| `state` | `docked`    | `house`                |
+| `state` | `paused`    | `pause`                |
+| `state` | `returning` | `arrow-rotate-left`    |
+| `state` | `error`     | `triangle-exclamation` |
 
 ## 9. Home Assistant mqtt_statestream
 
@@ -190,6 +192,6 @@ mqtt_statestream:
 
 ### Spenden
 
-Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fuehlen, aber wenn das Modul gefaellt, dann freue ich mich ueber eine Spende.
+Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fühlen, aber wenn das Modul gefällt, dann freue ich mich über eine Spende.
 
 <a href="https://www.paypal.me/bumaas" target="_blank"><img src="https://www.paypalobjects.com/de_DE/DE/i/btn/btn_donate_LG.gif" border="0" /></a>

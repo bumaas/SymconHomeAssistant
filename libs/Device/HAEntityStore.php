@@ -400,6 +400,6 @@ trait HAEntityStoreTrait
         $this->updateLastRestFetchLabel();
 
         $count = count($this->entities);
-        $this->updateFormFieldSafe('DiagEntityCount', 'caption', 'Entitäten (aktiv): ' . $count);
+        $this->updateFormFieldSafe('DiagEntityCount', 'caption', sprintf($this->Translate('Entities (active): %d'), $count));
     }
 }

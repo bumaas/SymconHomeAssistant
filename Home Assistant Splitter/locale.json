@@ -3,17 +3,33 @@
     "de": {
       "Home Assistant Connection": "Home Assistant Verbindung",
       "MQTT Base Topic": "MQTT Basis-Topic",
+      "Note: Home Assistant must have mqtt_statestream enabled and base_topic must match MQTT Base Topic.": "Hinweis: Home Assistant muss mqtt_statestream aktiviert haben und base_topic muss mit MQTT Base Topic \u00fcbereinstimmen.",
       "HA URL": "HA URL",
       "Long-Lived Access Token": "Langzeit-Access-Token",
       "Hint: Create the token in Home Assistant under Profile > Security > Long-Lived Access Tokens.": "Hinweis: Token in Home Assistant unter Profil > Sicherheit > Langzeit-Zugriffstoken erstellen.",
       "Behavior": "Verhalten",
-      "Use REST for */set topics": "REST für */set Topics verwenden",
+      "Use REST for */set topics": "REST f\u00fcr */set Topics verwenden",
+      "REST ack timeout (s)": "REST-Ack-Timeout (s)",
       "Expert": "Experte",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
+      "Output buffer (MB)": "Ausgabepuffer (MB)",
       "Debug response format": "Debug Antwortformat",
       "JSON compact": "JSON kompakt",
       "JSON pretty": "JSON formatiert",
-      "Raw": "Roh"
+      "Raw": "Roh",
+      "Diagnostics": "Diagnose",
+      "Last MQTT message: %s": "Letzte MQTT-Message: %s",
+      "MQTT parent: %d%s | Status %d%s": "MQTT-Parent: %d%s | Status %d%s",
+      "MQTT base topic: %s": "MQTT-Basis-Topic: %s",
+      "Last REST error: %s": "Letzter REST-Fehler: %s",
+      "Last REST response: %s": "Letzte REST-Antwort: %s",
+      "Last REST timeout: %s": "Letzter REST-Timeout: %s",
+      "never": "nie",
+      "none": "keiner",
+      "empty": "leer",
+      "No active MQTT parent connected.": "Kein aktiver MQTT-Parent verbunden.",
+      "MQTT base topic is empty.": "MQTT-Basis-Topic ist leer.",
+      "REST API not reachable.": "REST-API nicht erreichbar."
     }
   }
 }

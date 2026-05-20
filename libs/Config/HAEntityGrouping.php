@@ -15,7 +15,7 @@ trait HAEntityGroupingTrait
                 continue;
             }
 
-            $isRealDevice = (($entity['device_id'] ?? 'none') !== 'none');
+            $isRealDevice = (($entity['device_id'] ?? HAConfigDefaults::DEVICE_NONE) !== HAConfigDefaults::DEVICE_NONE);
             $uniqueDeviceKey = $isRealDevice
                 ? 'HA_DEV_' . $entity['device_id']
                 : 'HA_ENT_' . str_replace('.', '_', (string)($entity['entity_id'] ?? ''));
@@ -27,7 +27,7 @@ trait HAEntityGroupingTrait
                     'manufacturer' => $isRealDevice ? ($entity['device_manufacturer'] ?? '') : '',
                     'model' => $isRealDevice ? ($entity['device_model'] ?? '') : '',
                     'device_id' => $isRealDevice ? $entity['device_id'] : $entity['entity_id'],
-                    'area' => $isRealDevice ? ($entity['area'] ?? 'Kein Bereich') : 'Sonstiges',
+                    'area' => $isRealDevice ? ($entity['area'] ?? HAConfigDefaults::AREA_NONE) : HAConfigDefaults::AREA_OTHER,
                     'entities' => [],
                 ];
             }
@@ -91,7 +91,7 @@ trait HAEntityGroupingTrait
             return implode(', ', array_column($entities, 'name'));
         }
 
-        return count($entities) . ' Entitäten';
+        return count($entities) . ' entities';
     }
 
     private function sortGroupedDevices(array &$devices): void

@@ -362,13 +362,14 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $resolved = $this->getResolvedEntity();
         $attributes = $this->getResolvedAttributesForDisplay($resolved);
         $deviceClass = $this->getResolvedDeviceClass($resolved, $attributes);
+        $resolvedArea = $this->translateResolvedArea((string)($resolved['area'] ?? ''));
 
-        $this->updateFormFieldSafe('ResolvedName', 'caption', 'Resolved Name: ' . ($resolved['name'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedDomain', 'caption', 'Resolved Domain: ' . ($resolved['domain'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedDeviceClass', 'caption', 'Resolved Device Class: ' . $deviceClass);
-        $this->updateFormFieldSafe('ResolvedDeviceID', 'caption', 'Resolved Device ID: ' . ($resolved['device_id'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedArea', 'caption', 'Resolved Area: ' . ($resolved['area'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedAttributeCount', 'caption', 'Resolved Attribute Count: ' . count($attributes));
+        $this->updateFormFieldSafe('ResolvedName', 'caption', sprintf($this->Translate('Resolved name: %s'), $resolved['name'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedDomain', 'caption', sprintf($this->Translate('Resolved domain: %s'), $resolved['domain'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedDeviceClass', 'caption', sprintf($this->Translate('Resolved device class: %s'), $deviceClass));
+        $this->updateFormFieldSafe('ResolvedDeviceID', 'caption', sprintf($this->Translate('Resolved device ID: %s'), $resolved['device_id'] ?? ''));
+        $this->updateFormFieldSafe('ResolvedArea', 'caption', sprintf($this->Translate('Resolved area: %s'), $resolvedArea));
+        $this->updateFormFieldSafe('ResolvedAttributeCount', 'caption', sprintf($this->Translate('Resolved attribute count: %d'), count($attributes)));
         $this->updateFormFieldSafe(
             'ResolvedAttributes',
             'values',
@@ -381,30 +382,31 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $resolved = $this->getResolvedEntity();
         $attributes = $this->getResolvedAttributesForDisplay($resolved);
         $deviceClass = $this->getResolvedDeviceClass($resolved, $attributes);
+        $resolvedArea = $this->translateResolvedArea((string)($resolved['area'] ?? ''));
 
         foreach ($form['elements'] as &$element) {
             if (($element['name'] ?? '') === 'ResolvedName') {
-                $element['caption'] = 'Resolved Name: ' . ($resolved['name'] ?? '');
+                $element['caption'] = sprintf($this->Translate('Resolved name: %s'), $resolved['name'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDomain') {
-                $element['caption'] = 'Resolved Domain: ' . ($resolved['domain'] ?? '');
+                $element['caption'] = sprintf($this->Translate('Resolved domain: %s'), $resolved['domain'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDeviceClass') {
-                $element['caption'] = 'Resolved Device Class: ' . $deviceClass;
+                $element['caption'] = sprintf($this->Translate('Resolved device class: %s'), $deviceClass);
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedDeviceID') {
-                $element['caption'] = 'Resolved Device ID: ' . ($resolved['device_id'] ?? '');
+                $element['caption'] = sprintf($this->Translate('Resolved device ID: %s'), $resolved['device_id'] ?? '');
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedArea') {
-                $element['caption'] = 'Resolved Area: ' . ($resolved['area'] ?? '');
+                $element['caption'] = sprintf($this->Translate('Resolved area: %s'), $resolvedArea);
                 continue;
             }
             if (($element['name'] ?? '') === 'ResolvedAttributeCount') {
-                $element['caption'] = 'Resolved Attribute Count: ' . count($attributes);
+                $element['caption'] = sprintf($this->Translate('Resolved attribute count: %d'), count($attributes));
                 continue;
             }
 
@@ -414,27 +416,27 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
             foreach ($element['items'] as &$item) {
                 if (($item['name'] ?? '') === 'ResolvedName') {
-                    $item['caption'] = 'Resolved Name: ' . ($resolved['name'] ?? '');
+                    $item['caption'] = sprintf($this->Translate('Resolved name: %s'), $resolved['name'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDomain') {
-                    $item['caption'] = 'Resolved Domain: ' . ($resolved['domain'] ?? '');
+                    $item['caption'] = sprintf($this->Translate('Resolved domain: %s'), $resolved['domain'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDeviceClass') {
-                    $item['caption'] = 'Resolved Device Class: ' . $deviceClass;
+                    $item['caption'] = sprintf($this->Translate('Resolved device class: %s'), $deviceClass);
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedDeviceID') {
-                    $item['caption'] = 'Resolved Device ID: ' . ($resolved['device_id'] ?? '');
+                    $item['caption'] = sprintf($this->Translate('Resolved device ID: %s'), $resolved['device_id'] ?? '');
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedArea') {
-                    $item['caption'] = 'Resolved Area: ' . ($resolved['area'] ?? '');
+                    $item['caption'] = sprintf($this->Translate('Resolved area: %s'), $resolvedArea);
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedAttributeCount') {
-                    $item['caption'] = 'Resolved Attribute Count: ' . count($attributes);
+                    $item['caption'] = sprintf($this->Translate('Resolved attribute count: %d'), count($attributes));
                     continue;
                 }
                 if (($item['name'] ?? '') === 'ResolvedAttributes') {
@@ -450,19 +452,19 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
     {
         $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
         if ($lastMqtt === '') {
-            $lastMqtt = 'nie';
+            $lastMqtt = $this->Translate('never');
         }
 
         $lastRest = $this->ReadAttributeString('LastRESTFetch');
         if ($lastRest === '') {
-            $lastRest = 'nie';
+            $lastRest = $this->Translate('never');
         }
 
         $entityCount = $this->getResolvedEntity() === [] ? 0 : 1;
         $captions = [
-            'DiagLastMQTT' => 'Letzte MQTT-Message: ' . $lastMqtt,
-            'DiagLastREST' => 'Letzter REST-Abruf: ' . $lastRest,
-            'DiagEntityCount' => 'Entitäten (aktiv): ' . $entityCount
+            'DiagLastMQTT' => sprintf($this->Translate('Last MQTT message: %s'), $lastMqtt),
+            'DiagLastREST' => sprintf($this->Translate('Last REST fetch: %s'), $lastRest),
+            'DiagEntityCount' => sprintf($this->Translate('Entities (active): %d'), $entityCount)
         ];
 
         foreach ($form['actions'] as &$action) {
@@ -538,5 +540,15 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         }
 
         return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function translateResolvedArea(string $area): string
+    {
+        return match ($area) {
+            '', HAConfigDefaults::NAME_UNKNOWN, 'Unbekannt' => $this->Translate('Unknown'),
+            HAConfigDefaults::AREA_NONE, 'Kein Bereich' => $this->Translate('No area'),
+            HAConfigDefaults::AREA_OTHER, 'Sonstiges' => $this->Translate('Other'),
+            default => $area
+        };
     }
 }

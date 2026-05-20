@@ -1,7 +1,7 @@
 [![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant Configurator
 
-Listet Home Assistant Geräte und Entitäten und legt daraus Device- oder Entity-Instanzen in Symcon an.
+Lädt Geräte und Entitäten aus einer bestehenden Home-Assistant-Installation und legt daraus Device- oder Entity-Instanzen in Symcon an.
 
 ## Dokumentation
 
@@ -17,13 +17,14 @@ Listet Home Assistant Geräte und Entitäten und legt daraus Device- oder Entity
 
 ## 1. Funktionsumfang
 
-- Lädt Entitäten per REST.
+- Lädt Entitäten und Gerätemetadaten per REST aus einer bestehenden Home-Assistant-Installation.
 - Gruppiert Geräte nach Bereich.
 - Erzeugt Device- oder Entity-Instanzen inkl. Konfiguration.
 
 ## 2. Voraussetzungen
 
 - Verbunden mit einem Home Assistant Splitter als Parent.
+- Bestehende Home-Assistant-Installation als Quelle.
 - `HAUrl` und `HAToken` im Splitter gesetzt (REST Zugriff auf `/api/template`).
 
 ## 3. Installation
@@ -44,9 +45,10 @@ Keine öffentlichen Funktionen.
 
 ## Hinweis
 
-- Der Configurator fuehrt im Symcon-`create`-Block nur noch stabile Strukturattribute.
-- Fluechtige Live-Werte und Prognosedaten werden dort bewusst nicht gespiegelt.
-- `DeviceConfig` im `create`-Block bleibt stabil nach `entity_id` sortiert, damit `Als gelesen markiert` nicht durch volatile Aenderungen erneut neue Eintraege erzeugt.
+- Dieses Modul gehört zur klassischen Bridge-Funktionalität.
+- Der Configurator führt im Symcon-`create`-Block nur noch stabile Strukturattribute.
+- Flüchtige Live-Werte und Prognosedaten werden dort bewusst nicht gespiegelt.
+- `DeviceConfig` im `create`-Block bleibt stabil nach `entity_id` sortiert, damit `Als gelesen markiert` nicht durch volatile Änderungen erneut neue Einträge erzeugt.
 
 ## 6. Statusvariablen und Profile
 
@@ -63,6 +65,6 @@ Keine.
 
 ### Spenden
 
-Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fuehlen, aber wenn das Modul gefaellt, dann freue ich mich ueber eine Spende.
+Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fühlen, aber wenn das Modul gefällt, dann freue ich mich über eine Spende.
 
 <a href="https://www.paypal.me/bumaas" target="_blank"><img src="https://www.paypalobjects.com/de_DE/DE/i/btn/btn_donate_LG.gif" border="0" /></a>

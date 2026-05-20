@@ -1,18 +1,28 @@
 {
   "translations": {
     "de": {
-      "Found Devices": "Gefundene Geräte",
+      "Found Devices": "Gefundene Ger\u00e4te",
+      "Type": "Typ",
+      "Entity": "Entit\u00e4t",
       "Area": "Bereich",
-      "Device": "Gerät",
-      "Entities": "Entitäten",
+      "Device": "Ger\u00e4t",
+      "Manufacturer": "Hersteller",
+      "Model": "Modell",
+      "Entities": "Entit\u00e4ten",
+      "%d entities": "%d Entit\u00e4ten",
+      "Unknown": "Unbekannt",
+      "No area": "Kein Bereich",
+      "Other": "Sonstiges",
+      "Not found in Home Assistant": "In Home Assistant nicht gefunden",
+      "Duplicate device ID": "Doppelte Ger\u00e4te-ID",
+      "Duplicate entity ID": "Doppelte Entity-ID",
       "Expert Settings": "Experteneinstellungen",
-      "Allowed Domains (Filter)": "Erlaubte Domänen (Filter)",
-      "Domain": "Domäne",
+      "Allowed Domains (Filter)": "Erlaubte Dom\u00e4nen (Filter)",
+      "Domain": "Dom\u00e4ne",
       "Configuration": "Konfiguration",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
       "Create status variables automatically": "Statusvariablen automatisch anlegen",
-      "Filter domains explicitly": "Domänen explizit filtern"
+      "Filter domains explicitly": "Dom\u00e4nen explizit filtern"
     }
   }
 }
-

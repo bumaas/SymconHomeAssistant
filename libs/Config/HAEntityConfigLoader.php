@@ -59,12 +59,12 @@ EOT;
         "domain": "{{ state.domain }}",
         "name": "{{ state.attributes.friendly_name | default(state.name) }}",
         "attributes": {{ sanitize_json(state.attributes) }},
-        "device": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }} ({{ area_name(state.entity_id) | default('Kein Bereich', true) }})",
-        "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unbekannt', true) }}",
+        "device": "{{ device_attr(state.entity_id, 'name') | default('Unknown', true) }} ({{ area_name(state.entity_id) | default('No area', true) }})",
+        "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unknown', true) }}",
         "device_manufacturer": "{{ device_attr(state.entity_id, 'manufacturer') | default('', true) }}",
         "device_model": "{{ device_attr(state.entity_id, 'model') | default('', true) }}",
         "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
-        "area": "{{ area_name(state.entity_id) | default('Kein Bereich', true) }}",
+        "area": "{{ area_name(state.entity_id) | default('No area', true) }}",
         "supported_features": {{ state.attributes.supported_features | default(0) | int }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}

@@ -10,15 +10,15 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
   Liest Geräte- und Entity-Daten aus Home Assistant, gruppiert sie zu Symcon-Geräten und erzeugt daraus `DeviceConfig`.
   Für den Symcon-`create`-Block wird dabei nur eine stabile CreateConfig mit strukturellen Attributen erzeugt, damit volatile Live-Daten keine neuen Configurator-Einträge vortäuschen.
 - `Home Assistant MQTT Discovery Splitter`
-  Ist der Transportknoten fuer `homeassistant/.../config` Topics. Er cached MQTT-Discovery-Payloads, reicht MQTT an Kinder weiter und stellt den Cache fuer Discovery-Module bereit.
+  Ist der Transportknoten für `homeassistant/.../config` Topics. Er cached MQTT-Discovery-Payloads, reicht MQTT an Kinder weiter und stellt den Cache für Discovery-Module bereit.
 - `Home Assistant MQTT Discovery Configurator`
-  Liest gecachte MQTT-Discovery-Configs aus dem MQTT Discovery Splitter, parst die Payloads in eine interne Transportstruktur und gruppiert sie zu Geraetekandidaten fuer Zigbee2MQTT und aehnliche Discovery-Quellen.
+  Liest gecachte MQTT-Discovery-Configs aus dem MQTT Discovery Splitter, parst die Payloads in eine interne Transportstruktur und gruppiert sie zu Gerätekandidaten für Zigbee2MQTT und ähnliche Discovery-Quellen.
 - `Home Assistant MQTT Discovery Device`
-  Ist der schlanke Laufzeitpfad fuer MQTT-Discovery-Geraete. Er loest seine Entities ueber `DeviceID` aus dem MQTT Discovery Splitter auf, cached die aufgeloeste Device-Definition intern und verarbeitet `state_topic`, `command_topic` sowie `availability`.
+  Ist der schlanke Laufzeitpfad für MQTT-Discovery-Geräte. Er löst seine Entities über `DeviceID` aus dem MQTT Discovery Splitter auf, cached die aufgelöste Device-Definition intern und verarbeitet `state_topic`, `command_topic` sowie `availability`.
 - `libs/Config`
   Enthält die gemeinsame Aufbereitungsschicht für Configurator und spätere self-resolving Module. Loader lädt Rohdaten aus HA, Builder normalisiert die Entity-Konfiguration und Grouping bündelt Entities für die Geräteansicht.
 - `libs/Discovery`
-  Enthaelt die vorbereitende MQTT-Discovery-Schicht. Parser und Grouping normalisieren `homeassistant/.../config` Topics in eine transportfeste interne Struktur, ohne den bestehenden Statestream-Pfad zu vermischen.
+  Enthält die vorbereitende MQTT-Discovery-Schicht. Parser und Grouping normalisieren `homeassistant/.../config` Topics in eine transportfeste interne Struktur, ohne den bestehenden Statestream-Pfad zu vermischen.
 - `Home Assistant Splitter`
   Ist der zentrale Transportknoten. Er verteilt MQTT-Nachrichten an Kinder und kapselt REST- sowie Bildabrufe.
 - `Home Assistant Device`
@@ -84,11 +84,11 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - `libs/Config/HAEntityGroupingTrait`
   Gruppiert normalisierte Entities zu Geräten und bereitet Namen sowie Zusammenfassungen für die UI auf.
 - `libs/Discovery/HAMqttDiscoveryTemplate`
-  Reduziert die fuer v1 unterstuetzten MQTT-Discovery-Templates auf eine kleine interne Struktur, damit Runtime-Code keine freien Jinja-Ausdruecke auswerten muss.
+  Reduziert die für v1 unterstützten MQTT-Discovery-Templates auf eine kleine interne Struktur, damit Runtime-Code keine freien Jinja-Ausdrücke auswerten muss.
 - `libs/Discovery/HAMqttDiscoveryParser`
-  Uebersetzt einzelne `homeassistant/.../config` Payloads in normalisierte Discovery-Entities mit expliziten Topics, Availability und Schreibmetadaten.
+  Übersetzt einzelne `homeassistant/.../config` Payloads in normalisierte Discovery-Entities mit expliziten Topics, Availability und Schreibmetadaten.
 - `libs/Discovery/HAMqttDiscoveryGrouping`
-  Gruppiert normalisierte Discovery-Entities ueber `device.identifiers` zu Symcon-Geraetekandidaten und baut daraus eine stabile Discovery-Device-Definition fuer Configurator und Laufzeitmodul.
+  Gruppiert normalisierte Discovery-Entities über `device.identifiers` zu Symcon-Gerätekandidaten und baut daraus eine stabile Discovery-Device-Definition für Configurator und Laufzeitmodul.
 - `libs/Device/HADeviceCoreTrait`
   Kapselt den gemeinsamen Laufzeitkern für Device- und Entity-Instanzen, insbesondere MQTT/REST-Synchronisierung, Topic-Ableitung, Initialzustände und Action-Dispatch.
 - `libs/Domains/*Definitions.php`
@@ -116,7 +116,7 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - Präsentationslogik bleibt möglichst seiteneffektfrei. Variablen- und Medienerzeugung gehören in die Maintenance-Traits.
 - Feature- und Schreibbarkeitslogik orientiert sich an den Domain-Definitionen, nicht an verstreuten Literalwerten.
 - Echte Sonderfälle bleiben explizit. Wenn eine Domain fachlich anders arbeitet, ist eine kleine spezialisierte Methode besser als ein überdehnter Generic-Helper.
-- Modulsichtbare UI-Texte werden lokalisiert. Statische Formular-, Status- und Buttontexte gehören mit englischem Basistext in die jeweilige `locale.json`. Dynamische, für Benutzer sichtbare Texte aus PHP werden über `Translate()` auf dieselben Schlüssel geführt, statt deutschsprachige Literale direkt im Code zu verteilen.
+- Modulsichtbare UI-Texte werden lokalisiert. Statische Formular-, Status- und Buttontexte gehören mit englischem Basistext in die jeweilige `locale.json`. Dynamische, für Benutzer sichtbare Texte aus PHP werden über `Translate()` auf dieselben Schlüssel geführt, statt deutschsprachige Literale direkt im Code zu verteilen. Reine Debug-, Trace- und interne Diagnoseausgaben sind davon ausgenommen; sie müssen nicht über `locale.json` und `Translate()` lokalisiert werden.
 - Programmdokumentation im Modulcode bleibt knapp und begründet das Warum. Kommentare sind für Hotspots, Invarianten, Lastfallen und bewusst gewählte Abweichungen gedacht; selbsterklärender Ablaufcode bleibt kommentarlos.
 
 ## 5. Erweiterungspfad für eine neue Domain
@@ -135,13 +135,13 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - Teilupdates über MQTT sind ein Hotspot. Attribute dürfen keine Hauptzustände implizit überschreiben, wenn nur unvollständige Daten angekommen sind.
 - Zusatzvariablen dürfen nur existieren oder schreibbar sein, wenn Features und Attributlage das wirklich hergeben.
 - Medienobjekte und benutzernahe Namen sind regressionsanfällig, weil sie direkt in Symcon sichtbar sind.
-- Es gibt aktuell keine versionierten automatisierten Tests. Minimale Absicherung vor Commits: lokaler Lint-/Pruefworkflow und eine gezielte manuelle Pruefrunde gemaess `docs/VERIFIKATION.md`.
+- Es gibt aktuell keine versionierten automatisierten Tests. Minimale Absicherung vor Commits: lokaler Lint-/Prüfworkflow und eine gezielte manuelle Prüfrunde gemäß `docs/VERIFIKATION.md`.
 
 ### Leitlinie: Zustand und Schreiben
 
-- Zustandsvariablen bleiben fachlich nah an Home Assistant. Kanonische HA-States und Optionen werden als `String` modelliert, auch wenn die Symcon-PrÃ¤sentation enum-artige Optionen zeigt. `Integer`-Enums sind fÃ¼r lokale Aktionsvariablen gedacht, nicht fÃ¼r den eigentlichen HA-Zustand.
-- Lese- und Schreibpfad werden getrennt betrachtet. `mqtt_statestream` ist ein Read-Kanal; geschrieben wird pro Domain Ã¼ber den von Home Assistant fachlich vorgesehenen Pfad, typischerweise per Service-Call. MQTT wird nur als Write-Pfad genutzt, wenn die Domain oder Discovery-Metadaten einen echten Command-Pfad explizit liefern.
-- Hauptvariable und Aktionsvariable haben unterschiedliche Aufgaben. Die Hauptvariable bildet den HA-Zustand ab, separate Aktionsvariablen kapseln lokale Bedienlogik und dÃ¼rfen dafÃ¼r eigene Integer-Enums verwenden.
+- Zustandsvariablen bleiben fachlich nah an Home Assistant. Kanonische HA-States und Optionen werden als `String` modelliert, auch wenn die Symcon-Präsentation enum-artige Optionen zeigt. `Integer`-Enums sind für lokale Aktionsvariablen gedacht, nicht für den eigentlichen HA-Zustand.
+- Lese- und Schreibpfad werden getrennt betrachtet. `mqtt_statestream` ist ein Read-Kanal; geschrieben wird pro Domain über den von Home Assistant fachlich vorgesehenen Pfad, typischerweise per Service-Call. MQTT wird nur als Write-Pfad genutzt, wenn die Domain oder Discovery-Metadaten einen echten Command-Pfad explizit liefern.
+- Hauptvariable und Aktionsvariable haben unterschiedliche Aufgaben. Die Hauptvariable bildet den HA-Zustand ab, separate Aktionsvariablen kapseln lokale Bedienlogik und dürfen dafür eigene Integer-Enums verwenden.
 
 ## 7. Architektur-Backlog
 
@@ -175,66 +175,66 @@ Geparkte nächste Schritte:
 ### MQTT Discovery Splitter: Bundle-/Simulator-Modus
 
 Zielbild:
-- Der `Home Assistant MQTT Discovery Splitter` soll optional ohne echten MQTT-Parent aus einem exportierten Discovery-Bundle arbeiten koennen.
-- Damit sollen `Home Assistant MQTT Discovery Configurator` und `Home Assistant MQTT Discovery Device` waehrend der Entwicklung reproduzierbar gegen gecachte Discovery- und Runtime-Daten laufen.
-- Der Bundle-Modus ist ein Entwicklungs- und Analysewerkzeug, kein vollwertiger Ersatz fuer einen Live-Broker.
+- Der `Home Assistant MQTT Discovery Splitter` soll optional ohne echten MQTT-Parent aus einem exportierten Discovery-Bundle arbeiten können.
+- Damit sollen `Home Assistant MQTT Discovery Configurator` und `Home Assistant MQTT Discovery Device` während der Entwicklung reproduzierbar gegen gecachte Discovery- und Runtime-Daten laufen.
+- Der Bundle-Modus ist ein Entwicklungs- und Analysewerkzeug, kein vollwertiger Ersatz für einen Live-Broker.
 
 Geplanter MVP:
 - Interne Quelle `SourceMode = mqtt | bundle` im MQTT Discovery Splitter. Im Formular bleibt standardmäßig nur MQTT sichtbar; Bundle-Modus wird gezielt über öffentliche Funktionen aktiviert.
-- Neue Property `BundlePath` fuer ein zuvor exportiertes Discovery-Bundle.
+- Neue Property `BundlePath` für ein zuvor exportiertes Discovery-Bundle.
 - Der Bundle-Import erwartet nur das aktuelle Exportformat V2, damit Validierung und Laufzeitpfad schlank bleiben.
-- Beim Laden werden `discovery_configs`, `topic_payloads` und referenzierte Topic-Informationen in die bestehenden Splitter-Caches uebernommen.
+- Beim Laden werden `discovery_configs`, `topic_payloads` und referenzierte Topic-Informationen in die bestehenden Splitter-Caches übernommen.
 - `GetDiscoveryConfigs` und `GetTopicPayloads` werden im Bundle-Modus direkt aus diesen Caches beantwortet.
 - Optionaler Replay-Schritt sendet gecachte Runtime-Topics an Kinder, damit `ApplyChanges()`, Initialwerte und Receive-Filter ohne Live-MQTT testbar bleiben.
 - Diagnostics zeigen im Bundle-Modus explizit Quelle, Bundle-Pfad, Export-Zeitpunkt sowie Anzahl Discovery-Configs und Topic-Payloads.
 
-Bewusste Abgrenzung fuer v1:
+Bewusste Abgrenzung für v1:
 - Keine generische Zeitachsen- oder Replay-Engine.
-- Keine vollstaendige Simulation beliebiger `command_topic`-Seiteneffekte.
+- Keine vollständige Simulation beliebiger `command_topic`-Seiteneffekte.
 - Kein Producer-spezifischer Sonderpfad pro Quelle im Discovery Device.
-- Schreibvorgaenge im Bundle-Modus werden zunaechst hoechstens protokolliert oder optional verworfen.
+- Schreibvorgänge im Bundle-Modus werden zunächst höchstens protokolliert oder optional verworfen.
 
-Moeglicher Ausbau nach dem MVP:
-- Einfaches Command-Log fuer ausgehende `.../set`-Topics.
-- Optionale Rueckspiegelung einfacher Commands in den Cache, zuerst fuer robuste Faelle wie `switch` und `light` mit `schema=json`.
+Möglicher Ausbau nach dem MVP:
+- Einfaches Command-Log für ausgehende `.../set`-Topics.
+- Optionale Rückspiegelung einfacher Commands in den Cache, zuerst für robuste Fälle wie `switch` und `light` mit `schema=json`.
 - Gezielte Replay-Optionen wie `alle Payloads`, `nur aktuelle Session` oder `nur referenzierte Topics`.
 
 Architekturregel:
-- Der Bundle-Modus soll moeglichst denselben Splitter-, Configurator- und Device-Pfad nutzen wie der Live-Betrieb.
-- Unterschiede zwischen Live-MQTT und Bundle-Datei gehoeren in die Quellbeschaffung und Cache-Hydrierung des MQTT Discovery Splitters, nicht in Parser, Gruppierung oder das Discovery Device.
+- Der Bundle-Modus soll möglichst denselben Splitter-, Configurator- und Device-Pfad nutzen wie der Live-Betrieb.
+- Unterschiede zwischen Live-MQTT und Bundle-Datei gehören in die Quellbeschaffung und Cache-Hydrierung des MQTT Discovery Splitters, nicht in Parser, Gruppierung oder das Discovery Device.
 
 Implementierungs-Backlog:
 1. Formular und Properties im MQTT Discovery Splitter erweitern
    - interner `SourceMode`, `BundlePath`, optional `BundleCurrentSessionOnly` und `ReplayTopicsOnApply`
    - Bundle-spezifische Diagnostics und Bedienelemente im Formular sichtbar machen
 2. Bundle-Datei laden und validieren
-   - JSON einlesen, Format pruefen, Mindestfelder absichern
-   - Fehlerstatus und Diagnosemeldungen fuer fehlende oder ungueltige Bundle-Dateien definieren
+   - JSON einlesen, Format prüfen, Mindestfelder absichern
+   - Fehlerstatus und Diagnosemeldungen für fehlende oder ungültige Bundle-Dateien definieren
 3. Splitter-Caches aus dem Bundle hydrieren
-   - `discovery_configs`, `topic_payloads` und referenzierte Topics in die bestehenden Cache-Strukturen ueberfuehren
-   - Lookup fuer referenzierte Runtime-Topics daraus neu aufbauen
+   - `discovery_configs`, `topic_payloads` und referenzierte Topics in die bestehenden Cache-Strukturen überführen
+   - Lookup für referenzierte Runtime-Topics daraus neu aufbauen
 4. Bundle-Modus in den Laufzeitpfad einziehen
    - `GetDiscoveryConfigs` und `GetTopicPayloads` ohne MQTT-Parent bedienen
    - im Bundle-Modus einen sinnvollen aktiven Status ohne Broker-Verbindung setzen
-5. Optionales Replay an Kinder ergaenzen
+5. Optionales Replay an Kinder ergänzen
    - gecachte Runtime-Topics kontrolliert an Discovery-Devices weiterreichen
    - Reihenfolge und Filterung bewusst einfach halten, keine Zeitachsen-Simulation
 
-Spaeter, aber nicht Teil des MVP:
-- Command-Log fuer ausgehende `command_topic`-Writes
-- einfache Rueckspiegelung fuer `switch` und `light` mit `schema=json`
-- feinere Replay-Optionen und eventuell Testhilfen fuer lokale Entwicklung
+Später, aber nicht Teil des MVP:
+- Command-Log für ausgehende `command_topic`-Writes
+- einfache Rückspiegelung für `switch` und `light` mit `schema=json`
+- feinere Replay-Optionen und eventuell Testhilfen für lokale Entwicklung
 
 ### Klassischer Home Assistant Splitter: Performance-Backlog
 
 Beobachtung:
 - Auch im klassischen `Home Assistant Splitter` kann hohe Last auftreten, wenn der Parent viel MQTT-Traffic sieht.
-- Der Splitter empfaengt derzeit breit ueber `SetReceiveDataFilter('.*')` und reicht `RX`/`TX`-Nachrichten an Kinder weiter.
+- Der Splitter empfängt derzeit breit über `SetReceiveDataFilter('.*')` und reicht `RX`/`TX`-Nachrichten an Kinder weiter.
 - Ob hier weiterer Handlungsbedarf besteht, wird erst nach den Discovery-Splitter-Erfahrungen priorisiert.
 
-Geparkte naechste Schritte:
-- Breiten Empfang im Splitter gegen den real benoetigten Topic-Bereich absichern
-- `TX` nur dann an Kinder weiterreichen, wenn dafuer ein fachlicher Bedarf besteht
+Geparkte nächste Schritte:
+- Breiten Empfang im Splitter gegen den real benötigten Topic-Bereich absichern
+- `TX` nur dann an Kinder weiterreichen, wenn dafür ein fachlicher Bedarf besteht
 - Broadcast an Kinder weiter eingrenzen statt jede MQTT-Nachricht global durchzureichen
-- Diagnose- und Formularupdates auch hier auf moegliche Hotspots pruefen
+- Diagnose- und Formularupdates auch hier auf mögliche Hotspots prüfen
 - Einen dedizierten MQTT-Client mit enger Subscription als Betriebsoption dokumentieren

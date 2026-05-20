@@ -1,148 +1,205 @@
 {
   "elements": [
     {
-      "type":    "ExpansionPanel",
+      "type": "ExpansionPanel",
       "caption": "Device Information",
-      "items":   [
+      "items": [
         {
-          "type":     "Label",
-          "name":     "DeviceName",
-          "caption":  "Device Name (HA): "
+          "type": "Label",
+          "name": "DeviceName",
+          "caption": "Device name (HA): "
         },
         {
-          "type":     "Label",
-          "name":     "DeviceArea",
-          "caption":  "Area: "
+          "type": "Label",
+          "name": "DeviceArea",
+          "caption": "Area: "
         },
         {
-          "type":     "Label",
-          "name":     "DeviceID",
-          "caption":  "Device ID: "
+          "type": "Label",
+          "name": "DeviceID",
+          "caption": "Device ID: "
         }
       ]
     },
     {
-      "type":     "List",
-      "name":     "DeviceConfig",
-      "caption":  "Mapped Entities",
+      "type": "List",
+      "name": "DeviceConfig",
+      "caption": "Mapped Entities",
       "rowCount": 10,
       "loadValuesFromConfiguration": true,
-      "add":      true,
-      "delete":   true,
-      "columns":  [
+      "add": true,
+      "delete": true,
+      "columns": [
         {
           "caption": "Domain",
-          "name":    "domain",
-          "width":   "150px",
-          "edit":    {
-            "type":    "Select",
+          "name": "domain",
+          "width": "150px",
+          "edit": {
+            "type": "Select",
             "options": [
-              {"caption": "Light (light)", "value": "light"},
-              {"caption": "Switch (switch)", "value": "switch"},
-              {"caption": "Sensor (sensor)", "value": "sensor"},
-              {"caption": "Binary Sensor (binary_sensor)", "value": "binary_sensor"},
-              {"caption": "Climate (climate)", "value": "climate"},
-              {"caption": "Number (number)", "value": "number"},
-              {"caption": "Lock (lock)", "value": "lock"},
-              {"caption": "Cover (cover)", "value": "cover"},
-              {"caption": "Valve (valve)", "value": "valve"},
-              {"caption": "Event (event)", "value": "event"},
-              {"caption": "Select (select)", "value": "select"},
-              {"caption": "Button (button)", "value": "button"},
-              {"caption": "Input Button (input_button)", "value": "input_button"},
-              {"caption": "Vacuum (vacuum)", "value": "vacuum"},
-              {"caption": "Fan (fan)", "value": "fan"},
-              {"caption": "Humidifier (humidifier)", "value": "humidifier"},
-              {"caption": "Media Player (media_player)", "value": "media_player"},
-              {"caption": "Camera (camera)", "value": "camera"},
-              {"caption": "Image (image)", "value": "image"}
+              {
+                "caption": "Light (light)",
+                "value": "light"
+              },
+              {
+                "caption": "Switch (switch)",
+                "value": "switch"
+              },
+              {
+                "caption": "Sensor (sensor)",
+                "value": "sensor"
+              },
+              {
+                "caption": "Binary Sensor (binary_sensor)",
+                "value": "binary_sensor"
+              },
+              {
+                "caption": "Climate (climate)",
+                "value": "climate"
+              },
+              {
+                "caption": "Number (number)",
+                "value": "number"
+              },
+              {
+                "caption": "Lock (lock)",
+                "value": "lock"
+              },
+              {
+                "caption": "Cover (cover)",
+                "value": "cover"
+              },
+              {
+                "caption": "Valve (valve)",
+                "value": "valve"
+              },
+              {
+                "caption": "Event (event)",
+                "value": "event"
+              },
+              {
+                "caption": "Select (select)",
+                "value": "select"
+              },
+              {
+                "caption": "Button (button)",
+                "value": "button"
+              },
+              {
+                "caption": "Input Button (input_button)",
+                "value": "input_button"
+              },
+              {
+                "caption": "Vacuum (vacuum)",
+                "value": "vacuum"
+              },
+              {
+                "caption": "Fan (fan)",
+                "value": "fan"
+              },
+              {
+                "caption": "Humidifier (humidifier)",
+                "value": "humidifier"
+              },
+              {
+                "caption": "Media Player (media_player)",
+                "value": "media_player"
+              },
+              {
+                "caption": "Camera (camera)",
+                "value": "camera"
+              },
+              {
+                "caption": "Image (image)",
+                "value": "image"
+              }
             ]
           },
-          "add":     "light"
+          "add": "light"
         },
         {
           "caption": "Name",
-          "name":    "name",
-          "width":   "auto",
-          "edit":    {
+          "name": "name",
+          "width": "auto",
+          "edit": {
             "type": "ValidationTextBox"
           },
-          "add":     ""
+          "add": ""
         },
         {
           "caption": "Entity ID (e.g. light.floorlamp)",
-          "name":    "entity_id",
-          "width":   "250px",
-          "edit":    {
+          "name": "entity_id",
+          "width": "250px",
+          "edit": {
             "type": "ValidationTextBox"
           },
-          "add":     ""
+          "add": ""
         },
         {
           "caption": "Device class",
-          "name":    "device_class",
-          "width":   "140px",
-          "edit":    {
+          "name": "device_class",
+          "width": "140px",
+          "edit": {
             "type": "ValidationTextBox"
           },
-          "add":     ""
+          "add": ""
         },
         {
           "caption": "Active",
-          "name":    "create_var",
-          "width":   "70px",
-          "edit":    {
+          "name": "create_var",
+          "width": "70px",
+          "edit": {
             "type": "CheckBox"
           },
-          "add":     true
+          "add": true
         },
         {
           "caption": "Attributes (JSON)",
-          "name":    "attributes",
-          "width":   "auto",
+          "name": "attributes",
+          "width": "auto",
           "visible": false,
-          "save":    true,
-          "edit":    {
+          "save": true,
+          "edit": {
             "type": "ValidationTextBox"
           },
-          "add":     "{}"
+          "add": "{}"
         }
       ]
     },
     {
-      "type":  "Label",
+      "type": "Label",
       "label": "Note: You can manually add entities here or use the 'Home Assistant Configurator' to populate them automatically."
     },
     {
-      "type":    "ExpansionPanel",
+      "type": "ExpansionPanel",
       "caption": "Expert",
-      "items":   [
+      "items": [
         {
-          "type":    "CheckBox",
-          "name":    "EnableExpertDebug",
+          "type": "CheckBox",
+          "name": "EnableExpertDebug",
           "caption": "Enable extended debug output"
         },
         {
-          "type":    "CheckBox",
-          "name":    "ShowUnavailableEntitiesJson",
+          "type": "CheckBox",
+          "name": "ShowUnavailableEntitiesJson",
           "caption": "Show unavailable entities JSON"
         },
         {
-          "type":    "NumberSpinner",
-          "name":    "OutputBufferSize",
+          "type": "NumberSpinner",
+          "name": "OutputBufferSize",
           "caption": "Output buffer (MB)",
           "minimum": 0,
           "maximum": 100,
-          "value":   10
+          "value": 10
         }
       ]
     }
   ],
-  "actions":  [
+  "actions": [
     {
-      "type":    "Label",
-      "name":    "CURRENT_FILTER",
-      "caption": "Aktueller Filter (Regex):",
+      "type": "Label",
+      "name": "CURRENT_FILTER",
+      "caption": "Current filter (regex):",
       "visible": false
     },
     {
@@ -151,19 +208,19 @@
       "expanded": false,
       "items": [
         {
-          "type":    "Label",
-          "name":    "DiagLastMQTT",
-          "caption": "Letzte MQTT-Message: nie"
+          "type": "Label",
+          "name": "DiagLastMQTT",
+          "caption": "Last MQTT message: never"
         },
         {
-          "type":    "Label",
-          "name":    "DiagLastREST",
-          "caption": "Letzter REST-Abruf: nie"
+          "type": "Label",
+          "name": "DiagLastREST",
+          "caption": "Last REST fetch: never"
         },
         {
-          "type":    "Label",
-          "name":    "DiagEntityCount",
-          "caption": "Entitäten (aktiv): 0"
+          "type": "Label",
+          "name": "DiagEntityCount",
+          "caption": "Entities (active): 0"
         }
       ]
     },
@@ -171,11 +228,11 @@
       "type": "TestCenter"
     }
   ],
-  "status":   [
+  "status": [
     {
-      "code":    201,
-      "icon":    "error",
-      "caption": "Kein kompatibler oder aktiver Parent verbunden"
+      "code": 201,
+      "icon": "error",
+      "caption": "No compatible or active parent connected"
     }
   ]
 }

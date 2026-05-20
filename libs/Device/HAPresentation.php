@@ -517,7 +517,7 @@ trait HAPresentationTrait
         $options = [
             [
                 'Value'       => false,
-                'Caption'     => $falseCaption,
+                'Caption'     => $this->Translate($falseCaption),
                 'IconActive'  => false,
                 'IconValue'   => '',
                 'ColorActive' => false,
@@ -525,7 +525,7 @@ trait HAPresentationTrait
             ],
             [
                 'Value'       => true,
-                'Caption'     => $trueCaption,
+                'Caption'     => $this->Translate($trueCaption),
                 'IconActive'  => false,
                 'IconValue'   => '',
                 'ColorActive' => false,

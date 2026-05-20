@@ -556,17 +556,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 }
 
                 if ($name === 'ResolvedDeviceName') {
-                    $item['caption'] = 'Device Name: ' . ($deviceDefinition['device_name'] ?? '');
+                    $item['caption'] = sprintf($this->Translate('Device name: %s'), $deviceDefinition['device_name'] ?? '');
                     continue;
                 }
 
                 if ($name === 'ResolvedManufacturer') {
-                    $item['caption'] = 'Manufacturer: ' . ($deviceDefinition['manufacturer'] ?? '');
+                    $item['caption'] = sprintf($this->Translate('Manufacturer: %s'), $deviceDefinition['manufacturer'] ?? '');
                     continue;
                 }
 
                 if ($name === 'ResolvedModel') {
-                    $item['caption'] = 'Model: ' . ($deviceDefinition['model'] ?? '');
+                    $item['caption'] = sprintf($this->Translate('Model: %s'), $deviceDefinition['model'] ?? '');
                 }
             }
             unset($item);
@@ -593,19 +593,19 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $lastMqtt = $this->ReadAttributeString(self::ATTR_LAST_MQTT_MESSAGE);
         if ($lastMqtt === '') {
-            $lastMqtt = 'nie';
+            $lastMqtt = $this->Translate('never');
         }
 
         $topics = $this->collectRelevantTopics($entities);
         $activeEntityCount = count(array_filter($entities, static fn(array $entity): bool => (bool)$entity['create_var']));
         $runtimeState = $this->determineRuntimeState($entities);
         $captions = [
-            'DiagLastMQTT' => 'Letzte MQTT-Message: ' . $lastMqtt,
-            'DiagTopics' => 'Topics: ' . count($topics),
-            'DiagEntities' => 'Entities (aktiv/gesamt): ' . $activeEntityCount . '/' . count($entities),
-            'DiagResolution' => 'Auflösung: ' . $runtimeState['resolution'],
-            'DiagAvailability' => 'Availability: ' . $this->buildAvailabilitySummary($entities),
-            'DiagWarnings' => 'Warnungen: ' . $this->buildWarningSummary($warningMap)
+            'DiagLastMQTT' => sprintf($this->Translate('Last MQTT message: %s'), $lastMqtt),
+            'DiagTopics' => sprintf($this->Translate('Topics: %d'), count($topics)),
+            'DiagEntities' => sprintf($this->Translate('Entities (active/total): %d/%d'), $activeEntityCount, count($entities)),
+            'DiagResolution' => sprintf($this->Translate('Resolution: %s'), $this->Translate($runtimeState['resolution'])),
+            'DiagAvailability' => sprintf($this->Translate('Availability: %s'), $this->buildAvailabilitySummary($entities)),
+            'DiagWarnings' => sprintf($this->Translate('Warnings: %s'), $this->buildWarningSummary($warningMap))
         ];
 
         foreach ($form['actions'] as &$action) {
@@ -914,8 +914,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($this->getConfiguredDeviceId() === '') {
             return [
                 'status' => self::STATUS_DEVICE_ID_MISSING,
-                'message' => 'Keine Discovery DeviceID konfiguriert.',
-                'resolution' => 'keine DeviceID konfiguriert'
+                'message' => 'No discovery device ID configured.',
+                'resolution' => 'no device ID configured'
             ];
         }
 
@@ -923,39 +923,39 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($parentState === 'missing') {
             return [
                 'status' => self::STATUS_PARENT_INVALID,
-                'message' => 'Kein Parent verbunden.',
-                'resolution' => 'kein Parent verbunden'
+                'message' => 'No parent connected.',
+                'resolution' => 'no parent connected'
             ];
         }
 
         if ($parentState === 'invalid') {
             return [
                 'status' => self::STATUS_PARENT_INVALID,
-                'message' => 'Parent ist nicht Home Assistant MQTT Discovery Splitter.',
-                'resolution' => 'kein kompatibler Parent'
+                'message' => 'Parent is not Home Assistant MQTT Discovery Splitter.',
+                'resolution' => 'no compatible parent'
             ];
         }
 
         if ($parentState === 'inactive') {
             return [
                 'status' => self::STATUS_PARENT_INACTIVE,
-                'message' => 'Home Assistant MQTT Discovery Splitter Parent ist nicht aktiv.',
-                'resolution' => $entities === [] ? 'Parent inaktiv' : 'gecachter Stand, Parent inaktiv'
+                'message' => 'Home Assistant MQTT Discovery Splitter parent is inactive.',
+                'resolution' => $entities === [] ? 'parent inactive' : 'cached state, parent inactive'
             ];
         }
 
         if ($entities === []) {
             return [
                 'status' => self::STATUS_DISCOVERY_CACHE_MISSING,
-                'message' => 'Keine Discovery-Infos für diese DeviceID im Splitter-Cache gefunden.',
-                'resolution' => 'keine Discovery-Infos für DeviceID im Cache'
+                'message' => 'No discovery info for this device ID found in splitter cache.',
+                'resolution' => 'no discovery info for device ID in cache'
             ];
         }
 
         return [
             'status' => IS_ACTIVE,
             'message' => '',
-            'resolution' => 'aus MQTT Discovery Splitter aufgelöst'
+            'resolution' => 'resolved from MQTT discovery splitter'
         ];
     }
 
@@ -3226,19 +3226,19 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $lastMqtt = $this->ReadAttributeString(self::ATTR_LAST_MQTT_MESSAGE);
         if ($lastMqtt === '') {
-            $lastMqtt = 'nie';
+            $lastMqtt = $this->Translate('never');
         }
 
         $activeEntityCount = count(array_filter($entities, static fn(array $entity): bool => (bool)$entity['create_var']));
         $runtimeState = $this->determineRuntimeState($entities);
         $warningMap ??= $this->readStateWarnings();
 
-        $this->updateFormFieldSafe('DiagLastMQTT', 'caption', 'Letzte MQTT-Message: ' . $lastMqtt);
-        $this->updateFormFieldSafe('DiagTopics', 'caption', 'Topics: ' . count($topics));
-        $this->updateFormFieldSafe('DiagEntities', 'caption', 'Entities (aktiv/gesamt): ' . $activeEntityCount . '/' . count($entities));
-        $this->updateFormFieldSafe('DiagResolution', 'caption', 'Auflösung: ' . $runtimeState['resolution']);
-        $this->updateFormFieldSafe('DiagAvailability', 'caption', 'Availability: ' . $this->buildAvailabilitySummary($entities));
-        $this->updateFormFieldSafe('DiagWarnings', 'caption', 'Warnungen: ' . $this->buildWarningSummary($warningMap));
+        $this->updateFormFieldSafe('DiagLastMQTT', 'caption', sprintf($this->Translate('Last MQTT message: %s'), $lastMqtt));
+        $this->updateFormFieldSafe('DiagTopics', 'caption', sprintf($this->Translate('Topics: %d'), count($topics)));
+        $this->updateFormFieldSafe('DiagEntities', 'caption', sprintf($this->Translate('Entities (active/total): %d/%d'), $activeEntityCount, count($entities)));
+        $this->updateFormFieldSafe('DiagResolution', 'caption', sprintf($this->Translate('Resolution: %s'), $this->Translate($runtimeState['resolution'])));
+        $this->updateFormFieldSafe('DiagAvailability', 'caption', sprintf($this->Translate('Availability: %s'), $this->buildAvailabilitySummary($entities)));
+        $this->updateFormFieldSafe('DiagWarnings', 'caption', sprintf($this->Translate('Warnings: %s'), $this->buildWarningSummary($warningMap)));
     }
 
     private function updateInstanceSummary(array $entities): void
@@ -3279,7 +3279,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             }
         }
 
-        return sprintf('online %d | offline %d | unbekannt %d | n/a %d', $online, $offline, $unknown, $notApplicable);
+        return sprintf($this->Translate('online %d | offline %d | unknown %d | n/a %d'), $online, $offline, $unknown, $notApplicable);
     }
 
     private function computeEntityAvailability(array $entity, mixed $entityState): ?bool
@@ -3529,10 +3529,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $count = count($warningMap);
         if ($count === 0) {
-            return 'keine';
+            return $this->Translate('none');
         }
 
-        return $count . ' Laufzeit-Warnung' . ($count === 1 ? '' : 'en');
+        return sprintf($this->Translate($count === 1 ? '%d runtime warning' : '%d runtime warnings'), $count);
     }
 
     private function synchronizeStateWarnings(array $entities, array $cachedTopics): array

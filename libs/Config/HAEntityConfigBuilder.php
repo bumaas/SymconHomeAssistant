@@ -73,13 +73,13 @@ trait HAEntityConfigBuilderTrait
             'device_name' => (string)($rawEntity['device_name'] ?? ''),
             'device_manufacturer' => (string)($rawEntity['device_manufacturer'] ?? ''),
             'device_model' => (string)($rawEntity['device_model'] ?? ''),
-            'device_id' => (string)($rawEntity['device_id'] ?? 'none'),
-            'area' => (string)($rawEntity['area'] ?? 'Kein Bereich'),
+            'device_id' => (string)($rawEntity['device_id'] ?? HAConfigDefaults::DEVICE_NONE),
+            'area' => (string)($rawEntity['area'] ?? HAConfigDefaults::AREA_NONE),
             'create_var' => $autoCreateVariables
         ];
 
-        if (($resolved['device_name'] === '' || $resolved['device_name'] === 'Unbekannt') || $resolved['device_id'] === 'none') {
-            $resolved['device'] = ucfirst($domain) . ' (Ohne Gerät)';
+        if (($resolved['device_name'] === '' || $resolved['device_name'] === HAConfigDefaults::NAME_UNKNOWN) || $resolved['device_id'] === HAConfigDefaults::DEVICE_NONE) {
+            $resolved['device'] = ucfirst($domain) . ' (' . HAConfigDefaults::DEVICE_WITHOUT_DEVICE_SUFFIX . ')';
         } else {
             $resolved['device'] = $resolved['device_name'];
         }

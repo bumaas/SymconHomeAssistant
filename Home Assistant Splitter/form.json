@@ -12,7 +12,7 @@
         },
         {
           "type": "Label",
-          "caption": "Hinweis: Home Assistant muss mqtt_statestream aktiv haben und base_topic muss mit MQTT Base Topic übereinstimmen."
+          "caption": "Note: Home Assistant must have mqtt_statestream enabled and base_topic must match MQTT Base Topic."
         },
         {
           "type": "ValidationTextBox",
@@ -43,7 +43,7 @@
         {
           "type": "NumberSpinner",
           "name": "RestAckTimeoutSec",
-          "caption": "REST-Ack Timeout (s)",
+          "caption": "REST ack timeout (s)",
           "minimum": 0,
           "maximum": 60,
           "visible": false
@@ -93,32 +93,32 @@
         {
           "type": "Label",
           "name": "LastMQTTMessage",
-          "caption": "Letzte MQTT-Message: nie"
+          "caption": "Last MQTT message: never"
         },
         {
           "type": "Label",
           "name": "DiagParent",
-          "caption": "MQTT Parent: -"
+          "caption": "MQTT parent: -"
         },
         {
           "type": "Label",
           "name": "DiagBaseTopic",
-          "caption": "MQTT Base Topic: -"
+          "caption": "MQTT base topic: -"
         },
         {
           "type": "Label",
           "name": "DiagRest",
-          "caption": "Letzter REST-Fehler: keiner"
+          "caption": "Last REST error: none"
         },
         {
           "type": "Label",
           "name": "DiagRestResponse",
-          "caption": "Letzte REST-Antwort: keine"
+          "caption": "Last REST response: none"
         },
         {
           "type": "Label",
           "name": "DiagRestTimeout",
-          "caption": "Letzter REST-Timeout: keiner"
+          "caption": "Last REST timeout: none"
         }
       ]
     }
@@ -127,17 +127,17 @@
     {
       "code": 201,
       "icon": "error",
-      "caption": "Kein aktiver MQTT-Parent verbunden."
+      "caption": "No active MQTT parent connected."
     },
     {
       "code": 202,
       "icon": "error",
-      "caption": "MQTT BaseTopic ist leer."
+      "caption": "MQTT base topic is empty."
     },
     {
       "code": 203,
       "icon": "error",
-      "caption": "REST API nicht erreichbar."
+      "caption": "REST API not reachable."
     }
   ]
 }

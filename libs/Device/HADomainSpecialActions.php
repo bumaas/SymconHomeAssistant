@@ -413,12 +413,12 @@ trait HADomainSpecialActionsTrait
 
     protected function maintainLockActionVariable(array $entity): void
     {
-        $this->maintainEntityActionVariable($entity, 5, [$this, 'getLockActionOptions'], [$this, 'getLockActionIdent'], 'Aktion', false);
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getLockActionOptions'], [$this, 'getLockActionIdent'], $this->Translate('Select action'), false);
     }
 
     protected function maintainCoverActionVariable(array $entity): void
     {
-        $this->maintainEntityActionVariable($entity, 5, [$this, 'getCoverActionOptions'], [$this, 'getCoverActionIdent'], 'Aktion', true);
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getCoverActionOptions'], [$this, 'getCoverActionIdent'], $this->Translate('Select action'), true);
     }
 
     protected function maintainCoverTiltActionVariable(array $entity): void
@@ -428,12 +428,12 @@ trait HADomainSpecialActionsTrait
 
     protected function maintainValveActionVariable(array $entity): void
     {
-        $this->maintainEntityActionVariable($entity, 5, [$this, 'getValveActionOptions'], [$this, 'getValveActionIdent'], 'Aktion', true);
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getValveActionOptions'], [$this, 'getValveActionIdent'], $this->Translate('Select action'), true);
     }
 
     protected function maintainVacuumActionVariable(array $entity): void
     {
-        $this->maintainEntityActionVariable($entity, 5, [$this, 'getVacuumActionOptions'], [$this, 'getVacuumActionIdent'], $this->Translate('Aktion'), true);
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getVacuumActionOptions'], [$this, 'getVacuumActionIdent'], $this->Translate('Select action'), true);
     }
 
     protected function maintainVacuumFanSpeedVariable(array $entity): void
@@ -449,7 +449,7 @@ trait HADomainSpecialActionsTrait
         $exists = @$this->GetIDForIdent($ident) !== false;
         if (!is_array($fanSpeedList) || $fanSpeedList === [] || !$this->supportsVacuumFanSpeed($attributes)) {
             if (!$exists) {
-                $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, '', 0, false);
+                $this->MaintainVariable($ident, $this->Translate('Fan speed'), VARIABLETYPE_STRING, '', 0, false);
             }
             return;
         }
@@ -460,13 +460,13 @@ trait HADomainSpecialActionsTrait
             'OPTIONS'      => $this->getPresentationOptions($fanSpeedList)
         ];
 
-        $this->MaintainVariable($ident, $this->Translate('Lüfterstufe'), VARIABLETYPE_STRING, $presentation, $position, true);
+        $this->MaintainVariable($ident, $this->Translate('Fan speed'), VARIABLETYPE_STRING, $presentation, $position, true);
         $this->EnableAction($ident);
     }
 
     protected function maintainLawnMowerActionVariable(array $entity): void
     {
-        $this->maintainEntityActionVariable($entity, 5, [$this, 'getLawnMowerActionOptions'], [$this, 'getLawnMowerActionIdent'], $this->Translate('Aktion'), true);
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getLawnMowerActionOptions'], [$this, 'getLawnMowerActionIdent'], $this->Translate('Select action'), true);
     }
 
     private function supportsCameraPower(array $attributes): bool
@@ -504,14 +504,14 @@ trait HADomainSpecialActionsTrait
         $options = [
             [
                 'Value' => HALockDefinitions::ACTION_LOCK,
-                'Caption' => $this->Translate('Abgeschlossen'),
+                'Caption' => $this->Translate('Lock'),
                 'IconActive' => false,
                 'IconValue' => '',
                 'Color' => -1
             ],
             [
                 'Value' => HALockDefinitions::ACTION_UNLOCK,
-                'Caption' => $this->Translate('Aufgeschlossen'),
+                'Caption' => $this->Translate('Unlock'),
                 'IconActive' => false,
                 'IconValue' => '',
                 'Color' => -1
@@ -521,7 +521,7 @@ trait HADomainSpecialActionsTrait
         if ($this->isLockOpenSupported($attributes)) {
             $options[] = [
                 'Value' => HALockDefinitions::ACTION_OPEN,
-                'Caption' => $this->Translate('Öffnen'),
+                'Caption' => $this->Translate('Open'),
                 'IconActive' => false,
                 'IconValue' => '',
                 'Color' => -1
@@ -953,9 +953,9 @@ trait HADomainSpecialActionsTrait
         $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_START, HAVacuumDefinitions::ACTION_START, $this->Translate('Start'));
         $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_STOP, HAVacuumDefinitions::ACTION_STOP, $this->Translate('Stop'));
         $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_PAUSE, HAVacuumDefinitions::ACTION_PAUSE, $this->Translate('Pause'));
-        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_RETURN_HOME, HAVacuumDefinitions::ACTION_RETURN_HOME, $this->Translate('Zur Basis'));
-        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_CLEAN_SPOT, HAVacuumDefinitions::ACTION_CLEAN_SPOT, $this->Translate('Punktreinigung'));
-        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_LOCATE, HAVacuumDefinitions::ACTION_LOCATE, $this->Translate('Lokalisieren'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_RETURN_HOME, HAVacuumDefinitions::ACTION_RETURN_HOME, $this->Translate('Return Home'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_CLEAN_SPOT, HAVacuumDefinitions::ACTION_CLEAN_SPOT, $this->Translate('Clean Spot'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HAVacuumDefinitions::FEATURE_LOCATE, HAVacuumDefinitions::ACTION_LOCATE, $this->Translate('Locate'));
 
         return $options;
     }
@@ -998,7 +998,7 @@ trait HADomainSpecialActionsTrait
 
         $this->appendEnumerationOptionIfSupported($options, $supported, HALawnMowerDefinitions::FEATURE_START_MOWING, HALawnMowerDefinitions::ACTION_START_MOWING, $this->Translate('Start'));
         $this->appendEnumerationOptionIfSupported($options, $supported, HALawnMowerDefinitions::FEATURE_PAUSE, HALawnMowerDefinitions::ACTION_PAUSE, $this->Translate('Pause'));
-        $this->appendEnumerationOptionIfSupported($options, $supported, HALawnMowerDefinitions::FEATURE_DOCK, HALawnMowerDefinitions::ACTION_DOCK, $this->Translate('Zur Basis'));
+        $this->appendEnumerationOptionIfSupported($options, $supported, HALawnMowerDefinitions::FEATURE_DOCK, HALawnMowerDefinitions::ACTION_DOCK, $this->Translate('Return Home'));
 
         return $options;
     }

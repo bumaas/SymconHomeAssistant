@@ -388,15 +388,24 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             if (isset($element['items']) && is_array($element['items'])) {
                 foreach ($element['items'] as &$item) {
                     if (($item['name'] ?? '') === self::PROP_DEVICE_NAME) {
-                        $item['caption'] = 'Device Name (HA): ' . $this->ReadPropertyString(self::PROP_DEVICE_NAME);
+                        $item['caption'] = sprintf(
+                            $this->Translate('Device name (HA): %s'),
+                            $this->ReadPropertyString(self::PROP_DEVICE_NAME)
+                        );
                         continue;
                     }
                     if (($item['name'] ?? '') === self::PROP_DEVICE_AREA) {
-                        $item['caption'] = 'Area: ' . $this->ReadPropertyString(self::PROP_DEVICE_AREA);
+                        $item['caption'] = sprintf(
+                            $this->Translate('Area: %s'),
+                            $this->ReadPropertyString(self::PROP_DEVICE_AREA)
+                        );
                         continue;
                     }
                     if (($item['name'] ?? '') === self::PROP_DEVICE_ID) {
-                        $item['caption'] = 'Device ID: ' . $this->ReadPropertyString(self::PROP_DEVICE_ID);
+                        $item['caption'] = sprintf(
+                            $this->Translate('Device ID: %s'),
+                            $this->ReadPropertyString(self::PROP_DEVICE_ID)
+                        );
                     }
                 }
                 unset($item);
@@ -417,7 +426,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         foreach ($form['actions'] as &$action) {
             if (($action['name'] ?? '') === 'CURRENT_FILTER') {
-                $action['caption'] = 'Aktueller Filter (Regex): ' . $this->ReadAttributeString('CurrentFilter');
+                $action['caption'] = sprintf(
+                    $this->Translate('Current filter (regex): %s'),
+                    $this->ReadAttributeString('CurrentFilter')
+                );
             }
         }
         unset($action);
@@ -431,12 +443,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     {
         $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
         if ($lastMqtt === '') {
-            $lastMqtt = 'nie';
+            $lastMqtt = $this->Translate('never');
         }
 
         $lastRest = $this->ReadAttributeString('LastRESTFetch');
         if ($lastRest === '') {
-            $lastRest = 'nie';
+            $lastRest = $this->Translate('never');
         }
 
         $activeEntityCount = count(array_filter($values, static function (array $row): bool {
@@ -444,9 +456,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }));
 
         $captions = [
-            'DiagLastMQTT' => 'Letzte MQTT-Message: ' . $lastMqtt,
-            'DiagLastREST' => 'Letzter REST-Abruf: ' . $lastRest,
-            'DiagEntityCount' => 'Entitäten (aktiv): ' . $activeEntityCount
+            'DiagLastMQTT' => sprintf($this->Translate('Last MQTT message: %s'), $lastMqtt),
+            'DiagLastREST' => sprintf($this->Translate('Last REST fetch: %s'), $lastRest),
+            'DiagEntityCount' => sprintf($this->Translate('Entities (active): %d'), $activeEntityCount)
         ];
 
         foreach ($form['actions'] as &$action) {

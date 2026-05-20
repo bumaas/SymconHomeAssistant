@@ -14,7 +14,7 @@
         {
           "type": "Label",
           "name": "ResolvedDeviceName",
-          "caption": "Device Name: "
+          "caption": "Device name: "
         },
         {
           "type": "Label",
@@ -82,7 +82,7 @@
           "width": "180px"
         },
         {
-          "caption": "Warnung",
+          "caption": "Warning",
           "name": "warning",
           "width": "170px"
         },
@@ -118,18 +118,18 @@
       "items": [
         {
           "type": "Button",
-          "label": "Alle auswählen",
-          "onClick": "HA_SelectAllEntities($id);"
+          "label": "Select all",
+          "onClick": "HAMD_SelectAllEntities($id);"
         },
         {
           "type": "Button",
-          "label": "Alle abwählen",
-          "onClick": "HA_DeselectAllEntities($id);"
+          "label": "Deselect all",
+          "onClick": "HAMD_DeselectAllEntities($id);"
         },
         {
           "type": "Button",
-          "label": "Discovery-Default",
-          "onClick": "HA_ResetEntitySelectionToDefaults($id);"
+          "label": "Discovery defaults",
+          "onClick": "HAMD_ResetEntitySelectionToDefaults($id);"
         }
       ]
     },
@@ -141,7 +141,7 @@
         {
           "type": "Label",
           "name": "DiagLastMQTT",
-          "caption": "Letzte MQTT-Message: nie"
+          "caption": "Last MQTT message: never"
         },
         {
           "type": "Label",
@@ -151,22 +151,22 @@
         {
           "type": "Label",
           "name": "DiagEntities",
-          "caption": "Entities (aktiv/gesamt): 0/0"
+          "caption": "Entities (active/total): 0/0"
         },
         {
           "type": "Label",
           "name": "DiagResolution",
-          "caption": "Auflösung: unbekannt"
+          "caption": "Resolution: unknown"
         },
         {
           "type": "Label",
           "name": "DiagAvailability",
-          "caption": "Availability: unbekannt"
+          "caption": "Availability: unknown"
         },
         {
           "type": "Label",
           "name": "DiagWarnings",
-          "caption": "Warnungen: keine"
+          "caption": "Warnings: none"
         }
       ]
     },
@@ -178,22 +178,22 @@
     {
       "code": 201,
       "icon": "error",
-      "caption": "Parent ist nicht Home Assistant MQTT Discovery Splitter"
+      "caption": "Parent is not Home Assistant MQTT Discovery Splitter"
     },
     {
       "code": 202,
       "icon": "error",
-      "caption": "Keine Discovery-Infos fuer diese DeviceID im Splitter-Cache gefunden"
+      "caption": "No discovery info for this device ID found in splitter cache"
     },
     {
       "code": 203,
       "icon": "error",
-      "caption": "Home Assistant MQTT Discovery Splitter Parent ist nicht aktiv"
+      "caption": "Home Assistant MQTT Discovery Splitter parent is inactive"
     },
     {
       "code": 204,
       "icon": "error",
-      "caption": "Keine Discovery DeviceID konfiguriert"
+      "caption": "No discovery device ID configured"
     }
   ]
 }

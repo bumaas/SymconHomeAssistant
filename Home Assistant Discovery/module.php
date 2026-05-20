@@ -378,12 +378,12 @@ class HomeAssistantDiscovery extends IPSModuleStrict
         return [
             [
                 'type'    => 'ExpansionPanel',
-                'caption' => 'Expert',
+                'caption' => $this->Translate('Expert'),
                 'items'   => [
                     [
                         'type'    => 'CheckBox',
                         'name'    => 'EnableExpertDebug',
-                        'caption' => 'Enable extended debug output'
+                        'caption' => $this->Translate('Enable extended debug output')
                     ]
                 ]
             ]
@@ -398,7 +398,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
             [
                 'name'          => 'searchingInfo',
                 'type'          => 'ProgressBar',
-                'caption'       => 'Searching for Home Assistant instances via mDNS (wait 2s)...',
+                'caption'       => $this->Translate('Searching for Home Assistant instances via mDNS (wait 2s)...'),
                 'indeterminate' => true,
                 'visible'       => count($devices) === 0
             ],
@@ -414,22 +414,22 @@ class HomeAssistantDiscovery extends IPSModuleStrict
                 ],
                 'columns'  => [
                     [
-                        'caption' => 'Name',
+                        'caption' => $this->Translate('Name'),
                         'name'    => 'name',
                         'width'   => '200px'
                     ],
                     [
-                        'caption' => 'IP Address',
+                        'caption' => $this->Translate('IP Address'),
                         'name'    => 'host',
                         'width'   => '150px'
                     ],
                     [
-                        'caption' => 'Version',
+                        'caption' => $this->Translate('Version'),
                         'name'    => 'version',
                         'width'   => '100px'
                     ],
                     [
-                        'caption' => 'Base URL',
+                        'caption' => $this->Translate('Base URL'),
                         'name'    => 'url',
                         'width'   => 'auto'
                     ]

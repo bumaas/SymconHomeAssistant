@@ -677,7 +677,7 @@ trait HADeviceCoreTrait
             $filter = '.*ThisShouldNotMatchAnything.*';
             $this->SetReceiveDataFilter($filter);
             $this->WriteAttributeString('CurrentFilter', $filter);
-            $this->updateFormFieldSafe('CURRENT_FILTER', 'caption', 'Aktueller Filter (Regex): ' . $filter);
+            $this->updateFormFieldSafe('CURRENT_FILTER', 'caption', sprintf($this->Translate('Current filter (regex): %s'), $filter));
             return;
         }
 
@@ -692,7 +692,7 @@ trait HADeviceCoreTrait
         $this->debugExpert('Filter', 'Setze Filter', ['Regex' => $filter]);
         $this->SetReceiveDataFilter($filter);
         $this->WriteAttributeString('CurrentFilter', $filter);
-        $this->updateFormFieldSafe('CURRENT_FILTER', 'caption', 'Aktueller Filter (Regex): ' . $filter);
+        $this->updateFormFieldSafe('CURRENT_FILTER', 'caption', sprintf($this->Translate('Current filter (regex): %s'), $filter));
     }
 
     protected function maintainEntityVariable(array $entity): void
@@ -1079,7 +1079,6 @@ trait HADeviceCoreTrait
         $this->SyncStates();
     }
 }
-
 
 
 

@@ -7,7 +7,7 @@
     },
     {
       "type": "Label",
-      "caption": "Dieses Modul konfiguriert sich automatisch basierend auf der angegebenen Entity ID aus Home Assistant."
+      "caption": "This module configures itself automatically based on the specified entity ID from Home Assistant."
     },
     {
       "type": "ExpansionPanel",
@@ -40,32 +40,32 @@
         {
           "type": "Label",
           "name": "ResolvedName",
-          "caption": "Resolved Name: "
+          "caption": "Resolved name: "
         },
         {
           "type": "Label",
           "name": "ResolvedDomain",
-          "caption": "Resolved Domain: "
+          "caption": "Resolved domain: "
         },
         {
           "type": "Label",
           "name": "ResolvedDeviceClass",
-          "caption": "Resolved Device Class: "
+          "caption": "Resolved device class: "
         },
         {
           "type": "Label",
           "name": "ResolvedDeviceID",
-          "caption": "Resolved Device ID: "
+          "caption": "Resolved device ID: "
         },
         {
           "type": "Label",
           "name": "ResolvedArea",
-          "caption": "Resolved Area: "
+          "caption": "Resolved area: "
         },
         {
           "type": "Label",
           "name": "ResolvedAttributeCount",
-          "caption": "Resolved Attribute Count: "
+          "caption": "Resolved attribute count: "
         },
         {
           "type": "List",
@@ -94,7 +94,7 @@
     {
       "type": "Label",
       "name": "CURRENT_FILTER",
-      "caption": "Aktueller Filter (Regex):",
+      "caption": "Current filter (regex):",
       "visible": false
     },
     {
@@ -105,23 +105,23 @@
         {
           "type": "Label",
           "name": "DiagLastMQTT",
-          "caption": "Letzte MQTT-Message: nie"
+          "caption": "Last MQTT message: never"
         },
         {
           "type": "Label",
           "name": "DiagLastREST",
-          "caption": "Letzter REST-Abruf: nie"
+          "caption": "Last REST fetch: never"
         },
         {
           "type": "Label",
           "name": "DiagEntityCount",
-          "caption": "Entit\u00e4ten (aktiv): 0"
+          "caption": "Entities (active): 0"
         }
       ]
     },
     {
       "type": "Button",
-      "label": "Jetzt aktualisieren",
+      "label": "Update now",
       "onClick": "HAE_UpdateConfiguration($id);"
     },
     {
@@ -132,7 +132,7 @@
     {
       "code": 201,
       "icon": "error",
-      "caption": "Kein kompatibler oder aktiver Parent verbunden"
+      "caption": "No compatible or active parent connected"
     },
     {
       "code": 210,

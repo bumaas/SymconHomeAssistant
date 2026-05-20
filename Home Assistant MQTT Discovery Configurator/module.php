@@ -129,7 +129,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
 
         if (!$this->ReadPropertyBoolean('ShowBridgeDevices')) {
             $groups = array_values(array_filter($groups, static function (array $group): bool {
-                return !str_starts_with((string)($group['device_id'] ?? ''), 'zigbee2mqtt_bridge_');
+                return !($group['is_bridge_device'] ?? false);
             }));
         }
 
@@ -196,7 +196,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
 
             $row = [
                 'instanceID' => $instanceID,
-                'Type' => $this->determineGroupType($group),
+                'Type' => $this->Translate($this->determineGroupType($group)),
                 'name' => (string)($group['name'] ?? ''),
                 'Manufacturer' => (string)($group['manufacturer'] ?? ''),
                 'Model' => (string)($group['model'] ?? ''),
@@ -231,12 +231,10 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
 
     private function determineGroupType(array $group): string
     {
-        $deviceId = (string)($group['device_id'] ?? '');
-        if (str_starts_with($deviceId, 'zigbee2mqtt_bridge_')) {
-            return 'Bridge';
-        }
-
-        return 'Device';
+        return match ((string)($group['group_type'] ?? 'device')) {
+            'bridge' => 'Bridge',
+            default => 'Device'
+        };
     }
 
     private function buildEntitySummary(array $entities): string

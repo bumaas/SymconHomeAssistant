@@ -8,7 +8,7 @@
         {
           "type": "CheckBox",
           "name": "ShowBridgeDevices",
-          "caption": "Show Zigbee2MQTT bridge devices"
+          "caption": "Show bridge devices"
         }
       ]
     },

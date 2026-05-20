@@ -1,7 +1,7 @@
 [![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant Splitter
 
-Verbindet MQTT mit den Device-, Entity- und Configurator-Instanzen und bietet optional REST-basierte Steuerung für `*/set` Topics.
+Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet eine bestehende Home-Assistant-Installation per `mqtt_statestream` und REST mit den Device-, Entity- und Configurator-Instanzen in Symcon.
 
 ## Dokumentation
 
@@ -19,13 +19,14 @@ Verbindet MQTT mit den Device-, Entity- und Configurator-Instanzen und bietet op
 ## 1. Funktionsumfang
 
 - Verteilt MQTT-Daten an Device- und Entity-Instanzen.
-- Leitet REST-Requests vom Configurator an Home Assistant weiter.
+- Leitet REST-Requests vom Configurator an die bestehende Home-Assistant-Installation weiter.
 - Optional REST-Steuerung für `*/set` Topics.
 - REST-Steuerung für `light`, `switch`, `lock`, `cover`, `number`, `climate`, `fan`, `humidifier`, `media_player`, `button`, `input_button`, `vacuum`, `lawn_mower`.
 - Optionaler generischer REST-Service-Call für beliebige Home Assistant Services.
 
 ## 2. Voraussetzungen
 
+- Bestehende Home-Assistant-Installation.
 - Home Assistant MQTT Integration aktiv.
 - MQTT Client oder MQTT Server Instanz als Parent.
 - Bei MQTT Client: `ClientID` setzen und Subscription konfigurieren (z.B. `#` oder `homeassistant/#`).
@@ -65,7 +66,7 @@ HA_CallService($splitterId, 'script', 'turn_on', [
 
 ## 5. Konfiguration
 
-- `MQTTBaseTopic`: Basis-Topic fuer den MQTT-Statestream.
+- `MQTTBaseTopic`: Basis-Topic für den MQTT-Statestream.
 - `HAUrl`: Base URL `http(s)://<host>:<port>` (z.B. `http://homeassistant.local:8123`).
 - `HAToken`: Long-Lived Access Token (Home Assistant Profil).
 - `UseRestForSetTopics`: Leitet `*/set` Topics an REST weiter.
@@ -93,6 +94,6 @@ mqtt_statestream:
 
 ### Spenden
 
-Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fuehlen, aber wenn das Modul gefaellt, dann freue ich mich ueber eine Spende.
+Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fühlen, aber wenn das Modul gefällt, dann freue ich mich über eine Spende.
 
 <a href="https://www.paypal.me/bumaas" target="_blank"><img src="https://www.paypalobjects.com/de_DE/DE/i/btn/btn_donate_LG.gif" border="0" /></a>

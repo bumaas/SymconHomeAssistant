@@ -223,9 +223,13 @@ class HomeAssistantSplitter extends IPSModuleStrict
     {
         $last = $this->ReadAttributeString('LastMQTTMessage');
         if ($last === '') {
-            $last = 'nie';
+            $last = $this->Translate('never');
         }
-        $this->updateFormFieldSafe('LastMQTTMessage', 'caption', 'Letzte MQTT-Message: ' . $last);
+        $this->updateFormFieldSafe(
+            'LastMQTTMessage',
+            'caption',
+            sprintf($this->Translate('Last MQTT message: %s'), $last)
+        );
     }
 
     private function isRestApiReachable(): bool
@@ -903,7 +907,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
         $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
         if ($lastMqtt === '') {
-            $lastMqtt = 'nie';
+            $lastMqtt = $this->Translate('never');
         }
 
         $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
@@ -913,26 +917,35 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
         $lastRestError = $this->ReadAttributeString('LastRestError');
         if ($lastRestError === '') {
-            $lastRestError = 'keiner';
+            $lastRestError = $this->Translate('none');
         }
 
         $lastRestResponse = $this->ReadAttributeString('LastRestResponse');
         if ($lastRestResponse === '') {
-            $lastRestResponse = 'keine';
+            $lastRestResponse = $this->Translate('none');
         }
 
         $lastRestTimeout = $this->ReadAttributeString('LastRestTimeout');
         if ($lastRestTimeout === '') {
-            $lastRestTimeout = 'keiner';
+            $lastRestTimeout = $this->Translate('none');
         }
 
         return [
-            'LastMQTTMessage' => 'Letzte MQTT-Message: ' . $lastMqtt,
-            'DiagParent' => 'MQTT Parent: ' . $parentId . $nameSuffix . ' | Status ' . $parentStatus . $statusSuffix,
-            'DiagBaseTopic' => 'MQTT Base Topic: ' . ($baseTopic !== '' ? $baseTopic : 'leer'),
-            'DiagRest' => 'Letzter REST-Fehler: ' . $lastRestError,
-            'DiagRestResponse' => 'Letzte REST-Antwort: ' . $lastRestResponse,
-            'DiagRestTimeout' => 'Letzter REST-Timeout: ' . $lastRestTimeout
+            'LastMQTTMessage' => sprintf($this->Translate('Last MQTT message: %s'), $lastMqtt),
+            'DiagParent' => sprintf(
+                $this->Translate('MQTT parent: %d%s | Status %d%s'),
+                $parentId,
+                $nameSuffix,
+                $parentStatus,
+                $statusSuffix
+            ),
+            'DiagBaseTopic' => sprintf(
+                $this->Translate('MQTT base topic: %s'),
+                $baseTopic !== '' ? $baseTopic : $this->Translate('empty')
+            ),
+            'DiagRest' => sprintf($this->Translate('Last REST error: %s'), $lastRestError),
+            'DiagRestResponse' => sprintf($this->Translate('Last REST response: %s'), $lastRestResponse),
+            'DiagRestTimeout' => sprintf($this->Translate('Last REST timeout: %s'), $lastRestTimeout)
         ];
     }
 

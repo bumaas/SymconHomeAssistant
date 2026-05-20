@@ -1,133 +1,125 @@
 [![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant
 
-Module für Symcon zur Einbindung und Steuerung von Home Assistant Geräten.
+Mit diesem Modul lassen sich Geräte, Entitäten und Dienste aus dem Home-Assistant-Umfeld komfortabel in Symcon nutzen.
 
-## Dokumentation
+Das Modul unterstützt dafür zwei klar getrennte Anwendungsfälle:
 
-Interne Wartungsdoku: [Architektur](docs/ARCHITEKTUR.md)
+1. die klassische Bridge, um bestehende Elemente aus einer Home-Assistant-Installation nach Symcon zu übernehmen
+2. MQTT Discovery, um kompatible Geräte und Dienste direkt per MQTT in Symcon einzubinden
 
-Weitere interne Doku:
+So kann Symcon entweder mit einer vorhandenen Home-Assistant-Installation zusammenarbeiten oder Geräte und Dienste direkt über MQTT einbinden. Beide Wege können parallel genutzt werden.
 
-- [Verifikation](docs/VERIFIKATION.md)
-- [Migration](docs/MIGRATION.md)
-- [MQTT-Discovery-Fixtures](tests/fixtures/README.md)
+## Inhaltsverzeichnis
 
-**Inhaltsverzeichnis**
+1. [Betriebsarten](#1-betriebsarten)
+2. [Module](#2-module)
+3. [Voraussetzungen](#3-voraussetzungen)
+4. [Installation und Konfiguration](#4-installation-und-konfiguration)
+5. [Unterstützte Domains und Komponenten](#5-unterstützte-domains-und-komponenten)
+6. [Überblick](#6-überblick)
+7. [Fehlersuche](#7-fehlersuche)
+8. [FAQ](#8-faq)
 
-1. [Funktionsumfang](#1-funktionsumfang)  
-2. [Voraussetzungen](#2-voraussetzungen)  
-3. [Installation](#3-installation)  
-4. [Funktionsreferenz](#4-funktionsreferenz)  
-5. [Konfiguration](#5-konfiguration)  
-6. [Statusvariablen und Profile](#6-statusvariablen-und-profile)  
-7. [Anhang](#7-anhang)  
-    1. [Datenfluss](#datenfluss)  
-    2. [GUIDs der Module](#guids-der-module)  
-    3. [FAQ](#faq)
+## 1. Betriebsarten
 
-## 1. Funktionsumfang
+### 1.1 Klassische Bridge-Funktionalität
 
-- Module für Discovery, Konfiguration, Splitter, Device und Entity.
-- MQTT Discovery Splitter, Configurator und Device fuer `homeassistant/.../config` Topics.
-- Anbindung von Home Assistant Entitäten per MQTT Statestream.
-- Optionaler REST-Zugriff für Steuerbefehle.
-- Mapping von Domains auf Symcon-Variablen.
+Die klassische Bridge ist der richtige Weg, wenn in Home Assistant bereits Geräte, Entitäten oder Dienste vorhanden sind, die auch in Symcon genutzt werden sollen.
 
-**Module**
+- Vorhandene Elemente aus Home Assistant werden in Symcon übernommen.
+- Zustände und zusätzliche Informationen bleiben aktuell.
+- Viele Funktionen lassen sich anschließend direkt aus Symcon bedienen.
+- Geeignet für bestehende Home-Assistant-Installationen, die in Symcon eingebunden werden sollen.
+
+Typische Module in diesem Pfad:
 
 - [Home Assistant Discovery](Home%20Assistant%20Discovery/README.md)
 - [Home Assistant Configurator](Home%20Assistant%20Configurator/README.md)
-- [Home Assistant MQTT Discovery Splitter](Home%20Assistant%20MQTT%20Discovery%20Splitter/README.md)
-- [Home Assistant MQTT Discovery Configurator](Home%20Assistant%20MQTT%20Discovery%20Configurator/README.md)
-- [Home Assistant MQTT Discovery Device](Home%20Assistant%20MQTT%20Discovery%20Device/README.md)
 - [Home Assistant Splitter](Home%20Assistant%20Splitter/README.md)
 - [Home Assistant Device](Home%20Assistant%20Device/README.md)
 - [Home Assistant Entity](Home%20Assistant%20Entity/README.md)
 
-**Unterstützte Domains**
+### 1.2 MQTT Discovery für Geräte und Dienste
 
-| Domain          | Status    | Hinweise                                                                                                                              | Offen                                         |
-|-----------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------|
-| `light`         | voll      | Attribute + schreibbar                                                                                                                | -                                             |
-| `switch`        | voll      | schaltbar                                                                                                                             | -                                             |
-| `binary_sensor` | voll      | `device_class` + Icons                                                                                                                | -                                             |
-| `number`        | voll      | Slider/Min/Max/Step, REST `set_value` (gilt auch fuer `input_number`)                                                                 | -                                             |
-| `sensor`        | voll      | Units/Suffix, `enum` als Enumeration                                                                                                  | -                                             |
-| `select`        | voll      | Enumeration                                                                                                                           | -                                             |
-| `climate`       | voll      | Heizen/Kühlen steuerbar: Solltemperatur, Modus (z. B. Heizen/Kühlen), Preset-, Lüfter- und Swing-Modus sowie Ein/Aus und Zielfeuchte  | -                                             |
-| `lock`          | voll      | REST `lock`/`unlock`/`open`, Hauptvariable Wertanzeige, Aktion als Enumeration                                                        | Code-Handling bei `open` (falls erforderlich) |
-| `cover`         | teilweise | Position/Tilt, REST `open`/`close`/`stop` + `set_position`, eigene Aktionsvariable für `open`/`close`/`stop`, separate Tilt-Aktion    | Device-Class-Spezifika/weitere Attribute      |
-| `valve`         | teilweise | Reine Ventile als Status, Positionsventile als 0-100 Hauptvariable; MQTT/REST `open`/`close`/`stop` + `set_position`, Aktionsvariable | Weitere ventilspezifische Attribute/Details   |
-| `event`         | teilweise | Enumeration aus `event_type`                                                                                                          | Weitere Event-Attribute                       |
-| `fan`           | teilweise | Status (On/Off), Attribute (`percentage`, `oscillating`, `preset_mode`, `direction`)                                                  | Weitere Dienste/Features je Modell            |
-| `humidifier`    | teilweise | Status (On/Off), Attribute (`target_humidity`, `current_humidity`, `mode`, `action`)                                                  | Weitere Dienste/Features je Modell            |
-| `vacuum`        | teilweise | REST `start`/`stop`/`pause`/`return_to_base`, `clean_spot`, `locate`, `fan_speed`                                                     | Weitere Dienste/Features je Modell            |
-| `lawn_mower`    | teilweise | Status + Aktionen `start_mowing`/`pause`/`dock`                                                                                       | Weitere Dienste/Features je Modell            |
-| `media_player`  | teilweise | Status, Aktionen, Attribute, Cover als Medienobjekt                                                                                   | Weitere Dienste/Features je Modell            |
-| `camera`        | teilweise | Status + Kamera-Bild als Medienobjekt; Vorschau wird stabil über `camera_proxy/<entity_id>` geladen                                   | Kamera-Aktionen/Services                      |
-| `image`         | teilweise | Bild-Entität als Medienobjekt; Status wird als Zeitstempel mit Datum/Uhrzeit dargestellt                                              | Weitere image-spezifische Attribute           |
-| `button`        | voll      | `press` als Aktion                                                                                                                    | -                                             |
-| `input_button`  | voll      | `press` als Aktion                                                                                                                    | -                                             |
+MQTT Discovery ist der richtige Weg, wenn Geräte oder Dienste direkt über MQTT in Symcon eingebunden werden sollen.
 
-## 2. Voraussetzungen
+- Es ist keine bestehende Home-Assistant-Installation erforderlich.
+- Geräte und Dienste werden automatisch erkannt.
+- Aktuelle Werte kommen direkt über MQTT.
+- Ein `mqtt_statestream` ist dafür nicht nötig.
+- Geeignet für Geräte oder Dienste, die Home Assistant MQTT Discovery unterstützen und ihre Daten an den MQTT-Broker senden.
+
+Typische Module in diesem Pfad:
+
+- [Home Assistant MQTT Discovery Splitter](Home%20Assistant%20MQTT%20Discovery%20Splitter/README.md)
+- [Home Assistant MQTT Discovery Configurator](Home%20Assistant%20MQTT%20Discovery%20Configurator/README.md)
+- [Home Assistant MQTT Discovery Device](Home%20Assistant%20MQTT%20Discovery%20Device/README.md)
+
+### 1.3 Unterschiede im Überblick
+
+| Thema                                 | Klassische Bridge                                    | MQTT Discovery                                |
+|---------------------------------------|------------------------------------------------------|-----------------------------------------------|
+| Ausgangspunkt                         | bestehende Home-Assistant-Installation               | Gerät oder Dienst mit MQTT Discovery          |
+| Woher kommen die Geräteinformationen? | aus Home Assistant                                   | aus den MQTT-Discovery-Meldungen              |
+| Woher kommen die aktuellen Werte?     | aus `mqtt_statestream`                               | direkt über MQTT                              |
+| REST erforderlich                     | ja, für Einrichtung und viele Befehle                | nein, im Normalfall nicht                     |
+| `mqtt_statestream` erforderlich       | ja                                                   | nein                                          |
+| Home Assistant erforderlich           | ja                                                   | nein                                          |
+| Typische Nutzung                      | vorhandene HA-Geräte und Entitäten nach Symcon holen | Geräte oder Dienste direkt per MQTT einbinden |
+| Wichtige Module                       | Splitter, Configurator, Device, Entity               | MQTT Discovery Splitter, Configurator, Device |
+
+## 2. Module
+
+### Klassische Bridge
+
+- [Home Assistant Discovery](Home%20Assistant%20Discovery/README.md): findet Home-Assistant-Installationen im Netzwerk
+- [Home Assistant Configurator](Home%20Assistant%20Configurator/README.md): zeigt Geräte und Entitäten aus Home Assistant zur Auswahl an
+- [Home Assistant Splitter](Home%20Assistant%20Splitter/README.md): verbindet Home Assistant mit den Symcon-Modulen
+- [Home Assistant Device](Home%20Assistant%20Device/README.md): bildet ein Gerät in Symcon ab
+- [Home Assistant Entity](Home%20Assistant%20Entity/README.md): bildet eine einzelne Entität in Symcon ab
+
+### MQTT Discovery
+
+- [Home Assistant MQTT Discovery Splitter](Home%20Assistant%20MQTT%20Discovery%20Splitter/README.md): empfängt die Discovery-Meldungen und bereitet sie für Symcon auf
+- [Home Assistant MQTT Discovery Configurator](Home%20Assistant%20MQTT%20Discovery%20Configurator/README.md): zeigt gefundene Geräte zur Auswahl an
+- [Home Assistant MQTT Discovery Device](Home%20Assistant%20MQTT%20Discovery%20Device/README.md): bildet ein gefundenes Gerät in Symcon ab
+
+## 3. Voraussetzungen
+
+### Allgemein
 
 - Symcon ab Version 9.0
-- MQTT Broker in Home Assistant und eine MQTT Client-Instanz in Symcon oder alternativ ein Symcon MQTT Server
-- Für den MQTT-Discovery-Pfad wird im Live-Betrieb ein MQTT Client benötigt, der den Discovery-Prefix empfängt, z. B. `homeassistant/#` oder `#`.
-- Für MQTT Discovery Devices müssen über denselben MQTT-Client zusätzlich die Laufzeit-Topics der Quelle empfangen werden, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
-- Wichtig: Die MQTT-Subscription des Clients darf Wildcards wie `#` enthalten. Im `Home Assistant MQTT Discovery Splitter` selbst muss als `MQTTDiscoveryPrefix` dagegen der echte Discovery-Prefix eingetragen werden, typischerweise `homeassistant` und nicht `#`.
-- Home Assistant mit aktivierter MQTT Integration (Statestream)
-- Optional: mDNS/DNS-SD (Discovery)
-- Long-Lived Access Token (REST)
-- MQTT Statestream in Home Assistant (`mqtt_statestream`) aktiv und `base_topic` passend zu `MQTTBaseTopic`
+- MQTT-Broker
 
-## 3. Installation
+### Für die klassische Bridge
 
-- Modul über den Symcon Module Store hinzufügen (Library: "Home Assistant").
-- Danach die benötigten Instanzen anlegen.
+- bestehende Home-Assistant-Installation
+- MQTT Client oder MQTT Server in Symcon
+- `mqtt_statestream` in Home Assistant aktiv
+- passender Long-Lived Access Token für den Zugriff auf Home Assistant
+- Optional mDNS/DNS-SD für das Modul `Home Assistant Discovery`
 
-**Migrationshinweis**
+### Für MQTT Discovery
 
-- Die Discovery-Migration ist in [Migration](docs/MIGRATION.md) gebündelt.
-- Wichtig für Updates:
-  - `Home Assistant MQTT Discovery Device` arbeitet `DeviceID`-only und zieht seine Definition aus dem MQTT Discovery Splitter.
-  - `Home Assistant MQTT Discovery Splitter` hat zusätzliche Bundle-Properties (`SourceMode`, `BundlePath`, `BundleCurrentSessionOnly`, `ReplayTopicsOnApply`).
-  - Der klassische `Home Assistant Configurator` fuehrt im `create`-Block nur noch stabile Strukturattribute.
+- MQTT Client in Symcon
+- ein Gerät oder Dienst, das bzw. der Home Assistant MQTT Discovery an den Broker meldet
+- passende Subscription für die Discovery-Meldungen, typischerweise `homeassistant/#`
+- zusätzlich die MQTT-Topics des Geräts oder Dienstes, damit aktuelle Werte ankommen, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`
 
-## 4. Funktionsreferenz
+## 4. Installation und Konfiguration
 
-Keine öffentlichen Funktionen im Root-Modul. Siehe die jeweiligen Modul-READMEs.
+### 4.1 Klassische Bridge
 
-## 5. Konfiguration
+1. MQTT Client oder MQTT Server in Symcon einrichten.
+2. `Home Assistant Splitter` anlegen und mit diesem Parent verbinden.
+3. Im Splitter `MQTTBaseTopic`, `HAUrl` und `HAToken` setzen.
+4. `Home Assistant Discovery` oder direkt `Home Assistant Configurator` nutzen.
+5. Im Configurator gewünschte Geräte oder Entitäten auswählen und anlegen.
 
-**Einrichtung klassischer Runtime-Pfad**
+#### `mqtt_statestream` in Home Assistant
 
-1. MQTT Client in Symcon einrichten und mit dem Broker verbinden (inkl. Subscription `homeassistant/#` oder `#`).
-2. Home Assistant Splitter anlegen und mit dem MQTT Client verbinden.
-3. Im Splitter `MQTTBaseTopic` setzen (typisch: `homeassistant`) sowie `HAUrl` und `HAToken` für REST.
-4. Home Assistant Discovery ausführen, um eine Configurator Instanz zu erstellen.
-5. Im Configurator gefundene Geräte oder Entitäten auswählen und Instanzen erzeugen.
-
-**Einrichtung MQTT-Discovery-Pfad**
-
-1. MQTT Client in Symcon einrichten und mit dem Broker verbinden.
-2. Der MQTT Client muss mindestens `homeassistant/#` empfangen; fuer die Runtime der Discovery-Devices zusaetzlich die Quell-Topics, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
-3. `Home Assistant MQTT Discovery Splitter` anlegen und mit diesem MQTT-Client verbinden.
-4. Im Splitter `MQTTDiscoveryPrefix` als literalen Discovery-Prefix setzen, typischerweise `homeassistant`, nicht `#`.
-5. `Home Assistant MQTT Discovery Configurator` ausfuehren und daraus `Home Assistant MQTT Discovery Device` Instanzen erzeugen.
-
-**MQTT-Discovery Bundle-Modus**
-
-- Für Entwicklung und Analyse kann der `Home Assistant MQTT Discovery Splitter` statt Live-MQTT ein exportiertes Discovery-Bundle nutzen.
-- Dazu `SourceMode = bundle` setzen und `BundlePath` auf ein passendes V2-Bundle zeigen lassen.
-- `ReplayTopicsOnApply` ist sinnvoll, wenn Discovery-Devices ihren Receive-Pfad nach dem Laden des Bundles direkt noch einmal durchlaufen sollen.
-- Im Bundle-Modus werden ausgehende Commands aktuell verworfen.
-
-**Home Assistant mqtt_statestream**
-
-Damit Zustandsänderungen per MQTT ankommen, muss `mqtt_statestream` aktiv sein und das `base_topic` mit `MQTTBaseTopic` übereinstimmen:
-Siehe Home Assistant Doku: https://www.home-assistant.io/integrations/mqtt_statestream/
+Damit Zustände und zusätzliche Informationen in Symcon ankommen, muss `mqtt_statestream` aktiv sein und das `base_topic` zu `MQTTBaseTopic` passen.
 
 ```yaml
 mqtt_statestream:
@@ -136,106 +128,137 @@ mqtt_statestream:
   publish_timestamps: true
 ```
 
-**Typische MQTT-Subscriptions**
+### 4.2 MQTT Discovery
 
-- Klassischer Runtime-Pfad:
-  - MQTT Client oder MQTT Server empfängt typischerweise `homeassistant/#`
-- MQTT-Discovery-Pfad:
-  - derselbe MQTT-Client am Discovery-Splitter empfängt mindestens `homeassistant/#`
-  - für Zigbee2MQTT zusätzlich typischerweise `zigbee2mqtt/#`
-- Wildcards wie `#` oder `+` gehoeren nur in die Subscription des MQTT-Clients.
-- `MQTTBaseTopic` und `MQTTDiscoveryPrefix` enthalten dagegen den literalen Prefix ohne Wildcards.
+1. MQTT Client in Symcon einrichten.
+2. Subscription so setzen, dass mindestens `homeassistant/#` empfangen wird.
+3. Zusätzlich die Topics des Geräts oder Dienstes abonnieren, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
+4. `Home Assistant MQTT Discovery Splitter` anlegen und mit diesem MQTT-Client verbinden.
+5. Im Splitter `MQTTDiscoveryPrefix` auf den literalen Discovery-Prefix setzen, typischerweise `homeassistant`.
+6. `Home Assistant MQTT Discovery Configurator` öffnen und daraus `Home Assistant MQTT Discovery Device` Instanzen erzeugen.
 
-## 6. Statusvariablen und Profile
+### 4.3 Bundle-Modus für MQTT Discovery
 
-Die Variablen werden in den jeweiligen Instanzen pro Entität angelegt. Details siehe `Home Assistant Device` oder `Home Assistant Entity`.
+Der `Home Assistant MQTT Discovery Splitter` kann statt Live-MQTT auch ein exportiertes Discovery-Bundle laden.
 
-Hinweise:
+- gedacht für Entwicklung, Support und Analyse
+- `SourceMode = bundle`
+- `BundlePath` auf ein V2-Bundle setzen
+- optional `BundleCurrentSessionOnly` und `ReplayTopicsOnApply` verwenden
 
-- `camera` legt zusätzlich eine Bild-Vorschau als Medienobjekt an.
-- `image` legt ebenfalls eine Bild-Vorschau als Medienobjekt an; die Hauptvariable enthält den letzten Bild-Zeitstempel als Integer mit Datum/Uhrzeit-Darstellung.
+Im Bundle-Modus werden aktuell keine Befehle an Geräte gesendet.
 
-## 7. Anhang
+## 5. Unterstützte Domains und Komponenten
 
-**Überblick (Ablaufdiagramm)**
+### 5.1 Klassische Bridge
+
+| Domain          | Status    | Hinweise                                                             |
+|-----------------|-----------|----------------------------------------------------------------------|
+| `light`         | voll      | Attribute und Schreibzugriffe unterstützt                            |
+| `switch`        | voll      | schaltbar                                                            |
+| `binary_sensor` | voll      | `device_class` und Icons                                             |
+| `number`        | voll      | Slider, Min/Max/Step, REST `set_value`; gilt auch für `input_number` |
+| `sensor`        | voll      | Units, Suffixe, `enum` als Enumeration                               |
+| `select`        | voll      | Enumeration                                                          |
+| `climate`       | voll      | Solltemperatur, Modus, Preset, Lüfter, Swing, Ein/Aus, Zielfeuchte   |
+| `lock`          | voll      | `lock`, `unlock`, `open`, Aktionsvariable                            |
+| `cover`         | teilweise | Position, Tilt, `open`/`close`/`stop`, `set_position`                |
+| `valve`         | teilweise | Status oder Positionsventil, `open`/`close`/`stop`, `set_position`   |
+| `event`         | teilweise | Enumeration aus `event_type`                                         |
+| `fan`           | teilweise | Status und zentrale Attribute                                        |
+| `humidifier`    | teilweise | Status und zentrale Attribute                                        |
+| `vacuum`        | teilweise | zentrale Services wie `start`, `stop`, `pause`, `return_to_base`     |
+| `lawn_mower`    | teilweise | Status plus `start_mowing`, `pause`, `dock`                          |
+| `media_player`  | teilweise | Status, Aktionen, Attribute, Cover                                   |
+| `camera`        | teilweise | Status plus Bild-Vorschau als Medienobjekt                           |
+| `image`         | teilweise | Bild-Entität als Medienobjekt                                        |
+| `button`        | voll      | `press`                                                              |
+| `input_button`  | voll      | `press`                                                              |
+
+### 5.2 MQTT Discovery
+
+Aktuell unterstützt der MQTT-Discovery-Pfad folgende Komponenten:
+
+- `sensor`
+- `binary_sensor`
+- `number`
+- `cover`
+- `climate`
+- `switch`
+- `select`
+- `button`
+- `light`
+
+Zusätzlich werden einfache Zigbee2MQTT-`device_automation`-Trigger unterstützt.
+
+## 6. Überblick
+
+### Klassische Bridge
 
 ```text
 Home Assistant
-  |  mqtt_statestream (states + attributes)
+  |  Geräteinformationen + aktuelle Werte
   v
 MQTT Broker
-  |  homeassistant/<domain>/<entity>/state
-  |  homeassistant/<domain>/<entity>/attributes
   v
 IP-Symcon MQTT Client/Server
   v
 Home Assistant Splitter
-  |  verteilt an Device/Configurator
-  |  optional REST für Set/Service-Calls
+  |  verteilt Daten an die Symcon-Module
   v
-Home Assistant Device / Entity / Configurator
+Home Assistant Configurator / Device / Entity
 ```
 
+### MQTT Discovery
+
 ```text
-Home Assistant MQTT Discovery Producer
-  |  homeassistant/.../config
-  |  producer runtime topics (z. B. zigbee2mqtt/...)
+Gerät oder Dienst mit MQTT Discovery
+  |  Discovery-Meldungen + aktuelle Werte
   v
 MQTT Broker
   v
 IP-Symcon MQTT Client
   v
 Home Assistant MQTT Discovery Splitter
-  |  Cache, Diagnose, optional Bundle-Modus
+  |  bereitet die Daten für Symcon auf
   v
 Home Assistant MQTT Discovery Configurator / Device
 ```
 
-**Hinweise zur Fehlersuche**
+## 7. Fehlersuche
 
-- Wenn im Splitter `Kein aktiver MQTT Parent gefunden` steht: Parent-Verbindung im Splitter, MQTT-Client-Status und Subscription in Symcon prüfen (Discovery-Prefix, z. B. `homeassistant/#` oder `#`).
-- Wenn es im Datenfluss hakt: Mithilfe des [MQTT Explorer](https://mqtt-explorer.com/) kann komfortabel geprüft werden, ob der MQTT-Server mit Daten versorgt wird (Topic, Payload, Attribute).
-- IP-Adressen und Ports prüfen: MQTT standardmäßig `1883` (TLS `8883`), Home Assistant REST standardmäßig `8123`.
-- MQTT-Broker-Log in Home Assistant prüfen (z. B. Mosquitto Add-on Logs), um Verbindungsfehler oder Auth-Probleme zu erkennen.
+### 7.1 Klassische Bridge
 
-- Wenn MQTT Discovery Devices keine Werte bekommen: prüfen, ob derselbe MQTT Client neben `homeassistant/#` auch die Runtime-Topics der Quelle sieht, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
-- Wenn beim MQTT Discovery Splitter bereits vorhandene Discovery-Geraete nicht sofort auftauchen, obwohl sie retained am Broker liegen: `MQTT-IO reconnecten` ausfuehren. Dadurch wird der IO des MQTT-Clients neu verbunden und das retained Replay erneut eingelesen.
-- Für Support und Analyse gibt es zwei Exportwege im MQTT Discovery Splitter:
-  - `Discovery-Bundle herunterladen` fuer den gesamten Cache.
-  - `Discovery-Bundle aktuelle Session herunterladen` fuer nur die aktuelle MQTT-Session nach einem frischen Connect oder Reconnect.
+- Wenn im `Home Assistant Splitter` `Kein aktiver MQTT Parent gefunden` steht: Verbindung zum MQTT-Client oder MQTT-Server prüfen.
+- Wenn keine Werte ankommen: `mqtt_statestream` in Home Assistant prüfen und sicherstellen, dass `base_topic` zu `MQTTBaseTopic` passt.
+- Wenn der Zugriff auf Home Assistant fehlschlägt: `HAUrl`, `HAToken` und die Erreichbarkeit von Home Assistant prüfen.
 
-### Datenfluss
-- Device/Configurator -> Splitter: `{E62B0B4F-1B5C-4F2C-9B6B-2C86F5B7C1D1}`
-- Splitter -> Device/Configurator: `{F4A2B9F1-1D3B-44A9-9B6A-0D3A5A7D6E10}`
-- Splitter <-> MQTT Client (RX): `{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}`
-- Splitter <-> MQTT Client (TX): `{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}`
+### 7.2 MQTT Discovery
 
-### GUIDs der Module
+- Wenn Discovery-Geräte nicht auftauchen: prüfen, ob der MQTT-Client mindestens `homeassistant/#` empfängt.
+- Wenn Discovery-Geräte angelegt werden, aber keine Werte bekommen: zusätzlich die Topics des Geräts oder Dienstes abonnieren, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
+- Wenn bereits vorhandene Discovery-Meldungen nicht vollständig eingelesen wurden: im `Home Assistant MQTT Discovery Splitter` `MQTT-IO reconnecten` ausführen.
+- Für Analyse und Support stehen im Discovery-Splitter zwei Exporte bereit:
+  - `Discovery-Bundle herunterladen`
+  - `Discovery-Bundle aktuelle Session herunterladen`
 
-| Modul                                      | Typ          | GUID                                     |
-|--------------------------------------------|--------------|------------------------------------------|
-| Home Assistant Discovery                   | Discovery    | `{C36FEFA4-4732-CBD6-0216-A1DB30D036CF}` |
-| Home Assistant Configurator                | Configurator | `{B9830F89-98E6-106C-CD6C-A3AD76FD5AE9}` |
-| Home Assistant MQTT Discovery Splitter     | Splitter     | `{68522B48-8638-4AA1-995F-84DD1CF32CD8}` |
-| Home Assistant MQTT Discovery Configurator | Configurator | `{E5739B2D-7732-4398-9AD1-BECF0B8738C5}` |
-| Home Assistant MQTT Discovery Device       | Device       | `{5A6C7B2A-14B4-4D6C-AC3C-07D7D6A7568D}` |
-| Home Assistant Splitter                    | Splitter     | `{0A4C4B31-2F59-4D21-8F62-3A12A0A0F3E1}` |
-| Home Assistant Device                      | Device       | `{72D6A284-1870-4E11-92D8-0402C8233C29}` |
-| Home Assistant Entity                      | Device       | `{C27D957C-3761-497B-8A30-A223405E04F2}` |
+## 8. FAQ
 
-### FAQ
+### Was ist der entscheidende Unterschied zwischen beiden Pfaden?
 
-**MQTT Verbindung / Instanzanlage schlägt fehl (Code -32603)**
+Die klassische Bridge übernimmt bereits vorhandene Geräte und Entitäten aus Home Assistant nach Symcon. MQTT Discovery bindet Geräte oder Dienste direkt per MQTT ein.
 
-- In Home Assistant die MQTT-Integration möglichst über das offizielle Mosquitto Broker Add-on einrichten.
-- Im Splitter eine interne HA-URL verwenden (lokale IP/Host, Port 8123), nicht die externe Zugriff-URL.
+### Brauche ich für MQTT Discovery ebenfalls `mqtt_statestream`?
 
-**MQTT Discovery Device bleibt leer oder unvollstaendig**
+Nein. Beim Discovery-Pfad kommen die Werte direkt über MQTT.
 
-- Parent-Kette pruefen: Discovery Device -> MQTT Discovery Splitter -> MQTT Client.
-- MQTT Client Subscription pruefen: fuer Discovery mindestens `homeassistant/#`, fuer die Runtime zusaetzlich die Quell-Topics.
-- Im Splitter `MQTT-IO reconnecten` ausfuehren, damit retained Discovery-Topics erneut eingelesen werden.
-- Falls im Entwicklungsbetrieb Bundle-Modus aktiv ist: `BundlePath`, Exportformat `V2` und `SourceMode` pruefen.
+### Brauche ich für MQTT Discovery überhaupt eine Home-Assistant-Installation?
+
+Nein. Es reicht ein Gerät oder Dienst, das bzw. der Home Assistant MQTT Discovery unterstützt und seine Daten an den MQTT-Broker sendet.
+
+### Kann ich beide Pfade gleichzeitig betreiben?
+
+Ja. Die Modulgruppen sind absichtlich getrennt und können parallel genutzt werden.
 
 ### Spenden
 

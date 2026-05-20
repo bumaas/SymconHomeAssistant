@@ -27,9 +27,12 @@ final class HAMqttDiscoveryGrouping
             }
 
             if (!isset($groups[$groupKey])) {
+                $groupType = $this->determineGroupType($device, $groupKey);
                 $groups[$groupKey] = [
                     'source'       => 'mqtt_discovery',
                     'device_id'    => $groupKey,
+                    'group_type'   => $groupType,
+                    'is_bridge_device' => $groupType === 'bridge',
                     'name'         => (string)($device['name'] ?? $entity['name'] ?? $groupKey),
                     'area'         => '',
                     'manufacturer' => (string)($device['manufacturer'] ?? ''),
@@ -158,5 +161,22 @@ final class HAMqttDiscoveryGrouping
         }
 
         return $deviceConfig;
+    }
+
+    private function determineGroupType(array $device, string $groupKey): string
+    {
+        $manufacturer = strtolower(trim((string)($device['manufacturer'] ?? '')));
+        $model = strtolower(trim((string)($device['model'] ?? '')));
+        $name = strtolower(trim((string)($device['name'] ?? '')));
+
+        if (str_starts_with($groupKey, 'zigbee2mqtt_bridge_')) {
+            return 'bridge';
+        }
+
+        if ($manufacturer === 'zigbee2mqtt' && (str_contains($model, 'bridge') || str_contains($name, 'bridge'))) {
+            return 'bridge';
+        }
+
+        return 'device';
     }
 }
