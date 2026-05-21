@@ -99,6 +99,24 @@ final class HADomainCatalog
                 'attribute_topics' => true,
                 'variable_type' => HASelectDefinitions::VARIABLE_TYPE
             ],
+            HAInputTextDefinitions::DOMAIN => [
+                'configurator_default' => true,
+                'main_writable' => true,
+                'attribute_topics' => true,
+                'variable_type' => HAInputTextDefinitions::VARIABLE_TYPE
+            ],
+            HADateTimeDefinitions::DOMAIN => [
+                'configurator_default' => true,
+                'main_writable' => true,
+                'attribute_topics' => true,
+                'variable_type' => HADateTimeDefinitions::VARIABLE_TYPE
+            ],
+            HAInputDateTimeDefinitions::DOMAIN => [
+                'configurator_default' => true,
+                'main_writable' => true,
+                'attribute_topics' => true,
+                'variable_type' => HAInputDateTimeDefinitions::VARIABLE_TYPE
+            ],
             HAVacuumDefinitions::DOMAIN => [
                 'configurator_default' => true,
                 'status_domain' => true,

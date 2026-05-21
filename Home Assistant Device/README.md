@@ -89,6 +89,12 @@ Keine öffentlichen Funktionen.
   Typableitung über Zustand und Attribute; `enum` mit `options` als Enumeration, `date`/`timestamp` als Zeitwert, `duration` in Symcon-Sekunden.
 - `number`
   Numerische Hauptvariable; Präsentation nutzt `min`, `max`, `step` sowie `native_*` auch bei `mode: box`; Eingaben werden numerisch validiert.
+- `input_text`
+  Schreibbare String-Hauptvariable.
+- `datetime`
+  Schreibbare Integer-Hauptvariable für Datum/Uhrzeit via Home-Assistant-Service `set_value`.
+- `input_datetime`
+  Schreibbare Integer-Hauptvariable für Datum, Uhrzeit oder kombinierte Datums-/Zeitwerte; `has_date` und `has_time` steuern Darstellung und REST-Payload.
 - `select`
   Schreibbare Enumeration; Aktionen nur bei vorhandener `options`-Liste.
 - `button`

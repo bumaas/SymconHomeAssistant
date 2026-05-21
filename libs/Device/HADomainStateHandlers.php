@@ -7,13 +7,13 @@ trait HADomainStateHandlersTrait
     private function tryHandleStateFromTopic(string $topic, string $payload): bool
     {
         if ($topic === '') {
-            $this->debugExpert(__FUNCTION__, 'Leeres Topic, ignoriert.');
+            $this->debugRuntimeIssue(__FUNCTION__, 'Leeres Topic, ignoriert.');
             return false;
         }
 
         $parts = explode('/', trim($topic, '/'));
         if (count($parts) < 3) {
-            $this->debugExpert(__FUNCTION__, 'Topic zu kurz', ['Topic' => $topic]);
+            $this->debugRuntimeIssue(__FUNCTION__, 'Topic zu kurz', ['Topic' => $topic]);
             return false;
         }
 
@@ -26,7 +26,7 @@ trait HADomainStateHandlersTrait
         $domain = $parts[count($parts) - 3];
         $entityId = $domain . '.' . $entity;
         if (!$this->isManagedEntityId($entityId)) {
-            $this->debugExpert(__FUNCTION__, 'Fremde Entity ignoriert', ['EntityID' => $entityId, 'Topic' => $topic]);
+            $this->debugRuntimeIssue(__FUNCTION__, 'Fremde Entity ignoriert', ['EntityID' => $entityId, 'Topic' => $topic]);
             return false;
         }
 
@@ -35,7 +35,8 @@ trait HADomainStateHandlersTrait
         $rawState = (string)($parsed[self::KEY_STATE] ?? '');
         $this->updateEntityRawStateCache($entityId, $rawState);
         $this->updateAvailabilityValue($rawState);
-        $this->applyParsedEntityState($entityId, $parsed);
+        $this->debugExpert(__FUNCTION__, 'State-Topic verarbeitet', ['EntityID' => $entityId, 'State' => $rawState]);
+        $this->applyParsedEntityState($entityId, $parsed, 'MQTT State Topic');
         return true;
     }
 

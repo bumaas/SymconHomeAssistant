@@ -194,6 +194,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return '';
         }
         $topic   = $data['Topic'] ?? '';
+        if (!is_string($topic) || trim($topic) === '') {
+            $this->debugRuntimeIssue(__FUNCTION__, 'Topic fehlt in MQTT-Nachricht');
+            return '';
+        }
         $payload = hex2bin($data['Payload']);
         if ($payload === false) {
             $payload = '';
@@ -210,6 +214,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         if (isset($this->topicMapping[$topic])) {
             $entityId = $this->topicMapping[$topic];
             $this->updateEntityValue($entityId, $payload);
+        } else {
+            $this->debugRuntimeIssue(__FUNCTION__, 'MQTT-Topic ohne Mapping verworfen', ['Topic' => $topic]);
         }
 
         return '';
@@ -777,7 +783,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     private function updateEntityValue(string $entityId, string $payload): void
     {
-        $this->debugExpert(__FUNCTION__, 'Wert wird gesetzt', ['EntityID' => $entityId, 'Payload' => $payload], true);
+        $this->debugExpert(__FUNCTION__, 'Wert wird gesetzt', ['EntityID' => $entityId, 'Payload' => $payload]);
         $parsed = $this->parseEntityPayload($payload);
         $rawState = (string)($parsed[self::KEY_STATE] ?? '');
         $this->updateEntityRawStateCache($entityId, $rawState);
@@ -790,7 +796,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     {
         $domain = $this->getEntityDomain($entityId);
         if ($domain === '') {
-            $this->debugExpert(__FUNCTION__, 'Domain nicht ermittelbar', ['EntityID' => $entityId]);
+            $this->debugRuntimeIssue(__FUNCTION__, 'Domain nicht ermittelbar', ['EntityID' => $entityId]);
             return;
         }
 
@@ -833,26 +839,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
     }
 
-    private function parseAttributePayload(string $payload): mixed
-    {
-        $trimmed = trim($payload);
-        if ($trimmed === '') {
-            return '';
-        }
-
-        try {
-            $json = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            $this->debugExpert('AttributeTopic', 'Invalid JSON payload', ['Error' => $e->getMessage()]);
-            return $payload;
-        }
-        if ($json !== null || $trimmed === 'null') {
-            return $json;
-        }
-
-        return $payload;
-    }
-
     private function parseEntityPayload(string $payload): array
     {
         $result = [
@@ -868,7 +854,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 try {
                     $json = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
                 } catch (JsonException $e) {
-                    $this->debugExpert('ReceiveData', 'Invalid JSON payload', ['Error' => $e->getMessage()]);
+                    $this->debugRuntimeIssue('ReceiveData', 'Invalid JSON payload', ['Error' => $e->getMessage()]);
                     return $result;
                 }
                 if (is_array($json)) {
@@ -894,7 +880,11 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         try {
             $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
-            $this->debugExpert($context, 'Invalid JSON', ['Error' => $e->getMessage()]);
+            if ($context === 'ReceiveData') {
+                $this->debugRuntimeIssue($context, 'Invalid JSON', ['Error' => $e->getMessage()]);
+            } else {
+                $this->debugExpert($context, 'Invalid JSON', ['Error' => $e->getMessage()]);
+            }
             return null;
         }
 

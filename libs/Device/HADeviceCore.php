@@ -188,6 +188,7 @@ trait HADeviceCoreTrait
 
         $topic = trim((string)($data['Topic'] ?? ''));
         if ($topic === '') {
+            $this->debugRuntimeIssue(__FUNCTION__, 'Topic fehlt in MQTT-Nachricht');
             return '';
         }
 
@@ -200,6 +201,7 @@ trait HADeviceCoreTrait
 
         $entityId = $this->topicMapping[$topic] ?? null;
         if ($entityId === null) {
+            $this->debugRuntimeIssue(__FUNCTION__, 'MQTT-Topic ohne Mapping verworfen', ['Topic' => $topic]);
             return '';
         }
 
@@ -229,6 +231,40 @@ trait HADeviceCoreTrait
 
         return $payload;
     }
+
+    protected function parseEntityPayload(string $payload): array
+    {
+        $result = [
+            self::KEY_STATE => $payload,
+            self::KEY_ATTRIBUTES => []
+        ];
+
+        $trimmed = trim($payload);
+        if ($trimmed !== '') {
+            $first = $trimmed[0];
+            if ($first === '{' || $first === '[' || $first === '"') {
+                try {
+                    $json = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+                } catch (JsonException $e) {
+                    $this->debugRuntimeIssue('ReceiveData', 'Invalid JSON payload', ['Error' => $e->getMessage()]);
+                    return $result;
+                }
+
+                if (is_array($json)) {
+                    if (array_key_exists(self::KEY_STATE, $json)) {
+                        $result[self::KEY_STATE] = (string)$json[self::KEY_STATE];
+                    }
+                    if (isset($json[self::KEY_ATTRIBUTES]) && is_array($json[self::KEY_ATTRIBUTES])) {
+                        $result[self::KEY_ATTRIBUTES] = $json[self::KEY_ATTRIBUTES];
+                    }
+                } elseif ($json !== null) {
+                    $result[self::KEY_STATE] = (string)$json;
+                }
+            }
+        }
+
+        return $result;
+    }
     public function RequestAction($Ident, $Value): void
     {
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
@@ -256,18 +292,13 @@ trait HADeviceCoreTrait
         mixed $attributes
     ): bool {
         $normalizedDomain = $this->normalizeDomainAlias($domain);
-        if ($normalizedDomain !== HANumberDefinitions::DOMAIN) {
-            return false;
-        }
-
-        [$service, $data] = HANumberDefinitions::buildRestServicePayload($formattedPayload);
+        [$service, $data] = $this->buildMainEntityRestPayload(
+            $normalizedDomain,
+            $formattedPayload,
+            is_array($attributes) ? $attributes : []
+        );
         if ($service === '') {
-            $this->debugExpert(__FUNCTION__, 'REST-Payload leer', [
-                'EntityID' => $entityId,
-                'Domain' => $domain,
-                'Payload' => $formattedPayload
-            ], true);
-            return true;
+            return false;
         }
 
         $serviceDomain = $domain !== '' ? $domain : $normalizedDomain;
@@ -291,6 +322,17 @@ trait HADeviceCoreTrait
 
         $this->applyOptimisticEntityValue($entityId, $ident, $domain, $formattedPayload, $attributes);
         return true;
+    }
+
+    private function buildMainEntityRestPayload(string $domain, string $formattedPayload, array $attributes): array
+    {
+        return match ($domain) {
+            HANumberDefinitions::DOMAIN => HANumberDefinitions::buildRestServicePayload($formattedPayload),
+            HAInputTextDefinitions::DOMAIN => HAInputTextDefinitions::buildRestServicePayload($formattedPayload),
+            HADateTimeDefinitions::DOMAIN => HADateTimeDefinitions::buildRestServicePayload($formattedPayload, $attributes),
+            HAInputDateTimeDefinitions::DOMAIN => HAInputDateTimeDefinitions::buildRestServicePayload($formattedPayload, $attributes),
+            default => ['', []],
+        };
     }
 
     private function handleDirectDomainActions(string $ident, mixed $value): bool
@@ -700,14 +742,22 @@ trait HADeviceCoreTrait
         $this->syncEntityPresentation($entity, true);
     }
 
-    protected function applyParsedEntityState(string $entityId, array $payload, string $context): void
+    protected function applyParsedEntityState(string $entityId, array $payload, string $context = 'MQTT Update'): void
     {
         $state = (string)($payload[self::KEY_STATE] ?? '');
         $attributes = $payload[self::KEY_ATTRIBUTES] ?? [];
 
         if (!isset($this->entities[$entityId])) {
-            $this->debugExpert(__FUNCTION__, 'Entity nicht konfiguriert', ['EntityID' => $entityId, 'Context' => $context]);
-            return;
+            $configuredEntity = $this->findConfiguredEntityById($entityId);
+            if (!is_array($configuredEntity)) {
+                $this->debugRuntimeIssue(__FUNCTION__, 'Entity nicht konfiguriert', ['EntityID' => $entityId, 'Context' => $context]);
+                return;
+            }
+
+            $configuredEntity['entity_id'] ??= $entityId;
+            $this->entities[$entityId] = $configuredEntity;
+            $this->rebuildSharedEntityIdentIndexes();
+            $this->debugExpert(__FUNCTION__, 'Entity aus Konfiguration rehydriert', ['EntityID' => $entityId, 'Context' => $context]);
         }
 
         $entity = $this->entities[$entityId];
@@ -782,10 +832,14 @@ trait HADeviceCoreTrait
                 'Ident' => $ident,
                 'ValueType' => get_debug_type($value),
                 'Value' => $value
-            ], true);
+            ]);
         }
         $variableId = @$this->GetIDForIdent($ident);
         if ($variableId === false) {
+            $this->debugRuntimeIssue('SetValue', 'Ident nicht gefunden', [
+                'Caller' => $caller,
+                'Ident' => $ident
+            ]);
             return;
         }
 
@@ -793,23 +847,23 @@ trait HADeviceCoreTrait
         if (($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT)
             && !is_numeric($value)
             && !is_bool($value)) {
-            $this->debugExpert('SetValue', 'Type mismatch', [
+            $this->debugRuntimeIssue('SetValue', 'Type mismatch', [
                 'Ident' => $ident,
                 'ValueType' => get_debug_type($value),
                 'Value' => $value,
                 'TargetType' => $type
-            ], true);
+            ]);
             return;
         }
         if ($type === VARIABLETYPE_BOOLEAN
             && !is_bool($value)
             && !is_numeric($value)) {
-            $this->debugExpert('SetValue', 'Type mismatch', [
+            $this->debugRuntimeIssue('SetValue', 'Type mismatch', [
                 'Ident' => $ident,
                 'ValueType' => get_debug_type($value),
                 'Value' => $value,
                 'TargetType' => $type
-            ], true);
+            ]);
             return;
         }
 
@@ -1079,8 +1133,3 @@ trait HADeviceCoreTrait
         $this->SyncStates();
     }
 }
-
-
-
-
-

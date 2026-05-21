@@ -25,6 +25,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const int STATUS_DISCOVERY_CACHE_MISSING = 202;
     private const int STATUS_PARENT_INACTIVE = 203;
     private const int STATUS_DEVICE_ID_MISSING = 204;
+    private const string TIMER_DEFERRED_APPLY = 'DeferredApply';
+    private const int DEFERRED_APPLY_DELAY_MS = 750;
 
     private const string ATTR_LAST_MQTT_MESSAGE = 'LastMQTTMessage';
     private const string ATTR_AVAILABILITY_STATE = 'AvailabilityState';
@@ -79,6 +81,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->RegisterTimer(self::TIMER_DEFERRED_APPLY, 0, 'IPS_ApplyChanges($_IPS["TARGET"]);');
 
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
         $this->RegisterPropertyString(self::PROP_ENTITY_SELECTION, '[]');
@@ -98,7 +101,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
+        if ($Message === IM_CHANGESTATUS) {
+            $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::DEFERRED_APPLY_DELAY_MS);
+            return;
+        }
+
+        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT) {
             $this->ApplyChanges();
         }
     }
@@ -110,6 +118,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'DeviceID' => $this->getConfiguredDeviceId()
         ]);
         parent::ApplyChanges();
+        $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, 0);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);

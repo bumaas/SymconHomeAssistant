@@ -104,12 +104,15 @@ final class HAMqttDiscoveryTemplate
                 continue;
             }
 
-            if (preg_match('/\G\[(?:"((?:[^"\\\\]|\\\\.)*)"|\'((?:[^\'\\\\]|\\\\.)*)\'|(\d+))]/A', $path, $matches, 0, $offset) === 1) {
-                $segment = $matches[3];
-                if ($matches[1] !== '') {
+            if (preg_match('/\G\[(?:"((?:[^"\\\\]|\\\\.)*)"|\'((?:[^\'\\\\]|\\\\.)*)\'|(\d+))]/A', $path, $matches, PREG_UNMATCHED_AS_NULL, $offset) === 1) {
+                if ($matches[1] !== null) {
                     $segment = stripcslashes($matches[1]);
-                } elseif ($matches[2] !== '') {
+                } elseif ($matches[2] !== null) {
                     $segment = stripcslashes($matches[2]);
+                } elseif ($matches[3] !== null) {
+                    $segment = $matches[3];
+                } else {
+                    return [];
                 }
                 $segments[] = $segment;
                 $offset += strlen($matches[0]);

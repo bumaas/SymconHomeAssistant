@@ -23,6 +23,7 @@ Liest MQTT-Discovery-Konfigurationen direkt aus einer MQTT-Discovery-Quelle übe
 - Home Assistant MQTT Discovery Splitter als Parent.
 - Ein Gerät oder Dienst muss Home Assistant MQTT Discovery-Payloads an den Broker publizieren.
 - Parent des Splitters kann ein MQTT Client oder im Entwicklungsbetrieb der Bundle-Modus des Splitters sein.
+- Wenn als Broker der Symcon MQTT Server genutzt wird, bleibt fuer den Live-Pfad trotzdem ein MQTT Client vor dem Splitter noetig. Dieser Client kann direkt auf den lokalen Server verbunden werden, z. B. `127.0.0.1:1028`.
 - Im Live-Betrieb muss der MQTT Client den Discovery-Prefix abonnieren, z. B. `homeassistant/#` oder `#`.
 - Discovery-Topics müssen im Splitter-Cache angekommen sein.
 

@@ -212,8 +212,8 @@ trait HAEntityStoreTrait
         }
 
         $ident = $this->getSharedEntityMainIdent($entityId);
-        $exists = @$this->GetIDForIdent($ident) !== false;
         $type = $this->getVariableType($domain, $entity['attributes'] ?? []);
+        $exists = @$this->GetIDForIdent($ident) !== false;
         $presentation = $this->getEntityPresentation($domain, $entity, $type);
         $position = $this->getEntityMainVariablePosition($entity, $domain);
         $name = $this->getEntityVariableName($domain, $entity);

@@ -21,7 +21,7 @@ Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet e
 - Verteilt MQTT-Daten an Device- und Entity-Instanzen.
 - Leitet REST-Requests vom Configurator an die bestehende Home-Assistant-Installation weiter.
 - Optional REST-Steuerung für `*/set` Topics.
-- REST-Steuerung für `light`, `switch`, `lock`, `cover`, `number`, `climate`, `fan`, `humidifier`, `media_player`, `button`, `input_button`, `vacuum`, `lawn_mower`.
+- REST-Steuerung für `light`, `switch`, `input_boolean`, `lock`, `cover`, `number`, `input_number`, `select`, `input_select`, `input_text`, `datetime`, `input_datetime`, `climate`, `fan`, `humidifier`, `media_player`, `button`, `input_button`, `vacuum`, `lawn_mower`.
 - Optionaler generischer REST-Service-Call für beliebige Home Assistant Services.
 
 ## 2. Voraussetzungen

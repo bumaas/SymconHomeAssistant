@@ -12,6 +12,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     use ModuleDebugTrait;
 
     private const string TIMER_DIAGNOSTICS_REFRESH = 'DiagnosticsRefresh';
+    private const string TIMER_DEFERRED_APPLY = 'DeferredApply';
     private const string ATTRIBUTE_DISCOVERY_CACHE = 'MqttDiscoveryConfigCache';
     private const string ATTRIBUTE_TOPIC_PAYLOAD_CACHE = 'MqttTopicPayloadCache';
     private const string ATTRIBUTE_MQTT_SESSION_STATE = 'MqttSessionState';
@@ -23,6 +24,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const int DIAGNOSTIC_PREVIEW_LIMIT = 8;
     private const int OUTPUT_BUFFER_RESERVE_BYTES = 262144;
     private const int DIAGNOSTICS_REFRESH_INTERVAL_MS = 1000;
+    private const int DEFERRED_APPLY_DELAY_MS = 750;
     private const string SOURCE_MODE_MQTT = 'mqtt';
     private const string SOURCE_MODE_BUNDLE = 'bundle';
 
@@ -43,6 +45,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
 
+        $this->RegisterTimer(self::TIMER_DEFERRED_APPLY, 0, 'IPS_ApplyChanges($_IPS["TARGET"]);');
         $this->RegisterTimer(self::TIMER_DIAGNOSTICS_REFRESH, 0, 'HAMD_RefreshDiscoveryDiagnostics($_IPS["TARGET"]);');
         $this->RegisterAttributeString('LastMQTTMessage', '');
         $this->RegisterAttributeString(self::ATTRIBUTE_DISCOVERY_CACHE, '{}');
@@ -70,7 +73,12 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $this->markMqttSessionInactive();
         }
 
-        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
+        if ($Message === IM_CHANGESTATUS) {
+            $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::DEFERRED_APPLY_DELAY_MS);
+            return;
+        }
+
+        if ($Message === FM_CONNECT || $Message === FM_DISCONNECT) {
             $this->ApplyChanges();
         }
     }
@@ -82,6 +90,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'SourceMode' => $this->getSourceMode()
         ]);
         parent::ApplyChanges();
+        $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, 0);
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {

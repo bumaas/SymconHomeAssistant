@@ -113,6 +113,7 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - In menschenlesbaren deutschen Texten werden echte Umlaute verwendet. Transliterationen wie `ae`, `oe` oder `ue` bleiben nur dort zulässig, wo technische Gründe dagegen sprechen, zum Beispiel in Idents, Dateinamen oder ASCII-gebundenen Formaten.
 - In menschenlesbaren Texten sind Mojibake- oder sonstige Encoding-Artefakte unzulässig. Deutsche Umlaute und Sonderzeichen sind grundsätzlich korrekt darzustellen.
 - Normalisierung kommt vor Domain-Logik. Domain-Code soll nicht erneut Aliase oder Konfigurationsbesonderheiten auflösen.
+- Normales Debug muss im Laufzeitpfad die Fehler- und Abbruchentscheidungen sichtbar machen, auch ohne `EnableExpertDebug`. Das betrifft insbesondere `ReceiveData()`, State-/Attribut-Handler und `SetValue()`. Erfolgs-Trace und Detailfluss bleiben dem Expert-Debug vorbehalten. Für solche normalen Laufzeit-Hinweise wird zentral `debugRuntimeIssue()` verwendet.
 - Präsentationslogik bleibt möglichst seiteneffektfrei. Variablen- und Medienerzeugung gehören in die Maintenance-Traits.
 - Feature- und Schreibbarkeitslogik orientiert sich an den Domain-Definitionen, nicht an verstreuten Literalwerten.
 - Echte Sonderfälle bleiben explizit. Wenn eine Domain fachlich anders arbeitet, ist eine kleine spezialisierte Methode besser als ein überdehnter Generic-Helper.

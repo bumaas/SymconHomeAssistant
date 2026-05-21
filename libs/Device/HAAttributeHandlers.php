@@ -9,7 +9,7 @@ trait HAAttributeHandlersTrait
         // Attribute topics come as .../<domain>/<entity>/<attribute>
         $parts = explode('/', trim($topic, '/'));
         if (count($parts) < 3) {
-            $this->debugExpert('AttributeTopic', 'Topic zu kurz', ['Topic' => $topic]);
+            $this->debugRuntimeIssue('AttributeTopic', 'Topic zu kurz', ['Topic' => $topic]);
             return false;
         }
 
@@ -20,11 +20,11 @@ trait HAAttributeHandlersTrait
 
         $currentDomain = $this->entities[$entityId]['domain'] ?? $domain;
         if (!HADomainCatalog::supportsAttributeTopics($currentDomain)) {
-            $this->debugExpert('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
+            $this->debugRuntimeIssue('AttributeTopic', 'Domain nicht unterstützt', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
         if (!$this->isManagedEntityId($entityId)) {
-            $this->debugExpert('AttributeTopic', 'Fremde Entity ignoriert', ['EntityID' => $entityId, 'Domain' => $domain]);
+            $this->debugRuntimeIssue('AttributeTopic', 'Fremde Entity ignoriert', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
         if (!isset($this->entities[$entityId])) {
@@ -37,7 +37,7 @@ trait HAAttributeHandlersTrait
 
         $handler = $this->getAttributeTopicDomainHandlerMethod($currentDomain);
         if ($handler === null) {
-            $this->debugExpert('AttributeTopic', 'Kein Handler für Domain', ['EntityID' => $entityId, 'Domain' => $currentDomain]);
+            $this->debugRuntimeIssue('AttributeTopic', 'Kein Handler für Domain', ['EntityID' => $entityId, 'Domain' => $currentDomain]);
             return false;
         }
 
@@ -46,11 +46,16 @@ trait HAAttributeHandlersTrait
 
     private function getAttributeTopicDomainHandlerMethod(string $domain): ?string
     {
+        $domain = HADomainCatalog::normalizeDomainAlias($domain);
+
         $handlers = [
             HASensorDefinitions::DOMAIN => 'handleGenericAttributeTopic',
             HABinarySensorDefinitions::DOMAIN => 'handleGenericAttributeTopic',
             HANumberDefinitions::DOMAIN => 'handleGenericAttributeTopic',
             HASwitchDefinitions::DOMAIN => 'handleGenericAttributeTopic',
+            HAInputTextDefinitions::DOMAIN => 'handleGenericAttributeTopic',
+            HADateTimeDefinitions::DOMAIN => 'handleGenericAttributeTopic',
+            HAInputDateTimeDefinitions::DOMAIN => 'handleGenericAttributeTopic',
             HAEventDefinitions::DOMAIN => 'handleEventAttributeTopic',
             HACoverDefinitions::DOMAIN => 'handleCoverAttributeTopic',
             HAValveDefinitions::DOMAIN => 'handleValveAttributeTopic',
@@ -457,7 +462,7 @@ trait HAAttributeHandlersTrait
     {
         $meta = $definitions[$attribute] ?? null;
         if (!is_array($meta)) {
-            $this->debugExpert('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
+            $this->debugRuntimeIssue('AttributeTopic', 'Attribut nicht definiert', ['Attribute' => $attribute]);
             return null;
         }
 
@@ -506,6 +511,27 @@ trait HAAttributeHandlersTrait
         $updater($entityId, $attributes, $state);
     }
 
+    protected function parseAttributePayload(string $payload): mixed
+    {
+        $trimmed = trim($payload);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        try {
+            $json = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            $this->debugRuntimeIssue('AttributeTopic', 'Invalid JSON payload', ['Error' => $e->getMessage()]);
+            return $payload;
+        }
+
+        if ($json !== null || $trimmed === 'null') {
+            return $json;
+        }
+
+        return $payload;
+    }
+
     private function storeAttributeTopicValue(string $entityId, string $attribute, mixed $value, bool $refreshPresentation = true): void
     {
         $this->storeEntityAttribute($entityId, $attribute, $value);
@@ -549,4 +575,3 @@ trait HAAttributeHandlersTrait
         $this->setEntityMainValue($entityId, $mainIdent, $mainValue);
     }
 }
-

@@ -34,6 +34,8 @@ trait HAPresentationTrait
             HANumberDefinitions::DOMAIN => $this->getNumberPresentation($attributes),
             HAClimateDefinitions::DOMAIN => $this->getClimatePresentation($attributes),
             HASensorDefinitions::DOMAIN => $this->getSensorEntityPresentation($attributes, $type),
+            HADateTimeDefinitions::DOMAIN => $this->getTemporalEntityPresentation($attributes, true, true),
+            HAInputDateTimeDefinitions::DOMAIN => $this->getTemporalEntityPresentation($attributes, true, true),
             HAImageDefinitions::DOMAIN => $this->getDateTimeValuePresentation(2),
             HALockDefinitions::DOMAIN => $this->getLockPresentation($attributes),
             HAVacuumDefinitions::DOMAIN => $this->getVacuumPresentation(),
@@ -71,6 +73,19 @@ trait HAPresentationTrait
         }
 
         return null;
+    }
+
+    private function getTemporalEntityPresentation(array $attributes, bool $defaultDate, bool $defaultTime): array
+    {
+        $capabilities = HADateTimeValue::resolveCapabilities($attributes, null, $defaultDate, $defaultTime);
+
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME,
+            'DATE' => $capabilities['has_date'] ? 1 : 0,
+            'DAY_OF_THE_WEEK' => false,
+            'MONTH_TEXT' => false,
+            'TIME' => $capabilities['has_time'] ? 2 : 0
+        ]);
     }
 
     private function getTypeFallbackEntityPresentation(string $domain, array $attributes, int $type): ?array

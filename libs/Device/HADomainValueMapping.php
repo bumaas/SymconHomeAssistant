@@ -43,6 +43,8 @@ trait HADomainValueMappingTrait
             HAButtonDefinitions::DOMAIN => -1,
             HAEventDefinitions::DOMAIN,
             HAImageDefinitions::DOMAIN => $this->parseTimestampValue($valueData),
+            HADateTimeDefinitions::DOMAIN => $this->convertTemporalValue($valueData, $attributes, true, true),
+            HAInputDateTimeDefinitions::DOMAIN => $this->convertTemporalValue($valueData, $attributes, true, true),
             HACoverDefinitions::DOMAIN => $this->convertCoverValue($valueData, $attributes),
             HALightDefinitions::DOMAIN,
             HASwitchDefinitions::DOMAIN,
@@ -96,6 +98,28 @@ trait HADomainValueMappingTrait
             HASensorDefinitions::DOMAIN => $this->inferSensorVariableType($attributes),
             default => VARIABLETYPE_STRING,
         };
+    }
+
+    private function convertTemporalValue(
+        string $valueData,
+        array $attributes,
+        bool $defaultDate,
+        bool $defaultTime
+    ): ?int {
+        $parsed = HADateTimeValue::parseState($valueData, $attributes, $defaultDate, $defaultTime);
+        if ($parsed !== null) {
+            return $parsed;
+        }
+
+        $normalizedValue = strtolower(trim($valueData));
+        if (!in_array($normalizedValue, ['unknown', 'unavailable'], true)) {
+            $this->debugExpert('DateTime', 'Zeitwert konnte nicht geparst werden', [
+                'Value' => $valueData,
+                'Attributes' => $attributes
+            ], true);
+        }
+
+        return null;
     }
 
     private function convertCoverValue(string $valueData, array $attributes): string|float|null

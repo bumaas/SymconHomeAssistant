@@ -29,4 +29,9 @@ trait ModuleDebugTrait
 
         $this->SendDebug($category, $message . $suffix, 0);
     }
+
+    private function debugRuntimeIssue(string $category, string $message, array $context = []): void
+    {
+        $this->debugExpert($category, $message, $context, true);
+    }
 }

@@ -19,6 +19,7 @@ Transportknoten für Geräte oder Dienste, die Home Assistant MQTT Discovery per
 ## Voraussetzungen
 
 - Im Live-Betrieb: MQTT Client Instanz als Parent.
+- Wenn der Symcon MQTT Server als Broker genutzt wird, wird fuer den Discovery-Pfad trotzdem ein MQTT Client benoetigt. Dessen IO kann direkt auf den lokalen MQTT Server zeigen, z. B. `127.0.0.1:1028`.
 - Im Bundle-Modus: kein MQTT-Parent erforderlich.
 - Eine bestehende Home-Assistant-Installation ist nicht erforderlich.
 - Der MQTT Client muss im Live-Betrieb den Discovery-Prefix abonnieren, z. B. `homeassistant/#` oder `#`.
@@ -37,6 +38,7 @@ Transportknoten für Geräte oder Dienste, die Home Assistant MQTT Discovery per
 - `MQTTDiscoveryPrefix`: Prefix für MQTT-Discovery-Konfigurationen, typischerweise `homeassistant`.
 - `MQTTDiscoveryPrefix` ist kein MQTT-Filter mit Wildcards, sondern der literale Prefix der Discovery-Topics. Gültig ist daher typischerweise `homeassistant`, nicht `#`.
 - Wildcards wie `#` oder `+` gehören nur in die Subscription des MQTT-Clients, z. B. `homeassistant/#` oder `#`.
+- Wenn der Broker lokal als Symcon MQTT Server laeuft, kann der MQTT Client direkt auf diesen Broker verbunden werden, z. B. Host `127.0.0.1` und Port `1028`.
 - `BundlePath`: Dateiname oder absoluter Pfad zum Discovery-Bundle. Relative Angaben werden gegen `<modulpath>/tests/fixtures` aufgelöst.
 - `BundleCurrentSessionOnly`: Lädt aus dem Bundle nur Discovery-Configs und Topic-Payloads der exportierten Session.
 - `ReplayTopicsOnApply`: Replayed im Bundle-Modus nach `ApplyChanges()` alle gecachten Runtime-Topics einmal an die Child-Instanzen.
@@ -101,4 +103,4 @@ Empfohlene Verwendung:
 
 ## Hinweis
 
-Dieser Splitter ist bewusst vom bestehenden Home Assistant Splitter getrennt. Er verwaltet keine REST-Verbindung und keinen `mqtt_statestream`, sondern arbeitet direkt mit MQTT-Discovery-Payloads und deren Runtime-Topics. Für einen vollständigen Discovery-Cache wird ein MQTT Client als Parent benötigt, damit die retained `homeassistant/.../config` Topics sauber replayed werden. Wenn bereits lange eine bestehende Broker-Verbindung läuft, kann ein manueller IO-Reconnect nötig sein, damit alle retained Discovery-Topics erneut eingelesen werden.
+Dieser Splitter ist bewusst vom bestehenden Home Assistant Splitter getrennt. Er verwaltet keine REST-Verbindung und keinen `mqtt_statestream`, sondern arbeitet direkt mit MQTT-Discovery-Payloads und deren Runtime-Topics. Für einen vollständigen Discovery-Cache wird ein MQTT Client als Parent benötigt, damit die retained `homeassistant/.../config` Topics sauber replayed werden. Der entscheidende Punkt ist also nicht "Client statt Broker", sondern der abonnierende Client mit Reconnect- und Replay-Verhalten. Wenn der Broker als Symcon MQTT Server läuft, kann der benötigte MQTT Client direkt auf diesen lokalen Broker zeigen. Wenn bereits lange eine bestehende Broker-Verbindung läuft, kann ein manueller IO-Reconnect nötig sein, damit alle retained Discovery-Topics erneut eingelesen werden.

@@ -103,6 +103,7 @@ Typische Module in diesem Pfad:
 ### Für MQTT Discovery
 
 - MQTT Client in Symcon
+- Wenn der Symcon MQTT Server als Broker genutzt wird, bleibt fuer den Discovery-Pfad trotzdem ein MQTT Client erforderlich. Der MQTT-Client kann dabei direkt auf den lokalen MQTT Server zeigen, z. B. `127.0.0.1:1028`.
 - ein Gerät oder Dienst, das bzw. der Home Assistant MQTT Discovery an den Broker meldet
 - passende Subscription für die Discovery-Meldungen, typischerweise `homeassistant/#`
 - zusätzlich die MQTT-Topics des Geräts oder Dienstes, damit aktuelle Werte ankommen, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`
@@ -131,6 +132,7 @@ mqtt_statestream:
 ### 4.2 MQTT Discovery
 
 1. MQTT Client in Symcon einrichten.
+   Wenn der Broker als Symcon MQTT Server laeuft, kann der MQTT Client direkt auf diesen Server verbunden werden, z. B. per `127.0.0.1:1028`.
 2. Subscription so setzen, dass mindestens `homeassistant/#` empfangen wird.
 3. Zusätzlich die Topics des Geräts oder Dienstes abonnieren, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 4. `Home Assistant MQTT Discovery Splitter` anlegen und mit diesem MQTT-Client verbinden.
@@ -158,6 +160,9 @@ Im Bundle-Modus werden aktuell keine Befehle an Geräte gesendet.
 | `switch`        | voll      | schaltbar                                                            |
 | `binary_sensor` | voll      | `device_class` und Icons                                             |
 | `number`        | voll      | Slider, Min/Max/Step, REST `set_value`; gilt auch für `input_number` |
+| `input_text`    | voll      | String-Wert, REST `set_value`                                         |
+| `datetime`      | voll      | Integer-Zeitwert, REST `set_value`                                    |
+| `input_datetime`| voll      | Integer-Zeitwert, REST `set_datetime`                                 |
 | `sensor`        | voll      | Units, Suffixe, `enum` als Enumeration                               |
 | `select`        | voll      | Enumeration                                                          |
 | `climate`       | voll      | Solltemperatur, Modus, Preset, Lüfter, Swing, Ein/Aus, Zielfeuchte   |
@@ -259,6 +264,12 @@ Nein. Es reicht ein Gerät oder Dienst, das bzw. der Home Assistant MQTT Discove
 ### Kann ich beide Pfade gleichzeitig betreiben?
 
 Ja. Die Modulgruppen sind absichtlich getrennt und können parallel genutzt werden.
+
+### Warum braucht MQTT Discovery einen MQTT Client und nicht nur den MQTT Server?
+
+Der MQTT-Discovery-Pfad baut seinen Discovery-Cache aus den retained `homeassistant/.../config` Topics auf. Dafuer braucht der Splitter einen abonnierenden MQTT Client als Parent, der die Discovery- und Runtime-Topics aktiv vom Broker empfaengt und bei einem Reconnect erneut als retained Replay bekommt. Genau darauf basiert auch die Funktion `MQTT-IO reconnecten`.
+
+Der Symcon MQTT Server kann dabei weiterhin der Broker sein. Fuer den Discovery-Pfad wird dann zusaetzlich ein MQTT Client verwendet, dessen IO direkt auf den lokalen MQTT Server zeigen kann, z. B. `127.0.0.1:1028`.
 
 ### Spenden
 

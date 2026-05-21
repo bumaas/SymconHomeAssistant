@@ -194,6 +194,8 @@ trait HAEntityConfigBuilderTrait
             ],
             HASelectDefinitions::DOMAIN => ['options'],
             HANumberDefinitions::DOMAIN => ['mode'],
+            HADateTimeDefinitions::DOMAIN,
+            HAInputDateTimeDefinitions::DOMAIN => ['has_date', 'has_time'],
             HAFanDefinitions::DOMAIN => ['preset_modes', 'direction_list'],
             HAHumidifierDefinitions::DOMAIN => ['available_modes', 'min_humidity', 'max_humidity', 'target_humidity_step'],
             HAMediaPlayerDefinitions::DOMAIN => ['source_list', 'sound_mode_list', 'volume_step'],
