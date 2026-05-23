@@ -436,7 +436,9 @@ trait HAAttributeHandlersTrait
         $this->refreshStatefulAttributeValues(
             $entityId,
             static fn(array $attributes): bool => $attributes !== [],
-            fn(string $id, array $attributes, string $state): bool => $this->updateCoverAttributeValues($id, $attributes, $state)
+            function (string $id, array $attributes, string $state): void {
+                $this->updateCoverAttributeValues($id, $attributes, $state);
+            }
         );
 
         return true;
@@ -453,7 +455,9 @@ trait HAAttributeHandlersTrait
         $this->refreshStatefulAttributeValues(
             $entityId,
             static fn(array $attributes): bool => $attributes !== [],
-            fn(string $id, array $attributes, string $state): bool => $this->updateValveAttributeValues($id, $attributes, $state)
+            function (string $id, array $attributes, string $state): void {
+                $this->updateValveAttributeValues($id, $attributes, $state);
+            }
         );
         return true;
     }
