@@ -164,6 +164,9 @@ trait HADomainRegistryTrait
             HAImageDefinitions::DOMAIN => [
                 'maintainImageAttributeVariables'
             ],
+            HADeviceTrackerDefinitions::DOMAIN => [
+                'maintainDeviceTrackerAttributeVariables'
+            ],
             HAEventDefinitions::DOMAIN => [
                 'maintainEventAttributeVariables'
             ]
@@ -197,7 +200,8 @@ trait HADomainRegistryTrait
             HAHumidifierDefinitions::DOMAIN => 'updateHumidifierEntityValue',
             HAMediaPlayerDefinitions::DOMAIN => 'updateMediaPlayerEntityValue',
             HACameraDefinitions::DOMAIN => 'updateCameraEntityValue',
-            HAImageDefinitions::DOMAIN => 'updateImageEntityValue'
+            HAImageDefinitions::DOMAIN => 'updateImageEntityValue',
+            HADeviceTrackerDefinitions::DOMAIN => 'updateDeviceTrackerEntityValue'
         ];
 
         return $handlers[$domain] ?? null;
@@ -422,6 +426,23 @@ trait HADomainRegistryTrait
         }
 
         $this->updateImageAttributeValues($entityId, $attributes);
+        $this->finalizeEntityStateUpdate($entityId, $state, $attributes);
+    }
+
+    protected function updateDeviceTrackerEntityValue(string $entityId, string $ident, array $parsed): void
+    {
+        $attributes = $this->storeUpdatedEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
+        $state = $parsed[self::KEY_STATE] ?? null;
+        if (is_string($state) && $state !== '') {
+            $this->setEntityMainValue(
+                $entityId,
+                $ident,
+                $this->convertValueByDomain(HADeviceTrackerDefinitions::DOMAIN, $state, $attributes),
+                $state
+            );
+        }
+
+        $this->updateDeviceTrackerAttributeValues($entityId, $attributes);
         $this->finalizeEntityStateUpdate($entityId, $state, $attributes);
     }
 

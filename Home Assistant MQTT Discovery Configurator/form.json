@@ -9,6 +9,10 @@
           "type": "CheckBox",
           "name": "ShowBridgeDevices",
           "caption": "Show bridge devices"
+        },
+        {
+          "type": "Label",
+          "caption": "Shows or hides technical bridge devices in the device list."
         }
       ]
     },

@@ -35,8 +35,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string ATTR_TOPIC_PROCESSING_INDEX = 'TopicProcessingIndex';
     private const int ENTITY_POSITION_STEP = 10;
     private const int TRIGGER_RESET_VALUE = -1;
+    private const string IMAGE_PREVIEW_SUFFIX = '_image_preview';
+    private const string LOCK_ACTION_SUFFIX = '_lock_action';
     private const string COVER_ACTION_SUFFIX = '_cover_action';
     private const string COVER_TILT_ACTION_SUFFIX = '_cover_tilt_action';
+    private const int LOCK_ACTION_POSITION_OFFSET = 5;
     private const int COVER_ACTION_POSITION_OFFSET = 5;
     private const int COVER_TILT_ACTION_POSITION_OFFSET = 6;
 
@@ -46,6 +49,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         HASensorDefinitions::DOMAIN,
         HAClimateDefinitions::DOMAIN,
         HANumberDefinitions::DOMAIN,
+        HAImageDefinitions::DOMAIN,
+        HADeviceTrackerDefinitions::DOMAIN,
+        HALockDefinitions::DOMAIN,
         HACoverDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
         HASelectDefinitions::DOMAIN,
@@ -259,6 +265,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
+        if ($target['type'] === 'lock_action') {
+            $this->handleLockActionRequest($Ident, $target['entity'], $Value);
+            return;
+        }
+
         if ($target['type'] === 'cover_tilt_action') {
             $this->handleCoverActionRequest($Ident, $target['entity'], $Value, true);
             return;
@@ -334,6 +345,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             (int)$entity['qos'],
             (bool)$entity['retain']
         );
+
+        if ($entity['component'] === HAButtonDefinitions::DOMAIN) {
+            $this->resetTriggerActionValue($Ident);
+            return;
+        }
 
         if ($entity['optimistic'] || $entity['state_topic'] === '') {
             $this->applyOptimisticValue($entity, $Value);
@@ -670,6 +686,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'entity_id' => $component . '.' . $objectId,
             'component' => $component,
             'object_id' => $objectId,
+            'local_object_id' => $localObjectId,
             'device_name' => $deviceName,
             'name' => $resolvedName,
             'ident' => $this->buildEntityIdent($component, $localObjectId !== '' ? $localObjectId : $objectId),
@@ -687,9 +704,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'payload_on' => $row['payload_on'] ?? null,
             'payload_off' => $row['payload_off'] ?? null,
             'payload_press' => $row['payload_press'] ?? null,
+            'payload_home' => $row['payload_home'] ?? null,
+            'payload_not_home' => $row['payload_not_home'] ?? null,
+            'payload_reset' => $row['payload_reset'] ?? null,
+            'payload_lock' => $row['payload_lock'] ?? null,
+            'payload_unlock' => $row['payload_unlock'] ?? null,
+            'payload_open' => $row['payload_open'] ?? null,
             'event_payload' => $this->normalizeNullableString($this->scalarToString($row['event_payload'] ?? null)),
             'state_on' => $row['state_on'] ?? null,
             'state_off' => $row['state_off'] ?? null,
+            'state_locked' => $row['state_locked'] ?? null,
+            'state_unlocked' => $row['state_unlocked'] ?? null,
+            'state_locking' => $row['state_locking'] ?? null,
+            'state_unlocking' => $row['state_unlocking'] ?? null,
+            'state_jammed' => $row['state_jammed'] ?? null,
             'options' => $this->normalizeOptions($row['options'] ?? null),
             'metadata' => $metadata
         ];
@@ -711,6 +739,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         return [
             'device_class' => $this->normalizeNullableString($metadata['device_class'] ?? null),
+            'source_type' => $this->normalizeNullableString($metadata['source_type'] ?? null),
             'state_class' => $this->normalizeNullableString($metadata['state_class'] ?? null),
             'unit' => $this->normalizeNullableString($metadata['unit'] ?? null),
             'min' => $this->normalizeNumericMetadataValue($metadata['min'] ?? null),
@@ -723,6 +752,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'entity_category' => $this->normalizeNullableString($metadata['entity_category'] ?? null),
             'enabled_by_default' => !array_key_exists('enabled_by_default', $metadata) || $metadata['enabled_by_default'],
             'icon' => $this->normalizeNullableString($metadata['icon'] ?? null),
+            'content_type' => $this->normalizeNullableString($metadata['content_type'] ?? null),
             'brightness' => (bool)($metadata['brightness'] ?? false),
             'brightness_scale' => is_numeric($metadata['brightness_scale'] ?? null) ? (int)$metadata['brightness_scale'] : null,
             'effect' => (bool)($metadata['effect'] ?? false),
@@ -735,6 +765,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'max_color_temp_kelvin' => is_numeric($metadata['max_color_temp_kelvin'] ?? null) ? (int)$metadata['max_color_temp_kelvin'] : null,
             'schema' => $this->normalizeNullableString($metadata['schema'] ?? null),
             'reports_position' => $this->normalizeMetadataBoolean($metadata['reports_position'] ?? false),
+            'state_locked' => $this->normalizeNullableString($metadata['state_locked'] ?? null),
+            'state_unlocked' => $this->normalizeNullableString($metadata['state_unlocked'] ?? null),
+            'state_locking' => $this->normalizeNullableString($metadata['state_locking'] ?? null),
+            'state_unlocking' => $this->normalizeNullableString($metadata['state_unlocking'] ?? null),
+            'state_jammed' => $this->normalizeNullableString($metadata['state_jammed'] ?? null),
             'state_open' => $this->normalizeNullableString($metadata['state_open'] ?? null),
             'state_closed' => $this->normalizeNullableString($metadata['state_closed'] ?? null),
             'state_opening' => $this->normalizeNullableString($metadata['state_opening'] ?? null),
@@ -1025,7 +1060,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'cache' => $this->buildEntitySelectionCacheSummary($entity, $cachedTopics),
                 'mapping' => $this->buildEntitySelectionMappingSummary($entity),
                 'warning' => (string)($warningMap[(string)$entity['entity_key']] ?? ''),
-                'mode' => $this->isEntityWritable($entity) ? 'rw' : 'ro'
+                'mode' => $this->isEntityControllable($entity) ? 'rw' : 'ro'
             ];
         }
 
@@ -1046,6 +1081,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $ident = $entity['ident'];
             $idents[] = $ident;
             $basePosition = $entityOrder * self::ENTITY_POSITION_STEP;
+            $isButtonEntity = ((string)($entity['component'] ?? '') === HAButtonDefinitions::DOMAIN);
 
             $variableType = $this->determineVariableType($entity, $cachedTopics);
             $this->recreateVariableIfTypeChanged($ident, $variableType);
@@ -1063,6 +1099,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 IPS_SetVariableCustomAction($variableId, 0);
             }
 
+            if ($isButtonEntity) {
+                $this->resetTriggerActionValue($ident);
+            }
+
             if ((string)($entity['component'] ?? '') === HALightDefinitions::DOMAIN) {
                 $lightAttributes = $this->extractLightAttributesFromCachedTopics($entity, $cachedTopics);
                 $attributeContext = $this->buildLightAttributeContext($entity, $lightAttributes);
@@ -1070,8 +1110,23 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
+            if ((string)($entity['component'] ?? '') === HAImageDefinitions::DOMAIN) {
+                $idents = array_merge($idents, $this->maintainImagePreviewMedia($entity, $basePosition));
+                continue;
+            }
+
+            if ((string)($entity['component'] ?? '') === HADeviceTrackerDefinitions::DOMAIN) {
+                $idents = array_merge($idents, $this->maintainDeviceTrackerAttributeVariables($entity, $cachedTopics, $basePosition));
+                continue;
+            }
+
             if ((string)($entity['component'] ?? '') === HACoverDefinitions::DOMAIN) {
                 $idents = array_merge($idents, $this->maintainCoverActionVariables($entity, $basePosition));
+                continue;
+            }
+
+            if ((string)($entity['component'] ?? '') === HALockDefinitions::DOMAIN) {
+                $idents = array_merge($idents, $this->maintainLockActionVariable($entity, $basePosition));
             }
         }
 
@@ -1084,6 +1139,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             HABinarySensorDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HALightDefinitions::DOMAIN => VARIABLETYPE_BOOLEAN,
             HASelectDefinitions::DOMAIN, HAButtonDefinitions::DOMAIN, HAEventDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
             HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
+            HAImageDefinitions::DOMAIN => HAImageDefinitions::VARIABLE_TYPE,
+            HALockDefinitions::DOMAIN => HALockDefinitions::VARIABLE_TYPE,
             HACoverDefinitions::DOMAIN => $this->determineCoverVariableType($entity, $cachedTopics),
             HANumberDefinitions::DOMAIN => $this->determineNumberVariableType($entity, $cachedTopics),
             HASensorDefinitions::DOMAIN => $this->determineSensorVariableType($entity, $cachedTopics),
@@ -1157,6 +1214,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return $this->buildSelectPresentation($entity['options'] ?? []);
         }
 
+        if ((string)($entity['component'] ?? '') === HALockDefinitions::DOMAIN) {
+            return $this->buildLockPresentation(is_array($entity['metadata'] ?? null) ? $entity['metadata'] : []);
+        }
+
+        if ((string)($entity['component'] ?? '') === HAImageDefinitions::DOMAIN) {
+            return $this->buildDateTimeValuePresentation(2);
+        }
+
         if ((string)($entity['component'] ?? '') === HASwitchDefinitions::DOMAIN && $variableType === VARIABLETYPE_BOOLEAN) {
             return ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH];
         }
@@ -1219,6 +1284,44 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
             'OPTIONS' => json_encode($presentationOptions, JSON_THROW_ON_ERROR)
+        ];
+    }
+
+    private function buildLockPresentation(array $metadata): array
+    {
+        $supported = $this->getSupportedFeatureFlags($metadata);
+        $allowOpen = $this->supportsFeatureFlag($supported, HALockDefinitions::FEATURE_OPEN);
+        $options = [];
+
+        foreach (HALockDefinitions::STATE_OPTIONS as $value => $stateMeta) {
+            if ($value === 'open' && !$allowOpen) {
+                continue;
+            }
+
+            $options[] = [
+                'Value' => $value,
+                'Caption' => $this->Translate((string)($stateMeta['caption'] ?? $value)),
+                'IconActive' => false,
+                'IconValue' => '',
+                'ColorActive' => false,
+                'ColorValue' => -1
+            ];
+        }
+
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR)
+        ];
+    }
+
+    private function buildDateTimeValuePresentation(int $time): array
+    {
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME,
+            'DATE' => 1,
+            'DAY_OF_THE_WEEK' => false,
+            'MONTH_TEXT' => false,
+            'TIME' => $time
         ];
     }
 
@@ -1438,6 +1541,62 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return HAMqttDiscoveryLightRuntime::extractAttributes($rawValue, $entity['metadata'] ?? []);
     }
 
+    private function extractDeviceTrackerAttributesFromCachedTopics(array $entity, array $cachedTopics): array
+    {
+        $attributes = [];
+
+        $sourceType = $this->normalizeNullableString($entity['metadata']['source_type'] ?? null);
+        if ($sourceType !== null) {
+            $attributes['source_type'] = $sourceType;
+        }
+
+        $attributesTopic = trim((string)($entity['json_attributes_topic'] ?? ''), '/');
+        if ($attributesTopic !== '' && isset($cachedTopics[$attributesTopic])) {
+            $attributes = array_merge(
+                $attributes,
+                $this->extractDeviceTrackerAttributesFromPayload((string)($cachedTopics[$attributesTopic]['payload'] ?? ''))
+            );
+        }
+
+        return $attributes;
+    }
+
+    private function extractDeviceTrackerAttributesFromPayload(string $payload): array
+    {
+        try {
+            $decoded = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $attributes = [];
+        foreach (array_keys(HADeviceTrackerDefinitions::ATTRIBUTE_DEFINITIONS) as $attribute) {
+            if (!array_key_exists($attribute, $decoded)) {
+                continue;
+            }
+            $attributes[$attribute] = $decoded[$attribute];
+        }
+
+        if (isset($attributes['source_type']) && !is_string($attributes['source_type'])) {
+            unset($attributes['source_type']);
+        }
+
+        foreach (['latitude', 'longitude', 'altitude'] as $attribute) {
+            if (isset($attributes[$attribute]) && !is_numeric($attributes[$attribute])) {
+                unset($attributes[$attribute]);
+            }
+        }
+        if (isset($attributes['gps_accuracy']) && !is_numeric($attributes['gps_accuracy'])) {
+            unset($attributes['gps_accuracy']);
+        }
+
+        return $attributes;
+    }
+
     private function buildLightAttributeContext(array $entity, array $runtimeAttributes): array
     {
         $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
@@ -1513,6 +1672,115 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return $idents;
+    }
+
+    private function maintainLockActionVariable(array $entity, int $basePosition): array
+    {
+        if (!$this->hasLockActionControl($entity)) {
+            return [];
+        }
+
+        $ident = $this->buildLockActionIdent((string)($entity['ident_prefix'] ?? $entity['ident']));
+        $this->maintainEnumerationTriggerVariable(
+            $ident,
+            $this->Translate('Select action'),
+            $basePosition + self::LOCK_ACTION_POSITION_OFFSET,
+            $this->buildLockActionOptions(is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [])
+        );
+
+        return [$ident];
+    }
+
+    private function maintainImagePreviewMedia(array $entity, int $basePosition): array
+    {
+        $ident = $this->buildImagePreviewIdent((string)($entity['ident_prefix'] ?? $entity['ident']));
+        $this->ensureImagePreviewMedia(
+            $ident,
+            $this->getImagePreviewMediaName($entity),
+            $basePosition,
+            $this->resolveImagePreviewExtension((string)($entity['metadata']['content_type'] ?? ''), '')
+        );
+        return [$ident];
+    }
+
+    private function maintainDeviceTrackerAttributeVariables(array $entity, array $cachedTopics, int $basePosition): array
+    {
+        $attributeContext = $this->extractDeviceTrackerAttributesFromCachedTopics($entity, $cachedTopics);
+        $sourceType = strtolower(trim((string)($attributeContext['source_type'] ?? $entity['metadata']['source_type'] ?? '')));
+        $expectsGpsAttributes = $sourceType === HADeviceTrackerDefinitions::SOURCE_TYPE_GPS
+            || trim((string)($entity['json_attributes_topic'] ?? '')) !== '';
+        $idents = [];
+
+        foreach (HADeviceTrackerDefinitions::ATTRIBUTE_ORDER as $attribute) {
+            $shouldCreate = array_key_exists($attribute, $attributeContext);
+            if (!$shouldCreate && $expectsGpsAttributes && in_array($attribute, ['latitude', 'longitude', 'gps_accuracy', 'altitude'], true)) {
+                $shouldCreate = true;
+            }
+            if (!$shouldCreate && $attribute === 'source_type' && ($sourceType !== '' || trim((string)($entity['json_attributes_topic'] ?? '')) !== '')) {
+                $shouldCreate = true;
+            }
+            if (!$shouldCreate) {
+                continue;
+            }
+
+            $meta = HADeviceTrackerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+            if (!is_array($meta)) {
+                continue;
+            }
+
+            $ident = $this->buildDeviceTrackerAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), $attribute);
+            $variableType = (int)($meta['type'] ?? VARIABLETYPE_STRING);
+            $this->recreateVariableIfTypeChanged($ident, $variableType);
+            $presentation = $this->buildDeviceTrackerAttributePresentation($attribute, $attributeContext);
+            $position = $basePosition + $this->getDeviceTrackerAttributePositionOffset($attribute);
+            $this->MaintainVariable($ident, (string)($meta['caption'] ?? $attribute), $variableType, $presentation, $position, true);
+
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId !== false) {
+                IPS_SetVariableCustomAction($variableId, 0);
+                $value = array_key_exists($attribute, $attributeContext)
+                    ? $this->castSensorValue($attributeContext[$attribute], $variableType)
+                    : null;
+                if ($value !== null) {
+                    $this->SetValue($ident, $value);
+                }
+            }
+
+            $idents[] = $ident;
+        }
+
+        return $idents;
+    }
+
+    private function buildLockActionOptions(array $metadata): array
+    {
+        $options = [
+            $this->buildEnumerationOption(HALockDefinitions::ACTION_LOCK, $this->Translate('Lock')),
+            $this->buildEnumerationOption(HALockDefinitions::ACTION_UNLOCK, $this->Translate('Unlock'))
+        ];
+
+        if ($this->supportsFeatureFlag($this->getSupportedFeatureFlags($metadata), HALockDefinitions::FEATURE_OPEN)) {
+            $options[] = $this->buildEnumerationOption(HALockDefinitions::ACTION_OPEN, $this->Translate('Open'));
+        }
+
+        return $options;
+    }
+
+    private function hasLockActionControl(array $entity): bool
+    {
+        if (!$entity['create_var']) {
+            return false;
+        }
+
+        if ((string)($entity['component'] ?? '') !== HALockDefinitions::DOMAIN) {
+            return false;
+        }
+
+        if ((string)($entity['command_topic'] ?? '') === '') {
+            return false;
+        }
+
+        return in_array((string)($entity['command_mode'] ?? 'none'), ['payload', 'template'], true);
     }
 
     private function maintainEnumerationTriggerVariable(string $ident, string $caption, int $position, array $options): void
@@ -1616,7 +1884,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $context = $this->buildLightAttributeContext($entity, $runtimeAttributes);
-        $this->maintainLightAttributeVariables($entity, $context, $this->getLightEntityBasePosition($entity));
+        $this->maintainLightAttributeVariables($entity, $context, $this->getEntityBasePosition($entity));
 
         foreach ($runtimeAttributes as $attribute => $value) {
             if (!isset(HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute])) {
@@ -1809,7 +2077,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return ($index === false ? 90 : ((int) $index + 1));
     }
 
-    private function getLightEntityBasePosition(array $entity): int
+    private function getEntityBasePosition(array $entity): int
     {
         $variableId = @$this->GetIDForIdent((string) $entity['ident']);
         if ($variableId === false) {
@@ -1819,9 +2087,37 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return (int) (IPS_GetObject($variableId)['ObjectPosition'] ?? self::ENTITY_POSITION_STEP);
     }
 
+    private function detectImagePreviewExtension(string $contentType): string
+    {
+        $normalized = strtolower(trim($contentType));
+        return match ($normalized) {
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'image/bmp' => 'bmp',
+            'image/svg+xml' => 'svg',
+            default => 'png'
+        };
+    }
+
     private function buildLightAttributeIdent(string $entityIdentPrefix, string $attribute): string
     {
         return $this->buildSharedAttributeIdentFromPrefix($entityIdentPrefix, $attribute);
+    }
+
+    private function buildDeviceTrackerAttributeIdent(string $entityIdentPrefix, string $attribute): string
+    {
+        return $this->buildSharedAttributeIdentFromPrefix($entityIdentPrefix, $attribute);
+    }
+
+    private function buildImagePreviewIdent(string $entityIdentPrefix): string
+    {
+        return $this->buildSharedSuffixIdentFromPrefix($entityIdentPrefix, self::IMAGE_PREVIEW_SUFFIX);
+    }
+
+    private function buildLockActionIdent(string $entityIdentPrefix): string
+    {
+        return $this->buildSharedSuffixIdentFromPrefix($entityIdentPrefix, self::LOCK_ACTION_SUFFIX);
     }
 
     private function buildCoverActionIdent(string $entityIdentPrefix): string
@@ -1836,7 +2132,180 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function getEntityVariableName(array $entity, bool $hasMultipleStatusEntities): string
     {
+        if ((string)($entity['component'] ?? '') === HAImageDefinitions::DOMAIN) {
+            return $this->getImageEntityVariableName($entity);
+        }
+
         return $this->buildSharedEntityVariableName((string)($entity['component'] ?? ''), $entity, $hasMultipleStatusEntities);
+    }
+
+    private function getImageEntityVariableName(array $entity): string
+    {
+        if (!$this->isSharedEntityBoundToDevice($entity)) {
+            return $this->Translate('Last Update');
+        }
+
+        $baseName = $this->getDiscoveryImageEntityBaseName($entity);
+        if ($baseName === '') {
+            return $this->Translate('Last Update');
+        }
+
+        return $baseName . ' (' . $this->Translate('Last Update') . ')';
+    }
+
+    private function getImagePreviewMediaName(array $entity): string
+    {
+        if (!$this->isSharedEntityBoundToDevice($entity)) {
+            return $this->Translate('Image');
+        }
+
+        $baseName = $this->getDiscoveryImageEntityBaseName($entity);
+        return $baseName !== '' ? $baseName : $this->Translate('Image');
+    }
+
+    private function getDiscoveryImageEntityBaseName(array $entity): string
+    {
+        $attributes = $this->getSharedEntityAttributesArray($entity);
+        $friendlyName = $this->stripSharedCurrentInstanceNamePrefix(trim((string)($attributes['friendly_name'] ?? '')));
+        if ($friendlyName !== '') {
+            return $friendlyName;
+        }
+
+        $name = $this->getSharedEntityName($entity);
+        if ($name !== '' && !$this->isGenericDiscoveryImageName($name)) {
+            return $name;
+        }
+
+        $derived = $this->deriveDiscoveryImageLabel($entity);
+        if ($derived !== '') {
+            return $derived;
+        }
+
+        return $name;
+    }
+
+    private function isGenericDiscoveryImageName(string $name): bool
+    {
+        $normalized = strtolower(trim($name));
+        if ($normalized === '') {
+            return true;
+        }
+
+        return preg_match('/^(image|picture|preview)(\s*\([^)]+\))?$/i', $normalized) === 1;
+    }
+
+    private function deriveDiscoveryImageLabel(array $entity): string
+    {
+        $stateTopic = trim((string)($entity['state_topic'] ?? ''), '/');
+        if ($stateTopic !== '') {
+            $topicSegments = array_values(array_filter(explode('/', $stateTopic), static fn(string $segment): bool => $segment !== ''));
+            $topicTail = (string)end($topicSegments);
+            $topicLabel = $this->cleanupDiscoveryImageLabelSource($topicTail);
+            if ($topicLabel !== '') {
+                return $this->humanizeDiscoveryLabel($topicLabel);
+            }
+        }
+
+        foreach (['local_object_id', 'object_id'] as $field) {
+            $value = trim((string)($entity[$field] ?? ''));
+            $labelSource = $this->cleanupDiscoveryImageLabelSource($value);
+            if ($labelSource !== '') {
+                return $this->humanizeDiscoveryLabel($labelSource);
+            }
+        }
+
+        return '';
+    }
+
+    private function cleanupDiscoveryImageLabelSource(string $value): string
+    {
+        $value = trim($value, " \t\n\r\0\x0B/_-");
+        if ($value === '') {
+            return '';
+        }
+
+        $value = preg_replace('/_image$/i', '', $value) ?? $value;
+        return trim($value, " \t\n\r\0\x0B/_-");
+    }
+
+    private function humanizeDiscoveryLabel(string $value): string
+    {
+        $value = preg_replace('/([a-z0-9])([A-Z])/', '$1 $2', trim($value)) ?? trim($value);
+        $value = preg_replace('/[^A-Za-z0-9]+/', ' ', $value) ?? $value;
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        return ucwords(strtolower($value));
+    }
+
+    private function getDeviceTrackerAttributePositionOffset(string $attribute): int
+    {
+        $index = array_search($attribute, HADeviceTrackerDefinitions::ATTRIBUTE_ORDER, true);
+        return $index === false ? 90 : (6 + (int)$index);
+    }
+
+    private function buildDeviceTrackerAttributePresentation(string $attribute, array $attributes): array
+    {
+        unset($attributes);
+
+        $suffix = match ($attribute) {
+            'latitude', 'longitude' => "\u{00B0}",
+            'gps_accuracy', 'altitude' => 'm',
+            default => ''
+        };
+
+        $digits = match ($attribute) {
+            'latitude', 'longitude' => 6,
+            'altitude' => 1,
+            default => null
+        };
+
+        return array_filter([
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'DIGITS' => $digits,
+            'SUFFIX' => $suffix !== '' ? (' ' . $suffix) : null
+        ], static fn(mixed $value): bool => $value !== null);
+    }
+
+    private function ensureImagePreviewMedia(string $ident, string $name, int $basePosition, string $extension): void
+    {
+        $objectId = @$this->GetIDForIdent($ident);
+        if ($objectId !== false) {
+            $object = IPS_GetObject($objectId);
+            if (($object['ObjectType'] ?? null) !== OBJECTTYPE_MEDIA) {
+                return;
+            }
+
+            $this->syncImagePreviewMediaMeta($objectId, $name, $basePosition, $extension);
+            return;
+        }
+
+        $mediaId = IPS_CreateMedia(MEDIATYPE_IMAGE);
+        IPS_SetParent($mediaId, $this->InstanceID);
+        IPS_SetIdent($mediaId, $ident);
+        $this->syncImagePreviewMediaMeta($mediaId, $name, $basePosition, $extension);
+    }
+
+    private function syncImagePreviewMediaMeta(int $mediaId, string $name, int $basePosition, string $extension): void
+    {
+        IPS_SetName($mediaId, $name);
+        IPS_SetPosition($mediaId, $basePosition + 20);
+        IPS_SetParent($mediaId, $this->InstanceID);
+
+        $ident = (string)(IPS_GetObject($mediaId)['ObjectIdent'] ?? '');
+        if ($ident === '') {
+            return;
+        }
+
+        $safeIdent = preg_replace('/\W/', '_', $ident) ?? $ident;
+        IPS_SetMediaFile($mediaId, 'media/ha_image_preview_' . $safeIdent . '.' . $extension, false);
+
+        $media = IPS_GetMedia($mediaId);
+        if ((int)($media['MediaSize'] ?? 0) === 0) {
+            IPS_SetMediaContent($mediaId, 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBA0b9XQAAAABJRU5ErkJggg==');
+        }
     }
 
     private function countActiveStatusEntities(array $entities): int
@@ -1875,17 +2344,27 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $activeLookup = array_fill_keys($activeIdents, true);
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
-            if (IPS_GetObject($childId)['ObjectType'] !== OBJECTTYPE_VARIABLE) {
+            $object = IPS_GetObject($childId);
+            $objectType = (int)($object['ObjectType'] ?? 0);
+            if (!in_array($objectType, [OBJECTTYPE_VARIABLE, OBJECTTYPE_MEDIA], true)) {
                 continue;
             }
 
-            $ident = IPS_GetObject($childId)['ObjectIdent'] ?? '';
+            $ident = $object['ObjectIdent'] ?? '';
             if ($ident === '' || isset($activeLookup[$ident])) {
                 continue;
             }
 
-            if ($this->markVariableAsLegacy($childId)) {
+            if ($objectType === OBJECTTYPE_VARIABLE && $this->markVariableAsLegacy($childId)) {
                 $this->debugExpert(__FUNCTION__, 'Variable als veraltet markiert', [
+                    'ObjectID' => $childId,
+                    'Ident' => $ident
+                ]);
+            }
+
+            if ($objectType === OBJECTTYPE_MEDIA && str_ends_with($ident, self::IMAGE_PREVIEW_SUFFIX)) {
+                IPS_DeleteMedia($childId, true);
+                $this->debugExpert(__FUNCTION__, 'Medienobjekt entfernt', [
                     'ObjectID' => $childId,
                     'Ident' => $ident
                 ]);
@@ -2099,8 +2578,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             if ($topic === '') {
                 continue;
             }
+
+            $payload = (string)($item['payload'] ?? '');
+            if (!empty($item['payload_is_binary'])) {
+                $payloadBase64 = trim((string)($item['payload_base64'] ?? ''));
+                if ($payloadBase64 !== '') {
+                    $decoded = base64_decode($payloadBase64, true);
+                    if ($decoded !== false) {
+                        $payload = $decoded;
+                    }
+                }
+            }
+
             $result[$topic] = [
-                'payload' => (string)($item['payload'] ?? ''),
+                'payload' => $payload,
                 'received_at' => (int)($item['received_at'] ?? 0),
                 'is_current_session' => (bool)($item['is_current_session'] ?? false)
             ];
@@ -2271,6 +2762,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
+        if ((string)($entity['component'] ?? '') === HAImageDefinitions::DOMAIN) {
+            $this->applyImagePayload($entity, $payload, $receivedAt);
+            return;
+        }
+
         $value = $this->extractStateValue($entity, $payload);
         if ($this->isIndeterminateStateValue($value)) {
             return;
@@ -2330,11 +2826,157 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function applyAttributesPayload(array $entity, string $payload): void
     {
-        if ((string)($entity['component'] ?? '') !== HALightDefinitions::DOMAIN) {
+        $component = (string)($entity['component'] ?? '');
+        if ($component === HALightDefinitions::DOMAIN) {
+            $this->applyLightRuntimeAttributes($entity, $payload);
             return;
         }
 
-        $this->applyLightRuntimeAttributes($entity, $payload);
+        if ($component === HADeviceTrackerDefinitions::DOMAIN) {
+            $this->applyDeviceTrackerAttributes($entity, $payload);
+        }
+    }
+
+    private function applyImagePayload(array $entity, string $payload, int $receivedAt = 0): void
+    {
+        $contentType = (string)($entity['metadata']['content_type'] ?? '');
+        $payload = $this->normalizeImagePayload($payload, $contentType);
+        if ($payload === null) {
+            return;
+        }
+
+        $mediaIdent = $this->buildImagePreviewIdent((string)($entity['ident_prefix'] ?? $entity['ident']));
+        $mediaId = @$this->GetIDForIdent($mediaIdent);
+        if ($mediaId === false || (IPS_GetObject($mediaId)['ObjectType'] ?? null) !== OBJECTTYPE_MEDIA) {
+            return;
+        }
+
+        $extension = $this->resolveImagePreviewExtension($contentType, $payload);
+        $this->syncImagePreviewMediaMeta($mediaId, $this->getImagePreviewMediaName($entity), $this->getEntityBasePosition($entity), $extension);
+        IPS_SetMediaContent($mediaId, base64_encode($payload));
+
+        $timestamp = $receivedAt > 0 ? $receivedAt : time();
+        if (@$this->GetIDForIdent((string)$entity['ident']) !== false) {
+            $this->SetValue((string)$entity['ident'], $timestamp);
+        }
+    }
+
+    private function normalizeImagePayload(string $payload, string $contentType): ?string
+    {
+        if ($payload === '' || $payload === '[binary payload omitted]') {
+            return null;
+        }
+
+        if ($this->looksLikeImagePayload($payload, $contentType)) {
+            return $payload;
+        }
+
+        $trimmed = trim($payload);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $candidate = preg_replace('/\s+/', '', $trimmed) ?? $trimmed;
+        if ($candidate !== '' && strlen($candidate) % 4 === 0 && preg_match('/^[A-Za-z0-9+\/=]+$/', $candidate) === 1) {
+            $decoded = base64_decode($candidate, true);
+            if (is_string($decoded) && $decoded !== '' && $this->looksLikeImagePayload($decoded, $contentType)) {
+                return $decoded;
+            }
+        }
+
+        return $payload;
+    }
+
+    private function resolveImagePreviewExtension(string $contentType, string $payload): string
+    {
+        $extension = $this->detectImagePreviewExtension($contentType);
+        if ($extension !== 'png' || str_contains(strtolower(trim($contentType)), 'png')) {
+            return $extension;
+        }
+
+        return $this->detectImagePayloadExtension($payload);
+    }
+
+    private function detectImagePayloadExtension(string $payload): string
+    {
+        foreach ([
+            'png' => static fn(string $value): bool => str_starts_with($value, "\x89PNG\r\n\x1A\n"),
+            'jpg' => static fn(string $value): bool => str_starts_with($value, "\xFF\xD8\xFF"),
+            'gif' => static fn(string $value): bool => str_starts_with($value, 'GIF87a') || str_starts_with($value, 'GIF89a'),
+            'webp' => static fn(string $value): bool => str_starts_with($value, 'RIFF') && substr($value, 8, 4) === 'WEBP',
+            'bmp' => static fn(string $value): bool => str_starts_with($value, 'BM'),
+            'svg' => fn(string $value): bool => $this->looksLikeSvgImagePayload($value)
+        ] as $extension => $matcher) {
+            if ($matcher($payload)) {
+                return $extension;
+            }
+        }
+
+        return 'png';
+    }
+
+    private function looksLikeImagePayload(string $payload, string $contentType): bool
+    {
+        $detectedExtension = $this->detectImagePayloadExtension($payload);
+        $normalizedType = strtolower(trim($contentType));
+        if ($normalizedType === '') {
+            return $detectedExtension !== 'png' || str_starts_with($payload, "\x89PNG\r\n\x1A\n");
+        }
+
+        return match ($normalizedType) {
+            'image/jpeg', 'image/jpg' => $detectedExtension === 'jpg',
+            'image/gif' => $detectedExtension === 'gif',
+            'image/webp' => $detectedExtension === 'webp',
+            'image/bmp' => $detectedExtension === 'bmp',
+            'image/svg+xml' => $detectedExtension === 'svg',
+            default => str_starts_with($payload, "\x89PNG\r\n\x1A\n")
+        };
+    }
+
+    private function looksLikeSvgImagePayload(string $payload): bool
+    {
+        $trimmed = ltrim($payload);
+        if ($trimmed === '') {
+            return false;
+        }
+
+        if (str_starts_with($trimmed, '<svg')) {
+            return true;
+        }
+
+        return str_starts_with($trimmed, '<?xml') && str_contains($trimmed, '<svg');
+    }
+
+    private function applyDeviceTrackerAttributes(array $entity, string $payload): void
+    {
+        $attributes = $this->extractDeviceTrackerAttributesFromPayload($payload);
+        $sourceType = $this->normalizeNullableString($entity['metadata']['source_type'] ?? null);
+        if ($sourceType !== null && !array_key_exists('source_type', $attributes)) {
+            $attributes['source_type'] = $sourceType;
+        }
+
+        if ($attributes === []) {
+            return;
+        }
+
+        foreach ($attributes as $attribute => $value) {
+            $meta = HADeviceTrackerDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+            if (!is_array($meta)) {
+                continue;
+            }
+
+            $ident = $this->buildDeviceTrackerAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), $attribute);
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId === false) {
+                continue;
+            }
+
+            $castValue = $this->castSensorValue($value, (int)($meta['type'] ?? VARIABLETYPE_STRING));
+            if ($castValue !== null) {
+                $this->SetValue($ident, $castValue);
+            }
+        }
+
     }
 
     private function extractStateValue(array $entity, string $payload): mixed
@@ -2395,6 +3037,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return HAMqttDiscoveryLightRuntime::extractStateValue($value);
         }
 
+        if ($component === HADeviceTrackerDefinitions::DOMAIN) {
+            return $this->normalizeDeviceTrackerStateValue($value, $entity);
+        }
+
+        if ($component === HALockDefinitions::DOMAIN) {
+            return $this->normalizeLockStateValue($value, $entity);
+        }
+
         if ($component === HACoverDefinitions::DOMAIN) {
             return $this->normalizeCoverStateValue($value, is_array($entity['metadata'] ?? null) ? $entity['metadata'] : []);
         }
@@ -2428,6 +3078,35 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return $this->normalizeCoverStateToken($text, $metadata) ?? strtolower($text);
     }
 
+    private function normalizeDeviceTrackerStateValue(mixed $value, array $entity): ?string
+    {
+        $text = $this->normalizeNullableString($this->scalarToString($value));
+        if ($text === null) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($text));
+        if ($normalized === '') {
+            return null;
+        }
+
+        foreach ([
+            $this->normalizeNullableString($this->scalarToString($entity['payload_home'] ?? null)) => 'home',
+            $this->normalizeNullableString($this->scalarToString($entity['payload_not_home'] ?? null)) => 'not_home',
+            $this->normalizeNullableString($this->scalarToString($entity['payload_reset'] ?? null)) => ''
+        ] as $raw => $mapped) {
+            if ($raw !== null && $normalized === strtolower($raw)) {
+                return $mapped;
+            }
+        }
+
+        return match ($normalized) {
+            'home' => 'home',
+            'not_home' => 'not_home',
+            default => trim($text)
+        };
+    }
+
     private function normalizeCoverStateToken(string $value, array $metadata): ?string
     {
         $normalizedValue = strtolower(trim($value));
@@ -2457,6 +3136,48 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'closing', 'down' => 'closing',
             'stop', 'stopped' => 'stopped',
             default => null
+        };
+    }
+
+    private function normalizeLockStateValue(mixed $value, array $entity): mixed
+    {
+        $text = $this->normalizeNullableString($this->scalarToString($value));
+        if ($text === null) {
+            return $value;
+        }
+
+        $normalizedValue = strtolower(trim($text));
+        if ($normalizedValue === '') {
+            return null;
+        }
+
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        $candidates = [
+            'locked' => $entity['state_locked'] ?? ($metadata['state_locked'] ?? 'locked'),
+            'unlocking' => $entity['state_unlocking'] ?? ($metadata['state_unlocking'] ?? 'unlocking'),
+            'unlocked' => $entity['state_unlocked'] ?? ($metadata['state_unlocked'] ?? 'unlocked'),
+            'locking' => $entity['state_locking'] ?? ($metadata['state_locking'] ?? 'locking'),
+            'jammed' => $entity['state_jammed'] ?? ($metadata['state_jammed'] ?? 'jammed'),
+            'opening' => 'opening',
+            'open' => $metadata['state_open'] ?? 'open'
+        ];
+
+        foreach ($candidates as $normalized => $raw) {
+            $raw = strtolower(trim((string)$raw));
+            if ($raw !== '' && $normalizedValue === $raw) {
+                return $normalized;
+            }
+        }
+
+        return match ($normalizedValue) {
+            'lock', 'locked' => 'locked',
+            'unlock', 'unlocked' => 'unlocked',
+            'locking' => 'locking',
+            'unlocking' => 'unlocking',
+            'jammed' => 'jammed',
+            'opening' => 'opening',
+            'open', 'opened', 'open_latch', 'unlatch' => 'open',
+            default => $normalizedValue
         };
     }
 
@@ -2670,6 +3391,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($component === HANumberDefinitions::DOMAIN) {
             return in_array($entity['command_mode'], ['payload', 'template'], true);
         }
+        if ($component === HALockDefinitions::DOMAIN) {
+            return false;
+        }
         if ($component === HACoverDefinitions::DOMAIN) {
             return in_array($entity['command_mode'], ['payload', 'template'], true);
         }
@@ -2699,6 +3423,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         if ($entity['component'] === HALightDefinitions::DOMAIN) {
             return HAMqttDiscoveryLightRuntime::buildCommandPayload($value);
+        }
+
+        if ($entity['component'] === HALockDefinitions::DOMAIN) {
+            return $this->buildLockCommandPayload($entity, $value);
         }
 
         if ($entity['component'] === HACoverDefinitions::DOMAIN) {
@@ -2736,6 +3464,37 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return null;
+    }
+
+    private function buildLockCommandPayload(array $entity, mixed $value): ?string
+    {
+        $command = HALockDefinitions::normalizeCommand($value);
+        if ($command === '') {
+            return null;
+        }
+
+        return $this->buildLockCommandPayloadFromCommand($entity, $command);
+    }
+
+    private function buildLockCommandPayloadFromCommand(array $entity, string $command): ?string
+    {
+        $payload = match ($command) {
+            'lock' => $entity['payload_lock'] ?? 'lock',
+            'unlock' => $entity['payload_unlock'] ?? 'unlock',
+            'open' => $entity['payload_open'] ?? 'open',
+            default => null
+        };
+
+        $payload = $this->scalarToString($payload);
+        if ($payload === null) {
+            return null;
+        }
+
+        if ($entity['command_mode'] === 'template') {
+            return $this->renderCommandTemplate($entity['command_template'], $payload);
+        }
+
+        return $payload;
     }
 
     private function buildCoverCommandPayload(array $entity, mixed $value): ?string
@@ -2779,6 +3538,46 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return $payload;
+    }
+
+    private function handleLockActionRequest(string $ident, array $entity, mixed $value): void
+    {
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        $action = is_numeric($value) ? (int)$value : null;
+        [$requiredFeature, $command] = $this->resolveLockActionCommand($action);
+        if ($command === null) {
+            return;
+        }
+
+        $supported = $this->getSupportedFeatureFlags($metadata);
+        if ($requiredFeature !== 0 && $supported !== 0 && !$this->supportsFeatureFlag($supported, $requiredFeature)) {
+            return;
+        }
+
+        $payload = $this->buildLockCommandPayloadFromCommand($entity, $command);
+        if ($payload === null) {
+            $this->debugExpert(__FUNCTION__, 'Lock-Command konnte nicht erstellt werden', [
+                'Ident' => $ident,
+                'EntityKey' => $entity['entity_key'] ?? '',
+                'Command' => $command
+            ], true);
+            return;
+        }
+
+        $this->debugExpert(__FUNCTION__, 'Sende Lock-Aktion', [
+            'Ident' => $ident,
+            'EntityKey' => $entity['entity_key'] ?? '',
+            'Topic' => $entity['command_topic'] ?? '',
+            'Payload' => $payload,
+            'Command' => $command
+        ]);
+
+        $this->sendMqttMessage((string)$entity['command_topic'], $payload, (int)$entity['qos'], (bool)$entity['retain']);
+        $this->resetTriggerActionValue($ident);
+
+        if ($entity['optimistic'] || $entity['state_topic'] === '') {
+            $this->applyOptimisticValue($entity, $command);
+        }
     }
 
     private function handleCoverActionRequest(string $ident, array $entity, mixed $value, bool $tilt): void
@@ -2852,6 +3651,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             HACoverDefinitions::ACTION_OPEN => [HACoverDefinitions::FEATURE_OPEN, 'open'],
             HACoverDefinitions::ACTION_CLOSE => [HACoverDefinitions::FEATURE_CLOSE, 'close'],
             HACoverDefinitions::ACTION_STOP => [HACoverDefinitions::FEATURE_STOP, 'stop'],
+            default => [0, null]
+        };
+    }
+
+    private function resolveLockActionCommand(?int $action): array
+    {
+        return match ($action) {
+            HALockDefinitions::ACTION_LOCK => [0, 'lock'],
+            HALockDefinitions::ACTION_UNLOCK => [0, 'unlock'],
+            HALockDefinitions::ACTION_OPEN => [HALockDefinitions::FEATURE_OPEN, 'open'],
             default => [0, null]
         };
     }
@@ -3026,6 +3835,19 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
+        if ($entity['component'] === HALockDefinitions::DOMAIN) {
+            $normalized = $this->normalizeLockStateValue($value, $entity);
+            if ($normalized === null) {
+                return;
+            }
+
+            $stringValue = $this->scalarToString($normalized);
+            if ($stringValue !== null) {
+                $this->SetValue($ident, $stringValue);
+            }
+            return;
+        }
+
         if ($entity['component'] === HACoverDefinitions::DOMAIN) {
             $variableId = @$this->GetIDForIdent($ident);
             if ($variableId === false) {
@@ -3174,6 +3996,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         foreach ($entities as $lightEntity) {
+            if ((string)($lightEntity['component'] ?? '') === HALockDefinitions::DOMAIN) {
+                $identPrefix = (string)($lightEntity['ident_prefix'] ?? $lightEntity['ident']);
+                if ($this->buildLockActionIdent($identPrefix) === $ident) {
+                    return [
+                        'type' => 'lock_action',
+                        'entity' => $lightEntity
+                    ];
+                }
+            }
+
             if ((string)($lightEntity['component'] ?? '') === HACoverDefinitions::DOMAIN) {
                 $identPrefix = (string)($lightEntity['ident_prefix'] ?? $lightEntity['ident']);
                 if ($this->buildCoverActionIdent($identPrefix) === $ident) {
@@ -3214,6 +4046,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function findEntityByIdent(array $entities, string $ident): ?array
     {
         return array_find($entities, static fn($entity) => $entity['ident'] === $ident);
+    }
+
+    private function isEntityControllable(array $entity): bool
+    {
+        return $this->isEntityWritable($entity) || $this->hasLockActionControl($entity);
     }
 
     private function buildEntityLookup(array $entities): array
@@ -3482,6 +4319,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $modes = $entity['metadata']['supported_color_modes'] ?? [];
             if (is_array($modes) && $modes !== []) {
                 $parts[] = 'modes:' . implode(',', $modes);
+            }
+        }
+
+        if ((string)($entity['component'] ?? '') === HAImageDefinitions::DOMAIN) {
+            $contentType = $this->normalizeNullableString($entity['metadata']['content_type'] ?? null);
+            if ($contentType !== null) {
+                $parts[] = 'image:' . $contentType;
+            }
+        }
+
+        if ((string)($entity['component'] ?? '') === HADeviceTrackerDefinitions::DOMAIN) {
+            $sourceType = $this->normalizeNullableString($entity['metadata']['source_type'] ?? null);
+            if ($sourceType !== null) {
+                $parts[] = 'tracker:' . $sourceType;
             }
         }
 

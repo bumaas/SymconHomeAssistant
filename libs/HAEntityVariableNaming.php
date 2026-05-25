@@ -16,6 +16,7 @@ trait HAEntityVariableNamingTrait
         return match ($domain) {
             HAClimateDefinitions::DOMAIN => $this->getSharedClimateEntityVariableName($entity),
             HAImageDefinitions::DOMAIN => $this->getSharedImageEntityVariableName($entity),
+            HADeviceTrackerDefinitions::DOMAIN => $this->getSharedDeviceTrackerEntityVariableName($entity),
             HACoverDefinitions::DOMAIN => $this->getSharedCoverVariableName($entity, $hasMultipleStatusEntities),
             HAValveDefinitions::DOMAIN => $this->getSharedValveVariableName($entity, $hasMultipleStatusEntities),
             HAButtonDefinitions::DOMAIN => $this->getSharedButtonVariableName($entity),
@@ -55,6 +56,12 @@ trait HAEntityVariableNamingTrait
         }
 
         return $this->Translate('Last Update');
+    }
+
+    private function getSharedDeviceTrackerEntityVariableName(array $entity): string
+    {
+        $name = $this->getSharedEntityName($entity);
+        return $name !== '' ? $name : $this->Translate('Location');
     }
 
     private function getSharedStatusEntityVariableName(string $domain, bool $hasMultipleStatusEntities): string

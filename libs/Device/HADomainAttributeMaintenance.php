@@ -101,6 +101,30 @@ trait HADomainAttributeMaintenanceTrait
         $this->updateImageAttributeValues($entity['entity_id'], $attributes);
     }
 
+    protected function maintainDeviceTrackerAttributeVariables(array $entity): void
+    {
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+        $attributes = $this->normalizeDeviceTrackerAttributes($attributes, __FUNCTION__);
+
+        $basePosition = $this->getEntityPosition((string)($entity['entity_id'] ?? ''));
+        $this->maintainStandardAttributeVariables(
+            ['entity_id' => $entity['entity_id'] ?? '', 'attributes' => $attributes],
+            HADeviceTrackerDefinitions::ATTRIBUTE_DEFINITIONS,
+            static fn(string $attribute, array $_meta, array $entityAttributes): bool => array_key_exists($attribute, $entityAttributes),
+            fn(string $attribute, array $entityAttributes, array $_meta): array => $this->getDeviceTrackerAttributePresentation($attribute, $entityAttributes),
+            fn(string $attribute, int $positionBase): int => $this->getDeviceTrackerAttributePosition($attribute, $positionBase),
+            function (string $_attribute, array $_attributes, string $ident): void {
+                $this->syncAttributeActionState($ident, false);
+            },
+            $basePosition
+        );
+
+        $this->updateDeviceTrackerAttributeValues((string)($entity['entity_id'] ?? ''), $attributes);
+    }
+
     // Event trennt Zeitstempel und Ereignistyp in zwei eigene Symcon-Variablen.
     protected function maintainEventAttributeVariables(array $entity): void
     {
@@ -167,6 +191,36 @@ trait HADomainAttributeMaintenanceTrait
             $this->getImagePreviewMediaName($entityId),
             'ImagePreview',
             'ha_image_preview'
+        );
+    }
+
+    protected function ensureDeviceTrackerAttributeVariable(string $entityId, string $attribute): bool
+    {
+        $basePosition = $this->getEntityPosition($entityId);
+
+        return $this->ensureStandardAttributeVariable(
+            $entityId,
+            $attribute,
+            HADeviceTrackerDefinitions::ATTRIBUTE_DEFINITIONS,
+            static fn(string $attributeName, array $_meta, array $attributes): bool => array_key_exists($attributeName, $attributes),
+            fn(string $attributeName, array $attributes, array $_meta): array => $this->getDeviceTrackerAttributePresentation($attributeName, $attributes),
+            fn(string $attributeName, int $positionBase): int => $this->getDeviceTrackerAttributePosition($attributeName, $positionBase),
+            function (string $_attributeName, array $_attributes, string $ident): void {
+                $this->syncAttributeActionState($ident, false);
+            },
+            $basePosition,
+            ['name' => $entityId, 'attributes' => []]
+        );
+    }
+
+    protected function updateDeviceTrackerAttributeValues(string $entityId, array $attributes): void
+    {
+        $attributes = $this->normalizeDeviceTrackerAttributes($attributes, __FUNCTION__);
+        $this->updateStandardAttributeValues(
+            $entityId,
+            $attributes,
+            HADeviceTrackerDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $_attribute, mixed $value, array $meta): string|int|bool|float => $this->castVariableValue($value, $meta['type'])
         );
     }
 
@@ -1446,6 +1500,37 @@ trait HADomainAttributeMaintenanceTrait
             return $basePosition + 90;
         }
         return $basePosition + 6 + $index;
+    }
+
+    private function getDeviceTrackerAttributePosition(string $attribute, int $basePosition): int
+    {
+        $index = array_search($attribute, HADeviceTrackerDefinitions::ATTRIBUTE_ORDER, true);
+        if ($index === false) {
+            return $basePosition + 90;
+        }
+
+        return $basePosition + 6 + $index;
+    }
+
+    private function getDeviceTrackerAttributePresentation(string $attribute, array $attributes): array
+    {
+        $suffix = match ($attribute) {
+            'latitude', 'longitude' => "\u{00B0}",
+            'gps_accuracy', 'altitude' => 'm',
+            default => ''
+        };
+
+        $digits = match ($attribute) {
+            'latitude', 'longitude' => 6,
+            'altitude' => 1,
+            default => null
+        };
+
+        return $this->filterPresentation([
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'DIGITS' => $digits,
+            'SUFFIX' => $this->formatPresentationSuffix($suffix !== '' ? $suffix : $this->getPresentationSuffix($attributes))
+        ]);
     }
     protected function getMediaPlayerCoverPosition(int $basePosition): int
     {

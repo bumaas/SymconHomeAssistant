@@ -201,6 +201,7 @@ trait HAEntityConfigBuilderTrait
             HAMediaPlayerDefinitions::DOMAIN => ['source_list', 'sound_mode_list', 'volume_step'],
             HACameraDefinitions::DOMAIN => ['stream_source', 'rtsp_url', 'frontend_stream_type'],
             HAImageDefinitions::DOMAIN => ['entity_picture', 'entity_picture_local', 'url'],
+            HADeviceTrackerDefinitions::DOMAIN => ['source_type', 'latitude', 'longitude', 'gps_accuracy', 'altitude'],
             default => []
         };
     }

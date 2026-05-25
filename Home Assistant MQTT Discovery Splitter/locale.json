@@ -20,6 +20,7 @@
       "Last MQTT message: never": "Letzte MQTT-Message: nie",
       "MQTT Session: no active session": "MQTT-Session: keine aktive Session",
       "Bundle: inactive": "Bundle: nicht aktiv",
+      "Discovery configs from previous MQTT sessions are still cached. Reconnect/restart the producer and reapply Splitter and Device.": "Discovery-Configs aus frueheren MQTT-Sessions liegen noch im Cache. Producer neu verbinden oder neu starten und danach Splitter und Device erneut uebernehmen.",
       "MQTT Discovery Prefix: - | Discovery configs total/current/stale: 0/0/0": "MQTT Discovery Prefix: - | Discovery-Configs gesamt/aktuell/veraltet: 0/0/0",
       "Stale discovery topics: -": "Veraltete Discovery-Topics: -",
       "Referenced runtime topics total/current/stale/missing: 0/0/0/0": "Referenzierte Runtime-Topics gesamt/aktuell/veraltet/fehlend: 0/0/0/0",

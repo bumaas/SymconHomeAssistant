@@ -90,6 +90,12 @@
           "caption": "Bundle: inactive"
         },
         {
+          "type": "PopupAlert",
+          "name": "DiagDiscoveryAlert",
+          "visible": false,
+          "caption": "Discovery configs from previous MQTT sessions are still cached. Reconnect/restart the producer and reapply Splitter and Device."
+        },
+        {
           "type": "Label",
           "name": "DiagDiscovery",
           "caption": "MQTT Discovery Prefix: - | Discovery configs total/current/stale: 0/0/0"

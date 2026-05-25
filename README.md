@@ -177,6 +177,7 @@ Im Bundle-Modus werden aktuell keine Befehle an Geräte gesendet.
 | `media_player`  | teilweise | Status, Aktionen, Attribute, Cover                                   |
 | `camera`        | teilweise | Status plus Bild-Vorschau als Medienobjekt                           |
 | `image`         | teilweise | Bild-Entität als Medienobjekt                                        |
+| `device_tracker`| teilweise | Status plus Positionsattribute wie Latitude/Longitude                |
 | `button`        | voll      | `press`                                                              |
 | `input_button`  | voll      | `press`                                                              |
 
@@ -193,6 +194,8 @@ Aktuell unterstützt der MQTT-Discovery-Pfad folgende Komponenten:
 - `select`
 - `button`
 - `light`
+- `image`
+- `device_tracker`
 
 Zusätzlich werden einfache Zigbee2MQTT-`device_automation`-Trigger unterstützt.
 

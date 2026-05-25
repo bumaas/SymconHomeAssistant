@@ -120,6 +120,9 @@ trait HAEntityNormalizationTrait
         if ($domain === HAImageDefinitions::DOMAIN) {
             return $this->normalizeImageAttributes($attributes);
         }
+        if ($domain === HADeviceTrackerDefinitions::DOMAIN) {
+            return $this->normalizeDeviceTrackerAttributes($attributes);
+        }
         if ($domain === HAHumidifierDefinitions::DOMAIN) {
             return $this->mapHumidifierAttributeAliases($attributes);
         }
@@ -197,6 +200,27 @@ trait HAEntityNormalizationTrait
             } elseif (array_key_exists('url', $attributes) && trim((string) $attributes['url']) !== '') {
                 $attributes['entity_picture'] = $attributes['url'];
             }
+        }
+
+        return $attributes;
+    }
+
+    protected function normalizeDeviceTrackerAttributes(array $attributes, ?string $context = null): array
+    {
+        unset($context);
+
+        if (isset($attributes['source_type']) && is_string($attributes['source_type'])) {
+            $attributes['source_type'] = trim($attributes['source_type']);
+        }
+
+        foreach (['latitude', 'longitude', 'altitude'] as $key) {
+            if (isset($attributes[$key]) && is_numeric($attributes[$key])) {
+                $attributes[$key] = (float)$attributes[$key];
+            }
+        }
+
+        if (isset($attributes['gps_accuracy']) && is_numeric($attributes['gps_accuracy'])) {
+            $attributes['gps_accuracy'] = (int)$attributes['gps_accuracy'];
         }
 
         return $attributes;

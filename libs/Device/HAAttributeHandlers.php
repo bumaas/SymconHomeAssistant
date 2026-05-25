@@ -68,6 +68,7 @@ trait HAAttributeHandlersTrait
             HAMediaPlayerDefinitions::DOMAIN => 'handleMediaPlayerAttributeTopic',
             HACameraDefinitions::DOMAIN => 'handleCameraAttributeTopic',
             HAImageDefinitions::DOMAIN => 'handleImageAttributeTopic',
+            HADeviceTrackerDefinitions::DOMAIN => 'handleDeviceTrackerAttributeTopic',
             HASelectDefinitions::DOMAIN => 'handleSelectAttributeTopic',
             HALightDefinitions::DOMAIN => 'handleLightAttributeTopic'
         ];
@@ -298,6 +299,26 @@ trait HAAttributeHandlersTrait
 
         $this->storeAttributeTopicValue($entityId, $attribute, $value);
         return true;
+    }
+
+    protected function handleDeviceTrackerAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
+        return $this->handleAttributeTopicWithDefinitions(
+            $entityId,
+            $attribute,
+            $payload,
+            HADeviceTrackerDefinitions::ATTRIBUTE_DEFINITIONS,
+            fn(string $id, string $attr): bool => $this->ensureDeviceTrackerAttributeVariable($id, $attr),
+            [
+                'store_unknown' => true,
+                'store_defined' => true,
+                'update_presentation_unknown' => true,
+                'update_presentation_defined' => true,
+                'post_set' => function (string $id): void {
+                    $this->updateDeviceTrackerAttributeValues($id, $this->getStoredAttributeTopicAttributes($id));
+                }
+            ]
+        );
     }
 
     protected function handleSelectAttributeTopic(string $entityId, string $attribute, string $payload): bool

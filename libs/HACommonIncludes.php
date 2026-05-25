@@ -38,6 +38,7 @@ require_once __DIR__ . '/Domains/HALawnMowerDefinitions.php';
 require_once __DIR__ . '/Domains/HAMediaPlayerDefinitions.php';
 require_once __DIR__ . '/Domains/HACameraDefinitions.php';
 require_once __DIR__ . '/Domains/HAImageDefinitions.php';
+require_once __DIR__ . '/Domains/HADeviceTrackerDefinitions.php';
 require_once __DIR__ . '/Domains/HAButtonDefinitions.php';
 require_once __DIR__ . '/Domains/HAInputButtonDefinitions.php';
 require_once __DIR__ . '/Domains/HAInputTextDefinitions.php';

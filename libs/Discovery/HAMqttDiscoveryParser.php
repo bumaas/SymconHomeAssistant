@@ -10,6 +10,9 @@ final class HAMqttDiscoveryParser
         HASensorDefinitions::DOMAIN,
         HAClimateDefinitions::DOMAIN,
         HANumberDefinitions::DOMAIN,
+        HAImageDefinitions::DOMAIN,
+        HADeviceTrackerDefinitions::DOMAIN,
+        HALockDefinitions::DOMAIN,
         HACoverDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
         HASelectDefinitions::DOMAIN,
@@ -200,12 +203,16 @@ final class HAMqttDiscoveryParser
                 'payload_on'          => $config['payload_on'] ?? null,
                 'payload_off'         => $config['payload_off'] ?? null,
                 'payload_press'       => $config['payload_press'] ?? null,
+                'payload_home'        => $component === HADeviceTrackerDefinitions::DOMAIN ? ($config['payload_home'] ?? null) : null,
+                'payload_not_home'    => $component === HADeviceTrackerDefinitions::DOMAIN ? ($config['payload_not_home'] ?? null) : null,
+                'payload_reset'       => $component === HADeviceTrackerDefinitions::DOMAIN ? ($config['payload_reset'] ?? null) : null,
                 'event_payload'       => null,
                 'event_type'          => null,
                 'event_types'         => [],
                 'options'             => $this->normalizeStringList($config['options'] ?? null),
                 'unit_of_measurement' => $this->resolveComponentUnitOfMeasurement($component, $config),
                 'device_class'        => $this->normalizeNullableString($config['device_class'] ?? null),
+                'source_type'         => $component === HADeviceTrackerDefinitions::DOMAIN ? $this->normalizeNullableString($config['source_type'] ?? null) : null,
                 'state_class'         => $this->normalizeNullableString($config['state_class'] ?? null),
                 'min'                 => $this->resolveComponentNumericConfigValue($component, $config, 'min', HAClimateDefinitions::ATTRIBUTE_MIN_TEMP),
                 'max'                 => $this->resolveComponentNumericConfigValue($component, $config, 'max', HAClimateDefinitions::ATTRIBUTE_MAX_TEMP),
@@ -217,6 +224,7 @@ final class HAMqttDiscoveryParser
                 'entity_category'     => $this->normalizeNullableString($config['entity_category'] ?? null),
                 'enabled_by_default'  => !array_key_exists('enabled_by_default', $config) || $config['enabled_by_default'],
                 'icon'                => $this->normalizeNullableString($config['icon'] ?? null),
+                'content_type'        => $component === HAImageDefinitions::DOMAIN ? $this->normalizeNullableString($config['content_type'] ?? null) : null,
                 'brightness'          => (bool)($config['brightness'] ?? false),
                 'brightness_scale'    => is_numeric($config['brightness_scale'] ?? null) ? (int)$config['brightness_scale'] : null,
                 'effect'              => (bool)($config['effect'] ?? false),
@@ -224,9 +232,18 @@ final class HAMqttDiscoveryParser
                 'supported_features'  => match ($component) {
                     HALightDefinitions::DOMAIN => $this->buildLightSupportedFeatures($config),
                     HAClimateDefinitions::DOMAIN => $this->buildClimateSupportedFeatures($config),
+                    HALockDefinitions::DOMAIN => $this->buildLockSupportedFeatures($config),
                     HACoverDefinitions::DOMAIN => $this->buildCoverSupportedFeatures($config),
                     default => null
                 },
+                'payload_lock'        => $component === HALockDefinitions::DOMAIN ? ($config['payload_lock'] ?? null) : null,
+                'payload_unlock'      => $component === HALockDefinitions::DOMAIN ? ($config['payload_unlock'] ?? null) : null,
+                'payload_open'        => $component === HALockDefinitions::DOMAIN ? ($config['payload_open'] ?? null) : null,
+                'state_locked'        => $component === HALockDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_locked'] ?? null) : null,
+                'state_unlocked'      => $component === HALockDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_unlocked'] ?? null) : null,
+                'state_locking'       => $component === HALockDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_locking'] ?? null) : null,
+                'state_unlocking'     => $component === HALockDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_unlocking'] ?? null) : null,
+                'state_jammed'        => $component === HALockDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_jammed'] ?? null) : null,
                 'supported_color_modes' => $this->normalizeStringList($config['supported_color_modes'] ?? null),
                 'min_mireds'          => is_numeric($config['min_mireds'] ?? null) ? (int)$config['min_mireds'] : null,
                 'max_mireds'          => is_numeric($config['max_mireds'] ?? null) ? (int)$config['max_mireds'] : null,
@@ -234,7 +251,9 @@ final class HAMqttDiscoveryParser
                 'max_color_temp_kelvin' => is_numeric($config['max_color_temp_kelvin'] ?? null) ? (int)$config['max_color_temp_kelvin'] : null,
                 'schema'              => $this->normalizeNullableString($config['schema'] ?? null),
                 'reports_position'    => $component === HACoverDefinitions::DOMAIN && $this->hasCoverPositionMode($config),
-                'state_open'          => $component === HACoverDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_open'] ?? null) : null,
+                'state_open'          => ($component === HACoverDefinitions::DOMAIN || $component === HALockDefinitions::DOMAIN)
+                    ? $this->normalizeNullableString($config['state_open'] ?? null)
+                    : null,
                 'state_closed'        => $component === HACoverDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_closed'] ?? null) : null,
                 'state_opening'       => $component === HACoverDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_opening'] ?? null) : null,
                 'state_closing'       => $component === HACoverDefinitions::DOMAIN ? $this->normalizeNullableString($config['state_closing'] ?? null) : null,
@@ -694,11 +713,16 @@ final class HAMqttDiscoveryParser
             'command_topic',
             'command_template',
             'encoding',
+            'content_type',
             'optimistic',
             'current_temperature_template',
             'current_temperature_topic',
+            'image_topic',
             'position_template',
             'position_topic',
+            'payload_lock',
+            'payload_open',
+            'payload_unlock',
             'qos',
             'retain',
             'action_template',
@@ -716,10 +740,15 @@ final class HAMqttDiscoveryParser
             'set_tilt_position_topic',
             'state_closed',
             'state_closing',
+            'state_jammed',
+            'state_locked',
+            'state_locking',
             'state_open',
             'state_opening',
             'state_stopped',
             'state_topic',
+            'state_unlocked',
+            'state_unlocking',
             'temperature_command_template',
             'temperature_command_topic',
             'temperature_state_template',
@@ -869,6 +898,10 @@ final class HAMqttDiscoveryParser
 
     private function resolveComponentStateTopic(string $component, array $config): ?string
     {
+        if ($component === HAImageDefinitions::DOMAIN) {
+            return $this->normalizeNullableString($config['image_topic'] ?? null);
+        }
+
         return $this->resolveComponentStateConfigValue(
             $component,
             $config,
@@ -981,6 +1014,17 @@ final class HAMqttDiscoveryParser
         $supported = 0;
         if ($this->hasClimateTemperatureMode($config)) {
             $supported |= 1;
+        }
+
+        return $supported;
+    }
+
+    private function buildLockSupportedFeatures(array $config): int
+    {
+        $supported = 0;
+        if ($this->normalizeNullableString($config['payload_open'] ?? null) !== null
+            || $this->normalizeNullableString($config['state_open'] ?? null) !== null) {
+            $supported |= HALockDefinitions::FEATURE_OPEN;
         }
 
         return $supported;

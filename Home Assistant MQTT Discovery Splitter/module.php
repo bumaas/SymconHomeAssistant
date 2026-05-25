@@ -894,8 +894,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             }
 
             $topic = trim((string)($record['topic'] ?? ''), '/');
-            $payload = (string)($record['payload'] ?? '');
-            if ($topic === '' || trim($payload) === '') {
+            $payload = $this->extractRecordPayload($record);
+            if ($topic === '' || $payload === null || $payload === '') {
                 continue;
             }
 
@@ -1429,6 +1429,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'DiagParent' => $parentCaption,
             'DiagSession' => $sessionLabel . $this->buildSessionCaption(),
             'DiagBundle' => $bundleCaption,
+            'DiagDiscoveryAlert' => $this->Translate('Discovery configs from previous MQTT sessions are still cached. Reconnect/restart the producer and reapply Splitter and Device.'),
             'LastMQTTMessage' => $this->Translate('Last MQTT message: ') . $last,
             'DiagDiscovery' => sprintf(
                 $this->Translate('MQTT Discovery Prefix: %s | Discovery configs total/current/stale: %d/%d/%d'),
@@ -1450,6 +1451,13 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 $topicAnalysis['stale_topics']
             )
         ];
+    }
+
+    private function hasStaleDiscoveryConfigs(): bool
+    {
+        $analysis = $this->analyzeDiscoveryConfigRecords();
+
+        return ((int)($analysis['stale_count'] ?? 0)) > 0;
     }
 
     private function applyOutputBufferForStringResponse(string $response, string $context): void
@@ -1480,20 +1488,21 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     {
         $captions = $this->buildDiagnosticsCaptions();
         $isBundleMode = $this->isBundleMode();
+        $hasStaleDiscovery = $this->hasStaleDiscoveryConfigs();
         if (isset($form['elements']) && is_array($form['elements'])) {
-            $this->applyFormItemsState($form['elements'], $captions, $isBundleMode);
+            $this->applyFormItemsState($form['elements'], $captions, $isBundleMode, $hasStaleDiscovery);
         }
         foreach ($form['actions'] as &$action) {
             if (!isset($action['items']) || !is_array($action['items'])) {
                 continue;
             }
 
-            $this->applyFormItemsState($action['items'], $captions, $isBundleMode);
+            $this->applyFormItemsState($action['items'], $captions, $isBundleMode, $hasStaleDiscovery);
         }
         unset($action);
     }
 
-    private function applyFormItemsState(array &$items, array $captions, bool $isBundleMode): void
+    private function applyFormItemsState(array &$items, array $captions, bool $isBundleMode, bool $hasStaleDiscovery): void
     {
         $bundleOnlyFields = [
             'BundleBasePathInfo',
@@ -1506,7 +1515,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         foreach ($items as &$item) {
             if (isset($item['items']) && is_array($item['items'])) {
-                $this->applyFormItemsState($item['items'], $captions, $isBundleMode);
+                $this->applyFormItemsState($item['items'], $captions, $isBundleMode, $hasStaleDiscovery);
             }
 
             $name = (string)($item['name'] ?? '');
@@ -1523,6 +1532,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             }
             if ($name === 'ButtonReplayBundleTopics') {
                 $item['enabled'] = $isBundleMode;
+            }
+            if ($name === 'DiagDiscoveryAlert') {
+                $item['visible'] = $hasStaleDiscovery;
             }
         }
         unset($item);
@@ -1722,10 +1734,14 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'received_at' => max(0, (int)($record['received_at'] ?? 0))
         ];
 
-        if (!empty($record['payload_is_binary'])) {
-            $normalized['payload_is_binary'] = true;
-            $normalized['payload_bytes'] = max(0, (int)($record['payload_bytes'] ?? 0));
-        }
+            if (!empty($record['payload_is_binary'])) {
+                $normalized['payload_is_binary'] = true;
+                $normalized['payload_bytes'] = max(0, (int)($record['payload_bytes'] ?? 0));
+                $payloadBase64 = trim((string)($record['payload_base64'] ?? ''));
+                if ($payloadBase64 !== '') {
+                    $normalized['payload_base64'] = $payloadBase64;
+                }
+            }
 
         $sessionId = trim((string)($record['session_id'] ?? ''));
         if ($sessionId !== '') {
@@ -1768,6 +1784,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         if (!empty($storedPayload['payload_is_binary'])) {
             $record['payload_is_binary'] = true;
             $record['payload_bytes'] = (int)$storedPayload['payload_bytes'];
+            $record['payload_base64'] = (string)$storedPayload['payload_base64'];
         }
 
         $session = $this->readMqttSessionState();
@@ -1815,6 +1832,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'payload' => (string)($record['payload'] ?? ''),
             'payload_is_binary' => (bool)($record['payload_is_binary'] ?? false),
             'payload_bytes' => max(0, (int)($record['payload_bytes'] ?? 0)),
+            'payload_base64' => trim((string)($record['payload_base64'] ?? '')),
             'session_id' => trim((string)($record['session_id'] ?? '')),
             'retained' => array_key_exists('retained', $record) ? (bool)$record['retained'] : null,
             'qos' => array_key_exists('qos', $record) ? max(0, min(2, (int)$record['qos'])) : null,
@@ -1837,10 +1855,26 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         }
 
         return [
-            'payload' => '[binary payload omitted]',
+            'payload' => '[binary payload base64]',
             'payload_is_binary' => true,
-            'payload_bytes' => strlen($payload)
+            'payload_bytes' => strlen($payload),
+            'payload_base64' => base64_encode($payload)
         ];
+    }
+
+    private function extractRecordPayload(array $record): ?string
+    {
+        if (!empty($record['payload_is_binary'])) {
+            $payloadBase64 = trim((string)($record['payload_base64'] ?? ''));
+            if ($payloadBase64 === '') {
+                return null;
+            }
+
+            $decoded = base64_decode($payloadBase64, true);
+            return $decoded === false ? null : $decoded;
+        }
+
+        return (string)($record['payload'] ?? '');
     }
 
     private function isValidUtf8String(string $value): bool
