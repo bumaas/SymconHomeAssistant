@@ -51,13 +51,49 @@ trait HADomainValueMappingTrait
             HABinarySensorDefinitions::DOMAIN,
             HAFanDefinitions::DOMAIN,
             HAHumidifierDefinitions::DOMAIN => strtoupper(trim($valueData)) === 'ON',
-            HAClimateDefinitions::DOMAIN => (float)$valueData,
+            HAClimateDefinitions::DOMAIN => $this->convertClimateValue($valueData, $attributes),
             HAValveDefinitions::DOMAIN => $this->convertValveValue($valueData, $attributes),
             HANumberDefinitions::DOMAIN => $this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER
                 ? (int)$valueData
                 : (float)$valueData,
             default => $valueData,
         };
+    }
+
+    private function convertClimateValue(string $valueData, array $attributes): ?float
+    {
+        if (is_numeric($valueData)) {
+            return (float)$valueData;
+        }
+
+        return $this->extractClimateMainValueFromAttributes($attributes);
+    }
+
+    private function extractClimateMainValueFromAttributes(array $attributes): ?float
+    {
+        $supported = (int)($attributes[HAClimateDefinitions::ATTRIBUTE_SUPPORTED_FEATURES] ?? 0);
+        $preferTarget = ($supported & 1) === 1;
+
+        $candidates = $preferTarget
+            ? [
+                HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+                'temperature',
+                HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE
+            ]
+            : [
+                HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE,
+                HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE,
+                'temperature'
+            ];
+
+        foreach ($candidates as $key) {
+            $value = $attributes[$key] ?? null;
+            if (is_numeric($value)) {
+                return (float)$value;
+            }
+        }
+
+        return null;
     }
 
     private function parseTimestampValue(mixed $value): ?int
