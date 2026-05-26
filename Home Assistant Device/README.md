@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+[![Version](https://img.shields.io/badge/Symcon%20Version-9.0%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant Device
 
 Stellt ein einzelnes Gerät aus einer bestehenden Home-Assistant-Installation in Symcon dar und mappt dessen Entitäten auf Variablen und Medienobjekte.
@@ -64,9 +64,9 @@ Keine öffentlichen Funktionen.
 ## 6. Variablen und Medienobjekte
 
 - Pro Entität wird in der Regel eine Hauptvariable angelegt.
-- Je nach Domain kommen Zusatzvariablen hinzu, z. B. `Power`, `Aktion`, `Lüfterstufe`, `Playback`, `Event Type`.
+- Je nach Domain kommen Zusatzvariablen hinzu, zum Beispiel `Power`, `Aktion`, `Lüfterstufe`, `Playback` oder `Event Type`.
 - Trigger-Variablen werden nach dem Auslösen wieder auf ihren Grundwert zurückgesetzt.
-- Einheiten/Suffixe werden aus `unit_of_measurement`, `native_unit_of_measurement`, `display_unit`, `unit` und `device_class` abgeleitet.
+- Einheiten und Suffixe werden aus `unit_of_measurement`, `native_unit_of_measurement`, `display_unit`, `unit` und `device_class` abgeleitet.
 - Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`.
 - Für `camera`, `image` und `media_player` können zusätzlich Medienobjekte entstehen:
   - Kamera-Vorschau
@@ -85,7 +85,7 @@ Keine öffentlichen Funktionen.
 - `binary_sensor`
   Boolesche Hauptvariable mit textlicher Präsentation und Icon anhand von `device_class`.
 - `sensor`
-  Typableitung über Zustand und Attribute; `enum` mit `options` als Enumeration, `date`/`timestamp` als Zeitwert, `duration` in Symcon-Sekunden.
+  Typableitung über Zustand und Attribute; `enum` mit `options` als Enumeration, `date` und `timestamp` als Zeitwert, `duration` in Symcon-Sekunden.
 - `number`
   Numerische Hauptvariable; Präsentation nutzt `min`, `max`, `step` sowie `native_*` auch bei `mode: box`; Eingaben werden numerisch validiert.
 - `input_text`
@@ -101,29 +101,33 @@ Keine öffentlichen Funktionen.
 - `input_button`
   Alias zu `button`, identisches Verhalten.
 - `lock`
-  Read-only-Status als Enumeration, optionale `open`-Aktion und Zusatzattribute `changed_by` / `code_format`.
+  Read-only-Status als Enumeration, optionale `open`-Aktion und Zusatzattribute `changed_by` und `code_format`.
 - `cover`
-  Je nach `device_class` als Position, Öffnung oder Status; zusätzliche Positions-/Tilt-Attribute gemäß Features. Zusätzlich werden eine Aktionsvariable mit `Open`/`Close`/`Stop` sowie bei passenden Features eine getrennte Tilt-Aktionsvariable mit `Open Tilt`/`Close Tilt`/`Stop Tilt` angelegt.
+  Je nach `device_class` als Position, Öffnung oder Status; zusätzliche Positions- und Tilt-Attribute gemäß Features. Zusätzlich werden eine Aktionsvariable mit `Open`/`Close`/`Stop` sowie bei passenden Features eine getrennte Tilt-Aktionsvariable mit `Open Tilt`/`Close Tilt`/`Stop Tilt` angelegt.
 - `valve`
   Reine Ventile als Status-Enumeration, Positionsventile als 0-100-Hauptvariable; Positionsmodus wird über `current_valve_position`, `current_position`, `reports_position` oder `supported_features` erkannt. Zusätzlich wird eine Aktionsvariable mit `Open`/`Close`/`Stop` gemäß `supported_features` angelegt.
 - `climate`
-  Hauptvariable für Soll- bzw. Ist-Temperatur, zusätzliche Attribute (`hvac_mode`, `hvac_action`, `preset_mode`, `fan_mode`, `swing_mode`, `swing_horizontal_mode`, `target_humidity`, `target_temperature_low/high`), zusätzliche `Power`-Variable bei Turn On/Off.
+  Hauptvariable für Soll- beziehungsweise Ist-Temperatur, zusätzliche Attribute wie `hvac_mode`, `hvac_action`, `preset_mode`, `fan_mode`, `swing_mode`, `swing_horizontal_mode`, `target_humidity` und `target_temperature_low/high`, zusätzliche `Power`-Variable bei Turn On/Off.
 - `fan`
-  Hauptvariable Ein/Aus; Attribute wie `percentage`, `oscillating`, `preset_mode`, `direction`.
+  Hauptvariable Ein/Aus; Attribute wie `percentage`, `oscillating`, `preset_mode` und `direction`.
 - `humidifier`
-  Hauptvariable Ein/Aus; Attribute `target_humidity`, `current_humidity`, `mode`, `action`.
+  Hauptvariable Ein/Aus; Attribute `target_humidity`, `current_humidity`, `mode` und `action`.
 - `media_player`
   Read-only-Status, zusätzliche Attribute gemäß `supported_features`, zusätzliche `Playback`- und `Power`-Variable, Cover-Medienobjekt.
 - `camera`
   Status-Hauptvariable, Kamera-Vorschau, optionaler Stream, zusätzliche `Power`-Variable bei `FEATURE_ON_OFF`.
 - `image`
   Hauptvariable `Last Update` als Zeitstempel und zusätzliche Vorschau als Medienobjekt.
+- `device_tracker`
+  Status-Hauptvariable plus Positions- und Verfügbarkeitsattribute aus den Home-Assistant-Attributen.
+- `update`
+  Read-only Hauptvariable `Update Available`/`Up to Date` plus Zusatzattribute wie `installed_version`, `latest_version`, `skipped_version`, `in_progress`, `update_percentage`, `title`, `release_summary` und `release_url`.
 - `event`
   Hauptvariable `Last Event` plus Zusatzvariable `Event Type`.
 - `vacuum`
-  Status plus Aktionen (`Start`, `Stop`, `Pause`, `Zur Basis`, `Punktreinigung`, `Lokalisieren`) gemäß aktuellen `supported_features`; optionale `Lüfterstufe`.
+  Status plus Aktionen `Start`, `Stop`, `Pause`, `Zur Basis`, `Punktreinigung`, `Lokalisieren` gemäß aktuellen `supported_features`; optionale `Lüfterstufe`.
 - `lawn_mower`
-  Status plus Aktionen (`Start`, `Pause`, `Zur Basis`) gemäß `supported_features`.
+  Status plus Aktionen `Start`, `Pause`, `Zur Basis` gemäß `supported_features`.
 
 ## 8. Icon-Mapping
 
@@ -162,23 +166,23 @@ Keine öffentlichen Funktionen.
 
 ### Vacuum
 
-| Quelle  | Wert        | Icon                   |
-|---------|-------------|------------------------|
-| `state` | `cleaning`  | `robot`                |
-| `state` | `docked`    | `house`                |
-| `state` | `idle`      | `robot`                |
-| `state` | `paused`    | `pause`                |
-| `state` | `returning` | `arrow-rotate-left`    |
+| Quelle  | Wert        | Icon                |
+|---------|-------------|---------------------|
+| `state` | `cleaning`  | `robot`             |
+| `state` | `docked`    | `house`             |
+| `state` | `idle`      | `robot`             |
+| `state` | `paused`    | `pause`             |
+| `state` | `returning` | `arrow-rotate-left` |
 | `state` | `error`     | `triangle-exclamation` |
 
 ### Lawn Mower
 
-| Quelle  | Wert        | Icon                   |
-|---------|-------------|------------------------|
-| `state` | `mowing`    | `leaf`                 |
-| `state` | `docked`    | `house`                |
-| `state` | `paused`    | `pause`                |
-| `state` | `returning` | `arrow-rotate-left`    |
+| Quelle  | Wert        | Icon                |
+|---------|-------------|---------------------|
+| `state` | `mowing`    | `leaf`              |
+| `state` | `docked`    | `house`             |
+| `state` | `paused`    | `pause`             |
+| `state` | `returning` | `arrow-rotate-left` |
 | `state` | `error`     | `triangle-exclamation` |
 
 ## 9. Home Assistant mqtt_statestream

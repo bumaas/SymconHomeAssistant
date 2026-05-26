@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+[![Version](https://img.shields.io/badge/Symcon%20Version-9.0%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant Splitter
 
 Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet eine bestehende Home-Assistant-Installation per `mqtt_statestream` und REST mit den Device-, Entity- und Configurator-Instanzen in Symcon.

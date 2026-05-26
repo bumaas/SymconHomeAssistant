@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+[![Version](https://img.shields.io/badge/Symcon%20Version-9.0%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant MQTT Discovery Splitter
 
 Transportknoten für Geräte oder Dienste, die Home Assistant MQTT Discovery per MQTT publizieren. Eine bestehende Home-Assistant-Installation ist für diesen Pfad nicht erforderlich.

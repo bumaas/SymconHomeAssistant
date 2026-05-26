@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+[![Version](https://img.shields.io/badge/Symcon%20Version-9.0%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant Discovery
 
 Findet bestehende Home-Assistant-Installationen im Netzwerk per mDNS (Service `_home-assistant._tcp`) und erstellt daraus Configurator-Instanzen für den klassischen Bridge-Pfad.

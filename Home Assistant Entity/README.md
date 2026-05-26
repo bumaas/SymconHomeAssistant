@@ -1,7 +1,7 @@
-[![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+[![Version](https://img.shields.io/badge/Symcon%20Version-9.0%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant Entity
 
-Stellt eine einzelne Entität aus einer bestehenden Home-Assistant-Installation in Symcon dar, die keinem spezifischen Gerät zugeordnet ist (z. B. Helper, Gruppen, Wetter).
+Stellt genau eine Entität aus einer bestehenden Home-Assistant-Installation in Symcon dar, unabhängig davon, ob sie einem Gerät zugeordnet ist oder nicht, zum Beispiel Helper, Gruppen oder Wetter-Entitäten.
 
 ## Dokumentation
 
@@ -46,7 +46,8 @@ Keine öffentlichen Funktionen.
 ## 5. Konfiguration
 
 - `EntityID`
-  Die vollständige Home-Assistant-ID der Entität (z. B. `light.living_room`).
+  Die vollständige Home-Assistant-ID der Entität, zum Beispiel `light.living_room`.
+  Die konkrete Laufzeitkonfiguration wird bei `ApplyChanges()` automatisch über diese `EntityID` aus Home Assistant aufgelöst.
 - `EnableExpertDebug`
   Aktiviert zusätzliche Debug-Ausgaben.
 - `ShowUnavailableEntitiesJson`
@@ -57,7 +58,7 @@ Keine öffentlichen Funktionen.
 ## 6. Variablen und Medienobjekte
 
 - Es wird die Hauptvariable für die Entität angelegt.
-- Je nach Domain kommen Zusatzvariablen hinzu, z. B. `Power`, `Aktion`, `Lüfterstufe`, `Playback`, `Event Type`.
+- Je nach Domain kommen Zusatzvariablen hinzu, zum Beispiel `Power`, `Aktion`, `Lüfterstufe`, `Playback` oder `Event Type`.
 - Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`.
 - Details zu den Domains siehe `Home Assistant Device`.
 

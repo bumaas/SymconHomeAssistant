@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/Symcon%20Version-8.2%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+[![Version](https://img.shields.io/badge/Symcon%20Version-9.0%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
 # Home Assistant
 
 Mit diesem Modul lassen sich Geräte, Entitäten und Dienste aus dem Home-Assistant-Umfeld komfortabel in Symcon nutzen.
@@ -178,6 +178,7 @@ Im Bundle-Modus werden aktuell keine Befehle an Geräte gesendet.
 | `camera`        | teilweise | Status plus Bild-Vorschau als Medienobjekt                           |
 | `image`         | teilweise | Bild-Entität als Medienobjekt                                        |
 | `device_tracker`| teilweise | Status plus Positionsattribute wie Latitude/Longitude                |
+| `update`        | teilweise | Read-only Status plus Versions- und Release-Metadaten                |
 | `button`        | voll      | `press`                                                              |
 | `input_button`  | voll      | `press`                                                              |
 
@@ -196,6 +197,8 @@ Aktuell unterstützt der MQTT-Discovery-Pfad folgende Komponenten:
 - `light`
 - `image`
 - `device_tracker`
+- `lock`
+- `update`
 
 Zusätzlich werden einfache Zigbee2MQTT-`device_automation`-Trigger unterstützt.
 
