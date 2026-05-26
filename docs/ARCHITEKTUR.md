@@ -7,8 +7,8 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 - `Home Assistant Discovery`
   Sucht Home-Assistant-Instanzen per mDNS und legt bei Bedarf Configurator-Instanzen an.
 - `Home Assistant Configurator`
-  Liest Geräte- und Entity-Daten aus Home Assistant, gruppiert sie zu Symcon-Geräten und erzeugt daraus `DeviceConfig`.
-  Für den Symcon-`create`-Block wird dabei nur eine stabile CreateConfig mit strukturellen Attributen erzeugt, damit volatile Live-Daten keine neuen Configurator-Einträge vortäuschen.
+  Liest Geräte- und Entity-Daten aus Home Assistant, gruppiert sie zu Symcon-Geräten und erzeugt daraus stabile Kandidaten für Device- und Entity-Instanzen.
+  Für den Symcon-`create`-Block werden nur stabile Identifikatoren wie `DeviceID` oder `EntityID` erzeugt, damit volatile Live-Daten keine neuen Configurator-Einträge vortäuschen.
 - `Home Assistant MQTT Discovery Splitter`
   Ist der Transportknoten für `homeassistant/.../config` Topics. Er cached MQTT-Discovery-Payloads, reicht MQTT an Kinder weiter und stellt den Cache für Discovery-Module bereit.
 - `Home Assistant MQTT Discovery Configurator`
@@ -96,11 +96,11 @@ Diese Datei ist eine interne Wartungsdoku. Sie beschreibt die Struktur des Modul
 
 ## 4. Architekturregeln
 
-- `DeviceConfig` als Roh-JSON ist Teil des klassischen Home-Assistant-Device-Pfads. MQTT-Discovery-Geräte arbeiten stattdessen mit `DeviceID` plus intern gecachter, aufgelöster Device-Definition.
+- Klassische `Home Assistant Device`-Instanzen und MQTT-Discovery-Geräte arbeiten self-resolving gegen `DeviceID`. Persistierte Entity-Listen in Create-Configs sind Legacy-Fallback, nicht mehr der Primärpfad.
 - Der Configurator darf für den `create`-Block nur stabile Strukturattribute verwenden. Flüchtige Laufzeit- oder Prognosewerte gehören nicht in die CreateConfig, weil Symcon diesen Block für `Als gelesen markiert` wiedererkennt.
 - Gemeinsame Entity-Aufbereitung für Configurator und künftige self-resolving Instanzen gehört in `libs/Config`, nicht in modul-lokale Speziallogik.
 - Unterschiede zwischen MQTT-Discovery-Quellen gehören in Parser, Template-Reduktion oder vorgeschaltete Normalisierung. Das MQTT Discovery Device arbeitet quellenneutral gegen ein internes Discovery-Modell und darf nicht pro Producer wie Zigbee2MQTT, Tasmota oder ESPHome verzweigen.
-- Self-resolving Module wie `Home Assistant Entity` speichern nur stabile Identifikatoren in den Properties. Die eigentliche Entity-Konfiguration wird bei `ApplyChanges()` aus Home Assistant erneut aufgelöst.
+- Self-resolving Module wie `Home Assistant Entity` und `Home Assistant Device` speichern nur stabile Identifikatoren in den Properties. Die eigentliche Entity-Konfiguration wird bei `ApplyChanges()` aus Home Assistant erneut aufgelöst.
 - Für normale Lookup- und Fallback-Pfade müssen normalisierte Konfigurations-Entities über `getConfiguredEntities()` bezogen werden.
 - Idents werden zentral über `HAIdentNamingTrait` erzeugt. Device-, Entity- und Discovery-Code dürfen keine eigene Benennungspolitik aus `entity_id` oder `object_id` daneben aufbauen.
 - Die Ident-Strategie ist instanzlokal und domain-präfixbasiert. Redundante Geräte- oder Instanznamen werden nach Möglichkeit aus dem `object_id` entfernt, damit kurze Idents wie `light_status`, `light_brightness`, `select_power_on_behavior` oder `sensor_last_seen` entstehen.

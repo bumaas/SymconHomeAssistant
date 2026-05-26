@@ -33,7 +33,7 @@ Interne Wartungsdoku: [Architektur](../docs/ARCHITEKTUR.md)
 
 - Parent: Home Assistant Splitter.
 - Bestehende Home-Assistant-Installation als Quelle des Geräts.
-- `DeviceConfig` wird vom Configurator erzeugt oder manuell gepflegt.
+- `DeviceID` ist der fachliche Schlüssel; die Entity-Konfiguration wird zur Laufzeit aus Home Assistant aufgelöst.
 - Home Assistant `mqtt_statestream` ist aktiv.
 - `mqtt_statestream.base_topic` passt zu `MQTTBaseTopic`.
 
@@ -41,7 +41,7 @@ Interne Wartungsdoku: [Architektur](../docs/ARCHITEKTUR.md)
 
 - In Symcon `Instanz hinzufügen` und `Home Assistant Device` auswählen.
 - Konfiguration über den Configurator oder manuell setzen.
-- Danach sicherstellen, dass die gewünschten Entitäten in `DeviceConfig` enthalten sind.
+- Danach reicht eine gültige `DeviceID`; die zugehörigen Entitäten werden automatisch geladen.
 
 ## 4. Funktionsreferenz
 
@@ -49,11 +49,10 @@ Keine öffentlichen Funktionen.
 
 ## 5. Konfiguration
 
-- `DeviceName`, `DeviceArea`, `DeviceID`
-  Vom Configurator gesetzt, nur lesend relevant.
-- `DeviceConfig`
-  Liste der Entitäten mit Domain, Name, `entity_id`, Position und Aktiv-Flag.
-  Wird eine Entität deaktiviert oder aus der Liste entfernt, löscht das Modul die dazugehörigen Symcon-Variablen und Medienobjekte beim nächsten `ApplyChanges()`.
+- `DeviceID`
+  Die Home-Assistant-Geräte-ID des Zielgeräts. Über sie löst das Modul seine Entitäten bei `ApplyChanges()` selbst aus Home Assistant auf.
+- `DeviceName`, `DeviceArea`
+  Legacy-Felder aus älteren Create-Configs. Sie sind nicht mehr maßgeblich für die Laufzeitauflösung.
 - `EnableExpertDebug`
   Aktiviert zusätzliche Debug-Ausgaben.
 - `ShowUnavailableEntitiesJson`

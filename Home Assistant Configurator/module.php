@@ -11,11 +11,12 @@ class HomeAssistantConfigurator extends IPSModuleStrict
     use ModuleDebugTrait;
     use HARestParentClientTrait;
     use HASupportedFeaturesTrait;
+    use HADiagnosticAggregationTrait;
+    use HADiagnosticFormattingTrait;
     use HAEntityConfigLoaderTrait;
     use HAEntityNormalizationTrait;
     use HAEntityConfigBuilderTrait {
         buildResolvedEntityConfig as private buildResolvedEntities;
-        buildStableCreateConfig as private buildStableResolvedCreateConfig;
     }
     use HAEntityGroupingTrait {
         groupEntitiesToDevices as private groupResolvedEntitiesToDevices;
@@ -28,6 +29,8 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     private const string TIMER_CACHE_REFRESH = 'CacheRefreshTimer';
     private const string BUFFER_REFRESH_ACTIVE = 'CacheRefreshActive';
+    private const string ATTRIBUTE_CACHED_DIAGNOSTICS = 'CachedDiagnostics';
+    private const string FORM_CONFIGURATOR_DIAGNOSTICS = 'ConfiguratorDiagnostics';
     private const int PERFORMANCE_LOG_THRESHOLD_MS = 250;
 
     public function Create(): void
@@ -37,7 +40,6 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $this->LogMessage('Create | after_parent', KL_MESSAGE);
 
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
-        $this->RegisterPropertyBoolean('AutoCreateVariables', true);
         $this->RegisterPropertyBoolean('EnableDomainFilter', false);
 
         // Preload the centralized default domain list for new instances.
@@ -54,6 +56,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
         $this->RegisterPropertyString('DeviceMapping', '[]');
         $this->RegisterAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
+        $this->RegisterAttributeString(self::ATTRIBUTE_CACHED_DIAGNOSTICS, json_encode($this->createEmptyConfiguratorDiagnostics(), JSON_THROW_ON_ERROR));
         $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
@@ -123,6 +126,12 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $entitiesForDisplay = $this->getFilteredEntitiesForDisplay($this->entities, $domainFilterEnabled, $domainsSimple);
         $devices = $this->groupResolvedEntitiesToDevices($entitiesForDisplay);
         $values = $this->prepareConfiguratorValues($devices);
+        $diagnostics = $this->getCachedConfiguratorDiagnostics();
+
+        $diagnosticsPanel = $this->buildDiagnosticsPanel($diagnostics, count($devices));
+        if ($diagnosticsPanel !== null) {
+            $form['actions'][] = $diagnosticsPanel;
+        }
 
         $form['actions'][] = [
             'type'     => 'Configurator',
@@ -190,6 +199,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             'values',
             json_encode($values, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
+        $this->updateDiagnosticsPanel($this->getCachedConfiguratorDiagnostics(), count($devices));
     }
 
     private function getFilteredEntitiesForDisplay(array $entities, bool $domainFilterEnabled, array $domains): array
@@ -222,8 +232,6 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     private function prepareConfiguratorValues(array $devices): array
     {
-        $autoCreateVariables = $this->ReadPropertyBoolean('AutoCreateVariables');
-
         $instance = IPS_GetInstance($this->InstanceID);
         $configuratorParentId = (int)($instance['ConnectionID'] ?? 0);
         [$mappedDeviceInstances, $blockedDeviceIds] = $this->buildDeviceInstanceMaps($configuratorParentId);
@@ -236,7 +244,6 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             $this->debugExpert(__FUNCTION__, json_encode($dev, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
 
             $cleanedEntities = $this->getResolvedCleanedEntities($dev);
-            $cleanedNameById = array_column($cleanedEntities, 'name', 'entity_id');
 
             if ($this->isEntityCandidate($dev)) {
                 $entityId = (string)($dev['device_id'] ?? '');
@@ -264,10 +271,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
                 $haDeviceIds[$deviceId] = true;
             }
 
-            $entitiesForConfig = $this->buildEntitiesForConfig($dev, $cleanedNameById, $autoCreateVariables);
-            $createEntitiesForConfig = $this->buildStableResolvedCreateConfig($entitiesForConfig);
-
-            $values[] = $this->buildDeviceRow($dev, $instanceID, $cleanedEntities, $createEntitiesForConfig, false);
+            $values[] = $this->buildDeviceRow($dev, $instanceID, $cleanedEntities, false);
         }
 
         $this->appendMissingDeviceRows($values, $mappedDeviceInstances, $haDeviceIds);
@@ -327,62 +331,10 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         return [$mappedInstances, $blockedEntityIds];
     }
 
-    private function buildEntitiesForConfig(array $dev, array $cleanedNameById, bool $autoCreateVariables): array
-    {
-        $entitiesForConfig = [];
-        foreach ($dev['entities'] as $entity) {
-            $entityId = (string)($entity['entity_id'] ?? '');
-            $cached = $this->entities[$entityId] ?? null;
-
-            $finalEntity = $cached ?? $entity;
-
-            if (isset($cleanedNameById[$entityId])) {
-                $finalEntity['name'] = $cleanedNameById[$entityId];
-            }
-
-            $finalEntity['create_var'] = $autoCreateVariables;
-
-            // Ensure attributes are properly encoded for the DeviceConfig property
-            if (isset($finalEntity['attributes']) && is_array($finalEntity['attributes'])) {
-                $finalEntity['attributes'] = json_encode(
-                    $finalEntity['attributes'],
-                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
-                );
-            } elseif (!isset($finalEntity['attributes']) || !is_string($finalEntity['attributes'])) {
-                $finalEntity['attributes'] = '{}';
-            }
-
-            // Cleanup: These are redundant as they are handled globally or via properties
-            unset($finalEntity['area'], $finalEntity['device']);
-
-            $entitiesForConfig[] = $finalEntity;
-        }
-
-        return $entitiesForConfig;
-    }
-
-    private function buildDeviceRow(array $dev, int $instanceID, array $cleanedEntities, array $entitiesForConfig, bool $isBlocked, string $type = 'Device'): array
+    private function buildDeviceRow(array $dev, int $instanceID, array $cleanedEntities, bool $isBlocked, string $type = 'Device'): array
     {
         $area = $this->translateConfiguratorArea((string)($dev['area'] ?? HAConfigDefaults::AREA_NONE));
         $summary = $this->translateEntitySummaryForDisplay($this->generateResolvedEntitySummary($cleanedEntities));
-        $entitiesForDeviceProperty = [];
-        foreach ($entitiesForConfig as $entity) {
-            if (!is_array($entity)) {
-                continue;
-            }
-
-            $attributes = $entity['attributes'] ?? [];
-            if (is_array($attributes)) {
-                $entity['attributes'] = json_encode(
-                    $attributes,
-                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
-                );
-            } elseif (!is_string($attributes)) {
-                $entity['attributes'] = '{}';
-            }
-
-            $entitiesForDeviceProperty[] = $entity;
-        }
 
         $row = [
             'instanceID' => $instanceID,
@@ -399,12 +351,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             $row['create'] = [
                 'moduleID'      => HAIds::MODULE_DEVICE,
                 'configuration' => [
-                    // Zentrale Properties setzen
-                    'DeviceID'     => $dev['device_id'],
-                    'DeviceArea'   => $area,
-                    'DeviceName'   => $dev['name'],
-                    // Bereinigte Liste übergeben
-                    'DeviceConfig' => json_encode($entitiesForDeviceProperty, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
+                    'DeviceID' => $dev['device_id']
                 ],
                 'name'          => $dev['name']
             ];
@@ -575,6 +522,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             $this->debugExpert(__FUNCTION__, 'No entities loaded. Cache cleared.');
             $this->entities = [];
             $this->WriteAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
+            $this->WriteAttributeString(self::ATTRIBUTE_CACHED_DIAGNOSTICS, json_encode($this->createEmptyConfiguratorDiagnostics(), JSON_THROW_ON_ERROR));
             $this->logPerformanceSample(__FUNCTION__, $startedAt, [
                 'Result' => 'no_entities'
             ], true);
@@ -589,6 +537,10 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
         $this->entities = $newEntities;
         $this->WriteAttributeString('CachedEntities', json_encode($this->entities, JSON_THROW_ON_ERROR));
+        $this->WriteAttributeString(
+            self::ATTRIBUTE_CACHED_DIAGNOSTICS,
+            json_encode($this->buildConfiguratorDiagnostics(array_values($rawEntities), $newEntities), JSON_THROW_ON_ERROR)
+        );
         $this->LogUpdatedEntities();
         $this->logPerformanceSample(__FUNCTION__, $startedAt, [
             'Result' => 'ok',
@@ -682,6 +634,92 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         }
 
         return $summary;
+    }
+
+    private function createEmptyConfiguratorDiagnostics(): array
+    {
+        return [
+            'loaded_entities' => 0,
+            'resolved_entities' => 0,
+            'unsupported' => []
+        ];
+    }
+
+    private function getCachedConfiguratorDiagnostics(): array
+    {
+        try {
+            $diagnostics = json_decode($this->ReadAttributeString(self::ATTRIBUTE_CACHED_DIAGNOSTICS), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return $this->createEmptyConfiguratorDiagnostics();
+        }
+
+        return is_array($diagnostics) ? $diagnostics : $this->createEmptyConfiguratorDiagnostics();
+    }
+
+    private function buildDiagnosticsPanel(array $diagnostics, int $deviceCount): ?array
+    {
+        $unsupported = is_array($diagnostics['unsupported'] ?? null) ? $diagnostics['unsupported'] : [];
+        $loadedEntities = (int)($diagnostics['loaded_entities'] ?? 0);
+        $resolvedEntities = (int)($diagnostics['resolved_entities'] ?? 0);
+        $visible = $unsupported !== [] || $loadedEntities > 0;
+        if (!$visible) {
+            return null;
+        }
+
+        return $this->buildUnsupportedDiagnosticsPanel(
+            $this->Translate('Configurator Diagnostics'),
+            sprintf($this->Translate('Loaded Home Assistant entities/resolved/devices: %d/%d/%d'), $loadedEntities, $resolvedEntities, $deviceCount),
+            $this->Translate('Unsupported Home Assistant domains: none'),
+            $this->Translate('Unsupported Home Assistant domains: %s'),
+            $unsupported,
+            $visible,
+            self::FORM_CONFIGURATOR_DIAGNOSTICS
+        );
+    }
+
+    private function updateDiagnosticsPanel(array $diagnostics, int $deviceCount): void
+    {
+        $panel = $this->buildDiagnosticsPanel($diagnostics, $deviceCount);
+        if ($panel === null) {
+            @$this->UpdateFormField(self::FORM_CONFIGURATOR_DIAGNOSTICS, 'visible', false);
+            return;
+        }
+
+        @$this->UpdateFormField(self::FORM_CONFIGURATOR_DIAGNOSTICS, 'caption', (string)$panel['caption']);
+        @$this->UpdateFormField(self::FORM_CONFIGURATOR_DIAGNOSTICS, 'visible', (bool)$panel['visible']);
+        @$this->UpdateFormField(
+            self::FORM_CONFIGURATOR_DIAGNOSTICS,
+            'items',
+            json_encode($panel['items'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+    }
+
+    private function buildConfiguratorDiagnostics(array $rawEntities, array $resolvedEntities): array
+    {
+        $diagnostics = $this->createEmptyConfiguratorDiagnostics();
+        $diagnostics['loaded_entities'] = count($rawEntities);
+        $diagnostics['resolved_entities'] = count($resolvedEntities);
+
+        foreach ($rawEntities as $rawEntity) {
+            if (!is_array($rawEntity)) {
+                continue;
+            }
+
+            $entityId = trim((string)($rawEntity['entity_id'] ?? ''));
+            $domain = trim((string)($rawEntity['domain'] ?? ''));
+            if ($domain === '' && $entityId !== '' && str_contains($entityId, '.')) {
+                [$domain] = explode('.', $entityId, 2);
+            }
+
+            if ($domain === '' || HADomainCatalog::isDomainSupported($domain)) {
+                continue;
+            }
+
+            $this->recordUnsupportedDiagnostic($diagnostics, $domain, $entityId);
+        }
+
+        $diagnostics['unsupported'] = $this->finalizeUnsupportedDiagnostics(is_array($diagnostics['unsupported'] ?? null) ? $diagnostics['unsupported'] : []);
+        return $diagnostics;
     }
 
     private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void

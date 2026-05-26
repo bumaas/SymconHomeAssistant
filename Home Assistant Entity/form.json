@@ -1,41 +1,21 @@
 {
   "elements": [
     {
-      "type": "ValidationTextBox",
-      "name": "EntityID",
-      "caption": "Entity ID"
-    },
-    {
-      "type": "Label",
-      "caption": "This module configures itself automatically based on the specified entity ID from Home Assistant."
-    },
-    {
       "type": "ExpansionPanel",
-      "caption": "Expert",
+      "caption": "Information",
+      "expanded": true,
       "items": [
         {
-          "type": "CheckBox",
-          "name": "EnableExpertDebug",
-          "caption": "Enable extended debug output"
-        },
-        {
-          "type": "CheckBox",
-          "name": "ShowUnavailableEntitiesJson",
-          "caption": "Show unavailable entities JSON"
-        },
-        {
-          "type": "NumberSpinner",
-          "name": "OutputBufferSize",
-          "caption": "Output buffer (MB)",
-          "minimum": 0,
-          "maximum": 100,
-          "value": 10
+          "type": "ValidationTextBox",
+          "name": "EntityID",
+          "caption": "Entity ID"
         }
       ]
     },
     {
       "type": "ExpansionPanel",
       "caption": "Resolved Configuration",
+      "expanded": true,
       "items": [
         {
           "type": "Label",
@@ -88,6 +68,30 @@
           ]
         }
       ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Expert",
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "EnableExpertDebug",
+          "caption": "Enable extended debug output"
+        },
+        {
+          "type": "CheckBox",
+          "name": "ShowUnavailableEntitiesJson",
+          "caption": "Show unavailable entities JSON"
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "OutputBufferSize",
+          "caption": "Output buffer (MB)",
+          "minimum": 0,
+          "maximum": 100,
+          "value": 10
+        }
+      ]
     }
   ],
   "actions": [
@@ -133,6 +137,11 @@
       "code": 201,
       "icon": "error",
       "caption": "No compatible or active parent connected"
+    },
+    {
+      "code": 202,
+      "icon": "error",
+      "caption": "MQTT base topic missing"
     },
     {
       "code": 210,

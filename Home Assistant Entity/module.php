@@ -104,6 +104,10 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
+        if (!$this->isModuleRuntimeReady()) {
+            return;
+        }
+
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->debugExpert(__FUNCTION__, 'Verbindungsstatus geändert. Aktualisiere...');
             $this->ApplyChanges();
@@ -115,6 +119,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
         parent::ApplyChanges();
         $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
+        $this->ensureResolvedConfigAttributeRegistered(__FUNCTION__);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert(__FUNCTION__, 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.');
@@ -224,10 +229,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
     private function getConfiguredEntities(string $context): array
     {
-        $configData = $this->decodeJsonArray($this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG), $context);
-        if ($configData === null) {
-            return [];
-        }
+        $configData = $this->readResolvedConfig($context);
 
         $configuredEntities = [];
         foreach ($configData as $row) {
@@ -240,6 +242,24 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         }
 
         return $this->applySharedEntityIdents($configuredEntities);
+    }
+
+    private function readResolvedConfig(string $context): array
+    {
+        $this->ensureResolvedConfigAttributeRegistered($context);
+        $configData = $this->decodeJsonArray($this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG), $context);
+        return $configData ?? [];
+    }
+
+    private function ensureResolvedConfigAttributeRegistered(string $context): void
+    {
+        if (@$this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG) !== false) {
+            return;
+        }
+
+        $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->debugExpert($context, 'ResolvedConfig in Bestandsinstanz initialisiert');
     }
 
     private function decodeJsonArray(string $json, string $context): ?array
@@ -486,8 +506,8 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
     private function getResolvedEntity(): array
     {
-        $config = $this->decodeJsonArray($this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG), __FUNCTION__);
-        if (!is_array($config) || $config === []) {
+        $config = $this->readResolvedConfig(__FUNCTION__);
+        if ($config === []) {
             return [];
         }
 

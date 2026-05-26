@@ -2,7 +2,20 @@
   "elements": [
     {
       "type": "ExpansionPanel",
-      "caption": "Device Information",
+      "caption": "Information",
+      "expanded": true,
+      "items": [
+        {
+          "type": "ValidationTextBox",
+          "name": "DeviceID",
+          "caption": "Device ID"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Resolved Configuration",
+      "expanded": true,
       "items": [
         {
           "type": "Label",
@@ -15,160 +28,151 @@
           "caption": "Area: "
         },
         {
-          "type": "Label",
-          "name": "DeviceID",
-          "caption": "Device ID: "
+          "type": "List",
+          "name": "ResolvedConfig",
+          "caption": "Resolved Entities",
+          "rowCount": 10,
+          "loadValuesFromConfiguration": false,
+          "add": false,
+          "delete": false,
+          "columns": [
+            {
+              "caption": "Domain",
+              "name": "domain",
+              "width": "150px",
+              "edit": {
+                "type": "Select",
+                "options": [
+                  {
+                    "caption": "Light (light)",
+                    "value": "light"
+                  },
+                  {
+                    "caption": "Switch (switch)",
+                    "value": "switch"
+                  },
+                  {
+                    "caption": "Sensor (sensor)",
+                    "value": "sensor"
+                  },
+                  {
+                    "caption": "Binary Sensor (binary_sensor)",
+                    "value": "binary_sensor"
+                  },
+                  {
+                    "caption": "Climate (climate)",
+                    "value": "climate"
+                  },
+                  {
+                    "caption": "Number (number)",
+                    "value": "number"
+                  },
+                  {
+                    "caption": "Lock (lock)",
+                    "value": "lock"
+                  },
+                  {
+                    "caption": "Cover (cover)",
+                    "value": "cover"
+                  },
+                  {
+                    "caption": "Valve (valve)",
+                    "value": "valve"
+                  },
+                  {
+                    "caption": "Event (event)",
+                    "value": "event"
+                  },
+                  {
+                    "caption": "Select (select)",
+                    "value": "select"
+                  },
+                  {
+                    "caption": "Button (button)",
+                    "value": "button"
+                  },
+                  {
+                    "caption": "Input Button (input_button)",
+                    "value": "input_button"
+                  },
+                  {
+                    "caption": "Vacuum (vacuum)",
+                    "value": "vacuum"
+                  },
+                  {
+                    "caption": "Fan (fan)",
+                    "value": "fan"
+                  },
+                  {
+                    "caption": "Humidifier (humidifier)",
+                    "value": "humidifier"
+                  },
+                  {
+                    "caption": "Media Player (media_player)",
+                    "value": "media_player"
+                  },
+                  {
+                    "caption": "Camera (camera)",
+                    "value": "camera"
+                  },
+                  {
+                    "caption": "Image (image)",
+                    "value": "image"
+                  }
+                ]
+              },
+              "add": "light"
+            },
+            {
+              "caption": "Name",
+              "name": "name",
+              "width": "auto",
+              "edit": {
+                "type": "ValidationTextBox"
+              },
+              "add": ""
+            },
+            {
+              "caption": "Entity ID (e.g. light.floorlamp)",
+              "name": "entity_id",
+              "width": "250px",
+              "edit": {
+                "type": "ValidationTextBox"
+              },
+              "add": ""
+            },
+            {
+              "caption": "Device class",
+              "name": "device_class",
+              "width": "140px",
+              "edit": {
+                "type": "ValidationTextBox"
+              },
+              "add": ""
+            },
+            {
+              "caption": "Active",
+              "name": "create_var",
+              "width": "70px",
+              "edit": {
+                "type": "CheckBox"
+              },
+              "add": true
+            },
+            {
+              "caption": "Attributes (JSON)",
+              "name": "attributes",
+              "width": "auto",
+              "visible": false,
+              "save": true,
+              "edit": {
+                "type": "ValidationTextBox"
+              },
+              "add": "{}"
+            }
+          ]
         }
       ]
-    },
-    {
-      "type": "List",
-      "name": "DeviceConfig",
-      "caption": "Mapped Entities",
-      "rowCount": 10,
-      "loadValuesFromConfiguration": true,
-      "add": true,
-      "delete": true,
-      "columns": [
-        {
-          "caption": "Domain",
-          "name": "domain",
-          "width": "150px",
-          "edit": {
-            "type": "Select",
-            "options": [
-              {
-                "caption": "Light (light)",
-                "value": "light"
-              },
-              {
-                "caption": "Switch (switch)",
-                "value": "switch"
-              },
-              {
-                "caption": "Sensor (sensor)",
-                "value": "sensor"
-              },
-              {
-                "caption": "Binary Sensor (binary_sensor)",
-                "value": "binary_sensor"
-              },
-              {
-                "caption": "Climate (climate)",
-                "value": "climate"
-              },
-              {
-                "caption": "Number (number)",
-                "value": "number"
-              },
-              {
-                "caption": "Lock (lock)",
-                "value": "lock"
-              },
-              {
-                "caption": "Cover (cover)",
-                "value": "cover"
-              },
-              {
-                "caption": "Valve (valve)",
-                "value": "valve"
-              },
-              {
-                "caption": "Event (event)",
-                "value": "event"
-              },
-              {
-                "caption": "Select (select)",
-                "value": "select"
-              },
-              {
-                "caption": "Button (button)",
-                "value": "button"
-              },
-              {
-                "caption": "Input Button (input_button)",
-                "value": "input_button"
-              },
-              {
-                "caption": "Vacuum (vacuum)",
-                "value": "vacuum"
-              },
-              {
-                "caption": "Fan (fan)",
-                "value": "fan"
-              },
-              {
-                "caption": "Humidifier (humidifier)",
-                "value": "humidifier"
-              },
-              {
-                "caption": "Media Player (media_player)",
-                "value": "media_player"
-              },
-              {
-                "caption": "Camera (camera)",
-                "value": "camera"
-              },
-              {
-                "caption": "Image (image)",
-                "value": "image"
-              }
-            ]
-          },
-          "add": "light"
-        },
-        {
-          "caption": "Name",
-          "name": "name",
-          "width": "auto",
-          "edit": {
-            "type": "ValidationTextBox"
-          },
-          "add": ""
-        },
-        {
-          "caption": "Entity ID (e.g. light.floorlamp)",
-          "name": "entity_id",
-          "width": "250px",
-          "edit": {
-            "type": "ValidationTextBox"
-          },
-          "add": ""
-        },
-        {
-          "caption": "Device class",
-          "name": "device_class",
-          "width": "140px",
-          "edit": {
-            "type": "ValidationTextBox"
-          },
-          "add": ""
-        },
-        {
-          "caption": "Active",
-          "name": "create_var",
-          "width": "70px",
-          "edit": {
-            "type": "CheckBox"
-          },
-          "add": true
-        },
-        {
-          "caption": "Attributes (JSON)",
-          "name": "attributes",
-          "width": "auto",
-          "visible": false,
-          "save": true,
-          "edit": {
-            "type": "ValidationTextBox"
-          },
-          "add": "{}"
-        }
-      ]
-    },
-    {
-      "type": "Label",
-      "label": "Note: You can manually add entities here or use the 'Home Assistant Configurator' to populate them automatically."
     },
     {
       "type": "ExpansionPanel",
@@ -233,6 +237,21 @@
       "code": 201,
       "icon": "error",
       "caption": "No compatible or active parent connected"
+    },
+    {
+      "code": 202,
+      "icon": "error",
+      "caption": "MQTT base topic missing"
+    },
+    {
+      "code": 210,
+      "icon": "error",
+      "caption": "No device ID configured"
+    },
+    {
+      "code": 211,
+      "icon": "error",
+      "caption": "Device not found in Home Assistant"
     }
   ]
 }

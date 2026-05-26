@@ -30,6 +30,9 @@ trait HADeviceCoreTrait
 
     public function UpdateMediaPlayerProgress(): void
     {
+        if (method_exists($this, 'isModuleRuntimeReady') && !$this->isModuleRuntimeReady()) {
+            return;
+        }
         $cache = $this->readEntityStateCache();
         if ($cache === []) {
             return;
@@ -178,6 +181,9 @@ trait HADeviceCoreTrait
 
     public function ReceiveData($JSONString): string
     {
+        if (method_exists($this, 'isModuleRuntimeReady') && !$this->isModuleRuntimeReady()) {
+            return '';
+        }
         $this->debugExpert(__FUNCTION__, 'MQTT Payload empfangen', ['Payload' => $JSONString]);
         $this->WriteAttributeString('LastMQTTMessage', $JSONString);
 
@@ -267,6 +273,9 @@ trait HADeviceCoreTrait
     }
     public function RequestAction($Ident, $Value): void
     {
+        if (method_exists($this, 'isModuleRuntimeReady') && !$this->isModuleRuntimeReady()) {
+            return;
+        }
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
 
         if ($this->handleDirectDomainActions($Ident, $Value)) {

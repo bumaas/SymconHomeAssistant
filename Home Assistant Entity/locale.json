@@ -1,8 +1,10 @@
 {
   "translations": {
     "de": {
+      "Information": "Informationen",
+      "Entity Information": "Entitätsinformationen",
+      "MQTT base topic missing": "MQTT-Basetopic fehlt",
       "Entity ID": "Entit\u00e4ts-ID",
-      "This module configures itself automatically based on the specified entity ID from Home Assistant.": "Dieses Modul konfiguriert sich automatisch anhand der angegebenen Entit\u00e4ts-ID aus Home Assistant.",
       "Expert": "Experte",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
       "Show unavailable entities JSON": "JSON f\u00fcr nicht verf\u00fcgbare Entit\u00e4ten anzeigen",
@@ -86,6 +88,14 @@
       "No Tamper": "Keine Manipulation",
       "Update Available": "Update verfügbar",
       "Up to Date": "Aktuell",
+      "Installed Version": "Installierte Version",
+      "Latest Version": "Neueste Version",
+      "Skipped Version": "Übersprungene Version",
+      "In Progress": "In Arbeit",
+      "Update Percentage": "Update-Fortschritt",
+      "Title": "Titel",
+      "Release Summary": "Release-Zusammenfassung",
+      "Release URL": "Release-URL",
       "Vibration": "Vibration",
       "No Vibration": "Keine Vibration",
       "On": "An",

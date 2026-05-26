@@ -37,6 +37,7 @@ trait HAPresentationTrait
             HADateTimeDefinitions::DOMAIN => $this->getTemporalEntityPresentation($attributes, true, true),
             HAInputDateTimeDefinitions::DOMAIN => $this->getTemporalEntityPresentation($attributes, true, true),
             HAImageDefinitions::DOMAIN => $this->getDateTimeValuePresentation(2),
+            HAUpdateDefinitions::DOMAIN => $this->getUpdatePresentation(),
             HALockDefinitions::DOMAIN => $this->getLockPresentation($attributes),
             HAVacuumDefinitions::DOMAIN => $this->getVacuumPresentation(),
             HALawnMowerDefinitions::DOMAIN => $this->getLawnMowerPresentation(),
@@ -553,6 +554,34 @@ trait HAPresentationTrait
                                              'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR),
                                              'ICON'         => $icon !== '' ? $icon : null
                                          ]);
+    }
+
+    private function getUpdatePresentation(): array
+    {
+        $options = [
+            [
+                'Value' => false,
+                'Caption' => $this->Translate(HAUpdateDefinitions::FALSE_CAPTION),
+                'IconActive' => false,
+                'IconValue' => '',
+                'ColorActive' => false,
+                'ColorValue' => -1
+            ],
+            [
+                'Value' => true,
+                'Caption' => $this->Translate(HAUpdateDefinitions::TRUE_CAPTION),
+                'IconActive' => false,
+                'IconValue' => '',
+                'ColorActive' => false,
+                'ColorValue' => -1
+            ]
+        ];
+
+        return $this->filterPresentation([
+            'PRESENTATION' => HAUpdateDefinitions::PRESENTATION,
+            'OPTIONS' => json_encode($options, JSON_THROW_ON_ERROR),
+            'ICON' => HAUpdateDefinitions::ICON
+        ]);
     }
 
     private function getCoverPresentation(array $attributes): array

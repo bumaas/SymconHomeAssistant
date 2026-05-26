@@ -48,7 +48,7 @@ Keine öffentlichen Funktionen.
 - Dieses Modul gehört zur klassischen Bridge-Funktionalität.
 - Der Configurator führt im Symcon-`create`-Block nur noch stabile Strukturattribute.
 - Flüchtige Live-Werte und Prognosedaten werden dort bewusst nicht gespiegelt.
-- `DeviceConfig` im `create`-Block bleibt stabil nach `entity_id` sortiert, damit `Als gelesen markiert` nicht durch volatile Änderungen erneut neue Einträge erzeugt.
+- Device-Instanzen werden im `create`-Block nur noch mit ihrer stabilen `DeviceID` angelegt; die Entity-Liste löst das Device später selbst zur Laufzeit auf.
 
 ## 6. Statusvariablen und Profile
 

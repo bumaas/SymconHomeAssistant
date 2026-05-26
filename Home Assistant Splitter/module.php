@@ -49,6 +49,10 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return;
         }
 
+        if (!$this->isModuleRuntimeReady()) {
+            return;
+        }
+
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...', [], true);
             $this->ApplyChanges();
@@ -123,6 +127,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     public function ForwardData(string $JSONString): string
     {
+        if (!$this->isModuleRuntimeReady()) {
+            return '';
+        }
         try {
             $data = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
@@ -164,6 +171,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
+        if (!$this->isModuleRuntimeReady()) {
+            return '';
+        }
         try {
             $data = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {

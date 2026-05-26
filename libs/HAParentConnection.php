@@ -9,6 +9,24 @@ trait HAParentConnectionTrait
         return IPS_GetKernelRunlevel() === KR_READY;
     }
 
+    protected function isModuleRuntimeReady(): bool
+    {
+        if (!$this->isKernelReady()) {
+            return false;
+        }
+
+        if (!property_exists($this, 'InstanceID')) {
+            return false;
+        }
+
+        $instanceId = (int)($this->InstanceID ?? 0);
+        if ($instanceId <= 0 || !IPS_InstanceExists($instanceId)) {
+            return false;
+        }
+
+        return is_string(@$this->Translate(''));
+    }
+
     private function determineParentRuntimeState(array $moduleIds): string
     {
         $parentId = $this->getCurrentParentId();

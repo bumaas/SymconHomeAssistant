@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 final class HAMqttDiscoveryParser
 {
+    use HADiagnosticAggregationTrait;
+
     /** @var string[] */
     private const array SUPPORTED_COMPONENTS = [
         HABinarySensorDefinitions::DOMAIN,
@@ -12,6 +14,7 @@ final class HAMqttDiscoveryParser
         HANumberDefinitions::DOMAIN,
         HAImageDefinitions::DOMAIN,
         HADeviceTrackerDefinitions::DOMAIN,
+        HAUpdateDefinitions::DOMAIN,
         HALockDefinitions::DOMAIN,
         HACoverDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
@@ -190,6 +193,7 @@ final class HAMqttDiscoveryParser
             'device'         => $device,
             'transport'      => [
                 'state_topic'           => $resolvedStateTopic,
+                'latest_version_topic'  => $component === HAUpdateDefinitions::DOMAIN ? $this->normalizeNullableString($config['latest_version_topic'] ?? null) : null,
                 'command_topic'         => $resolvedCommandTopic,
                 'json_attributes_topic' => $this->normalizeNullableString($config['json_attributes_topic'] ?? null),
                 'optimistic'            => (bool)($config['optimistic'] ?? false),
@@ -198,6 +202,9 @@ final class HAMqttDiscoveryParser
             ],
             'state'          => [
                 'value_template'      => HAMqttDiscoveryTemplate::parseValueTemplate($resolvedValueTemplate),
+                'latest_version_template' => $component === HAUpdateDefinitions::DOMAIN
+                    ? HAMqttDiscoveryTemplate::parseValueTemplate($this->normalizeNullableString($config['latest_version_template'] ?? null))
+                    : null,
                 'state_on'            => $config['state_on'] ?? null,
                 'state_off'           => $config['state_off'] ?? null,
                 'payload_on'          => $config['payload_on'] ?? null,
@@ -225,6 +232,9 @@ final class HAMqttDiscoveryParser
                 'enabled_by_default'  => !array_key_exists('enabled_by_default', $config) || $config['enabled_by_default'],
                 'icon'                => $this->normalizeNullableString($config['icon'] ?? null),
                 'content_type'        => $component === HAImageDefinitions::DOMAIN ? $this->normalizeNullableString($config['content_type'] ?? null) : null,
+                'title'               => $component === HAUpdateDefinitions::DOMAIN ? $this->normalizeNullableString($config['title'] ?? null) : null,
+                'release_summary'     => $component === HAUpdateDefinitions::DOMAIN ? $this->normalizeNullableString($config['release_summary'] ?? null) : null,
+                'release_url'         => $component === HAUpdateDefinitions::DOMAIN ? $this->normalizeNullableString($config['release_url'] ?? null) : null,
                 'brightness'          => (bool)($config['brightness'] ?? false),
                 'brightness_scale'    => is_numeric($config['brightness_scale'] ?? null) ? (int)$config['brightness_scale'] : null,
                 'effect'              => (bool)($config['effect'] ?? false),
@@ -1198,50 +1208,6 @@ final class HAMqttDiscoveryParser
         ];
     }
 
-    private function recordUnsupportedDiagnostic(array &$diagnostics, string $component, string $example): void
-    {
-        $component = $component !== '' ? $component : 'unknown';
-        if (!isset($diagnostics['unsupported'][$component])) {
-            $diagnostics['unsupported'][$component] = [
-                'component' => $component,
-                'count' => 0,
-                'examples' => []
-            ];
-        }
-
-        $diagnostics['unsupported'][$component]['count']++;
-        $this->appendDiagnosticExample($diagnostics['unsupported'][$component]['examples'], $example);
-    }
-
-    private function recordSkippedDiagnostic(array &$diagnostics, string $reason, string $component, string $example): void
-    {
-        $component = $component !== '' ? $component : 'unknown';
-        $key = $reason . '|' . $component;
-        if (!isset($diagnostics['skipped'][$key])) {
-            $diagnostics['skipped'][$key] = [
-                'reason' => $reason,
-                'component' => $component,
-                'count' => 0,
-                'examples' => []
-            ];
-        }
-
-        $diagnostics['skipped'][$key]['count']++;
-        $this->appendDiagnosticExample($diagnostics['skipped'][$key]['examples'], $example);
-    }
-
-    private function appendDiagnosticExample(array &$examples, string $example): void
-    {
-        if ($example === '' || in_array($example, $examples, true)) {
-            return;
-        }
-
-        $examples[] = $example;
-        if (count($examples) > 3) {
-            $examples = array_slice($examples, 0, 3);
-        }
-    }
-
     private function buildDiagnosticExample(string $component, string $objectId, string $topic): string
     {
         $component = trim($component);
@@ -1261,36 +1227,11 @@ final class HAMqttDiscoveryParser
 
     private function finalizeDiagnostics(array $diagnostics): array
     {
-        $unsupported = array_values($diagnostics['unsupported']);
-        usort($unsupported, static function (array $left, array $right): int {
-            $countCompare = (int)($right['count'] ?? 0) <=> (int)($left['count'] ?? 0);
-            if ($countCompare !== 0) {
-                return $countCompare;
-            }
-
-            return strcmp((string)($left['component'] ?? ''), (string)($right['component'] ?? ''));
-        });
-
-        $skipped = array_values($diagnostics['skipped']);
-        usort($skipped, static function (array $left, array $right): int {
-            $countCompare = (int)($right['count'] ?? 0) <=> (int)($left['count'] ?? 0);
-            if ($countCompare !== 0) {
-                return $countCompare;
-            }
-
-            $reasonCompare = strcmp((string)($left['reason'] ?? ''), (string)($right['reason'] ?? ''));
-            if ($reasonCompare !== 0) {
-                return $reasonCompare;
-            }
-
-            return strcmp((string)($left['component'] ?? ''), (string)($right['component'] ?? ''));
-        });
-
         return [
             'total_records' => (int)($diagnostics['total_records'] ?? 0),
             'parsed_entities' => (int)($diagnostics['parsed_entities'] ?? 0),
-            'unsupported' => $unsupported,
-            'skipped' => $skipped
+            'unsupported' => $this->finalizeUnsupportedDiagnostics(is_array($diagnostics['unsupported'] ?? null) ? $diagnostics['unsupported'] : []),
+            'skipped' => $this->finalizeSkippedDiagnostics(is_array($diagnostics['skipped'] ?? null) ? $diagnostics['skipped'] : [])
         ];
     }
 }

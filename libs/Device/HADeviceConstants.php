@@ -27,7 +27,6 @@ interface HADeviceConstants
     public const string BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG = 'MediaPlayerProgressDebug';
     public const int MEDIA_PLAYER_PROGRESS_DEBUG_INTERVAL = 10;
 
-    public const string PROP_DEVICE_CONFIG = 'DeviceConfig';
     public const string PROP_DEVICE_AREA = 'DeviceArea';
     public const string PROP_DEVICE_NAME = 'DeviceName';
     public const string PROP_DEVICE_ID = 'DeviceID';

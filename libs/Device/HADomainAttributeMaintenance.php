@@ -125,6 +125,34 @@ trait HADomainAttributeMaintenanceTrait
         $this->updateDeviceTrackerAttributeValues((string)($entity['entity_id'] ?? ''), $attributes);
     }
 
+    protected function maintainUpdateAttributeVariables(array $entity): void
+    {
+        $entityId = (string)($entity['entity_id'] ?? '');
+        if ($entityId === '') {
+            return;
+        }
+
+        $attributes = $entity['attributes'] ?? [];
+        if (!is_array($attributes)) {
+            $attributes = [];
+        }
+
+        $basePosition = $this->getEntityPosition($entityId);
+        $this->maintainStandardAttributeVariables(
+            ['entity_id' => $entityId, 'attributes' => $attributes],
+            HAUpdateDefinitions::ATTRIBUTE_DEFINITIONS,
+            static fn(string $attribute, array $_meta, array $entityAttributes): bool => array_key_exists($attribute, $entityAttributes),
+            fn(string $attribute, array $entityAttributes, array $meta): array => $this->getUpdateAttributePresentation($attribute, $entityAttributes, $meta),
+            fn(string $attribute, int $positionBase): int => $this->getUpdateAttributePosition($attribute, $positionBase),
+            function (string $_attribute, array $_attributes, string $ident): void {
+                $this->syncAttributeActionState($ident, false);
+            },
+            $basePosition
+        );
+
+        $this->updateUpdateAttributeValues($entityId, $attributes);
+    }
+
     // Event trennt Zeitstempel und Ereignistyp in zwei eigene Symcon-Variablen.
     protected function maintainEventAttributeVariables(array $entity): void
     {
@@ -224,6 +252,27 @@ trait HADomainAttributeMaintenanceTrait
         );
     }
 
+    protected function updateUpdateAttributeValues(string $entityId, array $attributes): void
+    {
+        foreach (HAUpdateDefinitions::ATTRIBUTE_DEFINITIONS as $attribute => $meta) {
+            if (!is_array($meta) || !array_key_exists($attribute, $attributes)) {
+                continue;
+            }
+
+            $ident = $this->getAttributeVariableIdent($entityId, $attribute);
+            if (!$this->attributeVariableExists($ident)) {
+                continue;
+            }
+
+            $value = $this->normalizeUpdateAttributeValue($attribute, $attributes[$attribute] ?? null);
+            if ($value === null) {
+                continue;
+            }
+
+            $this->setValueWithDebug($ident, $value);
+        }
+    }
+
     // Image-Status wird als Zeitstempelwert auf die Hauptvariable geschrieben.
     protected function updateImageStateValue(string $ident, string $state): void
     {
@@ -242,6 +291,100 @@ trait HADomainAttributeMaintenanceTrait
     private function getEventTypeIdent(string $entityId): string
     {
         return $this->buildSharedSuffixIdent($entityId, self::EVENT_TYPE_SUFFIX);
+    }
+
+    private function getUpdateAttributePosition(string $attribute, int $basePosition): int
+    {
+        $index = array_search($attribute, HAUpdateDefinitions::ATTRIBUTE_ORDER, true);
+        if ($index === false) {
+            return $basePosition + 90;
+        }
+
+        return $basePosition + 6 + $index;
+    }
+
+    private function getUpdateAttributePresentation(string $attribute, array $attributes, array $_meta): array
+    {
+        unset($attributes);
+
+        if ($attribute === HAUpdateDefinitions::ATTRIBUTE_IN_PROGRESS) {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_SWITCH
+            ];
+        }
+
+        if ($attribute === HAUpdateDefinitions::ATTRIBUTE_UPDATE_PERCENTAGE) {
+            return $this->filterPresentation([
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                'DIGITS' => 1,
+                'SUFFIX' => $this->formatPresentationSuffix('%')
+            ]);
+        }
+
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION
+        ];
+    }
+
+    private function normalizeUpdateAttributeValue(string $attribute, mixed $value): string|bool|float|int|null
+    {
+        return match ($attribute) {
+            HAUpdateDefinitions::ATTRIBUTE_IN_PROGRESS => $this->normalizeUpdateBooleanAttributeValue($value),
+            HAUpdateDefinitions::ATTRIBUTE_UPDATE_PERCENTAGE => $this->normalizeUpdateNumericAttributeValue($value),
+            default => $this->normalizeUpdateStringAttributeValue($value)
+        };
+    }
+
+    private function normalizeUpdateBooleanAttributeValue(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (float)$value !== 0.0;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        return match (strtolower(trim($value))) {
+            '1', 'true', 'on', 'yes', 'ja' => true,
+            '0', 'false', 'off', 'no', 'nein' => false,
+            default => null
+        };
+    }
+
+    private function normalizeUpdateNumericAttributeValue(mixed $value): ?float
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float)$value;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $normalized = str_replace(',', '.', trim($value));
+        return is_numeric($normalized) ? (float)$normalized : null;
+    }
+
+    private function normalizeUpdateStringAttributeValue(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_scalar($value)) {
+            return trim((string)$value);
+        }
+
+        try {
+            return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        } catch (JsonException) {
+            return null;
+        }
     }
 
     private function maintainCameraStreamMedia(string $entityId, int $basePosition): void

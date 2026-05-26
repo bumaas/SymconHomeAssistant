@@ -158,6 +158,12 @@ final class HADomainCatalog
                 'attribute_topics' => true,
                 'variable_type' => HADeviceTrackerDefinitions::VARIABLE_TYPE
             ],
+            HAUpdateDefinitions::DOMAIN => [
+                'configurator_default' => true,
+                'status_domain' => true,
+                'attribute_topics' => true,
+                'variable_type' => HAUpdateDefinitions::VARIABLE_TYPE
+            ],
             HAButtonDefinitions::DOMAIN => [
                 'configurator_default' => true,
                 'main_writable' => true,

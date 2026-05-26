@@ -1,6 +1,11 @@
 {
   "translations": {
     "de": {
+      "Information": "Informationen",
+      "Resolved Configuration": "Aufgelöste Konfiguration",
+      "Device ID": "Geräte-ID",
+      "Entities": "Entitäten",
+      "Expert": "Experte",
       "Device Information": "Ger\u00e4teinformationen",
       "Discovery Device ID": "Discovery-Device-ID",
       "Device name: %s": "Ger\u00e4tename: %s",
@@ -52,6 +57,16 @@
       "Position": "Position",
       "Last Update": "Letzte Aktualisierung",
       "Status": "Status",
+      "Update Available": "Update verfügbar",
+      "Up to Date": "Aktuell",
+      "Installed Version": "Installierte Version",
+      "Latest Version": "Neueste Version",
+      "Skipped Version": "Übersprungene Version",
+      "In Progress": "In Bearbeitung",
+      "Update Percentage": "Update-Fortschritt",
+      "Title": "Titel",
+      "Release Summary": "Release-Zusammenfassung",
+      "Release URL": "Release-URL",
       "Resolution: %s": "Aufl\u00f6sung: %s",
       "Availability: %s": "Availability: %s",
       "Warnings: %s": "Warnungen: %s",

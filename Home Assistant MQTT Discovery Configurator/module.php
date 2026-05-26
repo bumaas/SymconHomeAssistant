@@ -10,6 +10,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
 {
     use ModuleDebugTrait;
     use HAMqttDiscoveryParentClientTrait;
+    use HADiagnosticFormattingTrait;
 
     private HAMqttDiscoveryParser $parser;
     private HAMqttDiscoveryGrouping $grouping;
@@ -258,144 +259,22 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
     private function buildDiagnosticsPanel(array $diagnostics, int $groupCount): ?array
     {
         $unsupported = is_array($diagnostics['unsupported'] ?? null) ? $diagnostics['unsupported'] : [];
-        $skipped = is_array($diagnostics['skipped'] ?? null) ? $diagnostics['skipped'] : [];
         $parsedEntities = (int)($diagnostics['parsed_entities'] ?? 0);
         $totalRecords = (int)($diagnostics['total_records'] ?? 0);
+        $visible = $unsupported !== [] || $totalRecords > 0;
 
-        if ($unsupported === [] && $skipped === [] && $totalRecords === 0) {
+        if (!$visible) {
             return null;
         }
 
-        $items = [[
-            'type' => 'Label',
-            'caption' => sprintf($this->Translate('Parsed discovery records/entities/devices: %d/%d/%d'), $totalRecords, $parsedEntities, $groupCount)
-        ]];
-
-        $items[] = [
-            'type' => 'Label',
-            'caption' => $unsupported === []
-                ? $this->Translate('Unsupported discovery components: none')
-                : sprintf($this->Translate('Unsupported discovery components: %s'), $this->formatUnsupportedSummary($unsupported))
-        ];
-
-        if ($unsupported !== []) {
-            $items[] = [
-                'type' => 'Label',
-                'caption' => sprintf($this->Translate('Unsupported examples: %s'), $this->formatUnsupportedExamples($unsupported))
-            ];
-        }
-
-        $items[] = [
-            'type' => 'Label',
-            'caption' => $skipped === []
-                ? $this->Translate('Skipped discovery entries: none')
-                : sprintf($this->Translate('Skipped discovery entries: %s'), $this->formatSkippedSummary($skipped))
-        ];
-
-        if ($skipped !== []) {
-            $items[] = [
-                'type' => 'Label',
-                'caption' => sprintf($this->Translate('Skipped examples: %s'), $this->formatSkippedExamples($skipped))
-            ];
-        }
-
-        return [
-            'type' => 'ExpansionPanel',
-            'caption' => $this->Translate('Discovery Diagnostics'),
-            'expanded' => false,
-            'items' => $items
-        ];
-    }
-
-    private function formatUnsupportedSummary(array $unsupported): string
-    {
-        $parts = [];
-        foreach (array_slice($unsupported, 0, 8) as $entry) {
-            if (!is_array($entry)) {
-                continue;
-            }
-
-            $parts[] = sprintf(
-                '%s (%d)',
-                ($entry['component'] ?? 'unknown'),
-                (int)($entry['count'] ?? 0)
-            );
-        }
-
-        return $parts === [] ? $this->Translate('none') : implode(', ', $parts);
-    }
-
-    private function formatUnsupportedExamples(array $unsupported): string
-    {
-        $parts = [];
-        foreach (array_slice($unsupported, 0, 4) as $entry) {
-            if (!is_array($entry)) {
-                continue;
-            }
-
-            $examples = array_slice(is_array($entry['examples'] ?? null) ? $entry['examples'] : [], 0, 2);
-            if ($examples === []) {
-                continue;
-            }
-
-            $parts[] = ($entry['component'] ?? 'unknown') . ' -> ' . implode(', ', $examples);
-        }
-
-        return $parts === [] ? $this->Translate('none') : implode(' | ', $parts);
-    }
-
-    private function formatSkippedSummary(array $skipped): string
-    {
-        $parts = [];
-        foreach (array_slice($skipped, 0, 8) as $entry) {
-            if (!is_array($entry)) {
-                continue;
-            }
-
-            $parts[] = sprintf(
-                '%s (%d)',
-                $this->formatSkippedLabel($entry),
-                (int)($entry['count'] ?? 0)
-            );
-        }
-
-        return $parts === [] ? $this->Translate('none') : implode(', ', $parts);
-    }
-
-    private function formatSkippedExamples(array $skipped): string
-    {
-        $parts = [];
-        foreach (array_slice($skipped, 0, 4) as $entry) {
-            if (!is_array($entry)) {
-                continue;
-            }
-
-            $examples = array_slice(is_array($entry['examples'] ?? null) ? $entry['examples'] : [], 0, 2);
-            if ($examples === []) {
-                continue;
-            }
-
-            $parts[] = $this->formatSkippedLabel($entry) . ' -> ' . implode(', ', $examples);
-        }
-
-        return $parts === [] ? $this->Translate('none') : implode(' | ', $parts);
-    }
-
-    private function formatSkippedLabel(array $entry): string
-    {
-        $component = (string)($entry['component'] ?? 'unknown');
-        $reason = (string)($entry['reason'] ?? 'unknown');
-
-        return match ($reason) {
-            'empty_payload' => sprintf($this->Translate('%s without payload'), $component),
-            'invalid_json' => sprintf($this->Translate('%s invalid JSON'), $component),
-            'invalid_json_object' => sprintf($this->Translate('%s invalid JSON object'), $component),
-            'missing_topic' => sprintf($this->Translate('%s without topic'), $component),
-            'missing_components' => $this->Translate('device discovery without components'),
-            'missing_platform' => $this->Translate('device discovery without platform'),
-            'invalid_component_entry' => $this->Translate('device discovery invalid component entry'),
-            default => sprintf($this->Translate('%s skipped'), $component)
-        };
+        return $this->buildUnsupportedDiagnosticsPanel(
+            $this->Translate('Discovery Diagnostics'),
+            sprintf($this->Translate('Parsed discovery records/entities/devices: %d/%d/%d'), $totalRecords, $parsedEntities, $groupCount),
+            $this->Translate('Unsupported discovery components: none'),
+            $this->Translate('Unsupported discovery components: %s'),
+            $unsupported,
+            $visible
+        );
     }
 
     private function ensureHelpers(): void

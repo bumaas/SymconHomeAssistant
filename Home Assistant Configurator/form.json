@@ -2,18 +2,6 @@
   "elements": [
     {
       "type": "ExpansionPanel",
-      "caption": "Configuration",
-      "visible": true,
-      "items": [
-        {
-          "type": "CheckBox",
-          "name": "AutoCreateVariables",
-          "caption": "Create status variables automatically"
-        }
-      ]
-    },
-    {
-      "type": "ExpansionPanel",
       "caption": "Expert Settings",
       "items": [
         {

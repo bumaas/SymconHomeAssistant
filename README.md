@@ -160,9 +160,9 @@ Im Bundle-Modus werden aktuell keine Befehle an Geräte gesendet.
 | `switch`        | voll      | schaltbar                                                            |
 | `binary_sensor` | voll      | `device_class` und Icons                                             |
 | `number`        | voll      | Slider, Min/Max/Step, REST `set_value`; gilt auch für `input_number` |
-| `input_text`    | voll      | String-Wert, REST `set_value`                                         |
-| `datetime`      | voll      | Integer-Zeitwert, REST `set_value`                                    |
-| `input_datetime`| voll      | Integer-Zeitwert, REST `set_datetime`                                 |
+| `input_text`    | voll      | String-Wert, REST `set_value`                                        |
+| `datetime`      | voll      | Integer-Zeitwert, REST `set_value`                                   |
+| `input_datetime`| voll      | Integer-Zeitwert, REST `set_datetime`                                |
 | `sensor`        | voll      | Units, Suffixe, `enum` als Enumeration                               |
 | `select`        | voll      | Enumeration                                                          |
 | `climate`       | voll      | Solltemperatur, Modus, Preset, Lüfter, Swing, Ein/Aus, Zielfeuchte   |

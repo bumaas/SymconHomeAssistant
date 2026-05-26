@@ -49,6 +49,7 @@ trait HADomainValueMappingTrait
             HALightDefinitions::DOMAIN,
             HASwitchDefinitions::DOMAIN,
             HABinarySensorDefinitions::DOMAIN,
+            HAUpdateDefinitions::DOMAIN,
             HAFanDefinitions::DOMAIN,
             HAHumidifierDefinitions::DOMAIN => strtoupper(trim($valueData)) === 'ON',
             HAClimateDefinitions::DOMAIN => $this->convertClimateValue($valueData, $attributes),

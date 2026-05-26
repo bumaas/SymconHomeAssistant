@@ -52,7 +52,7 @@ Flüchtige Live-Werte und Prognosedaten werden dort bewusst nicht mehr gespiegel
 Ziel:
 
 - `Als gelesen markiert` soll nicht durch volatile Attributänderungen erneut neue Configurator-Einträge erzeugen.
-- `DeviceConfig` im `create`-Block bleibt stabil nach `entity_id` sortiert.
+- Klassische Device-Instanzen sollen im `create`-Block nur noch mit ihrer stabilen `DeviceID` angelegt werden.
 
 Auswirkung:
 

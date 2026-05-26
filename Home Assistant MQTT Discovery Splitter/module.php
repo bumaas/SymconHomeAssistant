@@ -63,6 +63,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
+        if (!$this->isModuleRuntimeReady()) {
+            return;
+        }
+
         if ($this->isBundleMode()) {
             return;
         }
@@ -93,7 +97,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, 0);
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
         $this->syncParentStatusMessageRegistration();
-        if (!$this->isKernelReady()) {
+        if (!$this->isModuleRuntimeReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
             return;
         }
@@ -303,6 +307,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     public function ForwardData(string $JSONString): string
     {
+        if (!$this->isModuleRuntimeReady()) {
+            return '';
+        }
+
         try {
             $data = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
@@ -334,6 +342,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
+        if (!$this->isModuleRuntimeReady()) {
+            return '';
+        }
+
         if ($this->isBundleMode()) {
             return '';
         }
@@ -2371,3 +2383,4 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         return $baseTopic . substr($topic, 1);
     }
 }
+

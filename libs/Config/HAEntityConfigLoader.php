@@ -71,6 +71,52 @@ EOT;
 ]
 EOT;
 
+    private const string HA_FULL_DATA_TEMPLATE_BY_DEVICE = <<<'EOT'
+[
+    {# Rekursive JSON-Sanitizer: wandelt Sets/Iterables in JSON-kompatible Listen um #}
+    {% macro sanitize_json(value, depth=0) -%}
+    {%- if depth > 4 -%}
+    {{ 'null' }}
+    {%- elif value is mapping -%}
+    {%- set ns = namespace(items=[]) -%}
+    {%- for k, v in value.items() -%}
+    {%- set ns.items = ns.items + [((k | string) | to_json) ~ ':' ~ sanitize_json(v, depth + 1)] -%}
+    {%- endfor -%}
+    {{ '{' ~ (ns.items | join(',')) ~ '}' }}
+    {%- elif value is iterable and value is not string -%}
+    {%- set ns = namespace(items=[]) -%}
+    {%- for v in value -%}
+    {%- set ns.items = ns.items + [sanitize_json(v, depth + 1)] -%}
+    {%- endfor -%}
+    {{ '[' ~ (ns.items | join(',')) ~ ']' }}
+    {%- else -%}
+    {%- if value is string or value is number or value is boolean -%}
+    {{ value | to_json }}
+    {%- else -%}
+    {{ value | string | to_json }}
+    {%- endif -%}
+    {%- endif -%}
+    {%- endmacro %}
+
+    {% set target_device_id = DEVICE_ID_PLACEHOLDER %}
+    {% for state in states if device_id(state.entity_id) | default('none', true) == target_device_id %}
+    {
+        "entity_id": "{{ state.entity_id }}",
+        "domain": "{{ state.domain }}",
+        "name": "{{ state.attributes.friendly_name | default(state.name) }}",
+        "attributes": {{ sanitize_json(state.attributes) }},
+        "device": "{{ device_attr(state.entity_id, 'name') | default('Unknown', true) }} ({{ area_name(state.entity_id) | default('No area', true) }})",
+        "device_name": "{{ device_attr(state.entity_id, 'name') | default('Unknown', true) }}",
+        "device_manufacturer": "{{ device_attr(state.entity_id, 'manufacturer') | default('', true) }}",
+        "device_model": "{{ device_attr(state.entity_id, 'model') | default('', true) }}",
+        "device_id": "{{ device_id(state.entity_id) | default('none', true) }}",
+        "area": "{{ area_name(state.entity_id) | default('No area', true) }}",
+        "supported_features": {{ state.attributes.supported_features | default(0) | int }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+]
+EOT;
+
     private function fetchEntityIdsForDomains(array $domains): ?array
     {
         if ($domains === []) {
@@ -119,6 +165,17 @@ EOT;
 
         $entitiesJson = json_encode($entityIds, JSON_THROW_ON_ERROR);
         $template = str_replace('ENTITIES_PLACEHOLDER', $entitiesJson, self::HA_FULL_DATA_TEMPLATE_BY_ENTITY);
+        return $this->renderHATemplate(trim($template));
+    }
+
+    private function fetchEntitiesByDeviceId(string $deviceId): ?array
+    {
+        if (trim($deviceId) === '') {
+            return [];
+        }
+
+        $deviceIdJson = json_encode($deviceId, JSON_THROW_ON_ERROR);
+        $template = str_replace('DEVICE_ID_PLACEHOLDER', $deviceIdJson, self::HA_FULL_DATA_TEMPLATE_BY_DEVICE);
         return $this->renderHATemplate(trim($template));
     }
 

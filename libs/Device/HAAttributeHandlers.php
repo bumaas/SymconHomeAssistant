@@ -69,6 +69,7 @@ trait HAAttributeHandlersTrait
             HACameraDefinitions::DOMAIN => 'handleCameraAttributeTopic',
             HAImageDefinitions::DOMAIN => 'handleImageAttributeTopic',
             HADeviceTrackerDefinitions::DOMAIN => 'handleDeviceTrackerAttributeTopic',
+            HAUpdateDefinitions::DOMAIN => 'handleGenericAttributeTopic',
             HASelectDefinitions::DOMAIN => 'handleSelectAttributeTopic',
             HALightDefinitions::DOMAIN => 'handleLightAttributeTopic'
         ];

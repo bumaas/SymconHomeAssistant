@@ -2,15 +2,22 @@
   "elements": [
     {
       "type": "ExpansionPanel",
-      "caption": "Device Information",
+      "caption": "Information",
       "expanded": true,
       "items": [
         {
           "type": "ValidationTextBox",
           "name": "DeviceID",
-          "caption": "Discovery Device ID",
+          "caption": "Device ID",
           "readOnly": false
-        },
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Resolved Configuration",
+      "expanded": true,
+      "items": [
         {
           "type": "Label",
           "name": "ResolvedDeviceName",
@@ -29,80 +36,87 @@
       ]
     },
     {
-      "type": "List",
-      "name": "EntitySelection",
+      "type": "ExpansionPanel",
       "caption": "Entity Selection",
-      "visible": false,
-      "rowCount": 20,
-      "add": false,
-      "delete": false,
-      "columns": [
+      "expanded": true,
+      "items": [
         {
-          "caption": "Active",
-          "name": "create_var",
-          "width": "70px",
-          "edit": {
-            "type": "CheckBox"
-          }
-        },
-        {
-          "caption": "Component",
-          "name": "component",
-          "width": "120px"
-        },
-        {
-          "caption": "Name",
-          "name": "name",
-          "width": "auto"
-        },
-        {
-          "caption": "State Topic",
-          "name": "state_topic",
-          "width": "260px"
-        },
-        {
-          "caption": "Command Topic",
-          "name": "command_topic",
-          "width": "260px",
-          "save": true
-        },
-        {
-          "caption": "AvailCfg",
-          "name": "availability",
-          "width": "95px"
-        },
-        {
-          "caption": "Cache",
-          "name": "cache",
-          "width": "85px"
-        },
-        {
-          "caption": "Mapping",
-          "name": "mapping",
-          "width": "180px"
-        },
-        {
-          "caption": "Warning",
-          "name": "warning",
-          "width": "170px"
-        },
-        {
-          "caption": "Mode",
-          "name": "mode",
-          "width": "70px"
-        },
-        {
-          "caption": "Entity Key",
-          "name": "entity_key",
-          "width": "280px",
+          "type": "List",
+          "name": "EntitySelection",
+          "caption": "Entities",
           "visible": false,
-          "save": true
+          "rowCount": 20,
+          "add": false,
+          "delete": false,
+          "columns": [
+            {
+              "caption": "Active",
+              "name": "create_var",
+              "width": "70px",
+              "edit": {
+                "type": "CheckBox"
+              }
+            },
+            {
+              "caption": "Component",
+              "name": "component",
+              "width": "120px"
+            },
+            {
+              "caption": "Name",
+              "name": "name",
+              "width": "auto"
+            },
+            {
+              "caption": "State Topic",
+              "name": "state_topic",
+              "width": "260px"
+            },
+            {
+              "caption": "Command Topic",
+              "name": "command_topic",
+              "width": "260px",
+              "save": true
+            },
+            {
+              "caption": "AvailCfg",
+              "name": "availability",
+              "width": "95px"
+            },
+            {
+              "caption": "Cache",
+              "name": "cache",
+              "width": "85px"
+            },
+            {
+              "caption": "Mapping",
+              "name": "mapping",
+              "width": "180px"
+            },
+            {
+              "caption": "Warning",
+              "name": "warning",
+              "width": "170px"
+            },
+            {
+              "caption": "Mode",
+              "name": "mode",
+              "width": "70px"
+            },
+            {
+              "caption": "Entity Key",
+              "name": "entity_key",
+              "width": "280px",
+              "visible": false,
+              "save": true
+            }
+          ]
         }
       ]
     },
     {
       "type": "ExpansionPanel",
-      "caption": "Expert Settings",
+      "caption": "Expert",
       "items": [
         {
           "type": "CheckBox",

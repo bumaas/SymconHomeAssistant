@@ -40,6 +40,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 {
     private const int STATUS_PARENT_UNAVAILABLE = 201;
     private const int STATUS_MQTT_BASE_TOPIC_MISSING = 202;
+    private const int STATUS_DEVICE_ID_MISSING = 210;
+    private const int STATUS_DEVICE_NOT_FOUND = 211;
+    private const string ATTR_RESOLVED_CONFIG = 'ResolvedConfig';
 
     use ModuleDebugTrait;
     use HAIdentNamingTrait;
@@ -60,6 +63,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     use HASupportedFeaturesTrait;
     use HADiagnosticsTrait;
     use HARestParentClientTrait;
+    use HAEntityConfigLoaderTrait;
+    use HAEntityConfigBuilderTrait {
+        buildResolvedEntityConfig as private buildResolvedEntities;
+    }
     use HADeviceCoreTrait;
 
     public function Create(): void
@@ -79,12 +86,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterAttributeString('LastMQTTMessage', '');
         $this->RegisterAttributeString('LastRESTFetch', '');
         $this->RegisterAttributeString('EntityStateCache', '{}');
+        $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
 
         // Eigenschaften
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
         $this->RegisterPropertyString(self::PROP_DEVICE_AREA, '');
         $this->RegisterPropertyString(self::PROP_DEVICE_NAME, '');
-        $this->RegisterPropertyString(self::PROP_DEVICE_CONFIG, '[]');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_UNAVAILABLE_ENTITIES_JSON, false);
         $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
@@ -106,6 +113,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
+        if (!$this->isModuleRuntimeReady()) {
+            return;
+        }
+
         // Wenn sich die Verbindung ändert, ist die Konfiguration neu zu laden.
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
             $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...');
@@ -118,6 +129,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
         parent::ApplyChanges();
         $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
+        $this->ensureResolvedConfigAttributeRegistered(__FUNCTION__);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.');
@@ -139,20 +151,50 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
+        $this->UpdateConfiguration();
+    }
+
+    public function UpdateConfiguration(): void
+    {
+        $deviceId = trim($this->ReadPropertyString(self::PROP_DEVICE_ID));
+        if ($deviceId === '') {
+            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+            $this->resetResolvedDeviceRuntime();
+            $this->SetSummary('');
+            $this->SetStatus(self::STATUS_DEVICE_ID_MISSING);
+            $this->updateDiagnosticsLabels();
+            $this->refreshResolvedFormFields();
+            return;
+        }
+
+        $configData = $this->resolveDeviceConfigByDeviceId($deviceId);
+        if ($configData === []) {
+            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+            $this->resetResolvedDeviceRuntime();
+            $this->SetSummary($deviceId);
+            $this->SetStatus(self::STATUS_DEVICE_NOT_FOUND);
+            $this->updateDiagnosticsLabels();
+            $this->refreshResolvedFormFields();
+            $this->debugExpert(__FUNCTION__, 'Gerät nicht in Home Assistant gefunden', ['DeviceID' => $deviceId], true);
+            return;
+        }
+
+        $this->WriteAttributeString(
+            self::ATTR_RESOLVED_CONFIG,
+            json_encode($configData, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+
         // 1. MQTT-Basetopic ermitteln.
         $baseTopic = $this->determineBaseTopic();
         $this->debugExpert('ApplyChanges', 'Konfiguration geladen', ['BaseTopic' => $baseTopic]);
 
-        // 2. Konfiguration laden.
-        $configData = $this->decodeJsonArray($this->ReadPropertyString(self::PROP_DEVICE_CONFIG), 'ApplyChanges');
-        if ($configData === null) {
-            return;
-        }
-        $configData = $this->normalizeDeviceConfigAttributesForStorage($configData, 'ApplyChanges');
-
         $stateMap = $this->fetchStateMap($configData);
         if ($stateMap !== []) {
             $configData = $this->mergeStateAttributes($configData, $stateMap);
+            $this->WriteAttributeString(
+                self::ATTR_RESOLVED_CONFIG,
+                json_encode($configData, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            );
         }
 
         if ($baseTopic === '') {
@@ -161,7 +203,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         } else {
             $this->SetStatus(IS_ACTIVE);
         }
-        $this->SetSummary($this->ReadPropertyString(self::PROP_DEVICE_ID));
+        $this->SetSummary($this->getResolvedDeviceName($configData) ?: $deviceId);
 
         // 3. Entitäten verarbeiten und Topics sammeln.
         $filterTopics = $this->processEntities($configData, $baseTopic);
@@ -182,6 +224,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         if ($baseTopic !== '' && $this->hasMediaPlayerEntities()) {
             $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 1000);
         }
+
+        $this->refreshResolvedFormFields();
     }
 
     /**
@@ -189,6 +233,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     public function ReceiveData(string $JSONString): string
     {
+        if (!$this->isModuleRuntimeReady()) {
+            return '';
+        }
         $data = $this->decodeJsonArray($JSONString, 'ReceiveData');
         if ($data === null) {
             return '';
@@ -226,6 +273,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     public function RequestAction(string $Ident, $Value): void
     {
+        if (!$this->isModuleRuntimeReady()) {
+            return;
+        }
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
 
         if ($this->handleLockAction($Ident, $Value)) {
@@ -345,12 +395,13 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         $form   = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
-        $rawConfig = $this->ReadPropertyString(self::PROP_DEVICE_CONFIG);
-        $config = $this->decodeJsonArray($rawConfig, __FUNCTION__);
+        $config = $this->readResolvedConfig(__FUNCTION__);
         $this->debugExpert(__FUNCTION__, 'config:', $config);
 
         $values = [];
         $domainOptions = HADomainCatalog::getDomainSelectOptions();
+        $resolvedName = $this->getResolvedDeviceName($config);
+        $resolvedArea = $this->getResolvedDeviceArea($config);
 
         if (is_array($config)) {
             foreach ($config as $row) {
@@ -396,27 +447,31 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                     if (($item['name'] ?? '') === self::PROP_DEVICE_NAME) {
                         $item['caption'] = sprintf(
                             $this->Translate('Device name (HA): %s'),
-                            $this->ReadPropertyString(self::PROP_DEVICE_NAME)
+                            $resolvedName
                         );
                         continue;
                     }
                     if (($item['name'] ?? '') === self::PROP_DEVICE_AREA) {
                         $item['caption'] = sprintf(
                             $this->Translate('Area: %s'),
-                            $this->ReadPropertyString(self::PROP_DEVICE_AREA)
+                            $resolvedArea
                         );
                         continue;
                     }
-                    if (($item['name'] ?? '') === self::PROP_DEVICE_ID) {
-                        $item['caption'] = sprintf(
-                            $this->Translate('Device ID: %s'),
-                            $this->ReadPropertyString(self::PROP_DEVICE_ID)
-                        );
+                    if (($item['name'] ?? '') === 'ResolvedConfig') {
+                        $item['values'] = $values;
+                        foreach ($item['columns'] as &$column) {
+                            if (($column['name'] ?? '') === 'domain') {
+                                $column['edit']['options'] = $domainOptions;
+                                break;
+                            }
+                        }
+                        unset($column);
                     }
                 }
                 unset($item);
             }
-            if (($element['name'] ?? '') === self::PROP_DEVICE_CONFIG) {
+            if (($element['name'] ?? '') === 'ResolvedConfig') {
                 $element['values'] = $values;
                 // Update domain options dynamically from catalog
                 foreach ($element['columns'] as &$column) {
@@ -484,59 +539,157 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         unset($action);
     }
 
-    private function normalizeDeviceConfigAttributesForStorage(array $configData, string $context): array
+    private function getConfiguredEntities(string $context): array
     {
-        $normalized = [];
-        $changed = false;
+        $configData = $this->readResolvedConfig($context);
 
+        $configuredEntities = [];
         foreach ($configData as $row) {
-            if (!is_array($row)) {
-                $normalized[] = $row;
+            $row = $this->normalizeActiveConfiguredEntity($row);
+            if ($row === null) {
                 continue;
             }
 
-            $originalRow = $row;
-            $normalizedRow = $this->normalizeEntityStructure($row);
-            if ($normalizedRow !== null) {
-                $row = $normalizedRow;
+            $configuredEntities[] = $row;
+        }
+
+        return $this->applySharedEntityIdents($configuredEntities);
+    }
+
+    private function resolveDeviceConfigByDeviceId(string $deviceId): array
+    {
+        $rawEntities = $this->fetchEntitiesByDeviceId($deviceId);
+        if (!is_array($rawEntities) || $rawEntities === []) {
+            return [];
+        }
+
+        $deduplicated = [];
+        foreach ($rawEntities as $rawEntity) {
+            if (!is_array($rawEntity)) {
+                continue;
+            }
+
+            $entityId = trim((string)($rawEntity['entity_id'] ?? ''));
+            if ($entityId === '') {
+                continue;
+            }
+
+            $deduplicated[$entityId] = $rawEntity;
+        }
+
+        return $this->buildResolvedEntities(array_values($deduplicated));
+    }
+
+    private function readResolvedConfig(string $context): array
+    {
+        $this->ensureResolvedConfigAttributeRegistered($context);
+        $configData = $this->decodeJsonArray($this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG), $context);
+        return $configData ?? [];
+    }
+
+    private function ensureResolvedConfigAttributeRegistered(string $context): void
+    {
+        if (@$this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG) !== false) {
+            return;
+        }
+
+        $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->debugExpert($context, 'ResolvedConfig in Bestandsinstanz initialisiert');
+    }
+
+    private function getResolvedDeviceName(?array $configData = null): string
+    {
+        $configData ??= $this->readResolvedConfig(__FUNCTION__);
+        $first = $configData[0] ?? null;
+        if (!is_array($first)) {
+            return trim($this->ReadPropertyString(self::PROP_DEVICE_NAME));
+        }
+
+        $name = trim((string)($first['device_name'] ?? ''));
+        if ($name !== '' && strtolower($name) !== 'unknown') {
+            return $name;
+        }
+
+        return trim($this->ReadPropertyString(self::PROP_DEVICE_NAME));
+    }
+
+    private function getResolvedDeviceArea(?array $configData = null): string
+    {
+        $configData ??= $this->readResolvedConfig(__FUNCTION__);
+        $first = $configData[0] ?? null;
+        if (!is_array($first)) {
+            return trim($this->ReadPropertyString(self::PROP_DEVICE_AREA));
+        }
+
+        $area = trim((string)($first['area'] ?? ''));
+        if (strtolower($area) === 'no area') {
+            $area = '';
+        }
+
+        return $area !== '' ? $area : trim($this->ReadPropertyString(self::PROP_DEVICE_AREA));
+    }
+
+    private function getResolvedDeviceId(?array $configData = null): string
+    {
+        $configData ??= $this->readResolvedConfig(__FUNCTION__);
+        $first = $configData[0] ?? null;
+        if (is_array($first)) {
+            $deviceId = trim((string)($first['device_id'] ?? ''));
+            if ($deviceId !== '') {
+                return $deviceId;
+            }
+        }
+
+        return trim($this->ReadPropertyString(self::PROP_DEVICE_ID));
+    }
+
+    private function refreshResolvedFormFields(): void
+    {
+        $configData = $this->readResolvedConfig(__FUNCTION__);
+        $resolvedName = $this->getResolvedDeviceName($configData);
+        $resolvedArea = $this->getResolvedDeviceArea($configData);
+        $this->updateFormFieldSafe('DeviceName', 'caption', sprintf($this->Translate('Device name (HA): %s'), $resolvedName));
+        $this->updateFormFieldSafe('DeviceArea', 'caption', sprintf($this->Translate('Area: %s'), $resolvedArea));
+        $this->updateFormFieldSafe('ResolvedConfig', 'values', json_encode($this->buildResolvedConfigFormValues($configData), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    private function resetResolvedDeviceRuntime(): void
+    {
+        $this->processEntities([], '');
+        $this->updateReceiveFilter([]);
+        $this->maintainUnavailableEntitiesJsonVariable();
+        $this->updateUnavailableEntitiesJsonVariable();
+    }
+
+    private function buildResolvedConfigFormValues(array $config): array
+    {
+        $values = [];
+        foreach ($config as $row) {
+            $row = $this->normalizeEntityStructure($row);
+            if ($row === null || !HADomainCatalog::isDomainSupported($row['domain'] ?? '')) {
+                continue;
+            }
+
+            if (!isset($row['create_var'])) {
+                $row['create_var'] = true;
             }
 
             $attributes = $row['attributes'] ?? null;
             if (is_string($attributes)) {
-                $decoded = $this->decodeJsonArray($attributes, $context);
-                $attributes = $decoded ?? [];
-            } elseif (!is_array($attributes)) {
-                $attributes = [];
+                $decoded = $this->decodeJsonArray($attributes, __FUNCTION__);
+                if ($decoded !== null) {
+                    $attributes = $decoded;
+                }
             }
 
-            $encodedAttributes = json_encode(
-                $attributes,
-                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
-            );
-
-            if (($row['attributes'] ?? null) !== $encodedAttributes) {
-                $row['attributes'] = $encodedAttributes;
-            }
-
-            if ($row !== $originalRow) {
-                $changed = true;
-            }
-
-            $normalized[] = $row;
+            $row['attributes'] = is_array($attributes)
+                ? json_encode($attributes, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                : '{}';
+            $values[] = $row;
         }
 
-        if ($changed) {
-            IPS_SetProperty(
-                $this->InstanceID,
-                self::PROP_DEVICE_CONFIG,
-                json_encode($normalized, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)
-            );
-            $this->debugExpert($context, 'DeviceConfig attributes normalized for storage', [
-                'RowCount' => count($normalized)
-            ]);
-        }
-
-        return $normalized;
+        return $values;
     }
 
     // --- Private Hilfsmethoden (Business Logic) ---

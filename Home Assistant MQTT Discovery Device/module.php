@@ -51,6 +51,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         HANumberDefinitions::DOMAIN,
         HAImageDefinitions::DOMAIN,
         HADeviceTrackerDefinitions::DOMAIN,
+        HAUpdateDefinitions::DOMAIN,
         HALockDefinitions::DOMAIN,
         HACoverDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
@@ -104,6 +105,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
             $this->ApplyChanges();
+            return;
+        }
+
+        if (!$this->isModuleRuntimeReady()) {
             return;
         }
 
@@ -221,6 +226,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
+        if (!$this->isModuleRuntimeReady()) {
+            return '';
+        }
         try {
             $data = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
@@ -253,6 +261,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function RequestAction($Ident, $Value): void
     {
+        if (!$this->isModuleRuntimeReady()) {
+            return;
+        }
         $entities = $this->getConfiguredEntities();
         $target = $this->resolveActionTarget($entities, (string) $Ident);
         if ($target === null) {
@@ -604,6 +615,21 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         foreach ($form['elements'] as &$element) {
             $name = (string)($element['name'] ?? '');
             if ($name !== self::PROP_ENTITY_SELECTION) {
+                if (!isset($element['items']) || !is_array($element['items'])) {
+                    continue;
+                }
+
+                foreach ($element['items'] as &$item) {
+                    if ((string)($item['name'] ?? '') !== self::PROP_ENTITY_SELECTION) {
+                        continue;
+                    }
+
+                    $item['visible'] = $entities !== [];
+                    $item['values'] = $this->buildEntitySelectionValues($entities, $cachedTopics, $warningMap);
+                    unset($item);
+                    return;
+                }
+                unset($item);
                 continue;
             }
 
@@ -692,6 +718,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'ident' => $this->buildEntityIdent($component, $localObjectId !== '' ? $localObjectId : $objectId),
             'create_var' => $createVar,
             'state_topic' => $this->normalizeNullableString($row['state_topic'] ?? null) ?? '',
+            'latest_version_topic' => $this->normalizeNullableString($row['latest_version_topic'] ?? null) ?? '',
             'command_topic' => $this->normalizeNullableString($row['command_topic'] ?? null) ?? '',
             'json_attributes_topic' => $this->normalizeNullableString($row['json_attributes_topic'] ?? null) ?? '',
             'qos' => max(0, min(2, (int)($row['qos'] ?? 0))),
@@ -753,6 +780,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'enabled_by_default' => !array_key_exists('enabled_by_default', $metadata) || $metadata['enabled_by_default'],
             'icon' => $this->normalizeNullableString($metadata['icon'] ?? null),
             'content_type' => $this->normalizeNullableString($metadata['content_type'] ?? null),
+            'latest_version_template' => is_array($metadata['latest_version_template'] ?? null) ? $metadata['latest_version_template'] : null,
+            'title' => $this->normalizeNullableString($metadata['title'] ?? null),
+            'release_summary' => $this->normalizeNullableString($metadata['release_summary'] ?? null),
+            'release_url' => $this->normalizeNullableString($metadata['release_url'] ?? null),
             'brightness' => (bool)($metadata['brightness'] ?? false),
             'brightness_scale' => is_numeric($metadata['brightness_scale'] ?? null) ? (int)$metadata['brightness_scale'] : null,
             'effect' => (bool)($metadata['effect'] ?? false),
@@ -1120,6 +1151,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
+            if ((string)($entity['component'] ?? '') === HAUpdateDefinitions::DOMAIN) {
+                $idents = array_merge($idents, $this->maintainUpdateAttributeVariables($entity, $cachedTopics, $basePosition));
+                continue;
+            }
+
             if ((string)($entity['component'] ?? '') === HACoverDefinitions::DOMAIN) {
                 $idents = array_merge($idents, $this->maintainCoverActionVariables($entity, $basePosition));
                 continue;
@@ -1136,7 +1172,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function determineVariableType(array $entity, array $cachedTopics): int
     {
         return match ($entity['component']) {
-            HABinarySensorDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HALightDefinitions::DOMAIN => VARIABLETYPE_BOOLEAN,
+            HABinarySensorDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HALightDefinitions::DOMAIN, HAUpdateDefinitions::DOMAIN => VARIABLETYPE_BOOLEAN,
             HASelectDefinitions::DOMAIN, HAButtonDefinitions::DOMAIN, HAEventDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
             HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
             HAImageDefinitions::DOMAIN => HAImageDefinitions::VARIABLE_TYPE,
@@ -1220,6 +1256,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         if ((string)($entity['component'] ?? '') === HAImageDefinitions::DOMAIN) {
             return $this->buildDateTimeValuePresentation(2);
+        }
+
+        if ((string)($entity['component'] ?? '') === HAUpdateDefinitions::DOMAIN) {
+            return $this->buildUpdatePresentation();
         }
 
         if ((string)($entity['component'] ?? '') === HASwitchDefinitions::DOMAIN && $variableType === VARIABLETYPE_BOOLEAN) {
@@ -1322,6 +1362,32 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'DAY_OF_THE_WEEK' => false,
             'MONTH_TEXT' => false,
             'TIME' => $time
+        ];
+    }
+
+    private function buildUpdatePresentation(): array
+    {
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'OPTIONS' => json_encode([
+                [
+                    'Value' => false,
+                    'Caption' => $this->Translate('Up to Date'),
+                    'IconActive' => false,
+                    'IconValue' => '',
+                    'ColorActive' => false,
+                    'ColorValue' => -1
+                ],
+                [
+                    'Value' => true,
+                    'Caption' => $this->Translate('Update Available'),
+                    'IconActive' => false,
+                    'IconValue' => '',
+                    'ColorActive' => false,
+                    'ColorValue' => -1
+                ]
+            ], JSON_THROW_ON_ERROR),
+            'ICON' => HAUpdateDefinitions::ICON
         ];
     }
 
@@ -1752,6 +1818,42 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return $idents;
     }
 
+    private function maintainUpdateAttributeVariables(array $entity, array $cachedTopics, int $basePosition): array
+    {
+        $attributeContext = $this->extractUpdateContextFromCachedTopics($entity, $cachedTopics);
+        $idents = [];
+
+        foreach (HAUpdateDefinitions::ATTRIBUTE_ORDER as $attribute) {
+            if (!$this->shouldCreateUpdateAttribute($entity, $attribute, $attributeContext)) {
+                continue;
+            }
+
+            $meta = HAUpdateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+            if (!is_array($meta)) {
+                continue;
+            }
+
+            $ident = $this->buildUpdateAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), $attribute);
+            $variableType = (int)($meta['type'] ?? VARIABLETYPE_STRING);
+            $this->recreateVariableIfTypeChanged($ident, $variableType);
+            $presentation = $this->buildUpdateAttributePresentation($attribute);
+            $position = $basePosition + $this->getUpdateAttributePositionOffset($attribute);
+            $this->MaintainVariable($ident, $this->Translate((string)($meta['caption'] ?? $attribute)), $variableType, $presentation, $position, true);
+
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId !== false) {
+                IPS_SetVariableCustomAction($variableId, 0);
+                if (array_key_exists($attribute, $attributeContext)) {
+                    $this->SetValue($ident, $attributeContext[$attribute]);
+                }
+            }
+
+            $idents[] = $ident;
+        }
+
+        return $idents;
+    }
+
     private function buildLockActionOptions(array $metadata): array
     {
         $options = [
@@ -2110,6 +2212,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return $this->buildSharedAttributeIdentFromPrefix($entityIdentPrefix, $attribute);
     }
 
+    private function buildUpdateAttributeIdent(string $entityIdentPrefix, string $attribute): string
+    {
+        return $this->buildSharedAttributeIdentFromPrefix($entityIdentPrefix, $attribute);
+    }
+
     private function buildImagePreviewIdent(string $entityIdentPrefix): string
     {
         return $this->buildSharedSuffixIdentFromPrefix($entityIdentPrefix, self::IMAGE_PREVIEW_SUFFIX);
@@ -2246,6 +2353,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return $index === false ? 90 : (6 + (int)$index);
     }
 
+    private function getUpdateAttributePositionOffset(string $attribute): int
+    {
+        $index = array_search($attribute, HAUpdateDefinitions::ATTRIBUTE_ORDER, true);
+        return $index === false ? 90 : (6 + (int)$index);
+    }
+
     private function buildDeviceTrackerAttributePresentation(string $attribute, array $attributes): array
     {
         unset($attributes);
@@ -2267,6 +2380,27 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'DIGITS' => $digits,
             'SUFFIX' => $suffix !== '' ? (' ' . $suffix) : null
         ], static fn(mixed $value): bool => $value !== null);
+    }
+
+    private function buildUpdateAttributePresentation(string $attribute): array
+    {
+        if ($attribute === HAUpdateDefinitions::ATTRIBUTE_IN_PROGRESS) {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_SWITCH
+            ];
+        }
+
+        if ($attribute === HAUpdateDefinitions::ATTRIBUTE_UPDATE_PERCENTAGE) {
+            return [
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                'DIGITS' => 1,
+                'SUFFIX' => ' %'
+            ];
+        }
+
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION
+        ];
     }
 
     private function ensureImagePreviewMedia(string $ident, string $name, int $basePosition, string $extension): void
@@ -2380,7 +2514,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
-            foreach ([$entity['state_topic'], $entity['json_attributes_topic']] as $topic) {
+            foreach ([$entity['state_topic'], $entity['latest_version_topic'], $entity['json_attributes_topic']] as $topic) {
                 if ($topic !== '') {
                     $topics[$topic] = true;
                 }
@@ -2427,6 +2561,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 }
             }
 
+            $latestVersionTopic = trim((string)($entity['latest_version_topic'] ?? ''), '/');
+            if ($latestVersionTopic !== '') {
+                $index['topics'][$latestVersionTopic] = true;
+                if ($entity['create_var']) {
+                    $index['state'][$latestVersionTopic][$entityKey] = true;
+                }
+            }
+
             $eventFallback = $this->getEventStateFallback($entity);
             if ($entity['create_var'] && $eventFallback !== null) {
                 $fallbackTopic = trim((string)($eventFallback['topic'] ?? ''), '/');
@@ -2459,7 +2601,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $index['topics'] = array_keys($index['topics']);
         sort($index['topics'], SORT_STRING);
 
-        foreach (['warnings', 'state', 'availability'] as $bucket) {
+        foreach (['warnings', 'state', 'attributes', 'availability'] as $bucket) {
             ksort($index[$bucket], SORT_STRING);
             foreach ($index[$bucket] as $topic => $entityLookup) {
                 $keys = array_keys($entityLookup);
@@ -2767,6 +2909,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
+        if ((string)($entity['component'] ?? '') === HAUpdateDefinitions::DOMAIN) {
+            $this->applyUpdatePayload($entity, $topic, $payload);
+            return;
+        }
+
         $value = $this->extractStateValue($entity, $payload);
         if ($this->isIndeterminateStateValue($value)) {
             return;
@@ -2834,6 +2981,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         if ($component === HADeviceTrackerDefinitions::DOMAIN) {
             $this->applyDeviceTrackerAttributes($entity, $payload);
+            return;
+        }
+
+        if ($component === HAUpdateDefinitions::DOMAIN) {
+            $this->applyUpdatePayload($entity, (string)($entity['json_attributes_topic'] ?? ''), $payload);
         }
     }
 
@@ -2977,6 +3129,304 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             }
         }
 
+    }
+
+    private function applyUpdatePayload(array $entity, string $topic, string $payload): void
+    {
+        $normalizedTopic = trim($topic, '/');
+        $latestVersionTopic = trim((string)($entity['latest_version_topic'] ?? ''), '/');
+        $attributesTopic = trim((string)($entity['json_attributes_topic'] ?? ''), '/');
+
+        $context = $this->readCurrentUpdateAttributeContext($entity);
+        $incomingContext = [];
+
+        if ($normalizedTopic !== '' && $normalizedTopic === $latestVersionTopic) {
+            $latestVersion = $this->extractUpdateLatestVersionPayload($entity, $payload);
+            if ($latestVersion !== null) {
+                $incomingContext[HAUpdateDefinitions::ATTRIBUTE_LATEST_VERSION] = $latestVersion;
+            }
+        } elseif ($normalizedTopic !== '' && $normalizedTopic === $attributesTopic) {
+            $incomingContext = $this->extractUpdateContextFromAttributesPayload($payload);
+        } else {
+            $incomingContext = $this->extractUpdateContextFromStatePayload($entity, $payload);
+        }
+
+        if ($incomingContext === [] && $context === []) {
+            return;
+        }
+
+        $context = array_merge($context, $incomingContext);
+        $this->applyUpdateContextToVariables($entity, $context);
+
+        $availability = $this->resolveUpdateAvailability($context);
+        if ($availability === null) {
+            return;
+        }
+
+        $ident = (string)($entity['ident'] ?? '');
+        if ($ident !== '' && @$this->GetIDForIdent($ident) !== false) {
+            $this->SetValue($ident, $availability);
+        }
+    }
+
+    private function extractUpdateContextFromCachedTopics(array $entity, array $cachedTopics): array
+    {
+        $context = $this->getStaticUpdateMetadataContext($entity);
+
+        $stateTopic = trim((string)($entity['state_topic'] ?? ''), '/');
+        if ($stateTopic !== '' && isset($cachedTopics[$stateTopic])) {
+            $context = array_merge($context, $this->extractUpdateContextFromStatePayload($entity, (string)($cachedTopics[$stateTopic]['payload'] ?? '')));
+        }
+
+        $latestVersionTopic = trim((string)($entity['latest_version_topic'] ?? ''), '/');
+        if ($latestVersionTopic !== '' && isset($cachedTopics[$latestVersionTopic])) {
+            $latestVersion = $this->extractUpdateLatestVersionPayload($entity, (string)($cachedTopics[$latestVersionTopic]['payload'] ?? ''));
+            if ($latestVersion !== null) {
+                $context[HAUpdateDefinitions::ATTRIBUTE_LATEST_VERSION] = $latestVersion;
+            }
+        }
+
+        $attributesTopic = trim((string)($entity['json_attributes_topic'] ?? ''), '/');
+        if ($attributesTopic !== '' && isset($cachedTopics[$attributesTopic])) {
+            $context = array_merge($context, $this->extractUpdateContextFromAttributesPayload((string)($cachedTopics[$attributesTopic]['payload'] ?? '')));
+        }
+
+        return $context;
+    }
+
+    private function extractUpdateContextFromStatePayload(array $entity, string $payload): array
+    {
+        $context = $this->extractUpdateContextFromPayload($this->extractRawPayloadValue($payload));
+        $installedVersion = $this->castUpdateAttributeValue(
+            HAUpdateDefinitions::ATTRIBUTE_INSTALLED_VERSION,
+            $this->extractStateValue($entity, $payload)
+        );
+        if ($installedVersion !== null) {
+            $context[HAUpdateDefinitions::ATTRIBUTE_INSTALLED_VERSION] = $installedVersion;
+        }
+
+        return $context;
+    }
+
+    private function extractUpdateContextFromAttributesPayload(string $payload): array
+    {
+        return $this->extractUpdateContextFromPayload($this->extractRawPayloadValue($payload));
+    }
+
+    private function extractUpdateContextFromPayload(mixed $payloadValue): array
+    {
+        if (!is_array($payloadValue)) {
+            return [];
+        }
+
+        $context = [];
+        foreach (HAUpdateDefinitions::ATTRIBUTE_ORDER as $attribute) {
+            if (!array_key_exists($attribute, $payloadValue)) {
+                continue;
+            }
+
+            $castValue = $this->castUpdateAttributeValue($attribute, $payloadValue[$attribute]);
+            if ($castValue !== null) {
+                $context[$attribute] = $castValue;
+            }
+        }
+
+        return $context;
+    }
+
+    private function extractUpdateLatestVersionPayload(array $entity, string $payload): ?string
+    {
+        $template = is_array($entity['metadata']['latest_version_template'] ?? null) ? $entity['metadata']['latest_version_template'] : null;
+        $value = (is_array($template) && ($template['supported'] ?? false))
+            ? $this->extractValueFromTemplate($template, $payload)
+            : $this->extractRawPayloadValue($payload);
+
+        $castValue = $this->castUpdateAttributeValue(HAUpdateDefinitions::ATTRIBUTE_LATEST_VERSION, $value);
+        return is_string($castValue) ? $castValue : null;
+    }
+
+    private function getStaticUpdateMetadataContext(array $entity): array
+    {
+        $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+        $context = [];
+
+        foreach ([
+            HAUpdateDefinitions::ATTRIBUTE_TITLE,
+            HAUpdateDefinitions::ATTRIBUTE_RELEASE_SUMMARY,
+            HAUpdateDefinitions::ATTRIBUTE_RELEASE_URL
+        ] as $attribute) {
+            $value = $this->castUpdateAttributeValue($attribute, $metadata[$attribute] ?? null);
+            if ($value !== null) {
+                $context[$attribute] = $value;
+            }
+        }
+
+        return $context;
+    }
+
+    private function readCurrentUpdateAttributeContext(array $entity): array
+    {
+        $context = $this->getStaticUpdateMetadataContext($entity);
+        $identPrefix = (string)($entity['ident_prefix'] ?? $entity['ident']);
+
+        foreach (HAUpdateDefinitions::ATTRIBUTE_ORDER as $attribute) {
+            $ident = $this->buildUpdateAttributeIdent($identPrefix, $attribute);
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId === false) {
+                continue;
+            }
+
+            $value = GetValue($variableId);
+            $castValue = $this->castUpdateAttributeValue($attribute, $value);
+            if ($castValue !== null) {
+                $context[$attribute] = $castValue;
+            }
+        }
+
+        return $context;
+    }
+
+    private function applyUpdateContextToVariables(array $entity, array $context): void
+    {
+        foreach ($context as $attribute => $value) {
+            if (!isset(HAUpdateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute])) {
+                continue;
+            }
+
+            $ident = $this->ensureUpdateAttributeVariable($entity, $attribute);
+            if ($ident === null || @$this->GetIDForIdent($ident) === false) {
+                continue;
+            }
+
+            $this->SetValue($ident, $value);
+        }
+    }
+
+    private function ensureUpdateAttributeVariable(array $entity, string $attribute): ?string
+    {
+        $meta = HAUpdateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
+        if (!is_array($meta)) {
+            return null;
+        }
+
+        $ident = $this->buildUpdateAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), $attribute);
+        $variableType = (int)($meta['type'] ?? VARIABLETYPE_STRING);
+        $this->recreateVariableIfTypeChanged($ident, $variableType);
+        $this->MaintainVariable(
+            $ident,
+            $this->Translate((string)($meta['caption'] ?? $attribute)),
+            $variableType,
+            $this->buildUpdateAttributePresentation($attribute),
+            $this->getEntityBasePosition($entity) + $this->getUpdateAttributePositionOffset($attribute),
+            true
+        );
+
+        $variableId = @$this->GetIDForIdent($ident);
+        if ($variableId !== false) {
+            IPS_SetVariableCustomAction($variableId, 0);
+        }
+
+        return $ident;
+    }
+
+    private function shouldCreateUpdateAttribute(array $entity, string $attribute, array $attributeContext): bool
+    {
+        if (array_key_exists($attribute, $attributeContext)) {
+            return true;
+        }
+
+        $hasStateTopic = trim((string)($entity['state_topic'] ?? '')) !== '';
+        $hasLatestVersionTopic = trim((string)($entity['latest_version_topic'] ?? '')) !== '';
+        $hasAttributesTopic = trim((string)($entity['json_attributes_topic'] ?? '')) !== '';
+
+        return match ($attribute) {
+            HAUpdateDefinitions::ATTRIBUTE_INSTALLED_VERSION => $hasStateTopic,
+            HAUpdateDefinitions::ATTRIBUTE_LATEST_VERSION => $hasStateTopic || $hasLatestVersionTopic,
+            HAUpdateDefinitions::ATTRIBUTE_SKIPPED_VERSION,
+            HAUpdateDefinitions::ATTRIBUTE_IN_PROGRESS,
+            HAUpdateDefinitions::ATTRIBUTE_UPDATE_PERCENTAGE => $hasAttributesTopic,
+            HAUpdateDefinitions::ATTRIBUTE_TITLE,
+            HAUpdateDefinitions::ATTRIBUTE_RELEASE_SUMMARY,
+            HAUpdateDefinitions::ATTRIBUTE_RELEASE_URL => $hasAttributesTopic,
+            default => false
+        };
+    }
+
+    private function resolveUpdateAvailability(array $context): ?bool
+    {
+        $installedVersion = $this->normalizeNullableString($this->scalarToString($context[HAUpdateDefinitions::ATTRIBUTE_INSTALLED_VERSION] ?? null));
+        $latestVersion = $this->normalizeNullableString($this->scalarToString($context[HAUpdateDefinitions::ATTRIBUTE_LATEST_VERSION] ?? null));
+        if ($installedVersion === null || $latestVersion === null) {
+            return null;
+        }
+
+        if ($this->isIndeterminateStateValue($installedVersion) || $this->isIndeterminateStateValue($latestVersion)) {
+            return null;
+        }
+
+        return $installedVersion !== $latestVersion;
+    }
+
+    private function castUpdateAttributeValue(string $attribute, mixed $value): string|bool|float|int|null
+    {
+        return match ($attribute) {
+            HAUpdateDefinitions::ATTRIBUTE_IN_PROGRESS => $this->normalizeUpdateBooleanAttributeValue($value),
+            HAUpdateDefinitions::ATTRIBUTE_UPDATE_PERCENTAGE => $this->normalizeUpdateNumericAttributeValue($value),
+            default => $this->normalizeUpdateStringAttributeValue($value)
+        };
+    }
+
+    private function normalizeUpdateBooleanAttributeValue(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (float)$value !== 0.0;
+        }
+
+        $stringValue = $this->normalizeNullableString($this->scalarToString($value));
+        if ($stringValue === null) {
+            return null;
+        }
+
+        return match (strtolower($stringValue)) {
+            '1', 'true', 'on', 'yes', 'ja' => true,
+            '0', 'false', 'off', 'no', 'nein' => false,
+            default => null
+        };
+    }
+
+    private function normalizeUpdateNumericAttributeValue(mixed $value): ?float
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float)$value;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $normalized = str_replace(',', '.', trim($value));
+        return is_numeric($normalized) ? (float)$normalized : null;
+    }
+
+    private function normalizeUpdateStringAttributeValue(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_scalar($value)) {
+            return trim((string)$value);
+        }
+
+        try {
+            return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        } catch (JsonException) {
+            return null;
+        }
     }
 
     private function extractStateValue(array $entity, string $payload): mixed

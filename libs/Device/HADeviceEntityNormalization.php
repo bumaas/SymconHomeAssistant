@@ -46,27 +46,6 @@ trait HADeviceEntityNormalizationTrait
         return $resolved;
     }
 
-    // Konfigurations-Entities werden einmal zentral normalisiert und gefiltert.
-    private function getConfiguredEntities(string $context): array
-    {
-        $configData = $this->decodeJsonArray($this->ReadPropertyString(HADeviceConstants::PROP_DEVICE_CONFIG), $context);
-        if ($configData === null) {
-            return [];
-        }
-
-        $configuredEntities = [];
-        foreach ($configData as $row) {
-            $row = $this->normalizeActiveConfiguredEntity($row);
-            if ($row === null) {
-                continue;
-            }
-
-            $configuredEntities[] = $row;
-        }
-
-        return $this->applySharedEntityIdents($configuredEntities);
-    }
-
     // Sucht die passende Konfigurationszeile zu einer Entity-ID.
     private function findConfiguredEntityById(string $entityId): ?array
     {
