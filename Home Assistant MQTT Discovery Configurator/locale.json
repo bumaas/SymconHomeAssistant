@@ -19,6 +19,9 @@
       "Model": "Modell",
       "Entities": "Entitäten",
       "Summary": "Zusammenfassung",
+      "Read only": "Nur lesen",
+      "Write only": "Nur schreiben",
+      "Read and write": "Lesen und Schreiben",
       "none": "keine"
     }
   }

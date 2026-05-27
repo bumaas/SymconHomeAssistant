@@ -20,6 +20,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string PROP_DEVICE_ID = 'DeviceID';
     private const string PROP_ENTITY_SELECTION = 'EntitySelection';
     private const string PROP_ENABLE_EXPERT_DEBUG = 'EnableExpertDebug';
+    private const string PROP_SHOW_EXPERT_COLUMNS = 'ShowExpertColumns';
 
     private const int STATUS_PARENT_INVALID = 201;
     private const int STATUS_DISCOVERY_CACHE_MISSING = 202;
@@ -42,6 +43,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const int LOCK_ACTION_POSITION_OFFSET = 5;
     private const int COVER_ACTION_POSITION_OFFSET = 5;
     private const int COVER_TILT_ACTION_POSITION_OFFSET = 6;
+
+    /** @var string[] */
+    private const array ENTITY_SELECTION_EXPERT_COLUMNS = [
+        'state_topic',
+        'command_topic',
+        'availability',
+        'cache',
+        'mapping'
+    ];
 
     /** @var string[] */
     private const array SUPPORTED_COMPONENTS = [
@@ -93,6 +103,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
         $this->RegisterPropertyString(self::PROP_ENTITY_SELECTION, '[]');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
+        $this->RegisterPropertyBoolean(self::PROP_SHOW_EXPERT_COLUMNS, false);
 
         $this->RegisterAttributeString(self::ATTR_LAST_MQTT_MESSAGE, '');
         $this->RegisterAttributeString(self::ATTR_AVAILABILITY_STATE, '{}');
@@ -624,6 +635,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                         continue;
                     }
 
+                    $this->applyEntitySelectionColumnVisibility($item);
                     $item['visible'] = $entities !== [];
                     $item['values'] = $this->buildEntitySelectionValues($entities, $cachedTopics, $warningMap);
                     unset($item);
@@ -633,11 +645,30 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
+            $this->applyEntitySelectionColumnVisibility($element);
             $element['visible'] = $entities !== [];
             $element['values'] = $this->buildEntitySelectionValues($entities, $cachedTopics, $warningMap);
             return;
         }
         unset($element);
+    }
+
+    private function applyEntitySelectionColumnVisibility(array &$list): void
+    {
+        if (!isset($list['columns']) || !is_array($list['columns'])) {
+            return;
+        }
+
+        $showExpertColumns = $this->ReadPropertyBoolean(self::PROP_SHOW_EXPERT_COLUMNS);
+        foreach ($list['columns'] as &$column) {
+            $columnName = (string)($column['name'] ?? '');
+            if (!in_array($columnName, self::ENTITY_SELECTION_EXPERT_COLUMNS, true)) {
+                continue;
+            }
+
+            $column['visible'] = $showExpertColumns;
+        }
+        unset($column);
     }
 
     private function applyCurrentDiagnosticsToForm(array &$form, array $entities, array $warningMap): void
@@ -1091,11 +1122,27 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'cache' => $this->buildEntitySelectionCacheSummary($entity, $cachedTopics),
                 'mapping' => $this->buildEntitySelectionMappingSummary($entity),
                 'warning' => (string)($warningMap[(string)$entity['entity_key']] ?? ''),
-                'mode' => $this->isEntityControllable($entity) ? 'rw' : 'ro'
+                'mode' => $this->buildEntityAccessModeLabel($entity)
             ];
         }
 
         return $values;
+    }
+
+    private function buildEntityAccessModeLabel(array $entity): string
+    {
+        $hasStateTopic = trim((string)($entity['state_topic'] ?? '')) !== '';
+        $isControllable = $this->isEntityControllable($entity);
+
+        if ($isControllable && !$hasStateTopic) {
+            return $this->Translate('Write only');
+        }
+
+        if ($isControllable) {
+            return $this->Translate('Read and write');
+        }
+
+        return $this->Translate('Read only');
     }
 
     private function maintainEntityVariables(array $entities, array $cachedTopics): array

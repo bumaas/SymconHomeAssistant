@@ -45,6 +45,7 @@
           "name": "EntitySelection",
           "caption": "Entities",
           "visible": false,
+          "loadValuesFromConfiguration": false,
           "rowCount": 20,
           "add": false,
           "delete": false,
@@ -70,28 +71,32 @@
             {
               "caption": "State Topic",
               "name": "state_topic",
-              "width": "260px"
+              "width": "260px",
+              "visible": false
             },
             {
               "caption": "Command Topic",
               "name": "command_topic",
               "width": "260px",
-              "save": true
+              "visible": false
             },
             {
               "caption": "AvailCfg",
               "name": "availability",
-              "width": "95px"
+              "width": "95px",
+              "visible": false
             },
             {
               "caption": "Cache",
               "name": "cache",
-              "width": "85px"
+              "width": "85px",
+              "visible": false
             },
             {
               "caption": "Mapping",
               "name": "mapping",
-              "width": "180px"
+              "width": "180px",
+              "visible": false
             },
             {
               "caption": "Warning",
@@ -101,7 +106,7 @@
             {
               "caption": "Mode",
               "name": "mode",
-              "width": "70px"
+              "width": "160px"
             },
             {
               "caption": "Entity Key",
@@ -122,6 +127,11 @@
           "type": "CheckBox",
           "name": "EnableExpertDebug",
           "caption": "Enable extended debug output"
+        },
+        {
+          "type": "CheckBox",
+          "name": "ShowExpertColumns",
+          "caption": "Show technical entity columns"
         }
       ]
     }

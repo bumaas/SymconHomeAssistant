@@ -93,6 +93,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterPropertyString(self::PROP_DEVICE_AREA, '');
         $this->RegisterPropertyString(self::PROP_DEVICE_NAME, '');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
+        $this->RegisterPropertyBoolean(self::PROP_SHOW_TECHNICAL_ENTITY_COLUMNS, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_UNAVAILABLE_ENTITIES_JSON, false);
         $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
         $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
@@ -460,26 +461,14 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                     }
                     if (($item['name'] ?? '') === 'ResolvedConfig') {
                         $item['values'] = $values;
-                        foreach ($item['columns'] as &$column) {
-                            if (($column['name'] ?? '') === 'domain') {
-                                $column['edit']['options'] = $domainOptions;
-                                break;
-                            }
-                        }
-                        unset($column);
+                        $this->applyResolvedConfigColumnSettings($item, $domainOptions);
                     }
                 }
                 unset($item);
             }
             if (($element['name'] ?? '') === 'ResolvedConfig') {
                 $element['values'] = $values;
-                // Update domain options dynamically from catalog
-                foreach ($element['columns'] as &$column) {
-                    if (($column['name'] ?? '') === 'domain') {
-                        $column['edit']['options'] = $domainOptions;
-                        break;
-                    }
-                }
+                $this->applyResolvedConfigColumnSettings($element, $domainOptions);
                 break;
             }
         }
@@ -649,8 +638,17 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $configData = $this->readResolvedConfig(__FUNCTION__);
         $resolvedName = $this->getResolvedDeviceName($configData);
         $resolvedArea = $this->getResolvedDeviceArea($configData);
+        $resolvedConfigForm = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
         $this->updateFormFieldSafe('DeviceName', 'caption', sprintf($this->Translate('Device name (HA): %s'), $resolvedName));
         $this->updateFormFieldSafe('DeviceArea', 'caption', sprintf($this->Translate('Area: %s'), $resolvedArea));
+        $this->updateFormFieldSafe(
+            'ResolvedConfig',
+            'columns',
+            json_encode(
+                $this->buildResolvedConfigColumns($resolvedConfigForm, HADomainCatalog::getDomainSelectOptions()),
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            )
+        );
         $this->updateFormFieldSafe('ResolvedConfig', 'values', json_encode($this->buildResolvedConfigFormValues($configData), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
@@ -690,6 +688,47 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         return $values;
+    }
+
+    private function applyResolvedConfigColumnSettings(array &$list, array $domainOptions): void
+    {
+        if (!isset($list['columns']) || !is_array($list['columns'])) {
+            return;
+        }
+
+        $showTechnicalColumns = $this->ReadPropertyBoolean(self::PROP_SHOW_TECHNICAL_ENTITY_COLUMNS);
+        foreach ($list['columns'] as &$column) {
+            $columnName = (string)($column['name'] ?? '');
+            if ($columnName === 'domain') {
+                $column['edit']['options'] = $domainOptions;
+                continue;
+            }
+
+            if ($columnName === 'entity_id') {
+                $column['visible'] = $showTechnicalColumns;
+            }
+        }
+        unset($column);
+    }
+
+    private function buildResolvedConfigColumns(array $form, array $domainOptions): array
+    {
+        foreach ($form['elements'] as $element) {
+            if (!isset($element['items']) || !is_array($element['items'])) {
+                continue;
+            }
+
+            foreach ($element['items'] as $item) {
+                if ((string)($item['name'] ?? '') !== 'ResolvedConfig') {
+                    continue;
+                }
+
+                $this->applyResolvedConfigColumnSettings($item, $domainOptions);
+                return is_array($item['columns'] ?? null) ? $item['columns'] : [];
+            }
+        }
+
+        return [];
     }
 
     // --- Private Hilfsmethoden (Business Logic) ---

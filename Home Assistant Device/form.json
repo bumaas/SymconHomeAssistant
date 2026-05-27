@@ -136,6 +136,7 @@
               "caption": "Entity ID (e.g. light.floorlamp)",
               "name": "entity_id",
               "width": "250px",
+              "visible": false,
               "edit": {
                 "type": "ValidationTextBox"
               },
@@ -182,6 +183,11 @@
           "type": "CheckBox",
           "name": "EnableExpertDebug",
           "caption": "Enable extended debug output"
+        },
+        {
+          "type": "CheckBox",
+          "name": "ShowTechnicalEntityColumns",
+          "caption": "Show technical entity columns"
         },
         {
           "type": "CheckBox",

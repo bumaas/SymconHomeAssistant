@@ -248,12 +248,27 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
 
             $component = (string)($entity['component'] ?? 'unknown');
             $name = (string)($entity['name'] ?? $entity['object_id'] ?? '');
-            $mode = (string)($entity['command']['mode'] ?? 'none');
-            $suffix = $mode === 'none' ? 'ro' : 'rw';
+            $suffix = $this->translateEntityAccessMode($entity);
             $parts[] = $component . ': ' . $name . ' (' . $suffix . ')';
         }
 
         return implode(' | ', array_slice($parts, 0, 8));
+    }
+
+    private function translateEntityAccessMode(array $entity): string
+    {
+        $hasStateTopic = trim((string)($entity['transport']['state_topic'] ?? '')) !== '';
+        $hasCommandTopic = trim((string)($entity['transport']['command_topic'] ?? '')) !== '';
+
+        if ($hasCommandTopic && !$hasStateTopic) {
+            return $this->Translate('Write only');
+        }
+
+        if ($hasCommandTopic) {
+            return $this->Translate('Read and write');
+        }
+
+        return $this->Translate('Read only');
     }
 
     private function buildDiagnosticsPanel(array $diagnostics, int $groupCount): ?array

@@ -16,6 +16,7 @@
       "Attributes (JSON)": "Attribute (JSON)",
       "Expert": "Experte",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
+      "Show technical entity columns": "Technische Entity-Spalten anzeigen",
       "Device name (HA): %s": "Ger\u00e4tename (HA): %s",
       "Area: %s": "Bereich: %s",
       "Device ID: %s": "Ger\u00e4te-ID: %s",
