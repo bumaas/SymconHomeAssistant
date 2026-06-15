@@ -241,7 +241,11 @@ trait HADomainRegistryTrait
                 $attributes[HAClimateDefinitions::ATTRIBUTE_HVAC_MODE] = $state;
             }
             $attributes = $this->storeEntityAttributes($entityId, $attributes);
-            $this->maintainClimatePowerVariable($this->entities[$entityId] ?? ['entity_id' => $entityId, self::KEY_ATTRIBUTES => $attributes]);
+            $entityWithState = $this->entities[$entityId] ?? ['entity_id' => $entityId, self::KEY_ATTRIBUTES => $attributes];
+            if (is_string($state) && $state !== '') {
+                $entityWithState[self::KEY_STATE] = $state;
+            }
+            $this->maintainClimatePowerVariable($entityWithState);
             $mainValue = $this->extractClimateMainValue($attributes);
             if ($mainValue !== null) {
                 $this->setEntityMainValue($entityId, $ident, $mainValue, $state);
@@ -271,7 +275,7 @@ trait HADomainRegistryTrait
         }
 
         $this->storeEntityAttribute($entityId, HAClimateDefinitions::ATTRIBUTE_HVAC_MODE, $state);
-        $this->updateEntityCache($entityId, null, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $state]);
+        $this->updateEntityCache($entityId, $state, [HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => $state]);
         $this->refreshEntityPresentation($entityId);
         $attributes = $this->getStoredEntityAttributes($entityId);
         if ($attributes !== []) {

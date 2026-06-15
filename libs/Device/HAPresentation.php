@@ -1515,7 +1515,7 @@ trait HAPresentationTrait
             'heat' => 'Heating',
             'cool' => 'Cooling',
             'heat_cool' => 'Heat/Cool',
-            'dry' => 'Dry',
+            'dry' => 'Dry (mode)',
             'fan_only' => 'Fan Only',
             'auto' => 'Auto',
             'off' => 'Off',
