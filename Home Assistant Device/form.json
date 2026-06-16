@@ -82,30 +82,36 @@
             {
               "type": "ValidationTextBox",
               "name": "domain",
-              "caption": "Domain"
+              "caption": "Domain",
+              "enabled": false
             },
             {
               "type": "ValidationTextBox",
               "name": "name",
-              "caption": "Name"
+              "caption": "Name",
+              "enabled": false,
+              "width": "100%"
             },
             {
               "type": "ValidationTextBox",
               "name": "entity_id",
               "caption": "Entitäts-ID",
-              "width": "500px"
+              "enabled": false,
+              "width": "100%"
             },
             {
               "type": "ValidationTextBox",
               "name": "device_class",
-              "caption": "Device class"
+              "caption": "Device class",
+              "enabled": false
             },
             {
               "type": "ValidationTextBox",
               "name": "attributes",
               "caption": "Attributes (JSON)",
+              "enabled": false,
               "multiline": true,
-              "width": "500px",
+              "width": "100%",
               "rows": 12
             }
           ],
