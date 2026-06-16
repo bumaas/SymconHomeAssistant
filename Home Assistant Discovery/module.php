@@ -348,7 +348,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
         $id = IPS_CreateInstance(HAIds::MODULE_MDNS);
         if ($id === 0) {
             throw new RuntimeException(
-                "Konnte DNS-SD Control Instanz nicht erstellen. Bitte prüfen Sie das Lizenz-Limit oder ob das Modul verfügbar ist."
+                $this->Translate('Could not create DNS-SD Control instance. Please check the license limit or whether the module is available.')
             );
         }
 
