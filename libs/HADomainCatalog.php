@@ -162,7 +162,8 @@ final class HADomainCatalog
                 'configurator_default' => true,
                 'status_domain' => true,
                 'attribute_topics' => true,
-                'variable_type' => HAUpdateDefinitions::VARIABLE_TYPE
+                'variable_type' => HAUpdateDefinitions::VARIABLE_TYPE,
+                'supported_features' => HAUpdateDefinitions::SUPPORTED_FEATURES
             ],
             HAButtonDefinitions::DOMAIN => [
                 'configurator_default' => true,

@@ -13,27 +13,17 @@ trait HALegacyVariableMigrationTrait
 
         $currentIdent = trim((string)($object['ObjectIdent'] ?? ''));
         $currentName = trim((string)($object['ObjectName'] ?? ''));
-        $currentPosition = (int)($object['ObjectPosition'] ?? 0);
-        $legacyIdent = $this->buildAvailableLegacyIdent($currentIdent, $variableId);
         $legacyName = $this->buildLegacyName($currentName);
         $changed = false;
-
-        if ($legacyIdent !== '' && $legacyIdent !== $currentIdent) {
-            IPS_SetIdent($variableId, $legacyIdent);
-            $changed = true;
-        }
 
         if ($legacyName !== '' && $legacyName !== $currentName) {
             IPS_SetName($variableId, $legacyName);
             $changed = true;
         }
 
-        if ($this->shouldMoveLegacyVariableToEnd($variableId, $currentPosition)) {
-            IPS_SetPosition($variableId, $this->getLegacyVariableEndPosition($variableId));
-            $changed = true;
+        if ($currentIdent !== '') {
+            $this->DisableAction($currentIdent);
         }
-
-        IPS_SetVariableCustomAction($variableId, 0);
         return $changed;
     }
 

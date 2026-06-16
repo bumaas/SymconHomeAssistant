@@ -1072,20 +1072,18 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             ? $this->normalizeResolvedEntitiesWithoutSelection($deviceDefinition['entities'] ?? [])
             : $this->normalizeConfiguredEntities($deviceDefinition['entities'] ?? []);
 
-        $rows = [];
-        foreach ($entities as $entity) {
-            $rows[] = [
-                'entity_key' => (string)$entity['entity_key'],
-                'create_var' => (bool)$selector($entity)
-            ];
+        foreach ($entities as &$entity) {
+            $entity['create_var'] = (bool)$selector($entity);
         }
+        unset($entity);
 
-        IPS_SetProperty(
-            $this->InstanceID,
+        $cachedTopics = $this->loadCachedTopicPayloads($entities);
+        $values = $this->buildEntitySelectionValues($entities, $cachedTopics, []);
+        $this->UpdateFormField(
             self::PROP_ENTITY_SELECTION,
-            json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            'values',
+            json_encode($values, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
-        IPS_ApplyChanges($this->InstanceID);
     }
 
     private function normalizeResolvedEntitiesWithoutSelection(array $rows): array
@@ -1174,7 +1172,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             if ($this->isEntityWritable($entity)) {
                 $this->EnableAction($ident);
             } else {
-                IPS_SetVariableCustomAction($variableId, 0);
+                $this->DisableAction($ident);
             }
 
             if ($isButtonEntity) {
@@ -1745,7 +1743,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 if ($this->isLightAttributeWritable($attribute, $attributeContext)) {
                     $this->EnableAction($ident);
                 } else {
-                    IPS_SetVariableCustomAction($variableId, 0);
+                    $this->DisableAction($ident);
                 }
             }
 
@@ -1850,7 +1848,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
             $variableId = @$this->GetIDForIdent($ident);
             if ($variableId !== false) {
-                IPS_SetVariableCustomAction($variableId, 0);
+                $this->DisableAction($ident);
                 $value = array_key_exists($attribute, $attributeContext)
                     ? $this->castSensorValue($attributeContext[$attribute], $variableType)
                     : null;
@@ -1889,7 +1887,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
             $variableId = @$this->GetIDForIdent($ident);
             if ($variableId !== false) {
-                IPS_SetVariableCustomAction($variableId, 0);
+                $this->DisableAction($ident);
                 if (array_key_exists($attribute, $attributeContext)) {
                     $this->SetValue($ident, $attributeContext[$attribute]);
                 }
@@ -1943,7 +1941,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($variableId !== false) {
             $existingType = (int)(IPS_GetVariable($variableId)['VariableType'] ?? -1);
             if ($existingType !== VARIABLETYPE_INTEGER) {
-                IPS_DeleteVariable($variableId);
+                $this->UnregisterVariable($ident);
                 $needsInitialization = true;
             }
         }
@@ -2518,7 +2516,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        IPS_DeleteVariable($variableId);
+        $this->UnregisterVariable($ident);
     }
 
     private function cleanupObsoleteVariables(array $activeIdents): void
@@ -3370,7 +3368,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         $variableId = @$this->GetIDForIdent($ident);
         if ($variableId !== false) {
-            IPS_SetVariableCustomAction($variableId, 0);
+            $this->DisableAction($ident);
         }
 
         return $ident;

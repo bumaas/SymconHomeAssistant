@@ -32,7 +32,7 @@ trait HADomainRegistryTrait
         return $handlers[$domain] ?? null;
     }
 
-    protected function applyLockActionState(string $ident): void
+    protected function applyLockActionState(string $ident, array $entity): void
     {
         $this->DisableAction($ident);
     }
@@ -51,7 +51,10 @@ trait HADomainRegistryTrait
     {
         if ($this->isClimateTargetWritable($entity[self::KEY_ATTRIBUTES] ?? [])) {
             $this->EnableAction($ident);
+            return;
         }
+
+        $this->DisableAction($ident);
     }
 
     protected function applyCoverActionState(string $ident, array $entity): void
@@ -68,7 +71,10 @@ trait HADomainRegistryTrait
     {
         if ($this->isFanToggleSupported($entity[self::KEY_ATTRIBUTES] ?? [])) {
             $this->EnableAction($ident);
+            return;
         }
+
+        $this->DisableAction($ident);
     }
 
     protected function applySelectActionState(string $ident, array $entity): void
@@ -81,18 +87,13 @@ trait HADomainRegistryTrait
         $this->DisableAction($ident);
     }
 
-    protected function applyHumidifierActionState(string $ident): void
+    protected function applyHumidifierActionState(string $ident, array $entity): void
     {
         $this->EnableAction($ident);
     }
 
     private function invokeDomainActionHandler(string $handler, string $ident, array $entity): void
     {
-        if ($handler === 'applyLockActionState' || $handler === 'applyHumidifierActionState') {
-            $this->{$handler}($ident);
-            return;
-        }
-
         $this->{$handler}($ident, $entity);
     }
 
@@ -331,13 +332,8 @@ trait HADomainRegistryTrait
             $this->setEntityMainValue($entityId, $ident, $displayState, $parsed[self::KEY_STATE] ?? null);
         }
 
-        if ($attributes === []) {
-            $this->updateEntityCache($entityId, $parsed[self::KEY_STATE] ?? null, null);
-            return;
-        }
-
-        $this->finalizeEntityStateUpdate($entityId, $parsed[self::KEY_STATE] ?? null, $attributes);
         $this->updateLockAttributeValues($entityId, $attributes);
+        $this->finalizeEntityStateUpdate($entityId, $parsed[self::KEY_STATE] ?? null, $attributes);
     }
 
     protected function updateVacuumEntityValue(string $entityId, string $ident, array $parsed): void
@@ -419,7 +415,6 @@ trait HADomainRegistryTrait
             $this->updateCameraPowerValue($entityId, $state);
         }
 
-        $this->maintainCameraPowerVariable($this->entities[$entityId] ?? ['entity_id' => $entityId, self::KEY_ATTRIBUTES => $attributes]);
         $this->updateCameraAttributeValues($entityId, $attributes);
         $this->finalizeEntityStateUpdate($entityId, $state, $attributes);
     }

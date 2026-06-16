@@ -168,6 +168,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
+        $existingCreateVarMap = $this->buildExistingCreateVarMap();
+
         $configData = $this->resolveDeviceConfigByDeviceId($deviceId);
         if ($configData === []) {
             $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
@@ -179,6 +181,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             $this->debugExpert(__FUNCTION__, 'Gerät nicht in Home Assistant gefunden', ['DeviceID' => $deviceId], true);
             return;
         }
+
+        $configData = $this->mergeCreateVarSettings($configData, $existingCreateVarMap);
 
         $this->WriteAttributeString(
             self::ATTR_RESOLVED_CONFIG,
@@ -278,6 +282,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
+
+        if ($Ident === 'UpdateEntityActive') {
+            $this->applyEntityActiveChange($Value);
+            return;
+        }
+
 
         if ($this->handleLockAction($Ident, $Value)) {
             return;
@@ -433,7 +443,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
                 // Attribute für die Konfigurationstabelle als JSON-String ausgeben.
                 if (is_array($attributes)) {
-                    $row['attributes'] = json_encode($attributes, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $row['attributes'] = json_encode($attributes, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 } else {
                     $row['attributes'] = '{}';
                 }
@@ -442,9 +452,16 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 $values[] = $row;
             }
         }
-        foreach ($form['elements'] as &$element) {
-            if (isset($element['items']) && is_array($element['items'])) {
-                foreach ($element['items'] as &$item) {
+
+        foreach ($form['actions'] as &$action) {
+            if (($action['name'] ?? '') === 'CURRENT_FILTER') {
+                $action['caption'] = sprintf(
+                    $this->Translate('Current filter (regex): %s'),
+                    $this->ReadAttributeString('CurrentFilter')
+                );
+            }
+            if (isset($action['items']) && is_array($action['items'])) {
+                foreach ($action['items'] as &$item) {
                     if (($item['name'] ?? '') === self::PROP_DEVICE_NAME) {
                         $item['caption'] = sprintf(
                             $this->Translate('Device name (HA): %s'),
@@ -466,20 +483,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 }
                 unset($item);
             }
-            if (($element['name'] ?? '') === 'ResolvedConfig') {
-                $element['values'] = $values;
-                $this->applyResolvedConfigColumnSettings($element, $domainOptions);
-                break;
-            }
-        }
-        unset($element);
-
-        foreach ($form['actions'] as &$action) {
-            if (($action['name'] ?? '') === 'CURRENT_FILTER') {
-                $action['caption'] = sprintf(
-                    $this->Translate('Current filter (regex): %s'),
-                    $this->ReadAttributeString('CurrentFilter')
-                );
+            if (($action['name'] ?? '') === 'ResolvedConfig') {
+                $action['values'] = $values;
+                $this->applyResolvedConfigColumnSettings($action, $domainOptions);
             }
         }
         unset($action);
@@ -682,7 +688,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
 
             $row['attributes'] = is_array($attributes)
-                ? json_encode($attributes, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                ? json_encode($attributes, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
                 : '{}';
             $values[] = $row;
         }
@@ -699,11 +705,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $showTechnicalColumns = $this->ReadPropertyBoolean(self::PROP_SHOW_TECHNICAL_ENTITY_COLUMNS);
         foreach ($list['columns'] as &$column) {
             $columnName = (string)($column['name'] ?? '');
-            if ($columnName === 'domain') {
-                $column['edit']['options'] = $domainOptions;
-                continue;
-            }
-
             if ($columnName === 'entity_id') {
                 $column['visible'] = $showTechnicalColumns;
             }
@@ -713,7 +714,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     private function buildResolvedConfigColumns(array $form, array $domainOptions): array
     {
-        foreach ($form['elements'] as $element) {
+        foreach ($form['actions'] ?? [] as $element) {
             if (!isset($element['items']) || !is_array($element['items'])) {
                 continue;
             }
@@ -810,6 +811,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $renamedEntityIds = [];
         $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
 
+        // Alle Entitäten normalisieren (auch inaktive), damit korrekte Idents für Cleanup bekannt sind
+        $allNormalized = [];
         foreach ($configData as $row) {
             $entity = $this->normalizeEntityStructure($row);
             if ($entity === null) {
@@ -819,18 +822,27 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             if ($entityId === '') {
                 continue;
             }
-            if (!($entity['create_var'] ?? true)) {
-                $inactiveEntityIds[] = $entityId;
-                continue;
-            }
             if (($entity['domain'] ?? '') === '') {
                 $this->debugExpert('processEntities', 'Entity ohne Domain', $entity);
                 continue;
             }
-
-            $activeEntities[] = $entity;
+            $allNormalized[] = $entity;
         }
 
+        // Idents für ALLE Entitäten berechnen (inkl. inaktiver), um historische Idents zu ermitteln
+        $allWithIdents = $this->applySharedEntityIdents($allNormalized);
+        $inactiveEntities = [];
+        foreach ($allWithIdents as $entity) {
+            $entityId = (string)($entity['entity_id'] ?? '');
+            if (!($entity['create_var'] ?? true)) {
+                $inactiveEntityIds[] = $entityId;
+                $inactiveEntities[$entityId] = $entity;
+            } else {
+                $activeEntities[] = $entity;
+            }
+        }
+
+        // Idents für aktive Entitäten neu berechnen (korrekte aktuelle Zuweisung ohne inaktive)
         $activeEntities = $this->applySharedEntityIdents($activeEntities);
         foreach ($activeEntities as $entity) {
             $entityId = (string)($entity['entity_id'] ?? '');
@@ -875,7 +887,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                               |> (static fn($x) => array_merge($x, $inactiveEntityIds, $renamedEntityIds))
                               |> array_unique(...)
                               |> array_values(...);
-        $this->cleanupManagedEntityObjects($entityIdsToCleanup, $activeEntityIds, $previousEntities);
+        $this->cleanupManagedEntityObjects($entityIdsToCleanup, $activeEntityIds, array_merge($previousEntities, $inactiveEntities));
 
         return $filterTopics;
     }
@@ -1221,6 +1233,78 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     private function updateFormFieldSafe(string $name, string $property, mixed $value): void
     {
         @ $this->UpdateFormField($name, $property, $value);
+    }
+
+
+
+    private function applyEntityActiveChange(string $configJson): void
+    {
+        $decoded = $this->decodeJsonArray($configJson, __FUNCTION__);
+        if ($decoded === null) {
+            return;
+        }
+
+        // onEdit liefert die einzelne bearbeitete Zeile (assoziatives Array mit entity_id),
+        // nicht die komplette Liste.
+        if (array_key_exists('entity_id', $decoded)) {
+            $entityId = trim((string)($decoded['entity_id'] ?? ''));
+            if ($entityId === '') {
+                return;
+            }
+            $createVarMap = [$entityId => $decoded['create_var'] ?? true];
+        } else {
+            $createVarMap = [];
+            foreach ($decoded as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $entityId = trim((string)($row['entity_id'] ?? ''));
+                if ($entityId !== '') {
+                    $createVarMap[$entityId] = $row['create_var'] ?? true;
+                }
+            }
+        }
+
+        if ($createVarMap === []) {
+            return;
+        }
+
+        $updated = $this->mergeCreateVarSettings($this->readResolvedConfig(__FUNCTION__), $createVarMap);
+        $this->WriteAttributeString(
+            self::ATTR_RESOLVED_CONFIG,
+            json_encode($updated, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+
+        if ($this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]) === 'active') {
+            $this->UpdateConfiguration();
+        }
+    }
+
+    private function buildExistingCreateVarMap(): array
+    {
+        $map = [];
+        foreach ($this->readResolvedConfig(__FUNCTION__) as $row) {
+            $entityId = trim((string)($row['entity_id'] ?? ''));
+            if ($entityId !== '') {
+                $map[$entityId] = $row['create_var'] ?? true;
+            }
+        }
+        return $map;
+    }
+
+    private function mergeCreateVarSettings(array $configData, array $createVarMap): array
+    {
+        if ($createVarMap === []) {
+            return $configData;
+        }
+        foreach ($configData as &$entity) {
+            $entityId = trim((string)($entity['entity_id'] ?? ''));
+            if ($entityId !== '' && array_key_exists($entityId, $createVarMap)) {
+                $entity['create_var'] = $createVarMap[$entityId];
+            }
+        }
+        unset($entity);
+        return $configData;
     }
 
 }

@@ -213,18 +213,26 @@ trait HAEntityStoreTrait
 
         $ident = $this->getSharedEntityMainIdent($entityId);
         $type = $this->getVariableType($domain, $entity['attributes'] ?? []);
-        $exists = @$this->GetIDForIdent($ident) !== false;
+        $existingId = @$this->GetIDForIdent($ident);
+        $exists = $existingId !== false;
+        $wasLegacy = $exists && str_ends_with(
+            trim((string)(IPS_GetObject((int)$existingId)['ObjectName'] ?? '')),
+            $this->getLegacyNameSuffix()
+        );
         $presentation = $this->getEntityPresentation($domain, $entity, $type);
         $position = $this->getEntityMainVariablePosition($entity, $domain);
         $name = $this->getEntityVariableName($domain, $entity);
 
         $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
+        if ($wasLegacy) {
+            IPS_SetName($this->GetIDForIdent($ident), $name);
+        }
         if ($initializeDescriptorValue) {
             $descriptor = $this->describeEntityMainVariable($entity);
             $this->initializeVariableDescriptorValue($ident, $descriptor, $exists);
         }
 
-        if (!$exists || $this->shouldApplyDomainActionStateOnExisting($domain)) {
+        if (!$exists || $wasLegacy || $this->shouldApplyDomainActionStateOnExisting($domain)) {
             $this->applyDomainActionState($domain, $ident, $entity);
         }
         $this->applyDomainExtraMaintenance($domain, $entity);

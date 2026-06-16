@@ -291,18 +291,18 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function ActivateBundleMode(string $BundlePath, bool $CurrentSessionOnly = false, bool $ReplayTopicsOnApply = false): void
     {
-        IPS_SetProperty($this->InstanceID, 'SourceMode', self::SOURCE_MODE_BUNDLE);
-        IPS_SetProperty($this->InstanceID, 'BundlePath', $BundlePath);
-        IPS_SetProperty($this->InstanceID, 'BundleCurrentSessionOnly', $CurrentSessionOnly);
-        IPS_SetProperty($this->InstanceID, 'ReplayTopicsOnApply', $ReplayTopicsOnApply);
-        IPS_ApplyChanges($this->InstanceID);
+        $this->UpdateFormField('SourceMode', 'value', self::SOURCE_MODE_BUNDLE);
+        $this->UpdateFormField('BundlePath', 'value', $BundlePath);
+        $this->UpdateFormField('BundleCurrentSessionOnly', 'value', $CurrentSessionOnly);
+        $this->UpdateFormField('ReplayTopicsOnApply', 'value', $ReplayTopicsOnApply);
+        $this->ApplyChanges();
     }
 
     /** @noinspection PhpUnused */
     public function ActivateMqttMode(): void
     {
-        IPS_SetProperty($this->InstanceID, 'SourceMode', self::SOURCE_MODE_MQTT);
-        IPS_ApplyChanges($this->InstanceID);
+        $this->UpdateFormField('SourceMode', 'value', self::SOURCE_MODE_MQTT);
+        $this->ApplyChanges();
     }
 
     public function ForwardData(string $JSONString): string
@@ -1517,6 +1517,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private function applyFormItemsState(array &$items, array $captions, bool $isBundleMode, bool $hasStaleDiscovery): void
     {
         $bundleOnlyFields = [
+            'SourceMode',
             'BundleBasePathInfo',
             'BundlePath',
             'BundleCurrentSessionOnly',

@@ -11,6 +11,11 @@
           "caption": "MQTT Discovery Prefix"
         },
         {
+          "type": "ValidationTextBox",
+          "name": "SourceMode",
+          "caption": "Source mode"
+        },
+        {
           "type": "Label",
           "name": "BundleBasePathInfo",
           "caption": "Default bundle path: -"

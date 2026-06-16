@@ -14,169 +14,6 @@
     },
     {
       "type": "ExpansionPanel",
-      "caption": "Resolved Configuration",
-      "expanded": true,
-      "items": [
-        {
-          "type": "Label",
-          "name": "DeviceName",
-          "caption": "Device name (HA): "
-        },
-        {
-          "type": "Label",
-          "name": "DeviceArea",
-          "caption": "Area: "
-        },
-        {
-          "type": "List",
-          "name": "ResolvedConfig",
-          "caption": "Resolved Entities",
-          "rowCount": 10,
-          "loadValuesFromConfiguration": false,
-          "add": false,
-          "delete": false,
-          "columns": [
-            {
-              "caption": "Domain",
-              "name": "domain",
-              "width": "150px",
-              "edit": {
-                "type": "Select",
-                "options": [
-                  {
-                    "caption": "Light (light)",
-                    "value": "light"
-                  },
-                  {
-                    "caption": "Switch (switch)",
-                    "value": "switch"
-                  },
-                  {
-                    "caption": "Sensor (sensor)",
-                    "value": "sensor"
-                  },
-                  {
-                    "caption": "Binary Sensor (binary_sensor)",
-                    "value": "binary_sensor"
-                  },
-                  {
-                    "caption": "Climate (climate)",
-                    "value": "climate"
-                  },
-                  {
-                    "caption": "Number (number)",
-                    "value": "number"
-                  },
-                  {
-                    "caption": "Lock (lock)",
-                    "value": "lock"
-                  },
-                  {
-                    "caption": "Cover (cover)",
-                    "value": "cover"
-                  },
-                  {
-                    "caption": "Valve (valve)",
-                    "value": "valve"
-                  },
-                  {
-                    "caption": "Event (event)",
-                    "value": "event"
-                  },
-                  {
-                    "caption": "Select (select)",
-                    "value": "select"
-                  },
-                  {
-                    "caption": "Button (button)",
-                    "value": "button"
-                  },
-                  {
-                    "caption": "Input Button (input_button)",
-                    "value": "input_button"
-                  },
-                  {
-                    "caption": "Vacuum (vacuum)",
-                    "value": "vacuum"
-                  },
-                  {
-                    "caption": "Fan (fan)",
-                    "value": "fan"
-                  },
-                  {
-                    "caption": "Humidifier (humidifier)",
-                    "value": "humidifier"
-                  },
-                  {
-                    "caption": "Media Player (media_player)",
-                    "value": "media_player"
-                  },
-                  {
-                    "caption": "Camera (camera)",
-                    "value": "camera"
-                  },
-                  {
-                    "caption": "Image (image)",
-                    "value": "image"
-                  }
-                ]
-              },
-              "add": "light"
-            },
-            {
-              "caption": "Name",
-              "name": "name",
-              "width": "auto",
-              "edit": {
-                "type": "ValidationTextBox"
-              },
-              "add": ""
-            },
-            {
-              "caption": "Entity ID (e.g. light.floorlamp)",
-              "name": "entity_id",
-              "width": "250px",
-              "visible": false,
-              "edit": {
-                "type": "ValidationTextBox"
-              },
-              "add": ""
-            },
-            {
-              "caption": "Device class",
-              "name": "device_class",
-              "width": "140px",
-              "edit": {
-                "type": "ValidationTextBox"
-              },
-              "add": ""
-            },
-            {
-              "caption": "Active",
-              "name": "create_var",
-              "width": "70px",
-              "edit": {
-                "type": "CheckBox"
-              },
-              "add": true
-            },
-            {
-              "caption": "Attributes (JSON)",
-              "name": "attributes",
-              "width": "auto",
-              "visible": false,
-              "save": true,
-              "edit": {
-                "type": "ValidationTextBox"
-              },
-              "add": "{}"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "ExpansionPanel",
       "caption": "Expert",
       "items": [
         {
@@ -211,6 +48,106 @@
       "name": "CURRENT_FILTER",
       "caption": "Current filter (regex):",
       "visible": false
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Resolved Configuration",
+      "expanded": true,
+      "items": [
+        {
+          "type": "Label",
+          "name": "DeviceName",
+          "caption": "Device name (HA): "
+        },
+        {
+          "type": "Label",
+          "name": "DeviceArea",
+          "caption": "Area: "
+        },
+        {
+          "type": "List",
+          "name": "ResolvedConfig",
+          "caption": "Resolved Entities",
+          "rowCount": 10,
+          "loadValuesFromConfiguration": false,
+          "add": false,
+          "delete": false,
+          "onEdit": "IPS_RequestAction($id, 'UpdateEntityActive', json_encode($ResolvedConfig));",
+          "form": [
+            {
+              "type": "CheckBox",
+              "name": "create_var",
+              "caption": "Active"
+            },
+            {
+              "type": "ValidationTextBox",
+              "name": "domain",
+              "caption": "Domain"
+            },
+            {
+              "type": "ValidationTextBox",
+              "name": "name",
+              "caption": "Name"
+            },
+            {
+              "type": "ValidationTextBox",
+              "name": "entity_id",
+              "caption": "Entitäts-ID",
+              "width": "500px"
+            },
+            {
+              "type": "ValidationTextBox",
+              "name": "device_class",
+              "caption": "Device class"
+            },
+            {
+              "type": "ValidationTextBox",
+              "name": "attributes",
+              "caption": "Attributes (JSON)",
+              "multiline": true,
+              "width": "500px",
+              "rows": 12
+            }
+          ],
+          "columns": [
+            {
+              "caption": "Domain",
+              "name": "domain",
+              "width": "150px"
+            },
+            {
+              "caption": "Name",
+              "name": "name",
+              "width": "auto"
+            },
+            {
+              "caption": "Entity ID (e.g. light.floorlamp)",
+              "name": "entity_id",
+              "width": "250px",
+              "visible": false
+            },
+            {
+              "caption": "Device class",
+              "name": "device_class",
+              "width": "140px"
+            },
+            {
+              "caption": "Active",
+              "name": "create_var",
+              "width": "70px",
+              "save": false,
+              "edit": {
+                "type": "CheckBox"
+              }
+            },
+            {
+              "caption": "Attributes (JSON)",
+              "name": "attributes",
+              "visible": false
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "ExpansionPanel",
