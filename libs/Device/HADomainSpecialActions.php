@@ -819,7 +819,7 @@ trait HADomainSpecialActionsTrait
 
         $ident = $this->getMediaPlayerActionIdent($context['entityId']);
         $exists = @$this->GetIDForIdent($ident) !== false;
-        $position = $this->getMediaPlayerOrderPosition(0, 'action');
+        $position = $this->getMediaPlayerOrderPosition($this->getEntityPosition($context['entityId']), 'action');
 
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_LEGACY,
@@ -842,7 +842,7 @@ trait HADomainSpecialActionsTrait
         }
 
         $ident = $this->getMediaPlayerPowerIdent($context['entityId']);
-        $position = $this->getMediaPlayerOrderPosition(0, 'power');
+        $position = $this->getMediaPlayerOrderPosition($this->getEntityPosition($context['entityId']), 'power');
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_SWITCH
         ];

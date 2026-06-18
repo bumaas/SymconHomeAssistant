@@ -191,7 +191,7 @@ trait HAEntityStoreTrait
         $entityId = (string)($entity['entity_id'] ?? '');
         $position = $this->getEntityPosition($entityId);
         if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
-            return $this->getMediaPlayerOrderPosition(0, 'status');
+            return $this->getMediaPlayerOrderPosition($position, 'status');
         }
 
         $linkedPosition = $this->getMediaPlayerLinkedPosition($entityId, $domain);

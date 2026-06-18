@@ -1782,7 +1782,7 @@ trait HADomainAttributeMaintenanceTrait
                         return null;
                     }
                 }
-                return $this->getMediaPlayerOrderPosition(0, $attribute);
+                return $this->getMediaPlayerOrderPosition($this->getEntityPosition($expectedMediaPlayer), $attribute);
             }
         }
 
