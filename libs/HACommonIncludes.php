@@ -53,3 +53,4 @@ require_once __DIR__ . '/HADomainCatalog.php';
 require_once __DIR__ . '/HASupportedFeatures.php';
 require_once __DIR__ . '/HADiagnostics.php';
 require_once __DIR__ . '/HAOutputBufferTrait.php';
+require_once __DIR__ . '/HABundlePathTrait.php';

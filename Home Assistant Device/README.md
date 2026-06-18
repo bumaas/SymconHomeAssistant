@@ -86,7 +86,11 @@ Der Bundle-Modus ist für Entwicklung, Tests und Support gedacht. Er ersetzt den
 Der Bundle-Modus wird ausschließlich per Skript aktiviert:
 
 ```php
+// Absoluter Pfad:
 HA_ActivateBundleMode($id, '/var/lib/symcon/ha_device_config_bundle.json');
+
+// Dateiname (relativ): wird gegen <modulpfad>/tests/fixtures aufgelöst:
+HA_ActivateBundleMode($id, 'mein_geraet.json');
 ```
 
 `$id` ist die Instanz-ID der Device-Instanz. Die Konfiguration wird sofort aus der angegebenen Datei geladen. Ein aktiver Home-Assistant-Parent ist nicht erforderlich.

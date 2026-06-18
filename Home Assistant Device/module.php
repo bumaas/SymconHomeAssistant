@@ -65,6 +65,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     use HASupportedFeaturesTrait;
     use HADiagnosticsTrait;
     use HAOutputBufferTrait;
+    use HABundlePathTrait;
     use HARestParentClientTrait;
     use HAEntityConfigLoaderTrait;
     use HAEntityConfigBuilderTrait {
@@ -642,7 +643,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     private function loadConfigFromBundleFile(): ?array
     {
-        $bundlePath = trim($this->ReadPropertyString(self::PROP_BUNDLE_PATH));
+        $rawPath    = trim($this->ReadPropertyString(self::PROP_BUNDLE_PATH));
+        $bundlePath = $this->resolveBundlePath($rawPath);
         if ($bundlePath === '') {
             $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
             $this->resetResolvedDeviceRuntime();
@@ -659,7 +661,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             $this->SetStatus(self::STATUS_BUNDLE_INVALID);
             $this->updateDiagnosticsLabels();
             $this->refreshResolvedFormFields();
-            $this->debugExpert(__FUNCTION__, 'Bundle-Datei konnte nicht gelesen werden', ['Path' => $bundlePath], true);
+            $this->debugExpert(__FUNCTION__, 'Bundle-Datei konnte nicht gelesen werden', ['ConfiguredPath' => $rawPath, 'ResolvedPath' => $bundlePath], true);
             return null;
         }
 
@@ -685,7 +687,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return null;
         }
 
-        $this->debugExpert(__FUNCTION__, 'Bundle geladen', ['Path' => $bundlePath, 'Entities' => count($configData)]);
+        $this->debugExpert(__FUNCTION__, 'Bundle geladen', ['ConfiguredPath' => $rawPath, 'ResolvedPath' => $bundlePath, 'Entities' => count($configData)]);
         return $configData;
     }
 
