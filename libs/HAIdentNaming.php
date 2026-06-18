@@ -48,28 +48,50 @@ trait HAIdentNamingTrait
             $objectId = $this->getSharedEntityObjectId($entity);
             $localObjectId = $this->buildSharedLocalObjectId(
                 $objectId,
-                trim((string)($entity['device_name'] ?? ''))
+                trim((string)($entity['device_name'] ?? '')),
+                trim((string)($entity['device_model'] ?? ''))
             );
 
             $descriptors[$key] = [
-                'key' => $key,
-                'domain' => $domain,
-                'object_id' => $objectId,
-                'local_object_id' => $localObjectId,
-                'is_primary' => $localObjectId === '',
-                'sort_key' => $domain . '|' . $objectId . '|' . $key
+                'key'                  => $key,
+                'domain'               => $domain,
+                'object_id'            => $objectId,
+                'local_object_id'      => $localObjectId,
+                'is_primary'           => $localObjectId === '',
+                'sort_key'             => $domain . '|' . $objectId . '|' . $key,
+                'existing_ident'       => trim((string)($entity['ident'] ?? '')),
+                'existing_ident_prefix'=> trim((string)($entity['ident_prefix'] ?? '')),
             ];
         }
 
         uasort($descriptors, static fn(array $left, array $right): int => strcmp($left['sort_key'], $right['sort_key']));
 
+        // Pre-register all existing idents so new entities cannot claim those tokens.
         $usedTokens = [];
+        foreach ($descriptors as $descriptor) {
+            if ($descriptor['existing_ident'] !== '' && $descriptor['existing_ident_prefix'] !== '') {
+                $usedTokens[$descriptor['existing_ident_prefix']] = true;
+                $usedTokens[$descriptor['existing_ident']]        = true;
+            }
+        }
+
         $assignments = [];
         foreach ($descriptors as $descriptor) {
-            $domain = $descriptor['domain'];
-            $objectId = $descriptor['object_id'];
-            $localObjectId = $descriptor['local_object_id'];
-            $isPrimary = $descriptor['is_primary'];
+            $domain       = $descriptor['domain'];
+            $objectId     = $descriptor['object_id'];
+            $localObjectId= $descriptor['local_object_id'];
+            $isPrimary    = $descriptor['is_primary'];
+
+            // Preserve stable ident once assigned — prevents ident drift on device renames.
+            if ($descriptor['existing_ident'] !== '' && $descriptor['existing_ident_prefix'] !== '') {
+                $assignments[$descriptor['key']] = [
+                    'ident_prefix'   => $descriptor['existing_ident_prefix'],
+                    'ident'          => $descriptor['existing_ident'],
+                    'object_id'      => $objectId,
+                    'local_object_id'=> $localObjectId,
+                ];
+                continue;
+            }
 
             $stemCandidates = [];
             if ($localObjectId === '') {
@@ -103,11 +125,11 @@ trait HAIdentNamingTrait
             }
 
             $usedTokens[$assignment['ident_prefix']] = true;
-            $usedTokens[$assignment['ident']] = true;
+            $usedTokens[$assignment['ident']]        = true;
 
             $assignments[$descriptor['key']] = array_merge($assignment, [
-                'object_id' => $objectId,
-                'local_object_id' => $localObjectId
+                'object_id'      => $objectId,
+                'local_object_id'=> $localObjectId,
             ]);
         }
 
@@ -233,18 +255,31 @@ trait HAIdentNamingTrait
         );
     }
 
-    private function buildSharedLocalObjectId(string $objectId, string $deviceName): string
+    private function buildSharedLocalObjectId(string $objectId, string $deviceName, string $deviceModel = ''): string
     {
         $normalizedObjectId = $this->normalizeSharedIdentFragment($objectId);
         if ($normalizedObjectId === '') {
             return '';
         }
 
-        foreach ($this->getSharedRedundantObjectNameCandidates($deviceName) as $candidate) {
+        foreach ($this->getSharedRedundantObjectNameCandidates($deviceName, $deviceModel) as $candidate) {
+            // Direct prefix: device_name_something
             if (str_starts_with($normalizedObjectId, $candidate . '_')) {
                 return substr($normalizedObjectId, strlen($candidate) + 1);
             }
             if ($normalizedObjectId === $candidate) {
+                return '';
+            }
+            // Qualified prefix: area_device_name_something (HA prepends area slug to entity_id)
+            $pos = strpos($normalizedObjectId, '_' . $candidate . '_');
+            if ($pos !== false) {
+                $rest = substr($normalizedObjectId, $pos + strlen($candidate) + 2);
+                if ($rest !== '') {
+                    return $rest;
+                }
+            }
+            // Qualified exact match: area_device_name (primary entity without attribute suffix)
+            if (str_ends_with($normalizedObjectId, '_' . $candidate)) {
                 return '';
             }
         }
@@ -252,13 +287,18 @@ trait HAIdentNamingTrait
         return $normalizedObjectId;
     }
 
-    private function getSharedRedundantObjectNameCandidates(string $deviceName): array
+    private function getSharedRedundantObjectNameCandidates(string $deviceName, string $deviceModel = ''): array
     {
         $candidates = [];
 
         $normalizedDeviceName = $this->normalizeSharedIdentFragment($deviceName);
         if ($normalizedDeviceName !== '') {
             $candidates[] = $normalizedDeviceName;
+        }
+
+        $normalizedDeviceModel = $this->normalizeSharedIdentFragment($deviceModel);
+        if ($normalizedDeviceModel !== '') {
+            $candidates[] = $normalizedDeviceModel;
         }
 
         if (method_exists($this, 'getSharedCurrentInstanceDeviceName')) {

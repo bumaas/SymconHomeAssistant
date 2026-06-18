@@ -55,14 +55,34 @@
       "expanded": true,
       "items": [
         {
-          "type": "Label",
-          "name": "DeviceName",
-          "caption": "Device name (HA): "
+          "type": "RowLayout",
+          "items": [
+            {
+              "type": "Label",
+              "name": "DeviceManufacturer",
+              "caption": "Manufacturer: "
+            },
+            {
+              "type": "Label",
+              "name": "DeviceModel",
+              "caption": "Model: "
+            }
+          ]
         },
         {
-          "type": "Label",
-          "name": "DeviceArea",
-          "caption": "Area: "
+          "type": "RowLayout",
+          "items": [
+            {
+              "type": "Label",
+              "name": "DeviceName",
+              "caption": "Device name (HA): "
+            },
+            {
+              "type": "Label",
+              "name": "DeviceArea",
+              "caption": "Area: "
+            }
+          ]
         },
         {
           "type": "List",

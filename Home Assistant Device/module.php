@@ -208,7 +208,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         } else {
             $this->SetStatus(IS_ACTIVE);
         }
-        $this->SetSummary($this->getResolvedDeviceName($configData) ?: $deviceId);
+        $this->SetSummary($this->buildDeviceSummary($configData) ?: $deviceId);
 
         // 3. Entitäten verarbeiten und Topics sammeln.
         $filterTopics = $this->processEntities($configData, $baseTopic);
@@ -411,6 +411,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         $values = [];
         $domainOptions = HADomainCatalog::getDomainSelectOptions();
+        $first        = is_array($config) ? ($config[0] ?? null) : null;
+        $manufacturer = is_array($first) ? trim((string)($first['device_manufacturer'] ?? '')) : '';
+        $model        = is_array($first) ? trim((string)($first['device_model'] ?? '')) : '';
         $resolvedName = $this->getResolvedDeviceName($config);
         $resolvedArea = $this->getResolvedDeviceArea($config);
 
@@ -453,6 +456,34 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
         }
 
+        $labelCaptions = [
+            'DeviceManufacturer' => sprintf($this->Translate('Manufacturer: %s'), $manufacturer),
+            'DeviceModel'        => sprintf($this->Translate('Model: %s'), $model),
+            self::PROP_DEVICE_NAME => sprintf($this->Translate('Device name (HA): %s'), $resolvedName),
+            self::PROP_DEVICE_AREA => sprintf($this->Translate('Area: %s'), $resolvedArea),
+        ];
+
+        $applyItem = function (array &$item) use ($labelCaptions, $values, $domainOptions): void {
+            $name = (string)($item['name'] ?? '');
+            if (isset($labelCaptions[$name])) {
+                $item['caption'] = $labelCaptions[$name];
+            }
+            if ($name === 'ResolvedConfig') {
+                $item['values'] = $values;
+                $this->applyResolvedConfigColumnSettings($item, $domainOptions);
+            }
+            // descend into RowLayout / nested items
+            if (isset($item['items']) && is_array($item['items'])) {
+                foreach ($item['items'] as &$child) {
+                    $childName = (string)($child['name'] ?? '');
+                    if (isset($labelCaptions[$childName])) {
+                        $child['caption'] = $labelCaptions[$childName];
+                    }
+                }
+                unset($child);
+            }
+        };
+
         foreach ($form['actions'] as &$action) {
             if (($action['name'] ?? '') === 'CURRENT_FILTER') {
                 $action['caption'] = sprintf(
@@ -462,24 +493,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
             if (isset($action['items']) && is_array($action['items'])) {
                 foreach ($action['items'] as &$item) {
-                    if (($item['name'] ?? '') === self::PROP_DEVICE_NAME) {
-                        $item['caption'] = sprintf(
-                            $this->Translate('Device name (HA): %s'),
-                            $resolvedName
-                        );
-                        continue;
-                    }
-                    if (($item['name'] ?? '') === self::PROP_DEVICE_AREA) {
-                        $item['caption'] = sprintf(
-                            $this->Translate('Area: %s'),
-                            $resolvedArea
-                        );
-                        continue;
-                    }
-                    if (($item['name'] ?? '') === 'ResolvedConfig') {
-                        $item['values'] = $values;
-                        $this->applyResolvedConfigColumnSettings($item, $domainOptions);
-                    }
+                    $applyItem($item);
                 }
                 unset($item);
             }
@@ -609,6 +623,25 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         return trim($this->ReadPropertyString(self::PROP_DEVICE_NAME));
     }
 
+    private function buildDeviceSummary(?array $configData = null): string
+    {
+        $configData ??= $this->readResolvedConfig(__FUNCTION__);
+        $first = $configData[0] ?? null;
+        if (!is_array($first)) {
+            return trim($this->ReadPropertyString(self::PROP_DEVICE_NAME));
+        }
+
+        $manufacturer = trim((string)($first['device_manufacturer'] ?? ''));
+        $model        = trim((string)($first['device_model'] ?? ''));
+        $name         = trim((string)($first['device_name'] ?? ''));
+        if ($name === '' || strtolower($name) === 'unknown') {
+            $name = trim($this->ReadPropertyString(self::PROP_DEVICE_NAME));
+        }
+
+        $parts = array_filter([$manufacturer, $model, $name], static fn(string $s) => $s !== '');
+        return implode(' | ', $parts);
+    }
+
     private function getResolvedDeviceArea(?array $configData = null): string
     {
         $configData ??= $this->readResolvedConfig(__FUNCTION__);
@@ -641,10 +674,15 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     private function refreshResolvedFormFields(): void
     {
-        $configData = $this->readResolvedConfig(__FUNCTION__);
+        $configData   = $this->readResolvedConfig(__FUNCTION__);
+        $first        = $configData[0] ?? null;
+        $manufacturer = is_array($first) ? trim((string)($first['device_manufacturer'] ?? '')) : '';
+        $model        = is_array($first) ? trim((string)($first['device_model'] ?? '')) : '';
         $resolvedName = $this->getResolvedDeviceName($configData);
         $resolvedArea = $this->getResolvedDeviceArea($configData);
         $resolvedConfigForm = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
+        $this->updateFormFieldSafe('DeviceManufacturer', 'caption', sprintf($this->Translate('Manufacturer: %s'), $manufacturer));
+        $this->updateFormFieldSafe('DeviceModel', 'caption', sprintf($this->Translate('Model: %s'), $model));
         $this->updateFormFieldSafe('DeviceName', 'caption', sprintf($this->Translate('Device name (HA): %s'), $resolvedName));
         $this->updateFormFieldSafe('DeviceArea', 'caption', sprintf($this->Translate('Area: %s'), $resolvedArea));
         $this->updateFormFieldSafe(

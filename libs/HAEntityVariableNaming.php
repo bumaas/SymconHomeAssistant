@@ -21,6 +21,7 @@ trait HAEntityVariableNamingTrait
             HAValveDefinitions::DOMAIN => $this->getSharedValveVariableName($entity, $hasMultipleStatusEntities),
             HAButtonDefinitions::DOMAIN => $this->getSharedButtonVariableName($entity),
             HAEventDefinitions::DOMAIN => $this->formatSharedEntityNameWithSuffix($entity, 'Last Event'),
+            HABinarySensorDefinitions::DOMAIN => $this->getSharedBinarySensorEntityVariableName($entity),
             default => HADomainCatalog::isStatusDomain($domain) ? $this->getSharedStatusEntityVariableName($domain, $hasMultipleStatusEntities) : null,
         };
     }
@@ -92,6 +93,16 @@ trait HAEntityVariableNamingTrait
 
         $entityId = $this->getSharedEntityId($entity);
         return $entityId !== '' ? $entityId : 'Press';
+    }
+
+    private function getSharedBinarySensorEntityVariableName(array $entity): string
+    {
+        $name = $this->getSharedEntityName($entity);
+        if ($name !== '') {
+            return $name;
+        }
+
+        return $this->getSharedDeviceClassFallbackName($entity) ?? $this->Translate('Status');
     }
 
     private function getSharedDefaultEntityVariableName(string $domain, array $entity): string
@@ -176,7 +187,39 @@ trait HAEntityVariableNamingTrait
 
     private function getSharedEntityName(array $entity): string
     {
-        return $this->stripSharedCurrentInstanceNamePrefix(trim((string)($entity['name'] ?? '')));
+        $name = trim((string)($entity['name'] ?? ''));
+        $stripped = $this->stripSharedCurrentInstanceNamePrefix($name);
+        if ($stripped !== $name) {
+            return $this->appendHaDeduplicationSuffix($stripped, $entity);
+        }
+
+        $deviceName = trim((string)($entity['device_name'] ?? ''));
+        if ($deviceName !== '' && str_starts_with($name, $deviceName . ' ')) {
+            $stripped = trim(substr($name, strlen($deviceName) + 1));
+            return $this->appendHaDeduplicationSuffix($stripped, $entity);
+        }
+
+        return $name;
+    }
+
+    // HA appends _2, _3, ... to entity_ids when multiple entities share the same name.
+    // The entity name field is not updated. We detect this and append the number to the variable name.
+    private function appendHaDeduplicationSuffix(string $name, array $entity): string
+    {
+        $entityId = trim((string)($entity['entity_id'] ?? ''));
+        if ($entityId === '' || !preg_match('/_(\d+)$/', $entityId, $matches)) {
+            return $name;
+        }
+        $num = (int)$matches[1];
+        // HA deduplication suffixes start at _2; _1 suffixes are intentional (e.g. ch1)
+        if ($num < 2) {
+            return $name;
+        }
+        // Only append if the name does not already contain this number
+        if (preg_match('/\b' . $num . '\b/', $name)) {
+            return $name;
+        }
+        return $name . ' ' . $num;
     }
 
     private function getSharedImageEntityBaseName(array $entity): string
@@ -251,6 +294,10 @@ trait HAEntityVariableNamingTrait
         $instanceName = $this->getSharedCurrentInstanceDeviceName();
         if ($instanceName === '') {
             return $name;
+        }
+
+        if (strcasecmp($name, $instanceName) === 0) {
+            return '';
         }
 
         $prefix = $instanceName . ' ';

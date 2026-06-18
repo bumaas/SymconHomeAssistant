@@ -1051,65 +1051,10 @@ trait HAPresentationTrait
         return $this->buildSharedEntityVariableName($domain, $entity, $this->hasMultipleStatusEntities);
     }
 
-    protected function getDomainEntityVariableName(string $domain, array $entity): ?string
-    {
-        return match ($domain) {
-            HAClimateDefinitions::DOMAIN => $this->getClimateEntityVariableName($entity),
-            HAImageDefinitions::DOMAIN => $this->getImageEntityVariableName($entity),
-            HACoverDefinitions::DOMAIN => $this->getCoverVariableName($entity),
-            HAValveDefinitions::DOMAIN => $this->getValveVariableName($entity),
-            HAButtonDefinitions::DOMAIN => $this->getButtonVariableName($entity),
-            HAEventDefinitions::DOMAIN => $this->getEventStateVariableName($entity),
-            default => $this->isStatusDomain($domain) ? $this->getStatusEntityVariableName($domain) : null,
-        };
-    }
-
-    // Climate keeps its main name aligned with the currently relevant temperature field.
-    private function getClimateEntityVariableName(array $entity): ?string
-    {
-        $attributes = $this->getEntityAttributesArray($entity);
-        if ($attributes === []) {
-            return null;
-        }
-
-        if (array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)
-            || $this->supportsClimateTargetTemperature($attributes)) {
-            return $this->Translate('Target Temperature');
-        }
-
-        if (array_key_exists(HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE, $attributes)) {
-            return $this->Translate('Current Temperature');
-        }
-
-        return null;
-    }
-
-    private function getImageEntityVariableName(array $entity): string
-    {
-        if ($this->isEntityBoundToDevice($entity)) {
-            $baseName = $this->getImageEntityBaseName($entity);
-            if ($baseName === '') {
-                return $this->Translate('Last Update');
-            }
-
-            return $baseName . ' (' . $this->Translate('Last Update') . ')';
-        }
-
-        return $this->Translate('Last Update');
-    }
-
-    private function getStatusEntityVariableName(string $domain): string
-    {
-        if (!$this->hasMultipleStatusEntities) {
-            return $this->Translate('Status');
-        }
-
-        return $this->Translate('Status') . ' (' . strtoupper($domain) . ')';
-    }
 
     private function getButtonVariableName(array $entity): string
     {
-        $name = $this->getEntityName($entity);
+        $name = $this->getSharedEntityName($entity);
         if ($name !== '') {
             return $name;
         }
@@ -1133,124 +1078,15 @@ trait HAPresentationTrait
         };
     }
 
-    protected function getDefaultEntityVariableName(string $domain, array $entity): string
-    {
-        $domain = HADomainCatalog::normalizeDomainAlias($domain);
-        $name = $this->getEntityName($entity);
-        if ($name !== '') {
-            return $name;
-        }
-
-        if (HADomainCatalog::supportsDeviceClassNameFallback($domain)) {
-            $fallback = $this->getDeviceClassFallbackName($entity);
-            if ($fallback !== null) {
-                return $fallback;
-            }
-        }
-
-        return $this->getEntityId($entity);
-    }
-
-    // HA derives unnamed entities of several domains from the device_class.
-    private function getDeviceClassFallbackName(array $entity): ?string
-    {
-        $deviceClass = $this->getEntityDeviceClass($entity);
-        if ($deviceClass === '') {
-            return null;
-        }
-
-        $caption = $this->getSpecialDeviceClassFallbackCaption($deviceClass);
-        if ($caption !== null) {
-            return $this->Translate($caption);
-        }
-
-        $caption = str_replace('_', ' ', $deviceClass);
-        $caption = ucwords($caption);
-        return $this->Translate($caption);
-    }
-
-    private function getSpecialDeviceClassFallbackCaption(string $deviceClass): ?string
-    {
-        $specialCaptions = [
-            'co' => 'CO',
-            'co2' => 'CO2',
-            'pm1' => 'PM1',
-            'pm10' => 'PM10',
-            'pm25' => 'PM2.5',
-            'aqi' => 'AQI',
-            'uv_index' => 'UV Index',
-        ];
-
-        return $specialCaptions[$deviceClass] ?? null;
-    }
-
-    private function getCoverVariableName(array $entity): string
-    {
-        $attributes = $this->getEntityAttributesArray($entity);
-        if (!$this->isCoverPositionEntity($attributes)) {
-            return $this->getStatusEntityVariableName(HACoverDefinitions::DOMAIN);
-        }
-
-        $deviceClass = $this->getEntityDeviceClass($entity);
-        return match ($deviceClass) {
-            HACoverDefinitions::DEVICE_CLASS_GARAGE,
-            HACoverDefinitions::DEVICE_CLASS_GATE,
-            HACoverDefinitions::DEVICE_CLASS_DOOR,
-            HACoverDefinitions::DEVICE_CLASS_WINDOW => $this->Translate('Opening'),
-            HACoverDefinitions::DEVICE_CLASS_DAMPER => $this->Translate('Positioning'),
-            default => $this->Translate('Position'),
-        };
-    }
-
-    private function getValveVariableName(array $entity): string
-    {
-        $attributes = $this->getEntityAttributesArray($entity);
-        if ($this->isValvePositionEntity($attributes)) {
-            return $this->Translate('Position');
-        }
-
-        return $this->getStatusEntityVariableName(HAValveDefinitions::DOMAIN);
-    }
 
     private function isStatusDomain(string $domain): bool
     {
         return HADomainCatalog::isStatusDomain($domain);
     }
 
-    private function getEventStateVariableName(array $entity): string
-    {
-        return $this->formatEntityNameWithSuffix($entity, 'Last Event');
-    }
-
     protected function getEventTypeVariableName(array $entity): string
     {
-        return $this->formatEntityNameWithSuffix($entity, 'Event Type');
-    }
-
-    private function formatEntityNameWithSuffix(array $entity, string $suffix): string
-    {
-        $baseName = $this->getEntityName($entity);
-        if ($baseName === '') {
-            return $this->Translate($suffix);
-        }
-
-        return $baseName . ' (' . $this->Translate($suffix) . ')';
-    }
-
-    private function getEntityName(array $entity): string
-    {
-        return $this->stripCurrentInstanceNamePrefix(trim((string)($entity['name'] ?? '')));
-    }
-
-    private function getImageEntityBaseName(array $entity): string
-    {
-        $attributes = $this->getEntityAttributesArray($entity);
-        $friendlyName = $this->stripCurrentInstanceNamePrefix(trim((string)($attributes['friendly_name'] ?? '')));
-        if ($friendlyName !== '') {
-            return $friendlyName;
-        }
-
-        return $this->getEntityName($entity);
+        return $this->formatSharedEntityNameWithSuffix($entity, 'Event Type');
     }
 
     private function getEntityId(array $entity): string
@@ -1285,10 +1121,14 @@ trait HAPresentationTrait
                 continue;
             }
             $value = (string)$eventType;
-            $captionKey = HAEventDefinitions::EVENT_TYPE_TRANSLATION_KEYS[$value] ?? $value;
+            if (isset(HAEventDefinitions::EVENT_TYPE_TRANSLATION_KEYS[$value])) {
+                $caption = $this->Translate(HAEventDefinitions::EVENT_TYPE_TRANSLATION_KEYS[$value]);
+            } else {
+                $caption = ucwords(str_replace('_', ' ', $value));
+            }
             $options[] = [
                 'Value'       => $value,
-                'Caption'     => $this->Translate($captionKey),
+                'Caption'     => $caption,
                 'IconActive'  => false,
                 'IconValue'   => '',
                 'ColorActive' => false,
@@ -1330,18 +1170,7 @@ trait HAPresentationTrait
 
     private function stripCurrentInstanceNamePrefix(string $name): string
     {
-        $instanceName = trim($this->ReadPropertyString(self::PROP_DEVICE_NAME));
-        if ($instanceName === '') {
-            return $name;
-        }
-
-        $prefix = $instanceName . ' ';
-        if (!str_starts_with($name, $prefix)) {
-            return $name;
-        }
-
-        $stripped = substr($name, strlen($prefix));
-        return trim($stripped);
+        return $this->stripSharedCurrentInstanceNamePrefix($name);
     }
 
     protected function getClimateAttributePresentation(string $attribute, array $attributes): array
