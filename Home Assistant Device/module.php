@@ -520,6 +520,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
         unset($action);
         $this->applyCurrentDiagnosticsToForm($form, $values);
+        $this->applyBundleVisibilityToForm($form);
         $this->debugExpert(__FUNCTION__, 'Form:', $form);
 
         return json_encode($form, JSON_THROW_ON_ERROR);
@@ -564,6 +565,24 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         unset($action);
     }
 
+    private function applyBundleVisibilityToForm(array &$form): void
+    {
+        $isBundleMode = $this->isBundleMode();
+        foreach ($form['elements'] as &$element) {
+            if (!isset($element['items']) || !is_array($element['items'])) {
+                continue;
+            }
+            foreach ($element['items'] as &$item) {
+                $name = (string)($item['name'] ?? '');
+                if ($name === self::PROP_BUNDLE_PATH) {
+                    $item['visible'] = $isBundleMode;
+                }
+            }
+            unset($item);
+        }
+        unset($element);
+    }
+
     private function getConfiguredEntities(string $context): array
     {
         $configData = $this->readResolvedConfig($context);
@@ -581,7 +600,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         return $this->applySharedEntityIdents($configuredEntities);
     }
 
-    public function HAMD_ExportConfigBundleDataUrl(): string
+    public function ExportConfigBundleDataUrl(): string
     {
         $json = $this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG);
         if ($json === '' || $json === '[]') {

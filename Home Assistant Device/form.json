@@ -200,7 +200,7 @@
               "type": "Button",
               "caption": "Download config bundle",
               "download": "ha_device_config_bundle.json",
-              "onClick": "echo HAMD_ExportConfigBundleDataUrl($id);"
+              "onClick": "echo HA_ExportConfigBundleDataUrl($id);"
             }
           ]
         }
