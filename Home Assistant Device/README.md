@@ -62,7 +62,7 @@ Interne Wartungsdoku: [Architektur](../docs/ARCHITEKTUR.md)
 - `SourceMode`
   `Home Assistant (REST API)` (Standard) oder `Bundle file`. Im Bundle-Modus wird die Konfiguration aus einer lokalen JSON-Datei geladen statt per REST-API aus Home Assistant.
 - `BundlePath`
-  Absoluter Pfad zur Bundle-Datei (JSON). Nur im Bundle-Modus sichtbar und relevant.
+  Dateiname oder absoluter Pfad zur Bundle-Datei (JSON). Relative Angaben werden gegen `<modulpfad>/tests/fixtures` aufgelöst. Nur im Bundle-Modus sichtbar und relevant.
 - `EnableExpertDebug`
   Aktiviert zusätzliche Debug-Ausgaben.
 - `ShowUnavailableEntitiesJson`
