@@ -1467,11 +1467,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private function applyFormItemsState(array &$items, array $captions, bool $isBundleMode, bool $hasStaleDiscovery): void
     {
         $bundleOnlyFields = [
-            'SourceMode',
-            'BundleBasePathInfo',
-            'BundlePath',
-            'BundleCurrentSessionOnly',
-            'ReplayTopicsOnApply',
+            'BundlePanel',
             'ButtonReloadBundle',
             'ButtonReplayBundleTopics'
         ];

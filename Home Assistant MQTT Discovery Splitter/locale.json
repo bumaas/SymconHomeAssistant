@@ -5,6 +5,7 @@
       "MQTT Discovery Prefix": "MQTT Discovery Prefix",
       "Source": "Quelle",
       "Source mode": "Quellenmodus",
+      "Bundle": "Bundle",
       "Data source": "Datenquelle",
       "Home Assistant (MQTT)": "Home Assistant (MQTT)",
       "Bundle file": "Bundle-Datei",

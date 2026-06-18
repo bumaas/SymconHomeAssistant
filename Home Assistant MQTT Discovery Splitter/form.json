@@ -9,7 +9,14 @@
           "type": "ValidationTextBox",
           "name": "MQTTDiscoveryPrefix",
           "caption": "MQTT Discovery Prefix"
-        },
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "name": "BundlePanel",
+      "caption": "Bundle",
+      "items": [
         {
           "type": "Select",
           "name": "SourceMode",
