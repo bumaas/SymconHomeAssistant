@@ -993,7 +993,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->topicMapping = [];
         $this->rebuildSharedEntityIdentIndexes();
         $filterTopics = [];
-        $positionIndex = 0;
+        $runningPosition = 0;
         $activeEntityIds = [];
         $inactiveEntityIds = [];
         $activeEntities = [];
@@ -1040,8 +1040,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
 
             $activeEntityIds[] = $entityId;
-            $positionIndex++;
-            $basePosition                                = $positionIndex * 500;
+            $runningPosition                             += HADomainCatalog::getPositionBlockSize($entity['domain'] ?? '');
+            $basePosition                                = $runningPosition;
             $entity['position_base']                     = $basePosition;
             if (isset($previousEntities[$entityId]['attributes'])
                 && is_array($previousEntities[$entityId]['attributes'])) {

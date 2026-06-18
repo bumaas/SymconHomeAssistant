@@ -226,6 +226,18 @@ final class HADomainCatalog
         return (bool)(self::getDefinition($domain)['main_writable'] ?? false);
     }
 
+    public static function getPositionBlockSize(string $domain): int
+    {
+        return match ($domain) {
+            HAMediaPlayerDefinitions::DOMAIN => 360,   // 30 Attribute * 10 + Puffer
+            HALightDefinitions::DOMAIN        => 160,   // 10 Attribute + Fallbacks bis +119
+            HAFanDefinitions::DOMAIN          => 100,   // 6 Attribute * 10 + Puffer
+            HAHumidifierDefinitions::DOMAIN   => 80,    // 5 Attribute * 10 + Puffer
+            HAClimateDefinitions::DOMAIN      => 60,    // max +21 + Puffer
+            default                           => 30,
+        };
+    }
+
     public static function isDomainSupported(string $domain): bool
     {
         $matrix = self::getMatrix();
