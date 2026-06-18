@@ -22,7 +22,7 @@ trait HAEntityVariableNamingTrait
             HAButtonDefinitions::DOMAIN => $this->getSharedButtonVariableName($entity),
             HAEventDefinitions::DOMAIN => $this->formatSharedEntityNameWithSuffix($entity, 'Last Event'),
             HABinarySensorDefinitions::DOMAIN => $this->getSharedBinarySensorEntityVariableName($entity),
-            default => HADomainCatalog::isStatusDomain($domain) ? $this->getSharedStatusEntityVariableName($domain, $hasMultipleStatusEntities) : null,
+            default => HADomainCatalog::isStatusDomain($domain) ? ($this->getSharedEntityName($entity) ?: $this->getSharedStatusEntityVariableName($domain, $hasMultipleStatusEntities)) : null,
         };
     }
 
@@ -150,6 +150,11 @@ trait HAEntityVariableNamingTrait
 
     private function getSharedCoverVariableName(array $entity, bool $hasMultipleStatusEntities): string
     {
+        $name = $this->getSharedEntityName($entity);
+        if ($name !== '') {
+            return $name;
+        }
+
         $attributes = $this->getSharedEntityAttributesArray($entity);
         if (!$this->isSharedCoverPositionEntity($attributes)) {
             return $this->getSharedStatusEntityVariableName(HACoverDefinitions::DOMAIN, $hasMultipleStatusEntities);
@@ -167,6 +172,11 @@ trait HAEntityVariableNamingTrait
 
     private function getSharedValveVariableName(array $entity, bool $hasMultipleStatusEntities): string
     {
+        $name = $this->getSharedEntityName($entity);
+        if ($name !== '') {
+            return $name;
+        }
+
         $attributes = $this->getSharedEntityAttributesArray($entity);
         if ($this->isSharedValvePositionEntity($attributes)) {
             return $this->Translate('Position');

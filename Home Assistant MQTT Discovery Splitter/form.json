@@ -98,7 +98,15 @@
           "type": "PopupAlert",
           "name": "DiagDiscoveryAlert",
           "visible": false,
-          "caption": "Discovery configs from previous MQTT sessions are still cached. Reconnect/restart the producer and reapply Splitter and Device."
+          "popup": {
+            "closeCaption": "OK",
+            "items": [
+              {
+                "type": "Label",
+                "caption": "Discovery configs from previous MQTT sessions are still cached. Reconnect/restart the producer and reapply Splitter and Device."
+              }
+            ]
+          }
         },
         {
           "type": "Label",

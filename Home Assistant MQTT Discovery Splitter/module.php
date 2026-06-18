@@ -415,6 +415,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         foreach ($this->buildDiagnosticsCaptions() as $field => $caption) {
             $this->updateFormFieldSafe($field, 'caption', $caption);
         }
+        $this->updateFormFieldSafe('DiagDiscoveryAlert', 'visible', $this->hasStaleDiscoveryConfigs());
     }
 
     private function scheduleDiagnosticsRefresh(): void
@@ -1441,7 +1442,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'DiagParent' => $parentCaption,
             'DiagSession' => $sessionLabel . $this->buildSessionCaption(),
             'DiagBundle' => $bundleCaption,
-            'DiagDiscoveryAlert' => $this->Translate('Discovery configs from previous MQTT sessions are still cached. Reconnect/restart the producer and reapply Splitter and Device.'),
             'LastMQTTMessage' => $this->Translate('Last MQTT message: ') . $last,
             'DiagDiscovery' => sprintf(
                 $this->Translate('MQTT Discovery Prefix: %s | Discovery configs total/current/stale: %d/%d/%d'),
