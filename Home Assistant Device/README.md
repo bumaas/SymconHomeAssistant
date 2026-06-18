@@ -14,10 +14,11 @@ Interne Wartungsdoku: [Architektur](../docs/ARCHITEKTUR.md)
 3. [Installation](#3-installation)
 4. [Funktionsreferenz](#4-funktionsreferenz)
 5. [Konfiguration](#5-konfiguration)
-6. [Variablen und Medienobjekte](#6-variablen-und-medienobjekte)
-7. [Domain-spezifisches Verhalten](#7-domain-spezifisches-verhalten)
-8. [Icon-Mapping](#8-icon-mapping)
-9. [Home Assistant mqtt_statestream](#9-home-assistant-mqtt_statestream)
+6. [Bundle-Modus](#6-bundle-modus)
+7. [Variablen und Medienobjekte](#7-variablen-und-medienobjekte)
+8. [Domain-spezifisches Verhalten](#8-domain-spezifisches-verhalten)
+9. [Icon-Mapping](#9-icon-mapping)
+10. [Home Assistant mqtt_statestream](#10-home-assistant-mqtt_statestream)
 
 ## 1. Funktionsumfang
 
@@ -45,14 +46,19 @@ Interne Wartungsdoku: [Architektur](../docs/ARCHITEKTUR.md)
 
 ## 4. Funktionsreferenz
 
-Keine öffentlichen Funktionen.
+- `HA_ExportConfigBundleDataUrl($id)`
+  Gibt die aktuell aufgelöste Gerätekonfiguration (`ResolvedConfig`) als base64-encodierte Data-URL zurück. Wird intern vom Download-Button im Formular aufgerufen. Kann auch direkt per Skript aufgerufen werden.
 
 ## 5. Konfiguration
 
 - `DeviceID`
-  Die Home-Assistant-Geräte-ID des Zielgeräts. Über sie löst das Modul seine Entitäten bei `ApplyChanges()` selbst aus Home Assistant auf.
+  Die Home-Assistant-Geräte-ID des Zielgeräts. Über sie löst das Modul seine Entitäten bei `ApplyChanges()` selbst aus Home Assistant auf. Im Bundle-Modus optional.
 - `DeviceName`, `DeviceArea`
   Legacy-Felder aus älteren Create-Configs. Sie sind nicht mehr maßgeblich für die Laufzeitauflösung.
+- `SourceMode`
+  `Home Assistant (REST API)` (Standard) oder `Bundle file`. Im Bundle-Modus wird die Konfiguration aus einer lokalen JSON-Datei geladen statt per REST-API aus Home Assistant.
+- `BundlePath`
+  Absoluter Pfad zur Bundle-Datei (JSON). Nur im Bundle-Modus sichtbar und relevant.
 - `EnableExpertDebug`
   Aktiviert zusätzliche Debug-Ausgaben.
 - `ShowUnavailableEntitiesJson`
@@ -61,7 +67,31 @@ Keine öffentlichen Funktionen.
 - `OutputBufferSize`
   Erhöht bei Bedarf den Ausgabepuffer für Bilddownloads über den Splitter.
 
-## 6. Variablen und Medienobjekte
+## 6. Bundle-Modus
+
+Der Bundle-Modus ist für Entwicklung, Tests und Support gedacht. Er ersetzt den REST-API-Abruf aus Home Assistant durch eine lokale JSON-Datei.
+
+### Bundle ziehen
+
+1. Sicherstellen, dass die Instanz aktiv ist und `ResolvedConfig` vollständig befüllt ist (Formular → `Aufgelöste Konfiguration`).
+2. Im Formular den Button **`Config-Bundle herunterladen`** klicken. Es wird eine Datei `ha_device_config_bundle.json` heruntergeladen.
+3. Die Datei enthält alle aufgelösten Entity-Konfigurationen inklusive Attributen und States zum Zeitpunkt des letzten `ApplyChanges`.
+
+### Bundle verwenden
+
+1. Bundle-Datei auf dem Symcon-Server ablegen (z. B. `/var/lib/symcon/ha_device_config_bundle.json`).
+2. Im Formular unter **Bundle** → `Datenquelle` auf `Bundle file` umstellen.
+3. Unter `Bundle-Dateipfad` den absoluten Pfad zur Datei eintragen.
+4. `Übernehmen` — die Konfiguration wird aus der Datei geladen. Ein aktiver Home-Assistant-Parent ist nicht erforderlich.
+
+### Hinweise
+
+- Im Bundle-Modus wird kein MQTT-Parent benötigt, um Variablen anzulegen.
+- MQTT-State-Updates funktionieren im Bundle-Modus nur wenn ein Parent verbunden ist.
+- `SourceMode = Bundle file` ist kein Ersatz für den regulären Betrieb, sondern ein Entwicklungs- und Supportwerkzeug.
+- Bestehende Live-Installationen bleiben auf `SourceMode = Home Assistant (REST API)`.
+
+## 7. Variablen und Medienobjekte
 
 - Pro Entität wird in der Regel eine Hauptvariable angelegt.
 - Je nach Domain kommen Zusatzvariablen hinzu, zum Beispiel `Power`, `Aktion`, `Lüfterstufe`, `Playback` oder `Event Type`.
@@ -76,7 +106,7 @@ Keine öffentlichen Funktionen.
 - Optional kann die Expertenvariable `Unavailable entities JSON` erzeugt werden. Sie dient als kompakte Diagnoseübersicht für problematische Entitäten und enthält nur Einträge mit `unknown` oder `unavailable`.
   Beispiel: `[{"entity_id":"light.test","state":"unavailable"}]`
 
-## 7. Domain-spezifisches Verhalten
+## 8. Domain-spezifisches Verhalten
 
 - `switch`
   Ein/Aus als boolesche Hauptvariable.
@@ -129,7 +159,7 @@ Keine öffentlichen Funktionen.
 - `lawn_mower`
   Status plus Aktionen `Start`, `Pause`, `Zur Basis` gemäß `supported_features`.
 
-## 8. Icon-Mapping
+## 9. Icon-Mapping
 
 ### Binary Sensor
 
@@ -185,7 +215,7 @@ Keine öffentlichen Funktionen.
 | `state` | `returning` | `arrow-rotate-left` |
 | `state` | `error`     | `triangle-exclamation` |
 
-## 9. Home Assistant mqtt_statestream
+## 10. Home Assistant mqtt_statestream
 
 Siehe Home-Assistant-Doku:
 https://www.home-assistant.io/integrations/mqtt_statestream/
