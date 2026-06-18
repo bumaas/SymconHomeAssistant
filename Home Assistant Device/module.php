@@ -588,8 +588,14 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
         $filename = "ha_device_config_bundle_{$slug}.json";
         foreach ($form['actions'] as &$panel) {
-            foreach (($panel['items'] ?? []) as &$row) {
-                foreach (($row['items'] ?? []) as &$item) {
+            if (!isset($panel['items'])) {
+                continue;
+            }
+            foreach ($panel['items'] as &$row) {
+                if (!isset($row['items'])) {
+                    continue;
+                }
+                foreach ($row['items'] as &$item) {
                     if (($item['name'] ?? '') === 'ButtonDownloadBundle') {
                         $item['download'] = $filename;
                         return;
