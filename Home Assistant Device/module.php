@@ -567,14 +567,15 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     private function applyBundleVisibilityToForm(array &$form): void
     {
-        $isBundleMode = $this->isBundleMode();
+        $isBundleMode  = $this->isBundleMode();
+        $bundleOnlyFields = [self::PROP_SOURCE_MODE, self::PROP_BUNDLE_PATH];
         foreach ($form['elements'] as &$element) {
             if (!isset($element['items']) || !is_array($element['items'])) {
                 continue;
             }
             foreach ($element['items'] as &$item) {
                 $name = (string)($item['name'] ?? '');
-                if ($name === self::PROP_BUNDLE_PATH) {
+                if (in_array($name, $bundleOnlyFields, true)) {
                     $item['visible'] = $isBundleMode;
                 }
             }
@@ -617,6 +618,21 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $dataUrl = 'data:text/plain;charset=utf-8;base64,' . base64_encode($json);
         $this->applyOutputBufferForStringResponse($dataUrl, __FUNCTION__);
         return $dataUrl;
+    }
+
+    /** @noinspection PhpUnused */
+    public function ActivateBundleMode(string $BundlePath): void
+    {
+        IPS_SetProperty($this->InstanceID, self::PROP_SOURCE_MODE, 'bundle');
+        IPS_SetProperty($this->InstanceID, self::PROP_BUNDLE_PATH, $BundlePath);
+        IPS_ApplyChanges($this->InstanceID);
+    }
+
+    /** @noinspection PhpUnused */
+    public function ActivateMqttMode(): void
+    {
+        IPS_SetProperty($this->InstanceID, self::PROP_SOURCE_MODE, 'mqtt');
+        IPS_ApplyChanges($this->InstanceID);
     }
 
     private function isBundleMode(): bool

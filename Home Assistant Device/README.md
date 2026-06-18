@@ -48,6 +48,10 @@ Interne Wartungsdoku: [Architektur](../docs/ARCHITEKTUR.md)
 
 - `HA_ExportConfigBundleDataUrl($id)`
   Gibt die aktuell aufgelöste Gerätekonfiguration (`ResolvedConfig`) als base64-encodierte Data-URL zurück. Wird intern vom Download-Button im Formular aufgerufen. Kann auch direkt per Skript aufgerufen werden.
+- `HA_ActivateBundleMode($id, $BundlePath)`
+  Schaltet die Instanz in den Bundle-Modus und lädt die Konfiguration aus der angegebenen Datei.
+- `HA_ActivateMqttMode($id)`
+  Schaltet die Instanz zurück in den Live-Modus (Home Assistant REST API).
 
 ## 5. Konfiguration
 
@@ -79,15 +83,21 @@ Der Bundle-Modus ist für Entwicklung, Tests und Support gedacht. Er ersetzt den
 
 ### Bundle-Modus aktivieren
 
-1. Bundle-Datei auf dem Symcon-Server ablegen (z. B. `/var/lib/symcon/ha_device_config_bundle.json`).
-2. Im Formular unter **Bundle** → `Datenquelle` auf `Bundle file` umstellen.
-3. Im nun sichtbaren Feld `Bundle-Dateipfad` den absoluten Pfad zur Datei eintragen.
-4. `Übernehmen` — die Konfiguration wird aus der Datei geladen. Ein aktiver Home-Assistant-Parent ist nicht erforderlich.
+Der Bundle-Modus wird ausschließlich per Skript aktiviert:
+
+```php
+HA_ActivateBundleMode($id, '/var/lib/symcon/ha_device_config_bundle.json');
+```
+
+`$id` ist die Instanz-ID der Device-Instanz. Die Konfiguration wird sofort aus der angegebenen Datei geladen. Ein aktiver Home-Assistant-Parent ist nicht erforderlich.
 
 ### Bundle-Modus deaktivieren
 
-1. Im Formular unter **Bundle** → `Datenquelle` auf `Home Assistant (REST API)` zurückstellen.
-2. `Übernehmen` — die Konfiguration wird wieder aus Home Assistant per REST-API geladen.
+```php
+HA_ActivateMqttMode($id);
+```
+
+Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
 
 ### Hinweise
 
