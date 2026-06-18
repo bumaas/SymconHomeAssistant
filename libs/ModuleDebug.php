@@ -9,6 +9,7 @@ trait ModuleDebugTrait
         'Config',
         'Discovery',
         'MessageSink',
+        'MQTT',
         'RequestAction',
         'REST',
         'UpdateCache',

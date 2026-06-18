@@ -35,7 +35,7 @@ trait HADomainStateHandlersTrait
         $rawState = (string)($parsed[self::KEY_STATE] ?? '');
         $this->updateEntityRawStateCache($entityId, $rawState);
         $this->updateAvailabilityValue($rawState);
-        $this->debugExpert(__FUNCTION__, 'State-Topic verarbeitet', ['EntityID' => $entityId, 'State' => $rawState]);
+        $this->debugExpert('MQTT', 'State empfangen', ['EntityID' => $entityId, 'State' => $rawState]);
         $this->applyParsedEntityState($entityId, $parsed, 'MQTT State Topic');
         return true;
     }

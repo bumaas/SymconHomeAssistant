@@ -166,6 +166,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
             }
         }
 
+        $topic = (string)($data['Topic'] ?? '');
+        $this->debugExpert('MQTT', 'Weiterleitung an MQTT-Broker', ['Topic' => $topic]);
         return $this->SendDataToParent($JSONString);
     }
 
@@ -189,6 +191,10 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s'));
             $this->updateLastMqttMessageLabel();
             $topic = (string)($data['Topic'] ?? '');
+            if (str_ends_with($topic, '/state')) {
+                $state = $this->decodePayload((string)($data['Payload'] ?? ''));
+                $this->debugExpert('MQTT', 'State-Topic empfangen', ['Topic' => $topic, 'State' => $state]);
+            }
             $entityId = $this->extractEntityIdFromTopic($topic);
             if ($entityId !== '') {
                 $this->clearPendingRestAck($entityId);

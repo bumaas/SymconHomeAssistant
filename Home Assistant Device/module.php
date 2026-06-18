@@ -1025,7 +1025,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     private function updateEntityValue(string $entityId, string $payload): void
     {
-        $this->debugExpert(__FUNCTION__, 'Wert wird gesetzt', ['EntityID' => $entityId, 'Payload' => $payload]);
+        $this->debugExpert('MQTT', 'Wert empfangen', ['EntityID' => $entityId, 'Payload' => $payload]);
         $parsed = $this->parseEntityPayload($payload);
         $rawState = (string)($parsed[self::KEY_STATE] ?? '');
         $this->updateEntityRawStateCache($entityId, $rawState);
