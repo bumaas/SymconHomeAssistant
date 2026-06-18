@@ -45,8 +45,8 @@ trait HAPresentationTrait
             HAHumidifierDefinitions::DOMAIN => $this->getHumidifierPresentation(),
             HAButtonDefinitions::DOMAIN => $this->getButtonPresentation($entity),
             HAMediaPlayerDefinitions::DOMAIN => $this->getMediaPlayerPresentation(),
-            HACoverDefinitions::DOMAIN => $this->getCoverPresentation($attributes),
-            HAValveDefinitions::DOMAIN => $this->getValvePresentation($attributes),
+            HACoverDefinitions::DOMAIN => $this->getCoverPresentation($attributes, $type),
+            HAValveDefinitions::DOMAIN => $this->getValvePresentation($attributes, $type),
             HAEventDefinitions::DOMAIN => $this->getEventPresentation(),
             default => null
         };
@@ -584,7 +584,7 @@ trait HAPresentationTrait
         ]);
     }
 
-    private function getCoverPresentation(array $attributes): array
+    private function getCoverPresentation(array $attributes, int $type): array
     {
         $deviceClass = $attributes['device_class'] ?? '';
         if (!is_string($deviceClass)) {
@@ -592,7 +592,7 @@ trait HAPresentationTrait
         }
         $deviceClass = trim($deviceClass);
 
-        $hasPosition = $this->isCoverPositionEntity($attributes);
+        $hasPosition = ($type === VARIABLETYPE_FLOAT);
         if ($hasPosition && HACoverDefinitions::usesShutterPresentation($deviceClass)) {
             return $this->filterPresentation([
                                                  'CLOSE_INSIDE_VALUE' => 0,
@@ -640,9 +640,9 @@ trait HAPresentationTrait
         return ($supported & HACoverDefinitions::FEATURE_SET_POSITION) === HACoverDefinitions::FEATURE_SET_POSITION;
     }
 
-    private function getValvePresentation(array $attributes): array
+    private function getValvePresentation(array $attributes, int $type): array
     {
-        if ($this->isValvePositionEntity($attributes)) {
+        if ($type === VARIABLETYPE_FLOAT) {
             return $this->filterPresentation([
                 'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
                 'MIN' => 0,
