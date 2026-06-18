@@ -42,6 +42,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     private const int STATUS_MQTT_BASE_TOPIC_MISSING = 202;
     private const int STATUS_DEVICE_ID_MISSING = 210;
     private const int STATUS_DEVICE_NOT_FOUND = 211;
+    private const int STATUS_BUNDLE_PATH_MISSING = 212;
+    private const int STATUS_BUNDLE_INVALID = 213;
     private const string ATTR_RESOLVED_CONFIG = 'ResolvedConfig';
 
     use ModuleDebugTrait;
@@ -96,6 +98,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterPropertyBoolean(self::PROP_SHOW_TECHNICAL_ENTITY_COLUMNS, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_UNAVAILABLE_ENTITIES_JSON, false);
         $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
+        $this->RegisterPropertyString(self::PROP_SOURCE_MODE, 'mqtt');
+        $this->RegisterPropertyString(self::PROP_BUNDLE_PATH, '');
         $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HA_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
@@ -140,8 +144,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
 
+        $isBundleMode = $this->ReadPropertyString(self::PROP_SOURCE_MODE) === 'bundle';
+
         $parentState = $this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]);
-        if ($parentState !== 'active') {
+        if (!$isBundleMode && $parentState !== 'active') {
             $this->SetStatus(self::STATUS_PARENT_UNAVAILABLE);
             $message = match ($parentState) {
                 'missing' => 'Kein Parent verbunden',
@@ -157,8 +163,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     public function UpdateConfiguration(): void
     {
-        $deviceId = trim($this->ReadPropertyString(self::PROP_DEVICE_ID));
-        if ($deviceId === '') {
+        $isBundleMode = $this->ReadPropertyString(self::PROP_SOURCE_MODE) === 'bundle';
+        $deviceId     = trim($this->ReadPropertyString(self::PROP_DEVICE_ID));
+
+        if (!$isBundleMode && $deviceId === '') {
             $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
             $this->resetResolvedDeviceRuntime();
             $this->SetSummary('');
@@ -170,16 +178,23 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         $existingCreateVarMap = $this->buildExistingCreateVarMap();
 
-        $configData = $this->resolveDeviceConfigByDeviceId($deviceId);
-        if ($configData === []) {
-            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->resetResolvedDeviceRuntime();
-            $this->SetSummary($deviceId);
-            $this->SetStatus(self::STATUS_DEVICE_NOT_FOUND);
-            $this->updateDiagnosticsLabels();
-            $this->refreshResolvedFormFields();
-            $this->debugExpert(__FUNCTION__, 'Gerät nicht in Home Assistant gefunden', ['DeviceID' => $deviceId], true);
-            return;
+        if ($isBundleMode) {
+            $configData = $this->loadConfigFromBundleFile();
+            if ($configData === null) {
+                return;
+            }
+        } else {
+            $configData = $this->resolveDeviceConfigByDeviceId($deviceId);
+            if ($configData === []) {
+                $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+                $this->resetResolvedDeviceRuntime();
+                $this->SetSummary($deviceId);
+                $this->SetStatus(self::STATUS_DEVICE_NOT_FOUND);
+                $this->updateDiagnosticsLabels();
+                $this->refreshResolvedFormFields();
+                $this->debugExpert(__FUNCTION__, 'Gerät nicht in Home Assistant gefunden', ['DeviceID' => $deviceId], true);
+                return;
+            }
         }
 
         $configData = $this->mergeCreateVarSettings($configData, $existingCreateVarMap);
@@ -202,7 +217,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             );
         }
 
-        if ($baseTopic === '') {
+        if (!$isBundleMode && $baseTopic === '') {
             $this->SetStatus(self::STATUS_MQTT_BASE_TOPIC_MISSING);
             $this->debugExpert('ApplyChanges', 'MQTTBaseTopic ist leer. MQTT Statestream Updates kommen dann nicht an.');
         } else {
@@ -563,6 +578,88 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         return $this->applySharedEntityIdents($configuredEntities);
+    }
+
+    public function HAMD_ExportConfigBundleDataUrl(): string
+    {
+        $json = $this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG);
+        if ($json === '' || $json === '[]') {
+            $json = '[]';
+        } else {
+            // Re-encode with pretty print for readability.
+            try {
+                $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+                $json    = json_encode($decoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+            } catch (JsonException $e) {
+                $this->debugExpert(__FUNCTION__, 'Failed to re-encode config: ' . $e->getMessage());
+            }
+        }
+        $dataUrl = 'data:text/plain;charset=utf-8;base64,' . base64_encode($json);
+        $this->applyOutputBufferForStringResponse($dataUrl, __FUNCTION__);
+        return $dataUrl;
+    }
+
+    private function applyOutputBufferForStringResponse(string $response, string $context): void
+    {
+        $configuredBufferMb    = max(0, $this->ReadPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE));
+        $configuredBufferBytes = $configuredBufferMb > 0 ? $configuredBufferMb * 1024 * 1024 : 0;
+        $responseBytes         = strlen($response);
+        $recommendedBufferBytes = max($configuredBufferBytes, $responseBytes + 65536);
+        ini_set('ips.output_buffer', (string)$recommendedBufferBytes);
+        $this->debugExpert($context, 'output_buffer', [
+            'ResponseBytes'          => $responseBytes,
+            'ConfiguredBufferBytes'  => $configuredBufferBytes,
+            'RecommendedBufferBytes' => $recommendedBufferBytes
+        ]);
+    }
+
+    private function loadConfigFromBundleFile(): ?array
+    {
+        $bundlePath = trim($this->ReadPropertyString(self::PROP_BUNDLE_PATH));
+        if ($bundlePath === '') {
+            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+            $this->resetResolvedDeviceRuntime();
+            $this->SetStatus(self::STATUS_BUNDLE_PATH_MISSING);
+            $this->updateDiagnosticsLabels();
+            $this->refreshResolvedFormFields();
+            return null;
+        }
+
+        $contents = @file_get_contents($bundlePath);
+        if ($contents === false) {
+            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+            $this->resetResolvedDeviceRuntime();
+            $this->SetStatus(self::STATUS_BUNDLE_INVALID);
+            $this->updateDiagnosticsLabels();
+            $this->refreshResolvedFormFields();
+            $this->debugExpert(__FUNCTION__, 'Bundle-Datei konnte nicht gelesen werden', ['Path' => $bundlePath], true);
+            return null;
+        }
+
+        try {
+            $configData = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+            $this->resetResolvedDeviceRuntime();
+            $this->SetStatus(self::STATUS_BUNDLE_INVALID);
+            $this->updateDiagnosticsLabels();
+            $this->refreshResolvedFormFields();
+            $this->debugExpert(__FUNCTION__, 'Bundle-Datei ist kein gültiges JSON: ' . $e->getMessage(), ['Path' => $bundlePath], true);
+            return null;
+        }
+
+        if (!is_array($configData) || $configData === []) {
+            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+            $this->resetResolvedDeviceRuntime();
+            $this->SetStatus(self::STATUS_BUNDLE_INVALID);
+            $this->updateDiagnosticsLabels();
+            $this->refreshResolvedFormFields();
+            $this->debugExpert(__FUNCTION__, 'Bundle-Datei enthält keine gültige Konfiguration', ['Path' => $bundlePath], true);
+            return null;
+        }
+
+        $this->debugExpert(__FUNCTION__, 'Bundle geladen', ['Path' => $bundlePath, 'Entities' => count($configData)]);
+        return $configData;
     }
 
     private function resolveDeviceConfigByDeviceId(string $deviceId): array

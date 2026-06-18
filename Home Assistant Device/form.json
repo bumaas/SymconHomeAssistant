@@ -14,6 +14,26 @@
     },
     {
       "type": "ExpansionPanel",
+      "caption": "Bundle",
+      "items": [
+        {
+          "type": "Select",
+          "name": "SourceMode",
+          "caption": "Data source",
+          "options": [
+            {"caption": "Home Assistant (REST API)", "value": "mqtt"},
+            {"caption": "Bundle file", "value": "bundle"}
+          ]
+        },
+        {
+          "type": "ValidationTextBox",
+          "name": "BundlePath",
+          "caption": "Bundle file path"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
       "caption": "Expert",
       "items": [
         {
@@ -172,6 +192,17 @@
               "visible": false
             }
           ]
+        },
+        {
+          "type": "RowLayout",
+          "items": [
+            {
+              "type": "Button",
+              "caption": "Download config bundle",
+              "download": "ha_device_config_bundle.json",
+              "onClick": "echo HAMD_ExportConfigBundleDataUrl($id);"
+            }
+          ]
         }
       ]
     },
@@ -221,6 +252,16 @@
       "code": 211,
       "icon": "error",
       "caption": "Device not found in Home Assistant"
+    },
+    {
+      "code": 212,
+      "icon": "error",
+      "caption": "Bundle path is empty."
+    },
+    {
+      "code": 213,
+      "icon": "error",
+      "caption": "Bundle could not be loaded or validated."
     }
   ]
 }
