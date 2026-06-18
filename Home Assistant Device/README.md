@@ -77,12 +77,17 @@ Der Bundle-Modus ist für Entwicklung, Tests und Support gedacht. Er ersetzt den
 2. Im Formular den Button **`Config-Bundle herunterladen`** klicken. Es wird eine Datei `ha_device_config_bundle.json` heruntergeladen.
 3. Die Datei enthält alle aufgelösten Entity-Konfigurationen inklusive Attributen und States zum Zeitpunkt des letzten `ApplyChanges`.
 
-### Bundle verwenden
+### Bundle-Modus aktivieren
 
 1. Bundle-Datei auf dem Symcon-Server ablegen (z. B. `/var/lib/symcon/ha_device_config_bundle.json`).
 2. Im Formular unter **Bundle** → `Datenquelle` auf `Bundle file` umstellen.
-3. Unter `Bundle-Dateipfad` den absoluten Pfad zur Datei eintragen.
+3. Im nun sichtbaren Feld `Bundle-Dateipfad` den absoluten Pfad zur Datei eintragen.
 4. `Übernehmen` — die Konfiguration wird aus der Datei geladen. Ein aktiver Home-Assistant-Parent ist nicht erforderlich.
+
+### Bundle-Modus deaktivieren
+
+1. Im Formular unter **Bundle** → `Datenquelle` auf `Home Assistant (REST API)` zurückstellen.
+2. `Übernehmen` — die Konfiguration wird wieder aus Home Assistant per REST-API geladen.
 
 ### Hinweise
 

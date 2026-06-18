@@ -95,6 +95,19 @@ Empfohlene Verwendung:
 - Gesamt-Bundle für Bestandsaufnahme, Cache-Analyse und Fälle, in denen auch stale Einträge relevant sind.
 - Session-Bundle für Support, Fixtures und reproduzierbare Einzelanalysen nach einem frischen Reconnect.
 
+## Bundle-Modus aktivieren
+
+1. Bundle-Datei auf dem Symcon-Server ablegen (z. B. `/var/lib/symcon/ha_mqtt_discovery_bundle.json`).
+2. Im Formular unter `Datenquelle` auf `Bundle file` umstellen.
+3. Im nun sichtbaren Feld `Bundle-Dateipfad` den absoluten Pfad oder Dateinamen eintragen. Relative Angaben werden gegen `<modulpfad>/tests/fixtures` aufgelöst.
+4. Optional: `Nur Datensätze der aktuellen Session` und `Replay bei ApplyChanges` nach Bedarf setzen.
+5. `Übernehmen` — der Splitter lädt die Discovery-Configs und Topic-Payloads aus der Datei. Ein MQTT-Parent ist nicht erforderlich.
+
+## Bundle-Modus deaktivieren
+
+1. Im Formular unter `Datenquelle` auf `Home Assistant (MQTT)` zurückstellen.
+2. `Übernehmen` — der Splitter empfängt Discovery-Daten wieder live vom MQTT-Parent.
+
 ## Diagnose
 
 - Das Formular zeigt getrennt an, wie viele Discovery-Configs in der aktuellen MQTT-Session gesehen wurden und wie viele nur noch als stale Cache vorliegen.
