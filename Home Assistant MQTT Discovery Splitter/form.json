@@ -11,9 +11,13 @@
           "caption": "MQTT Discovery Prefix"
         },
         {
-          "type": "ValidationTextBox",
+          "type": "Select",
           "name": "SourceMode",
-          "caption": "Source mode"
+          "caption": "Data source",
+          "options": [
+            {"caption": "Home Assistant (MQTT)", "value": "mqtt"},
+            {"caption": "Bundle file", "value": "bundle"}
+          ]
         },
         {
           "type": "Label",

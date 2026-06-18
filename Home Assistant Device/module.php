@@ -64,6 +64,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     use HAAttributeActionMappingTrait;
     use HASupportedFeaturesTrait;
     use HADiagnosticsTrait;
+    use HAOutputBufferTrait;
     use HARestParentClientTrait;
     use HAEntityConfigLoaderTrait;
     use HAEntityConfigBuilderTrait {
@@ -144,7 +145,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
 
-        $isBundleMode = $this->ReadPropertyString(self::PROP_SOURCE_MODE) === 'bundle';
+        $isBundleMode = $this->isBundleMode();
 
         $parentState = $this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]);
         if (!$isBundleMode && $parentState !== 'active') {
@@ -163,7 +164,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     public function UpdateConfiguration(): void
     {
-        $isBundleMode = $this->ReadPropertyString(self::PROP_SOURCE_MODE) === 'bundle';
+        $isBundleMode = $this->isBundleMode();
         $deviceId     = trim($this->ReadPropertyString(self::PROP_DEVICE_ID));
 
         if (!$isBundleMode && $deviceId === '') {
@@ -599,18 +600,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         return $dataUrl;
     }
 
-    private function applyOutputBufferForStringResponse(string $response, string $context): void
+    private function isBundleMode(): bool
     {
-        $configuredBufferMb    = max(0, $this->ReadPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE));
-        $configuredBufferBytes = $configuredBufferMb > 0 ? $configuredBufferMb * 1024 * 1024 : 0;
-        $responseBytes         = strlen($response);
-        $recommendedBufferBytes = max($configuredBufferBytes, $responseBytes + 65536);
-        ini_set('ips.output_buffer', (string)$recommendedBufferBytes);
-        $this->debugExpert($context, 'output_buffer', [
-            'ResponseBytes'          => $responseBytes,
-            'ConfiguredBufferBytes'  => $configuredBufferBytes,
-            'RecommendedBufferBytes' => $recommendedBufferBytes
-        ]);
+        return strtolower(trim($this->ReadPropertyString(self::PROP_SOURCE_MODE))) === 'bundle';
     }
 
     private function loadConfigFromBundleFile(): ?array

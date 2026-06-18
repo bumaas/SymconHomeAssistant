@@ -10,6 +10,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 {
     use HAParentConnectionTrait;
     use ModuleDebugTrait;
+    use HAOutputBufferTrait;
 
     private const string TIMER_DIAGNOSTICS_REFRESH = 'DiagnosticsRefresh';
     private const string TIMER_DEFERRED_APPLY = 'DeferredApply';
@@ -22,7 +23,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const string EXPORT_FORMAT = 'ha_mqtt_discovery_bundle';
     private const int EXPORT_VERSION = 2;
     private const int DIAGNOSTIC_PREVIEW_LIMIT = 8;
-    private const int OUTPUT_BUFFER_RESERVE_BYTES = 262144;
     private const int DIAGNOSTICS_REFRESH_INTERVAL_MS = 1000;
     private const int DEFERRED_APPLY_DELAY_MS = 750;
     private const string SOURCE_MODE_MQTT = 'mqtt';
@@ -1470,22 +1470,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $analysis = $this->analyzeDiscoveryConfigRecords();
 
         return ((int)($analysis['stale_count'] ?? 0)) > 0;
-    }
-
-    private function applyOutputBufferForStringResponse(string $response, string $context): void
-    {
-        $configuredBufferMb = max(0, $this->ReadPropertyInteger('OutputBufferSize'));
-        $configuredBufferBytes = $configuredBufferMb > 0 ? $configuredBufferMb * 1024 * 1024 : 0;
-        $responseBytes = strlen($response);
-        $recommendedBufferBytes = max($configuredBufferBytes, $responseBytes + self::OUTPUT_BUFFER_RESERVE_BYTES);
-        ini_set('ips.output_buffer', (string)$recommendedBufferBytes);
-
-        $this->debugExpert($context, 'output_buffer', [
-            'ResponseBytes' => $responseBytes,
-            'ConfiguredBufferBytes' => $configuredBufferBytes,
-            'RecommendedBufferBytes' => $recommendedBufferBytes,
-            'AppliedBufferBytes' => ini_get('ips.output_buffer')
-        ]);
     }
 
     private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void
