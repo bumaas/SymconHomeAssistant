@@ -199,6 +199,17 @@ mqtt_statestream:
   publish_timestamps: true
 ```
 
+#### Reaktionszeit bei Tasterereignissen
+
+Eingehende States werden über HA's `mqtt_statestream` übermittelt. Die Standardverzögerung beträgt 1 Sekunde (`batch_delay: 1`). Für zeitkritische Taster-Reaktionen kann dieser Wert in der HA `configuration.yaml` reduziert werden:
+
+```yaml
+mqtt_statestream:
+  batch_delay: 0
+```
+
+**Hinweis:** Ein kleinerer `batch_delay` erhöht das MQTT-Nachrichtenvolumen, besonders bei Sensoren mit häufigen Updates (z.B. Energiemonitoring).
+
 ### Spenden
 
 Die Nutzung des Moduls ist kostenfrei. Niemand sollte sich verpflichtet fühlen, aber wenn das Modul gefällt, dann freue ich mich über eine Spende.
