@@ -1041,7 +1041,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
             $activeEntityIds[] = $entityId;
             $positionIndex++;
-            $basePosition                                = $positionIndex * 10;
+            $basePosition                                = $positionIndex * 500;
             $entity['position_base']                     = $basePosition;
             if (isset($previousEntities[$entityId]['attributes'])
                 && is_array($previousEntities[$entityId]['attributes'])) {
