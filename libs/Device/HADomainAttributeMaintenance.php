@@ -38,7 +38,7 @@ trait HADomainAttributeMaintenanceTrait
             function (string $attribute, array $attributes, string $ident, array $presentation): void {
                 $this->applyMediaPlayerAttributeActionState($attribute, $attributes, $presentation, $ident);
             },
-            0,
+            $this->getEntityPosition((string)($entity['entity_id'] ?? '')),
             fn(string $attribute, array $_meta, array $_attributes): bool => $this->isMediaPlayerAttributeShadowed($attribute),
             function (string $attribute, array $_meta, string $entityId, array $_attributes, int $basePosition): void {
                 if ($attribute === 'media_image_url') {
@@ -62,7 +62,7 @@ trait HADomainAttributeMaintenanceTrait
             function (string $attributeName, array $attributes, string $ident, array $presentation): void {
                 $this->applyMediaPlayerAttributeActionState($attributeName, $attributes, $presentation, $ident);
             },
-            0,
+            $this->getEntityPosition($entityId),
             ['name' => $entityId],
             null,
             fn(string $attributeName, array $_meta, array $_attributes): bool => $this->isMediaPlayerAttributeShadowed($attributeName),
@@ -654,7 +654,7 @@ trait HADomainAttributeMaintenanceTrait
             function (string $attributeName, array $entityAttributes, string $ident) {
                 $this->syncAttributeActionState($ident, $this->isWritableLightAttribute($attributeName, $entityAttributes));
             },
-            0,
+            $this->getEntityPosition($entityId),
             ['name' => $entityId],
             null,
             null,
@@ -1232,7 +1232,7 @@ trait HADomainAttributeMaintenanceTrait
             function (string $attribute, array $attributes, string $ident): void {
                 $this->applyFanAttributeActionState($attribute, $attributes, $ident);
             },
-            0,
+            $this->getEntityPosition((string)($entity['entity_id'] ?? '')),
             null,
             null,
             false
@@ -1251,7 +1251,7 @@ trait HADomainAttributeMaintenanceTrait
             function (string $attributeName, array $attributes, string $ident): void {
                 $this->applyFanAttributeActionState($attributeName, $attributes, $ident);
             },
-            0,
+            $this->getEntityPosition($entityId),
             ['name' => $entityId],
             static function (string $attributeName, array $attributes): array {
                 if (!array_key_exists($attributeName, $attributes)) {
@@ -1347,7 +1347,7 @@ trait HADomainAttributeMaintenanceTrait
             function (string $attribute, array $attributes, string $ident): void {
                 $this->applyHumidifierAttributeActionState($attribute, $attributes, $ident);
             },
-            0,
+            $this->getEntityPosition((string)($entity['entity_id'] ?? '')),
             null,
             null,
             false
@@ -1366,7 +1366,7 @@ trait HADomainAttributeMaintenanceTrait
             function (string $attributeName, array $attributes, string $ident): void {
                 $this->applyHumidifierAttributeActionState($attributeName, $attributes, $ident);
             },
-            0,
+            $this->getEntityPosition($entityId),
             ['name' => $entityId],
             static function (string $attributeName, array $attributes): array {
                 if (!array_key_exists($attributeName, $attributes)) {
