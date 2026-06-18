@@ -199,6 +199,7 @@
           "items": [
             {
               "type": "Button",
+              "name": "ButtonDownloadBundle",
               "caption": "Download config bundle",
               "download": "ha_device_config_bundle.json",
               "onClick": "echo HA_ExportConfigBundleDataUrl($id);"

@@ -522,6 +522,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         unset($action);
         $this->applyCurrentDiagnosticsToForm($form, $values);
         $this->applyBundleVisibilityToForm($form);
+        $this->applyBundleDownloadFilename($form, $resolvedName ?: $model ?: trim($this->ReadPropertyString(self::PROP_DEVICE_ID)));
         $this->debugExpert(__FUNCTION__, 'Form:', $form);
 
         return json_encode($form, JSON_THROW_ON_ERROR);
@@ -576,6 +577,30 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
         }
         unset($element);
+    }
+
+    private function applyBundleDownloadFilename(array &$form, string $deviceLabel): void
+    {
+        $slug     = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '_', $deviceLabel), '_'));
+        $filename = $slug !== '' ? "ha_device_config_bundle_{$slug}.json" : 'ha_device_config_bundle.json';
+
+        $walk = static function (array &$items) use ($filename, &$walk): void {
+            foreach ($items as &$item) {
+                if (($item['name'] ?? '') === 'ButtonDownloadBundle') {
+                    $item['download'] = $filename;
+                }
+                if (isset($item['items']) && is_array($item['items'])) {
+                    $walk($item['items']);
+                }
+            }
+            unset($item);
+        };
+
+        foreach (['elements', 'actions'] as $section) {
+            if (isset($form[$section]) && is_array($form[$section])) {
+                $walk($form[$section]);
+            }
+        }
     }
 
     private function getConfiguredEntities(string $context): array
