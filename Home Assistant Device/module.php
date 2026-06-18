@@ -568,19 +568,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     private function applyBundleVisibilityToForm(array &$form): void
     {
-        $isBundleMode  = $this->isBundleMode();
-        $bundleOnlyFields = [self::PROP_SOURCE_MODE, self::PROP_BUNDLE_PATH];
+        $isBundleMode = $this->isBundleMode();
         foreach ($form['elements'] as &$element) {
-            if (!isset($element['items']) || !is_array($element['items'])) {
-                continue;
+            if (($element['name'] ?? '') === 'BundlePanel') {
+                $element['visible'] = $isBundleMode;
+                break;
             }
-            foreach ($element['items'] as &$item) {
-                $name = (string)($item['name'] ?? '');
-                if (in_array($name, $bundleOnlyFields, true)) {
-                    $item['visible'] = $isBundleMode;
-                }
-            }
-            unset($item);
         }
         unset($element);
     }
