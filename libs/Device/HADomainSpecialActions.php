@@ -179,7 +179,9 @@ trait HADomainSpecialActionsTrait
 
         $options = $optionsResolver($context['attributes']);
         $ident = $identResolver($context['entityId']);
-        $this->maintainEnumerationTriggerVariable($ident, $caption, $context['position'], $options, $hideWhenEmpty);
+        $entityName = $this->getSharedEntityName($entity);
+        $name = $entityName !== '' ? $entityName . ' ' . $caption : $caption;
+        $this->maintainEnumerationTriggerVariable($ident, $name, $context['position'], $options, $hideWhenEmpty);
     }
 
     private function appendEnumerationOptionIfSupported(
