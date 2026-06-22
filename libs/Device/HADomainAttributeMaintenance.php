@@ -537,6 +537,8 @@ trait HADomainAttributeMaintenanceTrait
 
     private function shouldCreateClimateAttribute(string $attribute, array $meta, array $attributes): bool
     {
+        // Feature-Gating (requires_features) erfolgt zentral in der gemeinsamen Pipeline
+        // (maintainStandardAttributeVariables/ensureStandardAttributeVariable).
         $hasAttribute = array_key_exists($attribute, $attributes);
         if (!$hasAttribute) {
             if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {

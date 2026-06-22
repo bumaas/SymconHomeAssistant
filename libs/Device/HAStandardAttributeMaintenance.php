@@ -36,6 +36,44 @@ trait HAStandardAttributeMaintenanceTrait
         $this->DisableAction($ident);
     }
 
+    // Feature-Gate für alle definitionsbasierten Domains: blockt Attribute, deren benötigte
+    // supported_features-Bits fehlen. Nur aktiv, wenn die Feature-Maske bekannt ist, damit
+    // transiente Zustände ohne supported_features keine berechtigten Variablen blockieren/löschen.
+    private function attributeFeatureGateBlocks(array $meta, array $attributes): bool
+    {
+        $required = $meta['requires_features'] ?? [];
+        if (!is_array($required) || $required === []) {
+            return false;
+        }
+        if (!array_key_exists('supported_features', $attributes)) {
+            return false;
+        }
+        return !$this->checkSupportedFeatures($meta, $attributes);
+    }
+
+    // Entfernt eine bereits angelegte Attribut-Variable, die das Gerät laut Features nicht (mehr) unterstützt.
+    private function removeUnsupportedAttributeVariable(string $entityId, string $attribute, array $meta): void
+    {
+        $ident = $this->getAttributeVariableIdent($entityId, $attribute);
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        $this->MaintainVariable(
+            $ident,
+            $this->Translate((string)($meta['caption'] ?? $attribute)),
+            (int)$meta['type'],
+            '',
+            0,
+            false
+        );
+        $this->debugExpert('AttributeVars', 'Nicht unterstütztes Attribut entfernt', [
+            'EntityID'  => $entityId,
+            'Attribute' => $attribute,
+            'Ident'     => $ident
+        ]);
+    }
+
     private function syncStandardAttributeVariable(
         string $entityId,
         string $attribute,
@@ -98,6 +136,10 @@ trait HAStandardAttributeMaintenanceTrait
             if ($shouldSkip !== null && $shouldSkip($attribute, $meta, $attributes)) {
                 continue;
             }
+            if ($this->attributeFeatureGateBlocks($meta, $attributes)) {
+                $this->removeUnsupportedAttributeVariable($entityId, $attribute, $meta);
+                continue;
+            }
             if (!$shouldCreate($attribute, $meta, $attributes)) {
                 continue;
             }
@@ -148,6 +190,9 @@ trait HAStandardAttributeMaintenanceTrait
         $ident = $this->getAttributeVariableIdent($entityId, $attribute);
         if ($this->attributeVariableExists($ident)) {
             return true;
+        }
+        if ($this->attributeFeatureGateBlocks($meta, $attributes)) {
+            return false;
         }
         if (!$shouldCreate($attribute, $meta, $attributes)) {
             return false;

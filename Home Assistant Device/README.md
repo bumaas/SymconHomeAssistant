@@ -164,7 +164,16 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
 - `media_player`
   Read-only-Status, zusätzliche Attribute gemäß `supported_features`, zusätzliche `Playback`- und `Power`-Variable, Cover-Medienobjekt.
 - `camera`
-  Status-Hauptvariable, Kamera-Vorschau, optionaler Stream, zusätzliche `Power`-Variable bei `FEATURE_ON_OFF`.
+  Status-Hauptvariable, Kamera-Vorschau (Standbild über `…/api/camera_proxy/<entity_id>`),
+  Stream-Medienobjekt und zusätzliche `Power`-Variable bei `FEATURE_ON_OFF`.
+  Hinweis zum Live-Stream: Die Symcon-Kachel-Visualisierung spielt Kamera-Streams nur als
+  RTSP/RTSPS (H264) ab. Home Assistant gibt die RTSP-Adresse aus Sicherheitsgründen nicht in
+  den Attributen heraus, daher bleibt das angelegte Stream-Medienobjekt zunächst leer. Trage
+  die RTSP-Adresse der Kamera direkt am Stream-Medienobjekt ein, z. B.
+  `rtsp://<user>:<pass>@<kamera-ip>:554/Streaming/Channels/101`. Symcon verbindet sich damit
+  direkt mit der Kamera (an Home Assistant vorbei); das Modul überschreibt eine manuell
+  eingetragene Adresse nicht. Liefert eine Integration ausnahmsweise `stream_source`/`rtsp_url`,
+  wird der Stream automatisch gesetzt.
 - `image`
   Hauptvariable `Last Update` als Zeitstempel und zusätzliche Vorschau als Medienobjekt.
 - `device_tracker`

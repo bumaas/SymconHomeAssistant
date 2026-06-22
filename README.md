@@ -175,7 +175,7 @@ Im Bundle-Modus werden aktuell keine Befehle an Geräte gesendet.
 | `vacuum`        | teilweise | zentrale Services wie `start`, `stop`, `pause`, `return_to_base`     |
 | `lawn_mower`    | teilweise | Status plus `start_mowing`, `pause`, `dock`                          |
 | `media_player`  | teilweise | Status, Aktionen, Attribute, Cover                                   |
-| `camera`        | teilweise | Status plus Bild-Vorschau als Medienobjekt                           |
+| `camera`        | teilweise | Status, Bild-Vorschau; Live-Stream nur per manueller RTSP-Adresse    |
 | `image`         | teilweise | Bild-Entität als Medienobjekt                                        |
 | `device_tracker`| teilweise | Status plus Positionsattribute wie Latitude/Longitude                |
 | `update`        | teilweise | Read-only Status plus Versions- und Release-Metadaten                |

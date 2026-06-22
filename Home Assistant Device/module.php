@@ -1122,12 +1122,13 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $activeBaseIdents = array_filter($activeBaseIdents, static fn(string $ident): bool => $ident !== '')
                             |> array_unique(...)
                             |> array_values(...);
+        $allKnownPrefixes = array_values(array_unique(array_merge($activeBaseIdents, $baseIdents)));
         foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
             $object = IPS_GetObject($childId);
             $ident = (string)($object['ObjectIdent'] ?? '');
             if ($ident === ''
                 || !$this->isManagedEntityIdent($ident, $baseIdents)
-                || $this->isManagedEntityIdent($ident, $activeBaseIdents)) {
+                || $this->isMostSpecificallyManagedByPrefixes($ident, $activeBaseIdents, $allKnownPrefixes)) {
                 continue;
             }
 
@@ -1169,6 +1170,31 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     private function isManagedEntityIdent(string $ident, array $baseIdents): bool
     {
         return array_any($baseIdents, static fn($baseIdent) => $ident === $baseIdent || str_starts_with($ident, $baseIdent . '_'));
+    }
+
+    /**
+     * Prüft via Longest-Prefix-Match, ob $ident am spezifischsten zu einem Prefix
+     * aus $targetPrefixes gehört.
+     * Verhindert, dass z.B. „sensor_battery_percentage_2" als Sub-Variable von
+     * „sensor_battery_percentage" gilt, obwohl es ein eigener Entity-Ident ist.
+     */
+    private function isMostSpecificallyManagedByPrefixes(string $ident, array $targetPrefixes, array $allPrefixes): bool
+    {
+        $bestPrefix = null;
+        $bestLength = -1;
+        foreach ($allPrefixes as $prefix) {
+            if ($prefix === '') {
+                continue;
+            }
+            if ($ident === $prefix || str_starts_with($ident, $prefix . '_')) {
+                $len = strlen($prefix);
+                if ($len > $bestLength) {
+                    $bestPrefix = $prefix;
+                    $bestLength = $len;
+                }
+            }
+        }
+        return $bestPrefix !== null && in_array($bestPrefix, $targetPrefixes, true);
     }
     /**
      * Aktualisiert den Wert einer Variable basierend auf dem MQTT Payload.

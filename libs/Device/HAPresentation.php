@@ -755,6 +755,7 @@ trait HAPresentationTrait
                                                  'STEP_SIZE'    => 1,
                                                  'PERCENTAGE'   => $isPercent,
                                                  'DIGITS'       => $digitsOverride ?? 0,
+                                                 'USAGE_TYPE'   => 2, // Intensität (für Composite "Licht")
                                                  'SUFFIX'       => $presentationSuffix
                                              ]);
         }
@@ -1181,7 +1182,10 @@ trait HAPresentationTrait
                 'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION
             ];
         }
-        $isWritable     = (bool)($meta['writable'] ?? false);
+        // Writability feature-bewusst bestimmen, damit Darstellung (Slider) und Aktion
+        // konsistent sind. Sonst entsteht ein Schieberegler ohne Variablenaktion, was Symcon
+        // als inkompatible Darstellung meldet (z. B. target_temperature_low ohne Feature-Bit 2).
+        $isWritable     = $this->isWritableClimateAttribute($attribute, $attributes);
         $digitsOverride = $this->getMetaDigitsOverride($meta);
 
         if (in_array($attribute, [
@@ -1295,13 +1299,15 @@ trait HAPresentationTrait
         }
 
         return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-            'MIN'          => (float)$min,
-            'MAX'          => (float)$max,
-            'STEP_SIZE'    => 1,
-            'PERCENTAGE'   => $isPercent,
-            'DIGITS'       => $digitsOverride ?? 0,
-            'SUFFIX'       => $presentationSuffix
+            'PRESENTATION'  => VARIABLE_PRESENTATION_SLIDER,
+            'MIN'           => (float)$min,
+            'MAX'           => (float)$max,
+            'STEP_SIZE'     => 1,
+            'PERCENTAGE'    => $isPercent,
+            'DIGITS'        => $digitsOverride ?? 0,
+            'USAGE_TYPE'    => 1, // Farbtemperatur (für Composite "Licht")
+            'GRADIENT_TYPE' => 2, // Farbtemperatur-Gradient
+            'SUFFIX'        => $presentationSuffix
         ]);
     }
 
@@ -1406,7 +1412,9 @@ trait HAPresentationTrait
                                                  $attributes[HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE] ??
                                                  $attributes['temperature'] ?? null
                                              ),
-                                             'USAGE_TYPE'   => 1,
+                                             // Schieberegler: 0 = Temperatur (1 wäre Farbtemperatur).
+                                             'USAGE_TYPE'   => 0,
+                                             'GRADIENT_TYPE' => 1, // Temperatur-Gradient
                                              'SUFFIX'       => $this->formatPresentationSuffix($suffix)
                                          ]);
     }
