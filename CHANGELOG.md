@@ -1,5 +1,9 @@
 # Changelog
 
+## Build 109 - 2026-06-23
+- Device/Entity: `climate`-Attribut `swing_horizontal_mode` ist jetzt steuerbar. Das Feature-Gate prüfte fälschlich Bit 64 (in Home Assistant entfernt, ehemals `AUX_HEAT`); korrekt ist `ClimateEntityFeature.SWING_HORIZONTAL_MODE` = Bit 512. Geräte, die horizontalen Swing über `supported_features` melden, erhalten damit wieder eine Schreib-Action.
+- Device/Entity: `climate`-Feature-Konstanten `TURN_ON`/`TURN_OFF` korrigiert (HA: `TURN_OFF`=128, `TURN_ON`=256) – betraf bisher nur die Beschriftung in der Feature-Liste.
+
 ## Build 92 - 2026-05-26
 - Device/Entity: `climate`-Hauptwerte werden zentral fachlich aus Temperaturattributen abgeleitet, sodass textuelle HVAC-States wie `cool` oder `heat` die Solltemperatur nicht mehr auf `0` ziehen.
 

@@ -6,8 +6,8 @@ final class HAClimateDefinitions
 {
     public const string DOMAIN = 'climate';
     public const int VARIABLE_TYPE = VARIABLETYPE_FLOAT;
-    public const int FEATURE_TURN_ON = 128;
-    public const int FEATURE_TURN_OFF = 256;
+    public const int FEATURE_TURN_OFF = 128;
+    public const int FEATURE_TURN_ON = 256;
 
     public const string ATTRIBUTE_CURRENT_TEMPERATURE = 'current_temperature';
     public const string ATTRIBUTE_TARGET_TEMPERATURE = 'target_temperature';
@@ -41,9 +41,9 @@ final class HAClimateDefinitions
         8 => 'Fan Mode',
         16 => 'Preset Mode',
         32 => 'Swing Mode',
-        64 => 'Swing Horizontal Mode',
         self::FEATURE_TURN_ON => 'Turn On',
-        self::FEATURE_TURN_OFF => 'Turn Off'
+        self::FEATURE_TURN_OFF => 'Turn Off',
+        512 => 'Swing Horizontal Mode'
     ];
 
     public const array ATTRIBUTE_DEFINITIONS = [
@@ -57,7 +57,7 @@ final class HAClimateDefinitions
         self::ATTRIBUTE_PRESET_MODE => ['caption' => 'Preset', 'type' => VARIABLETYPE_STRING, 'suffix' => '', 'writable' => true, 'requires_features' => [16]],
         self::ATTRIBUTE_FAN_MODE => ['caption' => 'Fan Mode', 'type' => VARIABLETYPE_STRING, 'suffix' => '', 'writable' => true, 'requires_features' => [8]],
         self::ATTRIBUTE_SWING_MODE => ['caption' => 'Swing Mode', 'type' => VARIABLETYPE_STRING, 'suffix' => '', 'writable' => true, 'requires_features' => [32]],
-        self::ATTRIBUTE_SWING_HORIZONTAL_MODE => ['caption' => 'Swing Horizontal Mode', 'type' => VARIABLETYPE_STRING, 'suffix' => '', 'writable' => true, 'requires_features' => [64]]
+        self::ATTRIBUTE_SWING_HORIZONTAL_MODE => ['caption' => 'Swing Horizontal Mode', 'type' => VARIABLETYPE_STRING, 'suffix' => '', 'writable' => true, 'requires_features' => [512]]
     ];
 
     public const array ACTION_STATE_REFRESH_TRIGGERS = [
