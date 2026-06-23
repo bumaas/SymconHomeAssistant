@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 trait HAEntityVariableNamingTrait
 {
+    // base name (without dedup suffix) => number of entities in this instance sharing it
+    private array $sharedEntityBaseNameCounts = [];
+
     private function buildSharedEntityVariableName(string $domain, array $entity, bool $hasMultipleStatusEntities): string
     {
         $domain = HADomainCatalog::normalizeDomainAlias($domain);
@@ -197,25 +200,72 @@ trait HAEntityVariableNamingTrait
 
     private function getSharedEntityName(array $entity): string
     {
+        $baseName = $this->getSharedEntityBaseName($entity);
+        if ($baseName === '') {
+            return '';
+        }
+
+        return $this->disambiguateSharedEntityName($baseName, $entity);
+    }
+
+    // Returns the display name stripped of the current instance/device prefix, WITHOUT any
+    // deduplication suffix. An empty string means "entity has no own name" → the caller falls
+    // back to a domain-specific name (e.g. "Status (LIGHT)").
+    private function getSharedEntityBaseName(array $entity): string
+    {
         $name = trim((string)($entity['name'] ?? ''));
         $stripped = $this->stripSharedCurrentInstanceNamePrefix($name);
         if ($stripped !== $name) {
-            return $this->appendHaDeduplicationSuffix($stripped, $entity);
+            return $stripped;
         }
 
         $deviceName = trim((string)($entity['device_name'] ?? ''));
         if ($deviceName !== '' && str_starts_with($name, $deviceName . ' ')) {
-            $stripped = trim(substr($name, strlen($deviceName) + 1));
-            return $this->appendHaDeduplicationSuffix($stripped, $entity);
+            return trim(substr($name, strlen($deviceName) + 1));
         }
 
         return $name;
+    }
+
+    // Append HA's entity_id dedup number ONLY when another entity in the same instance actually
+    // shares this base name. A trailing _2/_3 on the entity_id alone is just HA's global
+    // slug-uniqueness (e.g. identical devices) and must not leak into the variable name.
+    private function disambiguateSharedEntityName(string $baseName, array $entity): string
+    {
+        if (($this->sharedEntityBaseNameCounts[$baseName] ?? 0) < 2) {
+            return $baseName;
+        }
+
+        return $this->appendHaDeduplicationSuffix($baseName, $entity);
+    }
+
+    // Counts how often each (non-empty) base name occurs across the instance's entities.
+    // Consumed by disambiguateSharedEntityName to detect genuine name collisions. Recomputed on
+    // every applySharedEntityIdents() pass, i.e. whenever variables are (re)created.
+    private function rebuildSharedEntityBaseNameCounts(array $entities): void
+    {
+        $counts = [];
+        foreach ($entities as $entity) {
+            if (!is_array($entity)) {
+                continue;
+            }
+            $baseName = $this->getSharedEntityBaseName($entity);
+            if ($baseName === '') {
+                continue;
+            }
+            $counts[$baseName] = ($counts[$baseName] ?? 0) + 1;
+        }
+
+        $this->sharedEntityBaseNameCounts = $counts;
     }
 
     // HA appends _2, _3, ... to entity_ids when multiple entities share the same name.
     // The entity name field is not updated. We detect this and append the number to the variable name.
     private function appendHaDeduplicationSuffix(string $name, array $entity): string
     {
+        if ($name === '') {
+            return $name;
+        }
         $entityId = trim((string)($entity['entity_id'] ?? ''));
         if ($entityId === '' || !preg_match('/_(\d+)$/', $entityId, $matches)) {
             return $name;

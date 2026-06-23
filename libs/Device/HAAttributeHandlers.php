@@ -547,7 +547,15 @@ trait HAAttributeHandlersTrait
         try {
             $json = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
-            $this->debugRuntimeIssue('AttributeTopic', 'Invalid JSON payload', ['Error' => $e->getMessage()]);
+            // HA's mqtt_statestream publishes scalar attribute values as raw strings
+            // (e.g. color_mode=color_temp, friendly_name=...), which are not valid JSON and are
+            // expected. Only a payload that actually looks like structured JSON ({, [, ") is worth
+            // flagging as malformed; plain scalars are silently stored as the string they are.
+            if ($this->payloadLooksLikeJson($trimmed)) {
+                $this->debugRuntimeIssue('AttributeTopic', 'Invalid JSON payload', ['Error' => $e->getMessage()]);
+            } else {
+                $this->debugExpert('AttributeTopic', 'Non-JSON payload stored as string', ['Payload' => $payload]);
+            }
             return $payload;
         }
 
@@ -556,6 +564,16 @@ trait HAAttributeHandlersTrait
         }
 
         return $payload;
+    }
+
+    private function payloadLooksLikeJson(string $trimmed): bool
+    {
+        if ($trimmed === '') {
+            return false;
+        }
+
+        $first = $trimmed[0];
+        return $first === '{' || $first === '[' || $first === '"';
     }
 
     private function storeAttributeTopicValue(string $entityId, string $attribute, mixed $value, bool $refreshPresentation = true): void

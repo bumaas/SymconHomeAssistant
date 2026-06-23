@@ -28,6 +28,8 @@ trait HAIdentNamingTrait
             $entities[$index] = $entity;
         }
 
+        $this->rebuildSharedEntityBaseNameCounts($entities);
+
         return $entities;
     }
 
