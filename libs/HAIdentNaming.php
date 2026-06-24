@@ -58,6 +58,8 @@ trait HAIdentNamingTrait
                 'key'                  => $key,
                 'domain'               => $domain,
                 'object_id'            => $objectId,
+                'normalized_object_id' => $this->normalizeSharedIdentFragment($objectId),
+                'device_key'           => $this->getSharedEntityDeviceKey($entity),
                 'local_object_id'      => $localObjectId,
                 'is_primary'           => $localObjectId === '',
                 'sort_key'             => $domain . '|' . $objectId . '|' . $key,
@@ -67,6 +69,11 @@ trait HAIdentNamingTrait
         }
 
         uasort($descriptors, static fn(array $left, array $right): int => strcmp($left['sort_key'], $right['sort_key']));
+
+        // Gemeinsamen object_id-Praefix je Geraet ermitteln (= HA-Geraete-Slug, z. B.
+        // "milchstrasse_melcloudhome_650e_5ec4"). Dieser wird aus den entity_ids selbst
+        // abgeleitet und ist daher – anders als der veraenderliche device_name – stabil.
+        $deviceObjectIdPrefixes = $this->computeSharedDeviceObjectIdPrefixes($descriptors);
 
         // Pre-register all existing idents so new entities cannot claim those tokens.
         $usedTokens = [];
@@ -95,14 +102,34 @@ trait HAIdentNamingTrait
                 continue;
             }
 
+            $normalizedObjectId = $descriptor['normalized_object_id'];
+
             $stemCandidates = [];
+
             if ($localObjectId === '') {
+                // Primaere Entitaet (Geraete-Hauptzustand) -> domain_status, unveraendert.
                 $stemCandidates[] = '';
             } else {
-                $stemCandidates[] = $localObjectId;
+                // Kurzform: object_id ohne den geraeteweiten Slug -> "sensor_room_temperature"
+                // statt "sensor_<slug>_room_temperature".
+                $prefixStrippedStem = $this->stripSharedObjectIdPrefix(
+                    $normalizedObjectId,
+                    $deviceObjectIdPrefixes[$descriptor['device_key']] ?? ''
+                );
+                // Keine Migration des Bestands: Existiert bereits eine Variable mit dem langen
+                // Legacy-Ident, bleibt dieser erhalten. Nur wirklich neue Entitaeten (ohne Variable
+                // unter dem Legacy-Ident) erhalten die Kurzform. Idents wurden nie persistiert und
+                // bisher deterministisch aus der entity_id berechnet -> die Existenzpruefung ist die
+                // einzige verlaessliche "neu vs. bestehend"-Unterscheidung.
+                $legacyIdent = $this->createSharedIdentAssignment($domain, $localObjectId, $isPrimary)['ident'];
+                if ($prefixStrippedStem !== '' && !$this->sharedManagedIdentExists($legacyIdent)) {
+                    $stemCandidates[] = $prefixStrippedStem;
+                }
+                if (!in_array($localObjectId, $stemCandidates, true)) {
+                    $stemCandidates[] = $localObjectId;
+                }
             }
 
-            $normalizedObjectId = $this->normalizeSharedIdentFragment($objectId);
             if ($normalizedObjectId !== '' && !in_array($normalizedObjectId, $stemCandidates, true)) {
                 $stemCandidates[] = $normalizedObjectId;
             }
@@ -136,6 +163,99 @@ trait HAIdentNamingTrait
         }
 
         return $assignments;
+    }
+
+    // Prueft, ob in dieser Instanz bereits eine verwaltete Variable mit diesem Ident existiert.
+    // Schuetzt den Bestand vor Ident-Migration: nur fehlende (neue) Idents werden gekuerzt.
+    // Default ohne Symcon-Kontext (Tests): false. Im Modul ueber GetIDForIdent abgesichert.
+    protected function sharedManagedIdentExists(string $ident): bool
+    {
+        if ($ident === '' || !method_exists($this, 'GetIDForIdent')) {
+            return false;
+        }
+
+        return @$this->GetIDForIdent($ident) !== false;
+    }
+
+    // Geraete-Identitaet zum Gruppieren der object_ids. device_id ist stabil und HA-eindeutig;
+    // sonst device_name + device_model als Ersatz. Leer, wenn keine Geraetezuordnung vorliegt.
+    private function getSharedEntityDeviceKey(array $entity): string
+    {
+        $deviceId = trim((string)($entity['device_id'] ?? ''));
+        if ($deviceId !== '') {
+            return 'id:' . $deviceId;
+        }
+
+        $name = $this->normalizeSharedIdentFragment((string)($entity['device_name'] ?? ''));
+        $model = $this->normalizeSharedIdentFragment((string)($entity['device_model'] ?? ''));
+        if ($name === '' && $model === '') {
+            return '';
+        }
+
+        return 'nm:' . $name . '|' . $model;
+    }
+
+    // Pro Geraet den laengsten gemeinsamen object_id-Praefix (segmentweise an '_') ueber alle
+    // Entitaeten bilden. Nur Gruppen mit >=2 Entitaeten liefern einen Praefix; bei einer einzelnen
+    // Entitaet laesst sich der Geraete-Slug nicht vom Entitaets-Suffix trennen.
+    private function computeSharedDeviceObjectIdPrefixes(array $descriptors): array
+    {
+        $segmentsByDevice = [];
+        foreach ($descriptors as $descriptor) {
+            $deviceKey = $descriptor['device_key'];
+            $objectId  = $descriptor['normalized_object_id'];
+            if ($deviceKey === '' || $objectId === '') {
+                continue;
+            }
+            $segmentsByDevice[$deviceKey][] = explode('_', $objectId);
+        }
+
+        $prefixes = [];
+        foreach ($segmentsByDevice as $deviceKey => $segmentLists) {
+            if (count($segmentLists) < 2) {
+                continue;
+            }
+            $common = $this->longestCommonSegmentPrefix($segmentLists);
+            if ($common !== []) {
+                $prefixes[$deviceKey] = implode('_', $common);
+            }
+        }
+
+        return $prefixes;
+    }
+
+    /** @param array<int, array<int, string>> $segmentLists */
+    private function longestCommonSegmentPrefix(array $segmentLists): array
+    {
+        $first = $segmentLists[0] ?? [];
+        $common = [];
+        foreach ($first as $index => $segment) {
+            foreach ($segmentLists as $segments) {
+                if (($segments[$index] ?? null) !== $segment) {
+                    return $common;
+                }
+            }
+            $common[] = $segment;
+        }
+
+        return $common;
+    }
+
+    // Schneidet den geraeteweiten Praefix segmentscharf vom object_id ab. Liefert den
+    // entitaetsspezifischen Rest ('' wenn der object_id exakt dem Praefix entspricht).
+    private function stripSharedObjectIdPrefix(string $normalizedObjectId, string $prefix): string
+    {
+        if ($prefix === '' || $normalizedObjectId === '') {
+            return '';
+        }
+        if ($normalizedObjectId === $prefix) {
+            return '';
+        }
+        if (str_starts_with($normalizedObjectId, $prefix . '_')) {
+            return substr($normalizedObjectId, strlen($prefix) + 1);
+        }
+
+        return '';
     }
 
     private function createSharedIdentAssignment(string $domain, string $stem, bool $isPrimary): array

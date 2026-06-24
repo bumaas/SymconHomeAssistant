@@ -1,5 +1,9 @@
 # Changelog
 
+## Build 111 - 2026-06-24
+- Device/Entity: Kürzere Variablen-Idents für **neu** angelegte Entitäten. Der geräteweite HA-Slug (Area + interne Geräte-ID, z. B. `milchstrasse_melcloudhome_650e_5ec4`) wird aus den `entity_id`s selbst abgeleitet (längster gemeinsamer Präfix je Gerät) und abgeschnitten, sodass Idents wie `sensor_room_temperature` statt `sensor_milchstrasse_melcloudhome_650e_5ec4_room_temperature` entstehen. Anders als die bisherige Heuristik (Abgleich gegen den veränderlichen `device_name`) ist das robust gegen Geräte-Umbenennungen in HA.
+- Bestand wird nicht migriert: Existiert bereits eine Variable unter dem langen Legacy-Ident, bleibt dieser erhalten. Nur Entitäten ohne vorhandene Variable erhalten die Kurzform.
+
 ## Build 110 - 2026-06-24
 - Device/Entity: Read-only Auswahl-Attribute (z. B. `climate.hvac_action`, `fan.current_direction`) erhalten keine Aufzählung mehr ohne Variablenaktion, was in der Variablendarstellung den Symcon-Fehler „Diese Darstellung ist nur für Variablen mit einer Variablenaktion verfügbar" auslöste. Ein zentraler Helfer wählt die Darstellung jetzt domänenübergreifend nach derselben Writability, die auch die Aktion steuert: beschreibbar → Aufzählung (mit Aktion), read-only → Wertanzeige mit Optionen. Betrifft climate, fan, media_player (`source`/`sound_mode`), humidifier (`mode`) und light (`effect`); greift auch bei Auswahl-Attributen ohne unterstütztes Feature-Bit.
 
