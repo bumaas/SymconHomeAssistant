@@ -308,26 +308,22 @@ trait HAPresentationTrait
         }
 
         if ($attribute === 'source') {
-            $options = $this->getPresentationOptions(
-                HASelectDefinitions::normalizeOptions($attributes['source_list'] ?? null)
+            $presentation = $this->buildOptionPresentation(
+                $attributes['source_list'] ?? null,
+                $this->isWritableMediaPlayerAttribute($attribute, $attributes)
             );
-            if ($options !== null) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                                     'OPTIONS'      => $options
-                                                 ]);
+            if ($presentation !== null) {
+                return $presentation;
             }
         }
 
         if ($attribute === 'sound_mode') {
-            $options = $this->getPresentationOptions(
-                HASelectDefinitions::normalizeOptions($attributes['sound_mode_list'] ?? null)
+            $presentation = $this->buildOptionPresentation(
+                $attributes['sound_mode_list'] ?? null,
+                $this->isWritableMediaPlayerAttribute($attribute, $attributes)
             );
-            if ($options !== null) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                                     'OPTIONS'      => $options
-                                                 ]);
+            if ($presentation !== null) {
+                return $presentation;
             }
         }
 
@@ -398,26 +394,23 @@ trait HAPresentationTrait
         }
 
         if ($attribute === 'preset_mode') {
-            $options = $this->getPresentationOptions(
-                HASelectDefinitions::normalizeOptions($attributes['preset_modes'] ?? null)
+            // current_direction ist read-only -> Wertanzeige; nur beschreibbare Attribute werden Aufzaehlung.
+            $presentation = $this->buildOptionPresentation(
+                $attributes['preset_modes'] ?? null,
+                $this->isWritableFanAttribute($attribute, $attributes)
             );
-            if ($options !== null) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                                     'OPTIONS'      => $options
-                                                 ]);
+            if ($presentation !== null) {
+                return $presentation;
             }
         }
 
         if ($attribute === 'direction' || $attribute === 'current_direction') {
-            $options = $this->getPresentationOptions(
-                HASelectDefinitions::normalizeOptions($attributes['direction_list'] ?? null)
+            $presentation = $this->buildOptionPresentation(
+                $attributes['direction_list'] ?? null,
+                $this->isWritableFanAttribute($attribute, $attributes)
             );
-            if ($options !== null) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                                     'OPTIONS'      => $options
-                                                 ]);
+            if ($presentation !== null) {
+                return $presentation;
             }
         }
 
@@ -458,14 +451,12 @@ trait HAPresentationTrait
         }
 
         if ($attribute === 'mode') {
-            $options = $this->getPresentationOptions(
-                HASelectDefinitions::normalizeOptions($attributes['available_modes'] ?? null)
+            $presentation = $this->buildOptionPresentation(
+                $attributes['available_modes'] ?? null,
+                $this->isWritableHumidifierAttribute($attribute, $attributes)
             );
-            if ($options !== null) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                                     'OPTIONS'      => $options
-                                                 ]);
+            if ($presentation !== null) {
+                return $presentation;
             }
         }
 
@@ -776,12 +767,12 @@ trait HAPresentationTrait
             }
         }
         if ($attribute === 'effect') {
-            $options = $this->getPresentationOptions($attributes['effect_list'] ?? null);
-            if ($options !== null) {
-                return $this->filterPresentation([
-                                                     'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-                                                     'OPTIONS'      => $options
-                                                 ]);
+            $presentation = $this->buildOptionPresentation(
+                $attributes['effect_list'] ?? null,
+                $this->isWritableLightAttribute($attribute, $attributes)
+            );
+            if ($presentation !== null) {
+                return $presentation;
             }
         }
         if ($attribute === 'flash') {
@@ -1250,7 +1241,7 @@ trait HAPresentationTrait
             HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE => HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODES
         ][$attribute] ?? null;
         if (is_string($optionAttribute)) {
-            $presentation = $this->getClimateAttributeOptionPresentation($attributes[$optionAttribute] ?? null);
+            $presentation = $this->getClimateAttributeOptionPresentation($attributes[$optionAttribute] ?? null, $isWritable);
             if ($presentation !== null) {
                 return $presentation;
             }
@@ -1261,7 +1252,9 @@ trait HAPresentationTrait
             if (is_string($current) && trim($current) !== '') {
                 $optionsRaw[] = trim($current);
             }
-            $presentation = $this->getClimateAttributeOptionPresentation($optionsRaw);
+            // hvac_action ist immer read-only ($isWritable === false) -> Wertanzeige mit Optionen,
+            // niemals Aufzaehlung (die braucht eine Variablenaktion).
+            $presentation = $this->getClimateAttributeOptionPresentation($optionsRaw, $isWritable);
             if ($presentation !== null) {
                 return $presentation;
             }
@@ -1274,17 +1267,9 @@ trait HAPresentationTrait
         ]);
     }
 
-    private function getClimateAttributeOptionPresentation(array|string|null $options): ?array
+    private function getClimateAttributeOptionPresentation(array|string|null $options, bool $writable = true): ?array
     {
-        $presentationOptions = $this->getClimatePresentationOptions($options);
-        if ($presentationOptions === null) {
-            return null;
-        }
-
-        return $this->filterPresentation([
-            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-            'OPTIONS'      => $presentationOptions
-        ]);
+        return $this->buildOptionPresentation($options, $writable, fn(string $value): string => $this->getClimateOptionCaption($value));
     }
 
     private function getLightBoundedSliderPresentation(
@@ -1311,7 +1296,14 @@ trait HAPresentationTrait
         ]);
     }
 
-    private function getClimatePresentationOptions(array|string|null $options): ?string
+    // Zentrale Optionsdarstellung fuer Auswahl-Attribute (alle Domains). Beschreibbare
+    // (aktionsfaehige) Variablen erhalten eine Aufzaehlung, read-only Variablen eine Wertanzeige
+    // mit Optionen. Andernfalls meldet Symcon "Diese Darstellung ist nur fuer Variablen mit einer
+    // Variablenaktion verfuegbar", weil Praesentation und fehlende Aktion nicht zusammenpassen.
+    // Die Optionsschemata unterscheiden sich: Aufzaehlung nutzt "Color", die Wertanzeige
+    // "ColorActive"/"ColorValue". Der optionale captionResolver erlaubt domaenenspezifische
+    // Beschriftungen (z. B. climate hvac_action -> "Heizen"/"Kuehlen").
+    protected function buildOptionPresentation(array|string|null $options, bool $writable, ?callable $captionResolver = null): ?array
     {
         $normalized = HASelectDefinitions::normalizeOptions($options);
         if ($normalized === []) {
@@ -1324,19 +1316,30 @@ trait HAPresentationTrait
             if ($text === '') {
                 continue;
             }
-            $formatted[] = [
-                'Value'       => $text,
-                'Caption'     => $this->translate($this->getClimateOptionCaption($text)),
-                'IconActive'  => false,
-                'IconValue'   => '',
-                'Color'       => -1
+            $caption = $captionResolver !== null ? (string)$captionResolver($text) : $text;
+            $option = [
+                'Value'      => $text,
+                'Caption'    => $this->translate($caption),
+                'IconActive' => false,
+                'IconValue'  => ''
             ];
+            if ($writable) {
+                $option['Color'] = -1;
+            } else {
+                $option['ColorActive'] = false;
+                $option['ColorValue'] = -1;
+            }
+            $formatted[] = $option;
         }
 
         if ($formatted === []) {
             return null;
         }
-        return json_encode($formatted, JSON_THROW_ON_ERROR);
+
+        return $this->filterPresentation([
+            'PRESENTATION' => $writable ? VARIABLE_PRESENTATION_ENUMERATION : VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'OPTIONS'      => json_encode($formatted, JSON_THROW_ON_ERROR)
+        ]);
     }
 
     private function getClimateOptionCaption(string $value): string

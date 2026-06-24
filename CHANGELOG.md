@@ -1,5 +1,8 @@
 # Changelog
 
+## Build 110 - 2026-06-24
+- Device/Entity: Read-only Auswahl-Attribute (z. B. `climate.hvac_action`, `fan.current_direction`) erhalten keine Aufzählung mehr ohne Variablenaktion, was in der Variablendarstellung den Symcon-Fehler „Diese Darstellung ist nur für Variablen mit einer Variablenaktion verfügbar" auslöste. Ein zentraler Helfer wählt die Darstellung jetzt domänenübergreifend nach derselben Writability, die auch die Aktion steuert: beschreibbar → Aufzählung (mit Aktion), read-only → Wertanzeige mit Optionen. Betrifft climate, fan, media_player (`source`/`sound_mode`), humidifier (`mode`) und light (`effect`); greift auch bei Auswahl-Attributen ohne unterstütztes Feature-Bit.
+
 ## Build 109 - 2026-06-23
 - Device/Entity: `climate`-Attribut `swing_horizontal_mode` ist jetzt steuerbar. Das Feature-Gate prüfte fälschlich Bit 64 (in Home Assistant entfernt, ehemals `AUX_HEAT`); korrekt ist `ClimateEntityFeature.SWING_HORIZONTAL_MODE` = Bit 512. Geräte, die horizontalen Swing über `supported_features` melden, erhalten damit wieder eine Schreib-Action.
 - Device/Entity: `climate`-Feature-Konstanten `TURN_ON`/`TURN_OFF` korrigiert (HA: `TURN_OFF`=128, `TURN_ON`=256) – betraf bisher nur die Beschriftung in der Feature-Liste.
