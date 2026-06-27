@@ -14,6 +14,14 @@ class HomeAssistantSplitter extends IPSModuleStrict
     use HADiagnosticsTrait;
 
     private const string TIMER_RESTACK = 'RestAckTimer';
+    private const string TIMER_TOPIC_STATS = 'TopicStatsTimer';
+
+    // Opt-in Topic-Statistik: zaehlt eingehende Messages je Entitaet im Speicher und gibt sie periodisch
+    // aggregiert aus (statt pro Message zu loggen). Member ueberleben zwischen ReceiveData-Aufrufen.
+    private bool $topicStatsEnabled = false;
+    private array $topicStatsCounts = [];
+    private int $topicStatsWindowStartedAt = 0;
+
     public function Create(): void
     {
         parent::Create();
@@ -29,6 +37,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterPropertyBoolean('UseRestForSetTopics', true);
         $this->RegisterPropertyInteger('RestAckTimeoutSec', 5);
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
+        $this->RegisterPropertyBoolean('EnablePerformanceLog', false);
+        $this->RegisterPropertyBoolean('EnableTopicStatistics', false);
+        $this->RegisterPropertyInteger('TopicStatisticsIntervalMinutes', 15);
         $this->RegisterPropertyString('DebugResponseFormat', 'json_compact');
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
 
@@ -39,6 +50,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterAttributeString('PendingRestAcks', '{}');
 
         $this->RegisterTimer(self::TIMER_RESTACK, 0, 'HA_CheckRestAcks($_IPS["TARGET"]);');
+        $this->RegisterTimer(self::TIMER_TOPIC_STATS, 0, 'HA_DumpTopicStatistics($_IPS["TARGET"]);');
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -93,6 +105,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         }
         $this->SetReceiveDataFilter('.*');
 
+        $this->applyTopicStatisticsConfiguration();
         $this->updateLastMqttMessageLabel();
         $this->updateDiagnosticsLabels();
         $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
@@ -188,9 +201,26 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $this->debugExpert('MQTT', 'ReceiveData | DataID=' . $dataId . ' | Topic=' . $topic);
         }
         if ($dataId === HAIds::DATA_MQTT_RX || $dataId === HAIds::DATA_MQTT_TX) {
+            $topic = (string)($data['Topic'] ?? '');
+
+            // Statistik VOR dem Bookkeeping-Drop zaehlen, damit die echte eingehende Last je Geraet sichtbar
+            // wird (inkl. der Topics, die wir gleich verwerfen).
+            if ($this->topicStatsEnabled) {
+                $this->recordTopicStatistic($topic);
+            }
+
+            // Universelle HA-Bookkeeping-Topics (Zeitstempel etc.) werden von keinem Device benoetigt und
+            // dort ohnehin verworfen. Sie hier vor dem Broadcast abzuweisen erspart die teure synchrone
+            // Weiterleitung an alle Kinder (jede Weiterleitung kostet messbar, das Ergebnis ist null).
+            if (HADomainCatalog::isIgnorableBookkeepingTopic($topic)) {
+                return '';
+            }
+
+            $messageStartedAt = microtime(true);
+
+            $stepStartedAt = microtime(true);
             $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s'));
             $this->updateLastMqttMessageLabel();
-            $topic = (string)($data['Topic'] ?? '');
             if (str_ends_with($topic, '/state')) {
                 $state = $this->decodePayload((string)($data['Payload'] ?? ''));
                 $this->debugExpert('MQTT', 'State-Topic empfangen', ['Topic' => $topic, 'State' => $state]);
@@ -199,8 +229,14 @@ class HomeAssistantSplitter extends IPSModuleStrict
             if ($entityId !== '') {
                 $this->clearPendingRestAck($entityId);
             }
+            $this->logPerformanceSample('ReceiveData.ownWork', $stepStartedAt, ['topic' => $topic]);
+
             $data['DataID'] = HAIds::DATA_SPLITTER_TO_DEVICE;
+            $stepStartedAt = microtime(true);
             $this->SendDataToChildren(json_encode($data, JSON_THROW_ON_ERROR));
+            $this->logPerformanceSample('ReceiveData.sendToChildren', $stepStartedAt, ['topic' => $topic]);
+
+            $this->logPerformanceSample('ReceiveData.total', $messageStartedAt, ['topic' => $topic]);
             return '';
         }
 
@@ -233,6 +269,116 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $this->addPendingRestAck($data['entity_id'], $service);
         }
         return $ok;
+    }
+
+    private function isPerformanceLogEnabled(): bool
+    {
+        return (bool)@$this->ReadPropertyBoolean('EnablePerformanceLog');
+    }
+
+    private function logPerformanceSample(string $scope, float $startedAt, array $context = []): void
+    {
+        if (!$this->isPerformanceLogEnabled()) {
+            return;
+        }
+
+        $context = ['elapsed_ms' => round((microtime(true) - $startedAt) * 1000.0, 3)] + $context;
+        $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
+    }
+
+    private function applyTopicStatisticsConfiguration(): void
+    {
+        $this->topicStatsEnabled = (bool)@$this->ReadPropertyBoolean('EnableTopicStatistics');
+        $this->topicStatsCounts = [];
+        $this->topicStatsWindowStartedAt = time();
+
+        if (!$this->topicStatsEnabled) {
+            $this->SetTimerInterval(self::TIMER_TOPIC_STATS, 0);
+            return;
+        }
+
+        $minutes = max(1, (int)@$this->ReadPropertyInteger('TopicStatisticsIntervalMinutes'));
+        $this->SetTimerInterval(self::TIMER_TOPIC_STATS, $minutes * 60 * 1000);
+    }
+
+    private function recordTopicStatistic(string $topic): void
+    {
+        $key = $this->statisticsKeyForTopic($topic);
+        if ($key === '') {
+            return;
+        }
+        $this->topicStatsCounts[$key] = ($this->topicStatsCounts[$key] ?? 0) + 1;
+    }
+
+    // Schluessel = Topic ohne letztes Segment (Attribut-/State-Suffix) => eine Entitaet, alle ihre
+    // Sub-Topics zaehlen zusammen. Geraete-Gruppierung erfolgt beim Dump ueber den gemeinsamen Praefix.
+    private function statisticsKeyForTopic(string $topic): string
+    {
+        $topic = trim($topic, '/');
+        if ($topic === '') {
+            return '';
+        }
+        $pos = strrpos($topic, '/');
+        return $pos === false ? $topic : substr($topic, 0, $pos);
+    }
+
+    /** @noinspection PhpUnused */
+    public function DumpTopicStatistics(): void
+    {
+        $elapsed = max(1, time() - $this->topicStatsWindowStartedAt);
+        $counts = $this->topicStatsCounts;
+        $this->topicStatsCounts = [];
+        $this->topicStatsWindowStartedAt = time();
+
+        $total = array_sum($counts);
+        if ($total === 0) {
+            $this->SendDebug('TopicStats', sprintf('Fenster %ds | total=0 (keine Messages)', $elapsed), 0);
+            return;
+        }
+
+        // Pro Geraet gruppieren: Objekt-ID (letztes Segment der Entity-Keys) ueber gemeinsamen Praefix
+        // clustern, damit z. B. alle marstek_*-Entitaeten domainuebergreifend in einer Zeile zusammenlaufen.
+        // (Clustern der vollen Keys wuerde am gemeinsamen "<base>/<domain>/" alles zusammenwerfen.)
+        $byObjectId = [];
+        foreach ($counts as $entityKey => $n) {
+            $pos = strrpos((string)$entityKey, '/');
+            $objectId = $pos === false ? (string)$entityKey : substr((string)$entityKey, $pos + 1);
+            $byObjectId[$objectId] = ($byObjectId[$objectId] ?? 0) + $n;
+        }
+
+        $objectIds = array_keys($byObjectId);
+        sort($objectIds, SORT_STRING);
+        $devices = [];
+        foreach (HADomainCatalog::clusterByCommonPrefix($objectIds, 3) as $cluster) {
+            $members = $cluster['members'];
+            $deviceKey = count($members) >= 2 ? $cluster['prefix'] . '*' : ($members[0] ?? '');
+            $sum = 0;
+            foreach ($members as $m) {
+                $sum += $byObjectId[$m] ?? 0;
+            }
+            $devices[$deviceKey] = ($devices[$deviceKey] ?? 0) + $sum;
+        }
+        arsort($devices);
+
+        $perMin = static fn(int $n): string => number_format($n / ($elapsed / 60.0), 1, '.', '');
+        $header = sprintf(
+            'Fenster %ds | total=%d (%s/min) | Entitaeten=%d | Geraete=%d',
+            $elapsed,
+            $total,
+            $perMin($total),
+            count($counts),
+            count($devices)
+        );
+        $this->SendDebug('TopicStats', $header, 0);
+
+        $rank = 0;
+        foreach ($devices as $deviceKey => $sum) {
+            if (++$rank > 20) {
+                $this->SendDebug('TopicStats', sprintf('  ... (%d weitere Geraete)', count($devices) - 20), 0);
+                break;
+            }
+            $this->SendDebug('TopicStats', sprintf('  %-50s %6d (%s/min)', $deviceKey, $sum, $perMin($sum)), 0);
+        }
     }
 
     private function updateLastMqttMessageLabel(): void

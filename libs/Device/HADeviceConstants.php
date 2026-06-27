@@ -31,6 +31,7 @@ interface HADeviceConstants
     public const string PROP_DEVICE_NAME = 'DeviceName';
     public const string PROP_DEVICE_ID = 'DeviceID';
     public const string PROP_ENABLE_EXPERT_DEBUG = 'EnableExpertDebug';
+    public const string PROP_ENABLE_PERFORMANCE_LOG = 'EnablePerformanceLog';
     public const string PROP_SHOW_TECHNICAL_ENTITY_COLUMNS = 'ShowTechnicalEntityColumns';
     public const string PROP_SHOW_UNAVAILABLE_ENTITIES_JSON = 'ShowUnavailableEntitiesJson';
     public const string PROP_OUTPUT_BUFFER_SIZE = 'OutputBufferSize';

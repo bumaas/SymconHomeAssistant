@@ -28,6 +28,13 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const int DEFERRED_APPLY_DELAY_MS = 750;
     private const string SOURCE_MODE_MQTT = 'mqtt';
     private const string SOURCE_MODE_BUNDLE = 'bundle';
+    private const string TIMER_TOPIC_STATS = 'TopicStatsTimer';
+
+    // Opt-in Topic-Statistik: zaehlt eingehende Messages je Entitaet im Speicher und gibt sie periodisch
+    // aggregiert aus (statt pro Message zu loggen). Member ueberleben zwischen ReceiveData-Aufrufen.
+    private bool $topicStatsEnabled = false;
+    private array $topicStatsCounts = [];
+    private int $topicStatsWindowStartedAt = 0;
 
     public function Create(): void
     {
@@ -44,10 +51,14 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterPropertyBoolean('BundleCurrentSessionOnly', false);
         $this->RegisterPropertyBoolean('ReplayTopicsOnApply', false);
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
+        $this->RegisterPropertyBoolean('EnablePerformanceLog', false);
+        $this->RegisterPropertyBoolean('EnableTopicStatistics', false);
+        $this->RegisterPropertyInteger('TopicStatisticsIntervalMinutes', 15);
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
 
         $this->RegisterTimer(self::TIMER_DEFERRED_APPLY, 0, 'IPS_ApplyChanges($_IPS["TARGET"]);');
         $this->RegisterTimer(self::TIMER_DIAGNOSTICS_REFRESH, 0, 'HAMD_RefreshDiscoveryDiagnostics($_IPS["TARGET"]);');
+        $this->RegisterTimer(self::TIMER_TOPIC_STATS, 0, 'HAMD_DumpTopicStatistics($_IPS["TARGET"]);');
         $this->RegisterAttributeString('LastMQTTMessage', '');
         $this->RegisterAttributeString(self::ATTRIBUTE_DISCOVERY_CACHE, '{}');
         $this->RegisterAttributeString(self::ATTRIBUTE_TOPIC_PAYLOAD_CACHE, '{}');
@@ -97,6 +108,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         parent::ApplyChanges();
         $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, 0);
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
+        $this->SetTimerInterval(self::TIMER_TOPIC_STATS, 0);
+        $this->topicStatsEnabled = false;
         $this->syncParentStatusMessageRegistration();
         if (!$this->isModuleRuntimeReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
@@ -118,6 +131,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $this->writeBundleState($this->buildDefaultBundleState());
             $this->WriteAttributeString('LastMQTTMessage', '');
         }
+
+        $this->applyTopicStatisticsConfiguration();
 
         $this->logPerformanceMarker(__FUNCTION__, 'before_refreshMqttSessionState');
         $this->refreshMqttSessionState();
@@ -277,6 +292,47 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     }
 
     /** @noinspection PhpUnused */
+    public function RemoveStaleDiscoveryConfigs(): void
+    {
+        if ($this->isBundleMode()) {
+            $this->debugExpert(__FUNCTION__, 'Entfernen veralteter Discovery-Configs im Bundle-Modus ignoriert.', [
+                'SourceMode' => $this->getSourceMode()
+            ], true);
+            $this->updateDiagnosticsLabels();
+            return;
+        }
+
+        $sessionState = $this->readMqttSessionState();
+        $kept = [];
+        $removed = [];
+        foreach ($this->getDiscoveryConfigRecords() as $topic => $record) {
+            if (is_array($record) && $this->isRecordCurrentSession($record, $sessionState)) {
+                $kept[(string)$topic] = $record;
+                continue;
+            }
+            $removed[] = (string)$topic;
+        }
+
+        if ($removed === []) {
+            $this->debugExpert(__FUNCTION__, 'Keine veralteten Discovery-Configs gefunden.', [
+                'RemainingCount' => count($kept)
+            ]);
+            $this->updateDiagnosticsLabels();
+            return;
+        }
+
+        $this->writeDiscoveryCache($kept);
+        $this->syncReferencedRuntimeTopicState($kept);
+        $this->updateDiagnosticsLabels();
+
+        $this->debugExpert(__FUNCTION__, 'Veraltete Discovery-Configs entfernt.', [
+            'RemovedCount' => count($removed),
+            'RemovedTopics' => array_slice($removed, 0, self::DIAGNOSTIC_PREVIEW_LIMIT),
+            'RemainingCount' => count($kept)
+        ], true);
+    }
+
+    /** @noinspection PhpUnused */
     public function ReplayBundleTopicsToChildren(): void
     {
         if (!$this->isBundleMode()) {
@@ -335,7 +391,12 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             }
 
             $data['DataID'] = HAIds::DATA_MQTT_TX;
-            return $this->SendDataToParent(json_encode($data, JSON_THROW_ON_ERROR));
+            $startedAt = microtime(true);
+            $result = $this->SendDataToParent(json_encode($data, JSON_THROW_ON_ERROR));
+            $this->logPerformanceSample('ForwardData.SendDataToParent', $startedAt, [
+                'topic' => (string)($data['Topic'] ?? '')
+            ]);
+            return $result;
         }
 
         return $this->SendDataToParent($JSONString);
@@ -360,22 +421,56 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $dataId = $data['DataID'] ?? '';
         if ($dataId === HAIds::DATA_MQTT_RX || $dataId === HAIds::DATA_MQTT_TX) {
-            $this->refreshMqttSessionState();
-            $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s'));
-
             $topic = (string)($data['Topic'] ?? '');
+
+            // Statistik VOR dem Bookkeeping-Drop zaehlen, damit die echte eingehende Last je Geraet sichtbar wird.
+            if ($this->topicStatsEnabled) {
+                $this->recordTopicStatistic($topic);
+            }
+
+            // Universelle HA-Bookkeeping-Topics (Zeitstempel etc.) sind keine Discovery-Configs und keine von
+            // Discovery referenzierten Runtime-Topics; sie werden ohnehin nicht gecacht und vom Device verworfen.
+            // Vor dem Broadcast abzuweisen erspart die teure synchrone Weiterleitung an alle Kinder.
+            if (HADomainCatalog::isIgnorableBookkeepingTopic($topic)) {
+                return '';
+            }
+
+            $messageStartedAt = microtime(true);
+
+            $stepStartedAt = microtime(true);
+            $this->refreshMqttSessionState();
+            $this->logPerformanceSample('ReceiveData.refreshMqttSessionState', $stepStartedAt);
+
+            $stepStartedAt = microtime(true);
+            $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s'));
+            $this->logPerformanceSample('ReceiveData.writeLastMQTTMessage', $stepStartedAt);
+
             $payload = $this->decodePayload((string)($data['Payload'] ?? ''));
             $metadata = [
                 'retained' => array_key_exists('Retain', $data) ? (bool)$data['Retain'] : null,
                 'qos' => array_key_exists('QualityOfService', $data) ? (int)$data['QualityOfService'] : null,
                 'direction' => $dataId === HAIds::DATA_MQTT_TX ? 'tx' : 'rx'
             ];
+
+            $stepStartedAt = microtime(true);
             $this->updateTopicPayloadCacheFromMessage($topic, $payload, $metadata);
+            $this->logPerformanceSample('ReceiveData.updateTopicPayloadCache', $stepStartedAt, ['topic' => $topic]);
+
+            $stepStartedAt = microtime(true);
             $this->updateDiscoveryCacheFromMessage($topic, $payload, $metadata);
+            $this->logPerformanceSample('ReceiveData.updateDiscoveryCache', $stepStartedAt, ['topic' => $topic]);
+
             $this->scheduleDiagnosticsRefresh();
 
             $data['DataID'] = HAIds::DATA_MQTT_DISCOVERY_SPLITTER_TO_DEVICE;
+            $stepStartedAt = microtime(true);
             $this->SendDataToChildren(json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $this->logPerformanceSample('ReceiveData.SendDataToChildren', $stepStartedAt);
+
+            $this->logPerformanceSample('ReceiveData.total', $messageStartedAt, [
+                'topic' => $topic,
+                'direction' => $metadata['direction']
+            ]);
             return '';
         }
 
@@ -413,10 +508,18 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function updateDiagnosticsLabels(): void
     {
-        foreach ($this->buildDiagnosticsCaptions() as $field => $caption) {
+        $state = $this->buildDiagnosticsState();
+        foreach ($state['captions'] as $field => $caption) {
             $this->updateFormFieldSafe($field, 'caption', $caption);
         }
-        $this->updateFormFieldSafe('DiagDiscoveryAlert', 'visible', $this->hasStaleDiscoveryConfigs());
+        $hasStale = $state['has_stale'];
+        // Das Popup wird einmalig beim Formularaufbau (GetConfigurationForm) angezeigt. Zur Laufzeit darf es
+        // nicht erneut auf visible=true gesetzt werden, sonst springt es nach jeder Diagnose-Aktualisierung
+        // direkt wieder auf, sobald der Nutzer es bestaetigt hat. Nach der Bereinigung wird es ausgeblendet.
+        if (!$hasStale) {
+            $this->updateFormFieldSafe('DiagDiscoveryAlert', 'visible', false);
+        }
+        $this->updateFormFieldSafe('ButtonRemoveStaleDiscovery', 'visible', $hasStale && !$this->isBundleMode());
     }
 
     private function scheduleDiagnosticsRefresh(): void
@@ -1340,7 +1443,24 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         return array_keys($result);
     }
 
-    private function buildDiagnosticsCaptions(): array
+    /**
+     * Berechnet die Diagnose-Analysen genau einmal und liefert Captions plus Stale-Flag.
+     * Bewusst gebuendelt, damit getDiscoveryConfigRecords()/analyzeDiscoveryConfigRecords()
+     * pro Refresh nicht mehrfach laufen (Diagnose-Refresh blockiert den Instanz-Thread).
+     */
+    private function buildDiagnosticsState(): array
+    {
+        $discoveryRecords = array_values($this->getDiscoveryConfigRecords());
+        $discoveryAnalysis = $this->analyzeDiscoveryConfigRecords($discoveryRecords);
+        $topicAnalysis = $this->analyzeReferencedRuntimeTopics($discoveryRecords);
+
+        return [
+            'captions' => $this->buildDiagnosticsCaptions($discoveryAnalysis, $topicAnalysis),
+            'has_stale' => ((int)($discoveryAnalysis['stale_count'] ?? 0)) > 0
+        ];
+    }
+
+    private function buildDiagnosticsCaptions(array $discoveryAnalysis, array $topicAnalysis): array
     {
         $instance = IPS_GetInstance($this->InstanceID);
         $instanceStatus = (int)($instance['InstanceStatus'] ?? 0);
@@ -1360,9 +1480,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $statusName = $this->getInstanceStatusName($parentStatus);
         $nameSuffix = $parentName !== '' ? ' (' . $parentName . ')' : '';
         $statusSuffix = $statusName !== '' ? ' (' . $statusName . ')' : '';
-
-        $discoveryAnalysis = $this->analyzeDiscoveryConfigRecords();
-        $topicAnalysis = $this->analyzeReferencedRuntimeTopics();
 
         $sourceCaption = $sourceMode === self::SOURCE_MODE_BUNDLE
             ? $this->Translate('Source: Bundle')
@@ -1431,26 +1548,131 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         ];
     }
 
-    private function hasStaleDiscoveryConfigs(): bool
+    private function applyTopicStatisticsConfiguration(): void
     {
-        $analysis = $this->analyzeDiscoveryConfigRecords();
+        $this->topicStatsEnabled = (bool)@$this->ReadPropertyBoolean('EnableTopicStatistics');
+        $this->topicStatsCounts = [];
+        $this->topicStatsWindowStartedAt = time();
 
-        return ((int)($analysis['stale_count'] ?? 0)) > 0;
+        if (!$this->topicStatsEnabled) {
+            $this->SetTimerInterval(self::TIMER_TOPIC_STATS, 0);
+            return;
+        }
+
+        $minutes = max(1, (int)@$this->ReadPropertyInteger('TopicStatisticsIntervalMinutes'));
+        $this->SetTimerInterval(self::TIMER_TOPIC_STATS, $minutes * 60 * 1000);
+    }
+
+    private function recordTopicStatistic(string $topic): void
+    {
+        $key = $this->statisticsKeyForTopic($topic);
+        if ($key === '') {
+            return;
+        }
+        $this->topicStatsCounts[$key] = ($this->topicStatsCounts[$key] ?? 0) + 1;
+    }
+
+    // Schluessel = Topic ohne letztes Segment (Attribut-/State-Suffix) => eine Entitaet, alle ihre
+    // Sub-Topics zaehlen zusammen. Geraete-Gruppierung erfolgt beim Dump ueber den gemeinsamen Praefix.
+    private function statisticsKeyForTopic(string $topic): string
+    {
+        $topic = trim($topic, '/');
+        if ($topic === '') {
+            return '';
+        }
+        $pos = strrpos($topic, '/');
+        return $pos === false ? $topic : substr($topic, 0, $pos);
+    }
+
+    /** @noinspection PhpUnused */
+    public function DumpTopicStatistics(): void
+    {
+        $elapsed = max(1, time() - $this->topicStatsWindowStartedAt);
+        $counts = $this->topicStatsCounts;
+        $this->topicStatsCounts = [];
+        $this->topicStatsWindowStartedAt = time();
+
+        $total = array_sum($counts);
+        if ($total === 0) {
+            $this->SendDebug('TopicStats', sprintf('Fenster %ds | total=0 (keine Messages)', $elapsed), 0);
+            return;
+        }
+
+        // Pro Geraet gruppieren: Objekt-ID (letztes Segment der Entity-Keys) ueber gemeinsamen Praefix
+        // clustern, damit z. B. alle marstek_*-Entitaeten domainuebergreifend in einer Zeile zusammenlaufen.
+        // (Clustern der vollen Keys wuerde am gemeinsamen "<base>/<domain>/" alles zusammenwerfen.)
+        $byObjectId = [];
+        foreach ($counts as $entityKey => $n) {
+            $pos = strrpos((string)$entityKey, '/');
+            $objectId = $pos === false ? (string)$entityKey : substr((string)$entityKey, $pos + 1);
+            $byObjectId[$objectId] = ($byObjectId[$objectId] ?? 0) + $n;
+        }
+
+        $objectIds = array_keys($byObjectId);
+        sort($objectIds, SORT_STRING);
+        $devices = [];
+        foreach (HADomainCatalog::clusterByCommonPrefix($objectIds, 3) as $cluster) {
+            $members = $cluster['members'];
+            $deviceKey = count($members) >= 2 ? $cluster['prefix'] . '*' : ($members[0] ?? '');
+            $sum = 0;
+            foreach ($members as $m) {
+                $sum += $byObjectId[$m] ?? 0;
+            }
+            $devices[$deviceKey] = ($devices[$deviceKey] ?? 0) + $sum;
+        }
+        arsort($devices);
+
+        $perMin = static fn(int $n): string => number_format($n / ($elapsed / 60.0), 1, '.', '');
+        $this->SendDebug('TopicStats', sprintf(
+            'Fenster %ds | total=%d (%s/min) | Entitaeten=%d | Geraete=%d',
+            $elapsed,
+            $total,
+            $perMin($total),
+            count($counts),
+            count($devices)
+        ), 0);
+
+        $rank = 0;
+        foreach ($devices as $deviceKey => $sum) {
+            if (++$rank > 20) {
+                $this->SendDebug('TopicStats', sprintf('  ... (%d weitere Geraete)', count($devices) - 20), 0);
+                break;
+            }
+            $this->SendDebug('TopicStats', sprintf('  %-50s %6d (%s/min)', $deviceKey, $sum, $perMin($sum)), 0);
+        }
+    }
+
+    private function isPerformanceLogEnabled(): bool
+    {
+        return (bool)@$this->ReadPropertyBoolean('EnablePerformanceLog');
     }
 
     private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void
     {
+        if (!$this->isPerformanceLogEnabled()) {
+            return;
+        }
+
+        $context = ['elapsed_ms' => round((microtime(true) - $startedAt) * 1000.0, 3)] + $context;
+        $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
     }
 
     private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
     {
+        if (!$this->isPerformanceLogEnabled()) {
+            return;
+        }
+
+        $payload = ['phase' => $phase] + $context;
+        $this->SendDebug('Performance', $scope . ' | ' . json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
     }
 
     private function applyCurrentDiagnosticsToForm(array &$form): void
     {
-        $captions = $this->buildDiagnosticsCaptions();
+        $state = $this->buildDiagnosticsState();
+        $captions = $state['captions'];
         $isBundleMode = $this->isBundleMode();
-        $hasStaleDiscovery = $this->hasStaleDiscoveryConfigs();
+        $hasStaleDiscovery = $state['has_stale'];
         if (isset($form['elements']) && is_array($form['elements'])) {
             $this->applyFormItemsState($form['elements'], $captions, $isBundleMode, $hasStaleDiscovery);
         }
@@ -1494,6 +1716,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             }
             if ($name === 'DiagDiscoveryAlert') {
                 $item['visible'] = $hasStaleDiscovery;
+            }
+            if ($name === 'ButtonRemoveStaleDiscovery') {
+                $item['visible'] = $hasStaleDiscovery && !$isBundleMode;
             }
         }
         unset($item);

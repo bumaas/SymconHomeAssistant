@@ -54,6 +54,23 @@
           "caption": "Enable extended debug output"
         },
         {
+          "type": "CheckBox",
+          "name": "EnablePerformanceLog",
+          "caption": "Enable performance timing (debug channel 'Performance')"
+        },
+        {
+          "type": "CheckBox",
+          "name": "EnableTopicStatistics",
+          "caption": "Enable topic statistics (debug channel 'TopicStats')"
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "TopicStatisticsIntervalMinutes",
+          "caption": "Topic statistics interval (minutes)",
+          "minimum": 1,
+          "maximum": 1440
+        },
+        {
           "type": "NumberSpinner",
           "name": "OutputBufferSize",
           "caption": "Output buffer (MB)",

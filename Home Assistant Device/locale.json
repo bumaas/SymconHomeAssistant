@@ -16,6 +16,7 @@
       "Attributes (JSON)": "Attribute (JSON)",
       "Expert": "Experte",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
+      "Enable performance timing (debug channel 'Performance')": "Performance-Timing aktivieren (Debug-Kanal 'Performance')",
       "Show technical entity columns": "Technische Entity-Spalten anzeigen",
       "Manufacturer: %s": "Hersteller: %s",
       "Model: %s": "Modell: %s",

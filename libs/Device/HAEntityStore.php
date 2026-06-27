@@ -115,27 +115,44 @@ trait HAEntityStoreTrait
         $this->storeEntityAttributes($entityId, $merged);
     }
 
+    // In-Memory-Spiegel des State-Caches: Das EntityStateCache-Attribut wird pro Prozess nur einmal
+    // dekodiert und danach aus dem Speicher bedient. Geschrieben wird write-through (das Attribut bleibt
+    // konsistent, daher keine Flush-Punkte noetig), aber nur wenn sich der Inhalt tatsaechlich aendert.
+    private ?array $entityStateCacheMemory = null;
+    private ?string $entityStateCacheEncoded = null;
+
     // Der State-Cache wird im Store zentral gelesen und geschrieben.
     private function readEntityStateCache(): array
     {
+        if (is_array($this->entityStateCacheMemory)) {
+            return $this->entityStateCacheMemory;
+        }
+
         $raw = $this->ReadAttributeString('EntityStateCache');
+        $this->entityStateCacheEncoded = $raw;
         if ($raw === '') {
-            return [];
+            return $this->entityStateCacheMemory = [];
         }
 
         try {
             $cache = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            return [];
+            return $this->entityStateCacheMemory = [];
         }
 
-        return is_array($cache) ? $cache : [];
+        return $this->entityStateCacheMemory = is_array($cache) ? $cache : [];
     }
 
     private function writeEntityStateCache(array $cache): void
     {
-        $this->WriteAttributeString('EntityStateCache', json_encode($cache, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $this->updateDiagnosticsLabels();
+        $this->entityStateCacheMemory = $cache;
+        $encoded = json_encode($cache, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($encoded === $this->entityStateCacheEncoded) {
+            return;
+        }
+
+        $this->entityStateCacheEncoded = $encoded;
+        $this->WriteAttributeString('EntityStateCache', $encoded);
     }
 
     private function getEntityStateCacheEntry(string $entityId, ?array $cache = null): array

@@ -44,6 +44,11 @@
         },
         {
           "type": "CheckBox",
+          "name": "EnablePerformanceLog",
+          "caption": "Enable performance timing (debug channel 'Performance')"
+        },
+        {
+          "type": "CheckBox",
           "name": "ShowTechnicalEntityColumns",
           "caption": "Show technical entity columns"
         },

@@ -289,6 +289,95 @@ final class HADomainCatalog
         return (bool)(self::getDefinition($domain)['device_class_name_fallback'] ?? false);
     }
 
+    /**
+     * Universelle HA-Attribut-Topics, die HA (z. B. via mqtt_statestream) als eigene Topics publiziert,
+     * die das Device aber nicht verarbeitet: reine Bookkeeping-Zeitstempel (last_updated/last_changed/
+     * last_reported), Quellenhinweis (attribution) und der HA-Icon-Hinweis (icon; die Darstellung kommt aus
+     * den IPS-Profilen/Domain-Definitionen, nicht aus dem HA-Icon). Sie werden nie zu IPS-Variablen, wuerden
+     * aber pro Message eine teure Presentation-Synchronisation ausloesen. Single Source of Truth fuer beide
+     * Splitter (die sie gar nicht erst an Kinder weiterreichen) und das Device (das sie verwirft).
+     *
+     * @var string[]
+     */
+    public const array IGNORABLE_BOOKKEEPING_ATTRIBUTES = ['last_updated', 'last_changed', 'last_reported', 'attribution', 'icon'];
+
+    public static function isIgnorableBookkeepingAttribute(string $attribute): bool
+    {
+        return in_array($attribute, self::IGNORABLE_BOOKKEEPING_ATTRIBUTES, true);
+    }
+
+    public static function isIgnorableBookkeepingTopic(string $topic): bool
+    {
+        $pos = strrpos($topic, '/');
+        $suffix = $pos === false ? $topic : substr($topic, $pos + 1);
+        return self::isIgnorableBookkeepingAttribute($suffix);
+    }
+
+    /**
+     * Laengster gemeinsamer String-Praefix einer Liste. Basis fuer das Zusammenfassen verwandter
+     * Empfangsfilter-Topics in den Geraetemodulen.
+     *
+     * @param string[] $strings
+     */
+    public static function longestCommonStringPrefix(array $strings): string
+    {
+        if ($strings === []) {
+            return '';
+        }
+
+        $prefix = (string)$strings[0];
+        foreach ($strings as $candidate) {
+            while ($prefix !== '' && !str_starts_with((string)$candidate, $prefix)) {
+                $prefix = substr($prefix, 0, -1);
+            }
+            if ($prefix === '') {
+                break;
+            }
+        }
+
+        return $prefix;
+    }
+
+    /**
+     * Fasst bereits sortierte Namen in Cluster mit gemeinsamem Praefix (>= $minPrefix Zeichen) zusammen.
+     * So lassen sich K Einzeltopics im Empfangsfilter auf wenige kompakte Praefix-Muster reduzieren
+     * (geteilter Kern fuer beide Geraetepfade; die jeweilige Topic-Kodierung wenden die Module selbst an).
+     *
+     * @param string[] $names  alphabetisch sortiert
+     * @return array<int, array{members: string[], prefix: string}>
+     */
+    public static function clusterByCommonPrefix(array $names, int $minPrefix): array
+    {
+        $clusters = [];
+        $current = [];
+        $prefix = '';
+
+        foreach ($names as $name) {
+            if ($current === []) {
+                $current = [$name];
+                $prefix = $name;
+                continue;
+            }
+
+            $candidate = self::longestCommonStringPrefix([$prefix, $name]);
+            if (strlen($candidate) >= $minPrefix) {
+                $current[] = $name;
+                $prefix = $candidate;
+                continue;
+            }
+
+            $clusters[] = ['members' => $current, 'prefix' => $prefix];
+            $current = [$name];
+            $prefix = $name;
+        }
+
+        if ($current !== []) {
+            $clusters[] = ['members' => $current, 'prefix' => $prefix];
+        }
+
+        return $clusters;
+    }
+
     private static function getDefinition(string $domain): array
     {
         $matrix = self::getMatrix();

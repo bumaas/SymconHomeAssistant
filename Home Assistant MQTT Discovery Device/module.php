@@ -17,9 +17,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private HAMqttDiscoveryParser $parser;
     private HAMqttDiscoveryGrouping $grouping;
 
+    // Arbeitsspeicher-Cache der normalisierten Verarbeitungsstrukturen, damit ReceiveData nicht
+    // bei jeder MQTT-Message die komplette Geraetedefinition neu dekodiert/normalisiert.
+    private ?array $runtimeProcessingContextCache = null;
+    private bool $runtimeProcessingContextCacheHit = false;
+
     private const string PROP_DEVICE_ID = 'DeviceID';
     private const string PROP_ENTITY_SELECTION = 'EntitySelection';
     private const string PROP_ENABLE_EXPERT_DEBUG = 'EnableExpertDebug';
+    private const string PROP_ENABLE_PERFORMANCE_LOG = 'EnablePerformanceLog';
     private const string PROP_SHOW_EXPERT_COLUMNS = 'ShowExpertColumns';
 
     private const int STATUS_PARENT_INVALID = 201;
@@ -103,6 +109,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
         $this->RegisterPropertyString(self::PROP_ENTITY_SELECTION, '[]');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
+        $this->RegisterPropertyBoolean(self::PROP_ENABLE_PERFORMANCE_LOG, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_EXPERT_COLUMNS, false);
 
         $this->RegisterAttributeString(self::ATTR_LAST_MQTT_MESSAGE, '');
@@ -140,6 +147,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'DeviceID' => $this->getConfiguredDeviceId()
         ]);
         parent::ApplyChanges();
+        $this->runtimeProcessingContextCache = null;
         $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, 0);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
@@ -257,16 +265,35 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $payload = '';
         }
 
-        $this->WriteAttributeString(self::ATTR_LAST_MQTT_MESSAGE, date('Y-m-d H:i:s'));
+        $messageStartedAt = microtime(true);
 
-        $entities = $this->getConfiguredEntities();
-        $entityLookup = $this->buildEntityLookup($entities);
-        $topicIndex = $this->readTopicProcessingIndex();
+        $stepStartedAt = microtime(true);
+        $this->WriteAttributeString(self::ATTR_LAST_MQTT_MESSAGE, date('Y-m-d H:i:s'));
+        $this->logPerformanceSample('ReceiveData.writeLastMQTTMessage', $stepStartedAt);
+
+        $stepStartedAt = microtime(true);
+        $context = $this->getRuntimeProcessingContext();
+        $this->logPerformanceSample('ReceiveData.getRuntimeProcessingContext', $stepStartedAt, [
+            'cached' => $this->runtimeProcessingContextCacheHit,
+            'entities' => count($context['entities'])
+        ]);
+
+        $entities = $context['entities'];
+        $entityLookup = $context['lookup'];
+        $topicIndex = $context['topicIndex'];
+
+        $stepStartedAt = microtime(true);
         $result = $this->applyTopicPayloadToEntities($entityLookup, $topicIndex, $topic, $payload);
+        $this->logPerformanceSample('ReceiveData.applyTopicPayloadToEntities', $stepStartedAt, ['topic' => $topic]);
+
         if ($result['diagnostics_changed']) {
+            $stepStartedAt = microtime(true);
             $this->updateDiagnosticsLabels($entities, $topicIndex['topics']);
             $this->updateInstanceSummary($entities);
+            $this->logPerformanceSample('ReceiveData.updateDiagnostics', $stepStartedAt);
         }
+
+        $this->logPerformanceSample('ReceiveData.total', $messageStartedAt, ['topic' => $topic]);
         return '';
     }
 
@@ -416,6 +443,36 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Liefert die fuer die Message-Verarbeitung benoetigten, normalisierten Strukturen
+     * (Entities, Lookup, Topic-Index). Diese werden im Arbeitsspeicher zwischengespeichert und nur
+     * neu aufgebaut, wenn sich die zugrundeliegenden Attribute aendern (Signatur ueber Roh-Strings).
+     * Das vermeidet das teure Dekodieren/Normalisieren der kompletten Geraetedefinition bei jeder
+     * eingehenden MQTT-Message. Der Cache wird zusaetzlich in ApplyChanges invalidiert.
+     */
+    private function getRuntimeProcessingContext(): array
+    {
+        $definitionRaw = $this->ReadAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION);
+        $indexRaw = $this->ReadAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX);
+        $signature = strlen($definitionRaw) . ':' . crc32($definitionRaw) . '|' . strlen($indexRaw) . ':' . crc32($indexRaw);
+
+        if (is_array($this->runtimeProcessingContextCache) && ($this->runtimeProcessingContextCache['signature'] ?? null) === $signature) {
+            $this->runtimeProcessingContextCacheHit = true;
+            return $this->runtimeProcessingContextCache;
+        }
+
+        $entities = $this->getConfiguredEntities();
+        $this->runtimeProcessingContextCache = [
+            'signature'  => $signature,
+            'entities'   => $entities,
+            'lookup'     => $this->buildEntityLookup($entities),
+            'topicIndex' => $this->readTopicProcessingIndex()
+        ];
+        $this->runtimeProcessingContextCacheHit = false;
+
+        return $this->runtimeProcessingContextCache;
     }
 
     private function getConfiguredEntities(): array
@@ -2728,9 +2785,41 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        $escapedTopics = array_map(fn(string $topic): string => $this->buildReceiveFilterTopicPattern($topic), $topics);
-        $pattern = '.*"Topic":"(?:' . implode('|', $escapedTopics) . ')".*';
+        $pattern = '.*"Topic":"(?:' . implode('|', $this->buildReceiveFilterRegexParts($topics)) . ')".*';
         $this->SetReceiveDataFilter($pattern);
+    }
+
+    /**
+     * Fasst verwandte Topics ueber ihren gemeinsamen Praefix zusammen (geteilter Cluster-Kern in
+     * HADomainCatalog), statt jedes Topic einzeln aufzulisten. Reduziert die Zahl der Regex-Alternativen,
+     * die der Kernel pro Nachricht je Kind-Instanz auswertet. Kollabierte Muster sind geringfuegig breiter;
+     * unkritisch, da ReceiveData nicht zugeordnete Topics ueber den Topic-Index ohnehin verwirft.
+     *
+     * @param string[] $topics
+     * @return string[]
+     */
+    private function buildReceiveFilterRegexParts(array $topics): array
+    {
+        $names = array_values(array_unique(array_filter($topics, static fn(string $t): bool => $t !== '')));
+        sort($names, SORT_STRING);
+
+        $minPrefix = 3;
+        $parts = [];
+        foreach (HADomainCatalog::clusterByCommonPrefix($names, $minPrefix) as $cluster) {
+            $members = $cluster['members'];
+            $prefix = $cluster['prefix'];
+
+            if (count($members) >= 2 && strlen($prefix) >= $minPrefix) {
+                $parts[] = $this->buildReceiveFilterTopicPattern($prefix) . '[^"]*';
+                continue;
+            }
+
+            foreach ($members as $name) {
+                $parts[] = $this->buildReceiveFilterTopicPattern($name);
+            }
+        }
+
+        return $parts;
     }
 
     private function buildReceiveFilterTopicPattern(string $topic): string
@@ -5027,11 +5116,28 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         @ $this->UpdateFormField($name, $property, $value);
     }
 
+    private function isPerformanceLogEnabled(): bool
+    {
+        return (bool)@$this->ReadPropertyBoolean(self::PROP_ENABLE_PERFORMANCE_LOG);
+    }
+
     private function logPerformanceSample(string $scope, float $startedAt, array $context = [], bool $force = false): void
     {
+        if (!$this->isPerformanceLogEnabled()) {
+            return;
+        }
+
+        $context = ['elapsed_ms' => round((microtime(true) - $startedAt) * 1000.0, 3)] + $context;
+        $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
     }
 
     private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
     {
+        if (!$this->isPerformanceLogEnabled()) {
+            return;
+        }
+
+        $payload = ['phase' => $phase] + $context;
+        $this->SendDebug('Performance', $scope . ' | ' . json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
     }
 }

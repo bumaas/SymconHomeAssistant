@@ -25,6 +25,7 @@
       "Entity Key": "Entity-Key",
       "Expert Settings": "Experteneinstellungen",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
+      "Enable performance timing (debug channel 'Performance')": "Performance-Timing aktivieren (Debug-Kanal 'Performance')",
       "Show technical entity columns": "Technische Entity-Spalten anzeigen",
       "Select all": "Alle ausw\u00e4hlen",
       "Deselect all": "Alle abw\u00e4hlen",

@@ -234,11 +234,35 @@ Später, aber nicht Teil des MVP:
 Beobachtung:
 - Auch im klassischen `Home Assistant Splitter` kann hohe Last auftreten, wenn der Parent viel MQTT-Traffic sieht.
 - Der Splitter empfängt derzeit breit über `SetReceiveDataFilter('.*')` und reicht `RX`/`TX`-Nachrichten an Kinder weiter.
-- Ob hier weiterer Handlungsbedarf besteht, wird erst nach den Discovery-Splitter-Erfahrungen priorisiert.
+- Messungen (Performance-Schalter `EnablePerformanceLog`, Debug-Kanal `Performance`) zeigen: Die Eigenarbeit
+  des Splitters ist gering (~1 ms); der Aufwand liegt in `SendDataToChildren` (synchrone Verarbeitung der
+  Kind-Devices). HA `mqtt_statestream` verstärkt jede Zustandsänderung in mehrere Topics
+  (`state`, `last_updated`, `last_changed`, `state_class`, `friendly_name`, …).
+
+Umgesetzt:
+- **Früher Verwurf universeller Bookkeeping-Topics** (`last_updated`, `last_changed`, `last_reported`,
+  `attribution`) in beiden Splittern vor `SendDataToChildren`. Single Source of Truth:
+  `HADomainCatalog::IGNORABLE_BOOKKEEPING_ATTRIBUTES` bzw. `isIgnorableBookkeepingTopic()`. Das Device
+  verwirft dieselben Attribute über `HADomainCatalog::isIgnorableBookkeepingAttribute()` – konsistent.
+- **Device-seitig:** In-Memory-State-Cache, Skip-if-unchanged für Attribut-Topics (Vergleich gegen den
+  State-Cache), Verarbeitungsstrukturen werden nicht mehr pro Message neu dekodiert.
+- **Empfangsfilter-Kollaps:** Beide Geräte-Pfade fassen verwandte Topics über ihren gemeinsamen Präfix zu
+  wenigen Regex-Mustern zusammen (geteilter Kern `HADomainCatalog::clusterByCommonPrefix`), statt jedes
+  Topic einzeln zu listen → weniger Filter-Auswertung pro Nachricht je Kind-Instanz.
+- **Bookkeeping-Verwurf nur einmal:** Die Filterung erfolgt zentral im Splitter vor dem Broadcast; die
+  früher zusätzlich im Device vorhandene (dann redundante) Prüfung wurde entfernt.
+- **Diagnose:** Performance-Instrumentierung in beiden Splittern und beiden Geräten (per Property gated).
+
+Gemessene Erkenntnis (Tastendruck-Latenz): Die verbleibenden, gelegentlichen Mehrsekunden-Verzögerungen
+entstehen nachweislich **vor** Symcon (Vergleich HA-Event-Zeitstempel im Payload vs. Empfangszeit im
+Splitter zeigte z. B. ~2,2 s Differenz), also auf der Strecke HA → MQTT-Broker → MQTT-Client. Modulseitig
+liegt die Verarbeitung im einstelligen bis niedrigen zweistelligen Millisekundenbereich. Quellseitiger
+Hebel: HA `mqtt_statestream` per `publish_timestamps: false` und `include`/`exclude` eingrenzen.
 
 Geparkte nächste Schritte:
 - Breiten Empfang im Splitter gegen den real benötigten Topic-Bereich absichern
 - `TX` nur dann an Kinder weiterreichen, wenn dafür ein fachlicher Bedarf besteht
-- Broadcast an Kinder weiter eingrenzen statt jede MQTT-Nachricht global durchzureichen
+- Prüfen, ob weitere selten genutzte Attribut-Topics generisch ausgefiltert werden können
 - Diagnose- und Formularupdates auch hier auf mögliche Hotspots prüfen
 - Einen dedizierten MQTT-Client mit enger Subscription als Betriebsoption dokumentieren
+- Optional: HA `mqtt_statestream` quellseitig auf benötigte Attribute eingrenzen (geringste Last)

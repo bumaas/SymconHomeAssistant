@@ -732,18 +732,69 @@ trait HADeviceCoreTrait
             return;
         }
 
-        $regexParts = [];
-        foreach ($topics as $t) {
-            $quoted = preg_quote($t, '/');
-            $quoted       = str_replace('\/', '\\\\?\/', $quoted);
-            $regexParts[] = $quoted . '(\\\\?\/[^"]*)?';
-        }
+        $regexParts = $this->buildReceiveFilterRegexParts($topics);
 
         $filter = '.*"Topic":"(' . implode('|', $regexParts) . ')".*';
-        $this->debugExpert('Filter', 'Setze Filter', ['Regex' => $filter]);
+        $this->debugExpert('Filter', 'Setze Filter', ['Regex' => $filter, 'Parts' => count($regexParts), 'Topics' => count($topics)]);
         $this->SetReceiveDataFilter($filter);
         $this->WriteAttributeString('CurrentFilter', $filter);
         $this->updateFormFieldSafe('CURRENT_FILTER', 'caption', sprintf($this->Translate('Current filter (regex): %s'), $filter));
+    }
+
+    /**
+     * Baut die Regex-Alternativen fuer den Empfangsfilter. Statt pro Entity ein eigenes Voll-Topic zu
+     * listen (O(K) Alternativen, die der Kernel pro Nachricht je Kind-Instanz auswertet), werden Topics je
+     * "<base>/<domain>"-Gruppe zusammengefasst und ihr laengster gemeinsamer Namenspraefix faktorisiert.
+     * Bei geraetetypischen Slug-Namen (z. B. "marstek_venus_modbus_*") kollabiert eine ganze Domain damit
+     * auf EIN Muster. Der Filter wird dadurch geringfuegig breiter; das ist unkritisch, weil ReceiveData
+     * nicht zugeordnete Topics ohnehin verwirft. Heterogene Gruppen fallen auf die Einzelauflistung zurueck.
+     *
+     * @param string[] $topics
+     * @return string[]
+     */
+    private function buildReceiveFilterRegexParts(array $topics): array
+    {
+        $groups = [];
+        foreach ($topics as $t) {
+            if ($t === '') {
+                continue;
+            }
+            $pos = strrpos($t, '/');
+            $groupKey = $pos === false ? '' : substr($t, 0, $pos);
+            $name = $pos === false ? $t : substr($t, $pos + 1);
+            $groups[$groupKey][$name] = true;
+        }
+
+        $minPrefix = 3;
+        $parts = [];
+        foreach ($groups as $groupKey => $nameSet) {
+            $names = array_keys($nameSet);
+            sort($names, SORT_STRING);
+
+            foreach (HADomainCatalog::clusterByCommonPrefix($names, $minPrefix) as $cluster) {
+                $members = $cluster['members'];
+                $prefix = $cluster['prefix'];
+
+                if (count($members) >= 2 && strlen($prefix) >= $minPrefix) {
+                    $base = $groupKey === '' ? $prefix : $groupKey . '/' . $prefix;
+                    $parts[] = $this->encodeReceiveFilterTopic($base) . '[^"]*';
+                    continue;
+                }
+
+                foreach ($members as $name) {
+                    $full = $groupKey === '' ? $name : $groupKey . '/' . $name;
+                    $parts[] = $this->encodeReceiveFilterTopic($full) . '(\\\\?\/[^"]*)?';
+                }
+            }
+        }
+
+        return $parts;
+    }
+
+    private function encodeReceiveFilterTopic(string $topic): string
+    {
+        // Slashes muessen im JSON sowohl als "/" als auch escaped als "\/" matchen koennen.
+        return str_replace('\/', '\\\\?\/', preg_quote($topic, '/'));
     }
 
     protected function maintainEntityVariable(array $entity): void

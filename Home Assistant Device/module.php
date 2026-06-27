@@ -97,6 +97,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterPropertyString(self::PROP_DEVICE_AREA, '');
         $this->RegisterPropertyString(self::PROP_DEVICE_NAME, '');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
+        $this->RegisterPropertyBoolean(self::PROP_ENABLE_PERFORMANCE_LOG, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_TECHNICAL_ENTITY_COLUMNS, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_UNAVAILABLE_ENTITIES_JSON, false);
         $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
@@ -273,21 +274,54 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         $this->debugExpert(__FUNCTION__, 'Eingangsdaten', ['Topic' => $topic, 'Payload' => $payload]);
-        $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s'));
-        $this->updateDiagnosticsLabels();
 
-        if ($this->tryHandleStateFromTopic($topic, $payload)) {
+        $messageStartedAt = microtime(true);
+
+        $stepStartedAt = microtime(true);
+        $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s'));
+        $this->logPerformanceSample('ReceiveData.writeLastMQTTMessage', $stepStartedAt);
+
+        $stepStartedAt = microtime(true);
+        $this->updateDiagnosticsLabels();
+        $this->logPerformanceSample('ReceiveData.updateDiagnosticsLabels', $stepStartedAt);
+
+        $stepStartedAt = microtime(true);
+        $handledAsState = $this->tryHandleStateFromTopic($topic, $payload);
+        $this->logPerformanceSample('ReceiveData.tryHandleStateFromTopic', $stepStartedAt, [
+            'topic' => $topic,
+            'handled' => $handledAsState
+        ]);
+        if ($handledAsState) {
+            $this->logPerformanceSample('ReceiveData.total', $messageStartedAt, ['topic' => $topic, 'path' => 'state']);
             return '';
         }
 
         if (isset($this->topicMapping[$topic])) {
             $entityId = $this->topicMapping[$topic];
+            $stepStartedAt = microtime(true);
             $this->updateEntityValue($entityId, $payload);
+            $this->logPerformanceSample('ReceiveData.updateEntityValue', $stepStartedAt, ['topic' => $topic]);
         } else {
             $this->debugRuntimeIssue(__FUNCTION__, 'MQTT-Topic ohne Mapping verworfen', ['Topic' => $topic]);
         }
 
+        $this->logPerformanceSample('ReceiveData.total', $messageStartedAt, ['topic' => $topic, 'path' => 'mapping']);
         return '';
+    }
+
+    private function isPerformanceLogEnabled(): bool
+    {
+        return (bool)@$this->ReadPropertyBoolean(self::PROP_ENABLE_PERFORMANCE_LOG);
+    }
+
+    private function logPerformanceSample(string $scope, float $startedAt, array $context = []): void
+    {
+        if (!$this->isPerformanceLogEnabled()) {
+            return;
+        }
+
+        $context = ['elapsed_ms' => round((microtime(true) - $startedAt) * 1000.0, 3)] + $context;
+        $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
     }
 
     /**
@@ -1220,27 +1254,42 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         $ident = $this->getSharedEntityMainIdent($entityId);
+        $stepStartedAt = microtime(true);
         $descriptor = $this->describeVariableByIdent($ident, $domain);
+        $this->logPerformanceSample('applyState.describeVariableByIdent', $stepStartedAt, ['entity' => $entityId]);
         if ($this->isTriggerVariableDescriptor($descriptor)) {
             $this->applyTriggerEntityStateUpdate($entityId, $parsed);
             return;
         }
 
-        if ($this->handleDomainUpdateEntityValue($domain, $entityId, $ident, $parsed)) {
+        $stepStartedAt = microtime(true);
+        $handledByDomain = $this->handleDomainUpdateEntityValue($domain, $entityId, $ident, $parsed);
+        $this->logPerformanceSample('applyState.handleDomainUpdateEntityValue', $stepStartedAt, [
+            'entity' => $entityId,
+            'handled' => $handledByDomain
+        ]);
+        if ($handledByDomain) {
             return;
         }
 
+        $stepStartedAt = microtime(true);
         $attributes = $this->resolveEntityStateAttributes($entityId, $parsed[self::KEY_ATTRIBUTES] ?? null);
         $finalValue = $this->convertValueByDomain($domain, (string)($parsed[self::KEY_STATE] ?? ''), $attributes);
         $this->setEntityMainValue($entityId, $ident, $finalValue, $parsed[self::KEY_STATE] ?? null);
         $this->updateEntityCache($entityId, $parsed[self::KEY_STATE] ?? null, $parsed[self::KEY_ATTRIBUTES] ?? null);
+        $this->logPerformanceSample('applyState.setMainValueAndCache', $stepStartedAt, ['entity' => $entityId]);
 
         if (!empty($parsed[self::KEY_ATTRIBUTES]) && is_array($parsed[self::KEY_ATTRIBUTES])) {
+            $stepStartedAt = microtime(true);
             $storedAttributes = $this->storeEntityAttributes($entityId, $parsed[self::KEY_ATTRIBUTES]);
             $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
             if ($domain === HALightDefinitions::DOMAIN) {
                 $this->updateLightAttributeValues($entityId, $storedAttributes);
             }
+            $this->logPerformanceSample('applyState.attributesAndPresentation', $stepStartedAt, [
+                'entity' => $entityId,
+                'attrCount' => count($parsed[self::KEY_ATTRIBUTES])
+            ]);
         }
     }
 
