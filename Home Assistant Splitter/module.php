@@ -16,11 +16,28 @@ class HomeAssistantSplitter extends IPSModuleStrict
     private const string TIMER_RESTACK = 'RestAckTimer';
     private const string TIMER_TOPIC_STATS = 'TopicStatsTimer';
 
-    // Opt-in Topic-Statistik: zaehlt eingehende Messages je Entitaet im Speicher und gibt sie periodisch
-    // aggregiert aus (statt pro Message zu loggen). Member ueberleben zwischen ReceiveData-Aufrufen.
-    private bool $topicStatsEnabled = false;
-    private array $topicStatsCounts = [];
-    private int $topicStatsWindowStartedAt = 0;
+    // Debounce der Diagnose-Anzeige (einheitlich mit dem Discovery-Splitter): hochfrequente Ausloeser
+    // setzen nur ein Dirty-Flag und bewaffnen den Timer; das teure updateDiagnosticsLabels() laeuft dann
+    // gebuendelt einmal pro Intervall statt pro Ausloeser.
+    private const string TIMER_DIAGNOSTICS_REFRESH   = 'DiagnosticsRefresh';
+    private const string ATTRIBUTE_DIAGNOSTICS_DIRTY = 'DiagnosticsDirty';
+    private const int DIAGNOSTICS_REFRESH_INTERVAL_MS = 1000;
+
+    // Opt-in Topic-Statistik: zaehlt eingehende Messages je Entitaet und gibt sie periodisch aggregiert aus
+    // (statt pro Message zu loggen). Der Zustand MUSS in Buffern liegen: ReceiveData (Zaehlen) und der
+    // Timer (DumpTopicStatistics) laufen in getrennten PHP-Ausfuehrungen, Member-Variablen ueberleben das
+    // nicht. Ohne Buffer waere der Zaehler beim Dump immer leer und der Fensterstart auf 0 (=> riesiges
+    // "Fenster <epoch>s | total=0").
+    private const string BUFFER_TOPIC_STATS_COUNTS = 'TopicStatsCounts';
+    private const string BUFFER_TOPIC_STATS_START  = 'TopicStatsWindowStart';
+
+    // Das "Last MQTT message"-Label ist reine Diagnose. Bei ~13 Messages/Sek. wuerde ein
+    // WriteAttributeString + UpdateFormField pro Message dauerhaft messbare Last erzeugen, ohne
+    // Mehrwert (das Label hat Sekunden-Granularitaet). Daher hoechstens alle paar Sekunden schreiben.
+    // Der Drossel-Zeitstempel MUSS im Buffer liegen: ReceiveData laeuft ueber getrennte
+    // PHP-Ausfuehrungen, Member-Variablen ueberleben das nicht.
+    private const string BUFFER_LAST_MQTT_TOUCH    = 'LastMqttTouchEpoch';
+    private const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
 
     public function Create(): void
     {
@@ -48,9 +65,11 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterAttributeString('LastRestResponse', '');
         $this->RegisterAttributeString('LastRestTimeout', '');
         $this->RegisterAttributeString('PendingRestAcks', '{}');
+        $this->RegisterAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
 
         $this->RegisterTimer(self::TIMER_RESTACK, 0, 'HA_CheckRestAcks($_IPS["TARGET"]);');
         $this->RegisterTimer(self::TIMER_TOPIC_STATS, 0, 'HA_DumpTopicStatistics($_IPS["TARGET"]);');
+        $this->RegisterTimer(self::TIMER_DIAGNOSTICS_REFRESH, 0, 'HA_RefreshDiagnostics($_IPS["TARGET"]);');
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -98,6 +117,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
@@ -205,7 +225,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
             // Statistik VOR dem Bookkeeping-Drop zaehlen, damit die echte eingehende Last je Geraet sichtbar
             // wird (inkl. der Topics, die wir gleich verwerfen).
-            if ($this->topicStatsEnabled) {
+            if ($this->isTopicStatisticsEnabled()) {
                 $this->recordTopicStatistic($topic);
             }
 
@@ -219,8 +239,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $messageStartedAt = microtime(true);
 
             $stepStartedAt = microtime(true);
-            $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s'));
-            $this->updateLastMqttMessageLabel();
+            $this->touchLastMqttMessage();
             if (str_ends_with($topic, '/state')) {
                 $state = $this->decodePayload((string)($data['Payload'] ?? ''));
                 $this->debugExpert('MQTT', 'State-Topic empfangen', ['Topic' => $topic, 'State' => $state]);
@@ -286,13 +305,19 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
     }
 
+    private function isTopicStatisticsEnabled(): bool
+    {
+        return (bool)@$this->ReadPropertyBoolean('EnableTopicStatistics');
+    }
+
     private function applyTopicStatisticsConfiguration(): void
     {
-        $this->topicStatsEnabled = (bool)@$this->ReadPropertyBoolean('EnableTopicStatistics');
-        $this->topicStatsCounts = [];
-        $this->topicStatsWindowStartedAt = time();
+        $enabled = $this->isTopicStatisticsEnabled();
+        // Fenster bei jedem ApplyChanges neu starten und Zaehler leeren.
+        $this->SetBuffer(self::BUFFER_TOPIC_STATS_COUNTS, '');
+        $this->SetBuffer(self::BUFFER_TOPIC_STATS_START, $enabled ? (string)time() : '');
 
-        if (!$this->topicStatsEnabled) {
+        if (!$enabled) {
             $this->SetTimerInterval(self::TIMER_TOPIC_STATS, 0);
             return;
         }
@@ -307,7 +332,27 @@ class HomeAssistantSplitter extends IPSModuleStrict
         if ($key === '') {
             return;
         }
-        $this->topicStatsCounts[$key] = ($this->topicStatsCounts[$key] ?? 0) + 1;
+        // Fensterstart faul setzen, falls ApplyChanges ihn (noch) nicht gesetzt hat.
+        if ($this->GetBuffer(self::BUFFER_TOPIC_STATS_START) === '') {
+            $this->SetBuffer(self::BUFFER_TOPIC_STATS_START, (string)time());
+        }
+        $counts = $this->loadTopicStatsCounts();
+        $counts[$key] = ($counts[$key] ?? 0) + 1;
+        $this->SetBuffer(self::BUFFER_TOPIC_STATS_COUNTS, json_encode($counts, JSON_THROW_ON_ERROR));
+    }
+
+    private function loadTopicStatsCounts(): array
+    {
+        $raw = $this->GetBuffer(self::BUFFER_TOPIC_STATS_COUNTS);
+        if ($raw === '') {
+            return [];
+        }
+        try {
+            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+        return is_array($decoded) ? $decoded : [];
     }
 
     // Schluessel = Topic ohne letztes Segment (Attribut-/State-Suffix) => eine Entitaet, alle ihre
@@ -325,10 +370,12 @@ class HomeAssistantSplitter extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function DumpTopicStatistics(): void
     {
-        $elapsed = max(1, time() - $this->topicStatsWindowStartedAt);
-        $counts = $this->topicStatsCounts;
-        $this->topicStatsCounts = [];
-        $this->topicStatsWindowStartedAt = time();
+        $now = time();
+        $startedAt = (int)$this->GetBuffer(self::BUFFER_TOPIC_STATS_START);
+        $elapsed = $startedAt > 0 ? max(1, $now - $startedAt) : 0;
+        $counts = $this->loadTopicStatsCounts();
+        $this->SetBuffer(self::BUFFER_TOPIC_STATS_COUNTS, '');
+        $this->SetBuffer(self::BUFFER_TOPIC_STATS_START, (string)$now);
 
         $total = array_sum($counts);
         if ($total === 0) {
@@ -379,6 +426,42 @@ class HomeAssistantSplitter extends IPSModuleStrict
             }
             $this->SendDebug('TopicStats', sprintf('  %-50s %6d (%s/min)', $deviceKey, $sum, $perMin($sum)), 0);
         }
+    }
+
+    // Schreibt das LastMQTTMessage-Attribut hoechstens alle LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, damit die
+    // Diagnose nicht pro eingehender Message persistiert (siehe BUFFER_LAST_MQTT_TOUCH). Die Anzeige wird nur
+    // bei tatsaechlicher Aenderung angestossen und ueber scheduleDiagnosticsRefresh() gedebounced refresht.
+    private function touchLastMqttMessage(): void
+    {
+        $now = time();
+        $last = (int)$this->GetBuffer(self::BUFFER_LAST_MQTT_TOUCH);
+        if ($last > 0 && ($now - $last) < self::LAST_MQTT_LABEL_THROTTLE_SEC) {
+            return;
+        }
+        $this->SetBuffer(self::BUFFER_LAST_MQTT_TOUCH, (string)$now);
+        $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s', $now));
+        $this->scheduleDiagnosticsRefresh();
+    }
+
+    // Buendelt hochfrequente Diagnose-Aktualisierungen: nur Dirty-Flag setzen und den Timer bewaffnen.
+    // Einheitlich mit dem Discovery-Splitter (RefreshDiagnostics konsumiert das Flag).
+    private function scheduleDiagnosticsRefresh(): void
+    {
+        $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, true);
+        if ($this->GetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH) <= 0) {
+            $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, self::DIAGNOSTICS_REFRESH_INTERVAL_MS);
+        }
+    }
+
+    /** @noinspection PhpUnused */
+    public function RefreshDiagnostics(): void
+    {
+        $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
+        if (!$this->ReadAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY)) {
+            return;
+        }
+        $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
+        $this->updateDiagnosticsLabels();
     }
 
     private function updateLastMqttMessageLabel(): void
