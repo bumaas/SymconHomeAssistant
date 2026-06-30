@@ -28,7 +28,7 @@ Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet e
 
 - Bestehende Home-Assistant-Installation.
 - Home Assistant MQTT Integration aktiv.
-- MQTT Client oder MQTT Server Instanz als Parent.
+- MQTT Client oder MQTT Server Instanz als Parent. **Empfohlen: MQTT Client** — er erhält beim Verbinden den retained-Replay (sofortiger vollständiger Initial-State). MQTT Server funktioniert ebenfalls.
 - Bei MQTT Client: `ClientID` setzen und Subscription konfigurieren (z.B. `#` oder `homeassistant/#`).
 - Ports: MQTT i.d.R. `1883` (oder `8883` bei TLS), Home Assistant REST typischerweise `8123`.
 
