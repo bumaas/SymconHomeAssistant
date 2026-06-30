@@ -1,5 +1,8 @@
 # Changelog
 
+## Build 113 - 2026-06-30
+- Splitter: Die interne Experten-Property `UseRestForSetTopics` (im Formular ausgeblendet, Default `true`) wurde entfernt. `*/set`-Topics werden im klassischen Bridge-Pfad nun immer über die HA-REST-API ausgeführt – der MQTT-`false`-Pfad war funktionslos, da `mqtt_statestream` rein ausgehend ist und der Broker keine Command-Topics konsumiert. Der bestehende Fallback auf MQTT-Weiterleitung (fehlende REST-Konfiguration oder nicht unterstützte Domain) bleibt erhalten.
+
 ## Build 111 - 2026-06-24
 - Device/Entity: Kürzere Variablen-Idents für **neu** angelegte Entitäten. Der geräteweite HA-Slug (Area + interne Geräte-ID, z. B. `milchstrasse_melcloudhome_650e_5ec4`) wird aus den `entity_id`s selbst abgeleitet (längster gemeinsamer Präfix je Gerät) und abgeschnitten, sodass Idents wie `sensor_room_temperature` statt `sensor_milchstrasse_melcloudhome_650e_5ec4_room_temperature` entstehen. Anders als die bisherige Heuristik (Abgleich gegen den veränderlichen `device_name`) ist das robust gegen Geräte-Umbenennungen in HA.
 - Bestand wird nicht migriert: Existiert bereits eine Variable unter dem langen Legacy-Ident, bleibt dieser erhalten. Nur Entitäten ohne vorhandene Variable erhalten die Kurzform.

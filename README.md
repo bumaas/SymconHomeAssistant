@@ -210,9 +210,9 @@ Zusätzlich werden einfache Zigbee2MQTT-`device_automation`-Trigger unterstützt
 Home Assistant
   |  Geräteinformationen + aktuelle Werte
   v
-MQTT Broker
+MQTT Broker (z.B. Mosquitto)
   v
-IP-Symcon MQTT Client/Server
+IP-Symcon MQTT Client
   v
 Home Assistant Splitter
   |  verteilt Daten an die Symcon-Module
@@ -226,7 +226,7 @@ Home Assistant Configurator / Device / Entity
 Gerät oder Dienst mit MQTT Discovery
   |  Discovery-Meldungen + aktuelle Werte
   v
-MQTT Broker
+MQTT Broker (z.B. Mosquitto)
   v
 IP-Symcon MQTT Client
   v
@@ -243,12 +243,10 @@ Home Assistant MQTT Discovery Configurator / Device
 ### 7.1 Klassische Bridge
 
 - Wenn im `Home Assistant Splitter` `Kein aktiver MQTT Parent gefunden` steht: Verbindung zum MQTT-Client oder MQTT-Server prüfen.
-- Wenn keine Werte ankommen: `mqtt_statestream` in Home Assistant prüfen und sicherstellen, dass `base_topic` zu `MQTTBaseTopic` passt.
-- Wenn der Zugriff auf Home Assistant fehlschlägt: `HAUrl`, `HAToken` und die Erreichbarkeit von Home Assistant prüfen.
-- **Wenn der angezeigte Status nicht mit Home Assistant übereinstimmt:** Zustände kommen ausschließlich über den `mqtt_statestream`, nicht über REST. Stimmt die Anzeige nicht, fehlen die aktuellen Statusdaten.
+- **Wenn der angezeigte Status nicht mit Home Assistant übereinstimmt:** Zustände kommen ausschließlich über den `mqtt_statestream`, nicht über REST. Stimmt die Anzeige nicht, fehlen die aktuellen Statusdaten. `mqtt_statestream` in Home Assistant prüfen und sicherstellen, dass `base_topic` zu `MQTTBaseTopic` passt.
   - **MQTT Client als Parent** verwenden (nicht nur MQTT Server): Nur der Client erhält beim Verbinden den retained-Replay und damit sofort den echten Initialzustand. Subscription z. B. `homeassistant/#` (testweise `#`).
   - Im MQTT Explorer gegenprüfen, ob unter `<MQTTBaseTopic>/switch/<entity>/state` tatsächlich `on`/`off` liegt. Kommt nichts an, bleibt der zuletzt gesetzte bzw. der Default-Wert stehen.
-- **Wenn sich Entitäten nicht schalten lassen:** Das Schalten läuft über REST (z. B. `switch.turn_on`/`turn_off`), nicht über MQTT. Voraussetzungen: gültige `HAUrl`, gültiges `HAToken` und ggf. `UseRestForSetTopics` aktiv.
+- **Wenn sich Entitäten nicht schalten lassen:** Das Schalten läuft über REST (z. B. `switch.turn_on`/`turn_off`), nicht über MQTT. Voraussetzungen: gültige `HAUrl` und gültiges `HAToken` im Splitter.
 - **Diagnosefelder nutzen:** Die Splitter-Konfiguration zeigt `REST-Fehler`, `REST-Antwort`, `REST-Timeout` und den Parent-Status. Dort steht, ob ein REST-Call durchgeht oder z. B. an Token, URL oder Erreichbarkeit scheitert.
 
 ### 7.2 MQTT Discovery

@@ -51,7 +51,6 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterPropertyString('MQTTBaseTopic', 'homeassistant');
         $this->RegisterPropertyString('HAUrl', 'http://homeassistant.local:8123');
         $this->RegisterPropertyString('HAToken', '');
-        $this->RegisterPropertyBoolean('UseRestForSetTopics', true);
         $this->RegisterPropertyInteger('RestAckTimeoutSec', 5);
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyBoolean('EnablePerformanceLog', false);
@@ -147,7 +146,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return;
         }
 
-        if ($this->ReadPropertyBoolean('UseRestForSetTopics') && !$this->isRestApiReachable()) {
+        if (!$this->isRestApiReachable()) {
             $this->SetStatus(203);
             $this->debugExpert('Config', 'REST API nicht erreichbar.', [
                 'Reason' => $this->ReadAttributeString('LastRestError')
@@ -187,8 +186,12 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return $this->SendDataToParent($JSONString);
         }
 
+        // `*/set`-Topics werden im klassischen Bridge-Pfad immer über die HA-REST-API
+        // ausgeführt, da `mqtt_statestream` rein ausgehend ist und der Broker keine
+        // Command-Topics konsumiert. sendRestCommand() fällt bei fehlender REST-Konfiguration
+        // oder nicht unterstützter Domain selbst auf die MQTT-Weiterleitung zurück.
         $packetType = (int)($data['PacketType'] ?? 0);
-        if ($packetType === 3 && $this->ReadPropertyBoolean('UseRestForSetTopics')) {
+        if ($packetType === 3) {
             $topic = (string)($data['Topic'] ?? '');
             if ($this->isSetTopic($topic, $domain, $entity)) {
                 $payload = $this->decodePayload((string)($data['Payload'] ?? ''));

@@ -22,7 +22,7 @@ Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet e
 
 - Verteilt MQTT-Daten an Device- und Entity-Instanzen.
 - Leitet REST-Requests vom Configurator an die bestehende Home-Assistant-Installation weiter.
-- Optional REST-Steuerung für `*/set` Topics.
+- Führt `*/set` Topics automatisch über die Home-Assistant-REST-API aus (Fallback auf MQTT-Weiterleitung, falls REST nicht konfiguriert oder die Domain nicht unterstützt ist).
 - REST-Steuerung für `light`, `switch`, `input_boolean`, `lock`, `cover`, `number`, `input_number`, `select`, `input_select`, `input_text`, `datetime`, `input_datetime`, `climate`, `fan`, `humidifier`, `media_player`, `button`, `input_button`, `vacuum`, `lawn_mower`.
 - Optionaler generischer REST-Service-Call für beliebige Home Assistant Services.
 
@@ -71,7 +71,6 @@ HA_CallService($splitterId, 'script', 'turn_on', [
 - `MQTTBaseTopic`: Basis-Topic für den MQTT-Statestream.
 - `HAUrl`: Base URL `http(s)://<host>:<port>` (z.B. `http://homeassistant.local:8123`).
 - `HAToken`: Long-Lived Access Token (Home Assistant Profil).
-- `UseRestForSetTopics`: Leitet `*/set` Topics an REST weiter.
 - `RestAckTimeoutSec`: Timeout in Sekunden für REST-ACKs.
 - Optional: `EnableExpertDebug`, `DebugResponseFormat`.
 

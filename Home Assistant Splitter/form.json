@@ -35,12 +35,6 @@
       "caption": "Expert",
       "items": [
         {
-          "type": "CheckBox",
-          "name": "UseRestForSetTopics",
-          "caption": "Use REST for */set topics",
-          "visible": false
-        },
-        {
           "type": "NumberSpinner",
           "name": "RestAckTimeoutSec",
           "caption": "REST ack timeout (s)",
