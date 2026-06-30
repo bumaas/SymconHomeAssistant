@@ -5,8 +5,6 @@ Stellt genau eine Entität aus einer bestehenden Home-Assistant-Installation in 
 
 ## Dokumentation
 
-Interne Wartungsdoku: [Architektur](../docs/ARCHITEKTUR.md)
-
 **Inhaltsverzeichnis**
 
 1. [Funktionsumfang](#1-funktionsumfang)
