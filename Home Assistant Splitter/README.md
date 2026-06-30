@@ -75,7 +75,9 @@ HA_CallService($splitterId, 'script', 'turn_on', [
 
 ## 6. Statusvariablen und Profile
 
-- Diagnosefelder in der Konfiguration (z.B. REST-Fehler, REST-Antwort, REST-Timeout, Parent-Status).
+- Diagnosefelder in der Konfiguration (z.B. REST-Fehler, REST-Antwort, REST-Timeout, Parent-Status). Sie sind der erste Anlaufpunkt bei der Fehlersuche.
+
+> **Fehlersuche:** Eine Übersicht typischer Fehlersituationen (kein MQTT Parent, falscher Status, Schalten nicht möglich) steht im Haupt-README unter [„7. Fehlersuche"](../README.md#7-fehlersuche).
 
 ## 7. Anhang
 

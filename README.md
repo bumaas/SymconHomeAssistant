@@ -238,11 +238,18 @@ Home Assistant MQTT Discovery Configurator / Device
 
 ## 7. Fehlersuche
 
+> **Diagnosewerkzeug MQTT Explorer:** Für die Analyse des MQTT-Verkehrs empfiehlt sich der kostenlose [MQTT Explorer](https://mqtt-explorer.com/). Er verbindet sich mit demselben Broker wie Symcon und zeigt live alle Topics samt Werten als Baum an. Damit lässt sich prüfen, ob Topics wie `<MQTTBaseTopic>/switch/<entity>/state` (klassische Bridge) bzw. `homeassistant/.../config` (MQTT Discovery) überhaupt ankommen und welche Werte sie tragen.
+
 ### 7.1 Klassische Bridge
 
 - Wenn im `Home Assistant Splitter` `Kein aktiver MQTT Parent gefunden` steht: Verbindung zum MQTT-Client oder MQTT-Server prüfen.
 - Wenn keine Werte ankommen: `mqtt_statestream` in Home Assistant prüfen und sicherstellen, dass `base_topic` zu `MQTTBaseTopic` passt.
 - Wenn der Zugriff auf Home Assistant fehlschlägt: `HAUrl`, `HAToken` und die Erreichbarkeit von Home Assistant prüfen.
+- **Wenn der angezeigte Status nicht mit Home Assistant übereinstimmt:** Zustände kommen ausschließlich über den `mqtt_statestream`, nicht über REST. Stimmt die Anzeige nicht, fehlen die aktuellen Statusdaten.
+  - **MQTT Client als Parent** verwenden (nicht nur MQTT Server): Nur der Client erhält beim Verbinden den retained-Replay und damit sofort den echten Initialzustand. Subscription z. B. `homeassistant/#` (testweise `#`).
+  - Im MQTT Explorer gegenprüfen, ob unter `<MQTTBaseTopic>/switch/<entity>/state` tatsächlich `on`/`off` liegt. Kommt nichts an, bleibt der zuletzt gesetzte bzw. der Default-Wert stehen.
+- **Wenn sich Entitäten nicht schalten lassen:** Das Schalten läuft über REST (z. B. `switch.turn_on`/`turn_off`), nicht über MQTT. Voraussetzungen: gültige `HAUrl`, gültiges `HAToken` und ggf. `UseRestForSetTopics` aktiv.
+- **Diagnosefelder nutzen:** Die Splitter-Konfiguration zeigt `REST-Fehler`, `REST-Antwort`, `REST-Timeout` und den Parent-Status. Dort steht, ob ein REST-Call durchgeht oder z. B. an Token, URL oder Erreichbarkeit scheitert.
 
 ### 7.2 MQTT Discovery
 
