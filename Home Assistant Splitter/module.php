@@ -1198,7 +1198,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
                 return true;
             }
             // Wildcards abschneiden und gegen das Base-Topic vergleichen.
-            $subBase = trim(preg_replace('#/?[#+].*$#', '', $sub), '/');
+            $subBase = trim((string) preg_replace('~/?[#+].*$~', '', $sub), '/');
             if ($subBase === '' || $subBase === $base
                 || str_starts_with($base . '/', $subBase . '/')
                 || str_starts_with($subBase . '/', $base . '/')) {
