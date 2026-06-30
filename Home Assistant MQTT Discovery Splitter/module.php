@@ -46,6 +46,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const string BUFFER_LAST_MQTT_TOUCH    = 'LastMqttTouchEpoch';
     private const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
 
+    // Selbsttest: ab welchem Alter (Sekunden) der letzte MQTT-Empfang als "veraltet" gilt.
+    private const int SELFTEST_MQTT_RECENCY_SEC = 300;
+
     public function Create(): void
     {
         parent::Create();
@@ -463,17 +466,39 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             }
         }
 
-        // 7. MQTT-Aktivitaet
+        // 7. Broker-Socket-Status (CONNACK/Auth darueber nicht sichtbar) + MQTT-Aktivitaet
         if (!$bundleMode) {
+            if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+                $ioStatus = $this->parentIoInstanceStatus();
+                if ($ioStatus === IS_ACTIVE) {
+                    $add('ok', $this->Translate('Broker socket connected'));
+                } elseif ($ioStatus !== null) {
+                    $add(
+                        'error',
+                        sprintf($this->Translate('Broker socket not connected (status %d)'), $ioStatus),
+                        $this->Translate('Check host/port/network and the MQTT credentials of the MQTT Client.')
+                    );
+                }
+            }
+
             $last = $this->ReadAttributeString('LastMQTTMessage');
-            if ($last !== '') {
-                $add('ok', sprintf($this->Translate('MQTT data received (last: %s)'), $last));
-            } else {
+            if ($last === '') {
                 $add(
                     'warn',
                     $this->Translate('No MQTT data received yet'),
                     $this->Translate('Check the parent connection and the subscription.')
                 );
+            } else {
+                $age = time() - (int)strtotime($last);
+                if ($age >= 0 && $age <= self::SELFTEST_MQTT_RECENCY_SEC) {
+                    $add('ok', sprintf($this->Translate('MQTT data received (%ds ago)'), $age));
+                } else {
+                    $add(
+                        'warn',
+                        sprintf($this->Translate('Last MQTT data at %s (%s ago) – connection may be broken'), $last, $this->formatAge($age)),
+                        $this->Translate('A stale value right after Apply usually means a broken connection (wrong MQTT user/password or subscription).')
+                    );
+                }
             }
         }
 
@@ -488,6 +513,41 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $title = $this->Translate('Self-test: Home Assistant MQTT Discovery Splitter');
         return $title . "\n\n" . implode("\n", $lines);
+    }
+
+    /**
+     * Liefert den InstanceStatus des IO unter dem MQTT-Client-Parent (Splitter -> MQTT Client -> IO),
+     * oder null, wenn die Kette nicht aufloesbar ist. CONNACK-/Auth-Fehler sind hierueber NICHT
+     * sichtbar (nur die Socket-Ebene) – ergaenzend dient die Aktualitaet der MQTT-Daten.
+     */
+    private function parentIoInstanceStatus(): ?int
+    {
+        $mqttClientId = $this->getCurrentParentId();
+        if ($mqttClientId <= 0 || !IPS_InstanceExists($mqttClientId)) {
+            return null;
+        }
+        $ioId = (int)(IPS_GetInstance($mqttClientId)['ConnectionID'] ?? 0);
+        if ($ioId <= 0 || !IPS_InstanceExists($ioId)) {
+            return null;
+        }
+        return (int)(IPS_GetInstance($ioId)['InstanceStatus'] ?? 0);
+    }
+
+    private function formatAge(int $seconds): string
+    {
+        if ($seconds < 0) {
+            return (string)$seconds . 's';
+        }
+        if ($seconds < 60) {
+            return $seconds . 's';
+        }
+        if ($seconds < 3600) {
+            return intdiv($seconds, 60) . 'm';
+        }
+        if ($seconds < 86400) {
+            return intdiv($seconds, 3600) . 'h';
+        }
+        return intdiv($seconds, 86400) . 'd';
     }
 
     /**

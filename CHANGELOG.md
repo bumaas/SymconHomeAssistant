@@ -4,6 +4,7 @@
 - Splitter & MQTT Discovery Splitter: Neuer Anwender-**Selbsttest** als Knopf „Selbsttest ausführen" in der Konfiguration. Er fasst die vorhandenen Diagnosesignale read-only zu einer verständlichen Checkliste zusammen (✓/⚠/✗ je Prüfpunkt plus konkreter Lösungstipp) und zeigt sie als Popup.
   - Klassische Bridge: MQTT-Parent aktiv/kompatibel, Parent-Typ (MQTT Client empfohlen), REST-API erreichbar & Token gültig, `MQTTBaseTopic` gesetzt, ankommende MQTT-Daten, Subscription deckt das Base-Topic ab (best effort).
   - MQTT Discovery: Parent ist aktiver MQTT Client, Discovery-Prefix gesetzt, Subscription deckt `<prefix>/#` ab (best effort), Discovery-Cache befüllt/veraltet, fehlende Runtime-Topics, MQTT-Aktivität, Quelle (MQTT/Bundle).
+  - Verbindungsprüfung: Der Selbsttest wertet die **Aktualität** der letzten MQTT-Daten aus (alter Zeitstempel → Warnung statt „OK", da z. B. ein falscher MQTT-Benutzer keinen Statusfehler erzeugt) und prüft zusätzlich den InstanceStatus des Broker-Sockets (IO unter dem MQTT Client).
 - README §7: Selbsttest als erster Schritt der Fehlersuche dokumentiert.
 
 ## Build 113 - 2026-06-30
