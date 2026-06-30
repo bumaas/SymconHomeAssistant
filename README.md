@@ -238,6 +238,8 @@ Home Assistant MQTT Discovery Configurator / Device
 
 ## 7. Fehlersuche
 
+> **Selbsttest im Modul:** Sowohl der `Home Assistant Splitter` (klassische Bridge) als auch der `Home Assistant MQTT Discovery Splitter` bieten in der Konfiguration den Knopf **„Selbsttest ausführen"**. Er prüft die häufigsten Fehlerquellen (Parent aktiv/Typ, REST/Token, `MQTTBaseTopic` bzw. Discovery-Prefix, ankommende MQTT-Daten, Subscription, Discovery-Cache) und zeigt das Ergebnis als Checkliste mit konkreten Tipps. Das ist der schnellste erste Schritt bei Problemen.
+
 > **Diagnosewerkzeug MQTT Explorer:** Für die Analyse des MQTT-Verkehrs empfiehlt sich der kostenlose [MQTT Explorer](https://mqtt-explorer.com/). Er verbindet sich mit demselben Broker wie Symcon und zeigt live alle Topics samt Werten als Baum an. Damit lässt sich prüfen, ob Topics wie `<MQTTBaseTopic>/switch/<entity>/state` (klassische Bridge) bzw. `homeassistant/.../config` (MQTT Discovery) überhaupt ankommen und welche Werte sie tragen.
 
 ### 7.1 Klassische Bridge

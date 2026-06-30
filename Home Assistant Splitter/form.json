@@ -97,6 +97,11 @@
   ],
   "actions": [
     {
+      "type": "Button",
+      "caption": "Run self-test",
+      "onClick": "echo HA_RunSelfTest($id);"
+    },
+    {
       "type": "ExpansionPanel",
       "caption": "Diagnostics",
       "expanded": false,

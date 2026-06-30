@@ -1033,6 +1033,215 @@ class HomeAssistantSplitter extends IPSModuleStrict
         };
     }
 
+    /**
+     * Anwender-Selbsttest: fasst die vorhandenen Diagnosesignale zu einer Checkliste zusammen.
+     * Wird vom Button im Formular per `echo HA_RunSelfTest($id);` aufgerufen; die Rueckgabe
+     * erscheint als Popup. Rein lesend (plus der ohnehin existierende REST-Probe).
+     *
+     * @noinspection PhpUnused
+     */
+    public function RunSelfTest(): string
+    {
+        $lines = [];
+        $errors = 0;
+        $warnings = 0;
+        $add = static function (string $level, string $label, string $hint = '') use (&$lines, &$errors, &$warnings): void {
+            $symbol = match ($level) {
+                'ok' => '✓',
+                'warn' => '⚠',
+                'error' => '✗',
+                default => '•'
+            };
+            if ($level === 'error') {
+                $errors++;
+            } elseif ($level === 'warn') {
+                $warnings++;
+            }
+            $lines[] = $symbol . ' ' . $label;
+            if ($hint !== '') {
+                $lines[] = '   → ' . $hint;
+            }
+        };
+
+        // 1. MQTT-Parent aktiv & kompatibel
+        $parentState = $this->determineParentRuntimeState([HAIds::MODULE_MQTT_CLIENT, HAIds::MODULE_MQTT_SERVER]);
+        $parentCtx = $this->buildCurrentParentDebugContext();
+        if ($parentState === 'active') {
+            $add('ok', sprintf($this->Translate('MQTT parent: active (#%d, %s)'), (int)$parentCtx['ParentID'], (string)$parentCtx['ModuleName']));
+        } else {
+            $add(
+                'error',
+                $this->Translate('MQTT parent: not connected, inactive or incompatible'),
+                $this->Translate('Connect an active MQTT Client or MQTT Server as parent (status 201/202).')
+            );
+        }
+
+        // 2. Parent-Typ
+        if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+            $add('ok', $this->Translate('Parent type: MQTT Client (recommended)'));
+        } elseif ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_SERVER)) {
+            $add(
+                'warn',
+                $this->Translate('Parent type: MQTT Server'),
+                $this->Translate('An MQTT Client receives the retained replay on connect (immediate full initial state). MQTT Server works too but without that replay.')
+            );
+        }
+
+        // 3. REST erreichbar & Token gueltig (nutzt den vorhandenen aktiven Probe)
+        if ($this->isRestApiReachable()) {
+            $add('ok', $this->Translate('REST API reachable and token valid'));
+        } else {
+            $add(
+                'error',
+                sprintf($this->Translate('REST API not reachable: %s'), $this->ReadAttributeString('LastRestError')),
+                $this->Translate('HTTP 401: check the token. cURL/connection error: check HA URL/port/network. Both HAUrl and HAToken must be set.')
+            );
+        }
+
+        // 4. MQTTBaseTopic gesetzt
+        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
+        if ($baseTopic !== '') {
+            $add('ok', sprintf($this->Translate('MQTT base topic: %s'), $baseTopic));
+        } else {
+            $add(
+                'error',
+                $this->Translate('MQTT base topic is empty'),
+                $this->Translate('Set MQTTBaseTopic to match mqtt_statestream.base_topic in Home Assistant.')
+            );
+        }
+
+        // 5. Kommen MQTT-Daten an?
+        $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
+        if ($lastMqtt !== '') {
+            $add('ok', sprintf($this->Translate('MQTT data received (last: %s)'), $lastMqtt));
+        } else {
+            $add(
+                'warn',
+                $this->Translate('No MQTT data received yet'),
+                $this->Translate('Check that mqtt_statestream is enabled, the subscription covers the base topic, and base_topic matches MQTTBaseTopic.')
+            );
+        }
+
+        // 6. Subscription deckt MQTTBaseTopic ab (best effort)
+        if ($baseTopic !== '') {
+            if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_SERVER) && !$this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+                $add('ok', $this->Translate('Parent is MQTT Server – subscriptions are handled by the broker, not a client'));
+            } else {
+                $covered = $this->parentSubscriptionCoversBaseTopic($baseTopic);
+                if ($covered === true) {
+                    $add('ok', $this->Translate('Parent subscription covers the base topic'));
+                } elseif ($covered === false) {
+                    $add(
+                        'warn',
+                        sprintf($this->Translate('Parent subscription does not seem to cover "%s"'), $baseTopic),
+                        sprintf($this->Translate('Set the MQTT Client subscription to e.g. %s/# (or # for testing).'), $baseTopic)
+                    );
+                } else {
+                    $add('•', $this->Translate('Subscription could not be checked (parent config not readable)'));
+                }
+            }
+        }
+
+        // Fazit
+        $lines[] = '';
+        if ($errors === 0 && $warnings === 0) {
+            $lines[] = $this->Translate('Summary: everything looks good.');
+        } else {
+            $lines[] = sprintf($this->Translate('Summary: %d error(s), %d warning(s).'), $errors, $warnings);
+        }
+        $lines[] = $this->Translate('More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).');
+
+        $title = $this->Translate('Self-test: Home Assistant Splitter (classic bridge)');
+        return $title . "\n\n" . implode("\n", $lines);
+    }
+
+    /**
+     * Best effort: prueft, ob eine Subscription des MQTT-Client-Parents das Base-Topic abdeckt.
+     * Liefert true/false bei klarer Aussage, null wenn die Parent-Konfiguration nicht lesbar ist.
+     */
+    private function parentSubscriptionCoversBaseTopic(string $baseTopic): ?bool
+    {
+        $parentId = $this->getCurrentParentId();
+        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+            return null;
+        }
+
+        try {
+            $configJson = IPS_GetConfiguration($parentId);
+            $config = json_decode($configJson, true, 512, JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
+            return null;
+        }
+        if (!is_array($config)) {
+            return null;
+        }
+
+        // Subscription-Topics aus allen Feldern sammeln, deren Schluessel "subscri" enthaelt.
+        $subscriptions = [];
+        foreach ($config as $key => $value) {
+            if (stripos((string)$key, 'subscri') === false) {
+                continue;
+            }
+            foreach ($this->flattenSubscriptionTopics($value) as $topic) {
+                $subscriptions[] = $topic;
+            }
+        }
+
+        if ($subscriptions === []) {
+            return null;
+        }
+
+        $base = trim($baseTopic, '/');
+        foreach ($subscriptions as $sub) {
+            $sub = trim((string)$sub, '/');
+            if ($sub === '#' || $sub === '') {
+                return true;
+            }
+            // Wildcards abschneiden und gegen das Base-Topic vergleichen.
+            $subBase = trim(preg_replace('#/?[#+].*$#', '', $sub), '/');
+            if ($subBase === '' || $subBase === $base
+                || str_starts_with($base . '/', $subBase . '/')
+                || str_starts_with($subBase . '/', $base . '/')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function flattenSubscriptionTopics(mixed $value): array
+    {
+        $topics = [];
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return [];
+            }
+            // Listen-Properties liefern oft JSON; sonst der String selbst als Topic.
+            if (str_starts_with($trimmed, '[') || str_starts_with($trimmed, '{')) {
+                try {
+                    $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
+                    return $this->flattenSubscriptionTopics($decoded);
+                } catch (Throwable) {
+                    return [$trimmed];
+                }
+            }
+            return [$trimmed];
+        }
+        if (is_array($value)) {
+            foreach ($value as $key => $item) {
+                if (is_string($item) && stripos((string)$key, 'topic') !== false) {
+                    $topics[] = $item;
+                } elseif (is_array($item)) {
+                    foreach ($this->flattenSubscriptionTopics($item) as $topic) {
+                        $topics[] = $topic;
+                    }
+                }
+            }
+        }
+        return $topics;
+    }
+
     /** @noinspection PhpUnused */
     public function CheckRestAcks(): void
     {

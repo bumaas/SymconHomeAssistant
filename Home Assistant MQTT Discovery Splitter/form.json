@@ -88,6 +88,11 @@
   ],
   "actions": [
     {
+      "type": "Button",
+      "caption": "Run self-test",
+      "onClick": "echo HAMD_RunSelfTest($id);"
+    },
+    {
       "type": "ExpansionPanel",
       "caption": "Diagnostics",
       "expanded": false,

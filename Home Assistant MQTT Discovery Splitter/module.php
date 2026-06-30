@@ -341,6 +341,234 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         ], true);
     }
 
+    /**
+     * Anwender-Selbsttest fuer den MQTT-Discovery-Pfad: fasst die vorhandenen Diagnosesignale
+     * zu einer Checkliste zusammen. Aufruf per `echo HAMD_RunSelfTest($id);`; rein lesend.
+     *
+     * @noinspection PhpUnused
+     */
+    public function RunSelfTest(): string
+    {
+        $lines = [];
+        $errors = 0;
+        $warnings = 0;
+        $add = static function (string $level, string $label, string $hint = '') use (&$lines, &$errors, &$warnings): void {
+            $symbol = match ($level) {
+                'ok' => '✓',
+                'warn' => '⚠',
+                'error' => '✗',
+                default => '•'
+            };
+            if ($level === 'error') {
+                $errors++;
+            } elseif ($level === 'warn') {
+                $warnings++;
+            }
+            $lines[] = $symbol . ' ' . $label;
+            if ($hint !== '') {
+                $lines[] = '   → ' . $hint;
+            }
+        };
+
+        $bundleMode = $this->isBundleMode();
+
+        // 0. Quelle
+        if ($bundleMode) {
+            $add('•', $this->Translate('Source: Bundle (offline analysis, no live MQTT)'));
+        } else {
+            $add('•', $this->Translate('Source: MQTT (live)'));
+        }
+
+        if (!$bundleMode) {
+            // 1. Parent ist MQTT Client & aktiv
+            if ($this->hasCompatibleActiveParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+                $add('ok', $this->Translate('Parent: MQTT Client active'));
+            } elseif ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+                $add(
+                    'error',
+                    $this->Translate('Parent: MQTT Client present but inactive'),
+                    $this->Translate('Activate/connect the MQTT Client (status 201).')
+                );
+            } else {
+                $add(
+                    'error',
+                    $this->Translate('Parent: no MQTT Client connected'),
+                    $this->Translate('Discovery requires an MQTT Client as parent (an MQTT Server alone is not enough). The client may point at the local MQTT Server, e.g. 127.0.0.1:1028.')
+                );
+            }
+        }
+
+        // 2. Discovery-Prefix gesetzt
+        $prefix = $this->getDiscoveryPrefix();
+        if ($prefix !== '') {
+            $add('ok', sprintf($this->Translate('Discovery prefix: %s'), $prefix));
+        } else {
+            $add(
+                'error',
+                $this->Translate('Discovery prefix is empty'),
+                $this->Translate('Set MQTTDiscoveryPrefix to the literal discovery prefix, typically homeassistant (status 202).')
+            );
+        }
+
+        // 3. Subscription deckt <prefix>/# ab (best effort, nur MQTT-Modus)
+        if (!$bundleMode && $prefix !== '') {
+            $covered = $this->parentSubscriptionCoversPrefix($prefix);
+            if ($covered === true) {
+                $add('ok', $this->Translate('Parent subscription covers the discovery prefix'));
+            } elseif ($covered === false) {
+                $add(
+                    'warn',
+                    sprintf($this->Translate('Parent subscription does not seem to cover "%s/#"'), $prefix),
+                    sprintf($this->Translate('Set the MQTT Client subscription to at least %s/# (or # for testing).'), $prefix)
+                );
+            } else {
+                $add('•', $this->Translate('Subscription could not be checked (parent config not readable)'));
+            }
+        }
+
+        // 4. Discovery-Cache befuellt + 5. veraltete Configs
+        $discoveryAnalysis = $this->analyzeDiscoveryConfigRecords();
+        $total = (int)($discoveryAnalysis['total_count'] ?? 0);
+        $current = (int)($discoveryAnalysis['current_count'] ?? 0);
+        $stale = (int)($discoveryAnalysis['stale_count'] ?? 0);
+        if ($total > 0) {
+            $add('ok', sprintf($this->Translate('Discovery configs cached: %d (current %d, stale %d)'), $total, $current, $stale));
+        } else {
+            $add(
+                'error',
+                $this->Translate('No discovery configs received'),
+                $this->Translate('Use "Reconnect MQTT IO" to re-receive retained configs and check the subscription. Devices appear only once they publish their discovery config.')
+            );
+        }
+        if ($stale > 0) {
+            $add(
+                'warn',
+                sprintf($this->Translate('%d stale discovery configs from an older session'), $stale),
+                $this->Translate('Use "Remove stale discovery configs" to clean them up.')
+            );
+        }
+
+        // 6. Fehlende Runtime-Topics
+        $topicAnalysis = $this->analyzeReferencedRuntimeTopics();
+        $missing = (int)($topicAnalysis['missing_count'] ?? 0);
+        if ($total > 0) {
+            if ($missing > 0) {
+                $add(
+                    'warn',
+                    sprintf($this->Translate('%d referenced runtime topics have no payload yet'), $missing),
+                    $this->Translate('Also subscribe to the device/service topics so values arrive, e.g. zigbee2mqtt/# for Zigbee2MQTT.')
+                );
+            } else {
+                $add('ok', $this->Translate('All referenced runtime topics have payloads'));
+            }
+        }
+
+        // 7. MQTT-Aktivitaet
+        if (!$bundleMode) {
+            $last = $this->ReadAttributeString('LastMQTTMessage');
+            if ($last !== '') {
+                $add('ok', sprintf($this->Translate('MQTT data received (last: %s)'), $last));
+            } else {
+                $add(
+                    'warn',
+                    $this->Translate('No MQTT data received yet'),
+                    $this->Translate('Check the parent connection and the subscription.')
+                );
+            }
+        }
+
+        // Fazit
+        $lines[] = '';
+        if ($errors === 0 && $warnings === 0) {
+            $lines[] = $this->Translate('Summary: everything looks good.');
+        } else {
+            $lines[] = sprintf($this->Translate('Summary: %d error(s), %d warning(s).'), $errors, $warnings);
+        }
+        $lines[] = $this->Translate('More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).');
+
+        $title = $this->Translate('Self-test: Home Assistant MQTT Discovery Splitter');
+        return $title . "\n\n" . implode("\n", $lines);
+    }
+
+    /**
+     * Best effort: prueft, ob eine Subscription des MQTT-Client-Parents den Discovery-Prefix abdeckt.
+     * Liefert true/false bei klarer Aussage, null wenn die Parent-Konfiguration nicht lesbar ist.
+     */
+    private function parentSubscriptionCoversPrefix(string $prefix): ?bool
+    {
+        $parentId = $this->getCurrentParentId();
+        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+            return null;
+        }
+
+        $config = $this->readInstanceConfiguration($parentId);
+        if (!is_array($config) || $config === []) {
+            return null;
+        }
+
+        $subscriptions = [];
+        foreach ($config as $key => $value) {
+            if (stripos((string)$key, 'subscri') === false) {
+                continue;
+            }
+            foreach ($this->flattenSubscriptionTopics($value) as $topic) {
+                $subscriptions[] = $topic;
+            }
+        }
+
+        if ($subscriptions === []) {
+            return null;
+        }
+
+        $base = trim($prefix, '/');
+        foreach ($subscriptions as $sub) {
+            $sub = trim((string)$sub, '/');
+            if ($sub === '#' || $sub === '') {
+                return true;
+            }
+            $subBase = trim(preg_replace('#/?[#+].*$#', '', $sub), '/');
+            if ($subBase === '' || $subBase === $base
+                || str_starts_with($base . '/', $subBase . '/')
+                || str_starts_with($subBase . '/', $base . '/')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function flattenSubscriptionTopics(mixed $value): array
+    {
+        $topics = [];
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return [];
+            }
+            if (str_starts_with($trimmed, '[') || str_starts_with($trimmed, '{')) {
+                try {
+                    $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
+                    return $this->flattenSubscriptionTopics($decoded);
+                } catch (Throwable) {
+                    return [$trimmed];
+                }
+            }
+            return [$trimmed];
+        }
+        if (is_array($value)) {
+            foreach ($value as $key => $item) {
+                if (is_string($item) && stripos((string)$key, 'topic') !== false) {
+                    $topics[] = $item;
+                } elseif (is_array($item)) {
+                    foreach ($this->flattenSubscriptionTopics($item) as $topic) {
+                        $topics[] = $topic;
+                    }
+                }
+            }
+        }
+        return $topics;
+    }
+
     /** @noinspection PhpUnused */
     public function ReplayBundleTopicsToChildren(): void
     {

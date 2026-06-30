@@ -32,7 +32,31 @@
       "empty": "leer",
       "No active MQTT parent connected.": "Kein aktiver MQTT-Parent verbunden.",
       "MQTT base topic is empty.": "MQTT-Basis-Topic ist leer.",
-      "REST API not reachable.": "REST-API nicht erreichbar."
+      "REST API not reachable.": "REST-API nicht erreichbar.",
+      "Run self-test": "Selbsttest ausführen",
+      "Self-test: Home Assistant Splitter (classic bridge)": "Selbsttest: Home Assistant Splitter (klassische Bridge)",
+      "MQTT parent: active (#%d, %s)": "MQTT-Parent: aktiv (#%d, %s)",
+      "MQTT parent: not connected, inactive or incompatible": "MQTT-Parent: nicht verbunden, inaktiv oder inkompatibel",
+      "Connect an active MQTT Client or MQTT Server as parent (status 201/202).": "Einen aktiven MQTT Client oder MQTT Server als Parent verbinden (Status 201/202).",
+      "Parent type: MQTT Client (recommended)": "Parent-Typ: MQTT Client (empfohlen)",
+      "Parent type: MQTT Server": "Parent-Typ: MQTT Server",
+      "An MQTT Client receives the retained replay on connect (immediate full initial state). MQTT Server works too but without that replay.": "Ein MQTT Client erhält beim Verbinden den retained-Replay (sofort vollständiger Initialzustand). MQTT Server funktioniert auch, aber ohne diesen Replay.",
+      "REST API reachable and token valid": "REST-API erreichbar und Token gültig",
+      "REST API not reachable: %s": "REST-API nicht erreichbar: %s",
+      "HTTP 401: check the token. cURL/connection error: check HA URL/port/network. Both HAUrl and HAToken must be set.": "HTTP 401: Token prüfen. cURL-/Verbindungsfehler: HA-URL/Port/Netzwerk prüfen. HAUrl und HAToken müssen gesetzt sein.",
+      "MQTT base topic is empty": "MQTT-Basis-Topic ist leer",
+      "Set MQTTBaseTopic to match mqtt_statestream.base_topic in Home Assistant.": "MQTTBaseTopic passend zu mqtt_statestream.base_topic in Home Assistant setzen.",
+      "MQTT data received (last: %s)": "MQTT-Daten empfangen (zuletzt: %s)",
+      "No MQTT data received yet": "Noch keine MQTT-Daten empfangen",
+      "Check that mqtt_statestream is enabled, the subscription covers the base topic, and base_topic matches MQTTBaseTopic.": "Prüfen: mqtt_statestream aktiv, Subscription deckt das Base-Topic ab, base_topic passt zu MQTTBaseTopic.",
+      "Parent is MQTT Server – subscriptions are handled by the broker, not a client": "Parent ist MQTT Server – Subscriptions übernimmt der Broker, nicht ein Client",
+      "Parent subscription covers the base topic": "Parent-Subscription deckt das Base-Topic ab",
+      "Parent subscription does not seem to cover \"%s\"": "Parent-Subscription deckt \"%s\" scheinbar nicht ab",
+      "Set the MQTT Client subscription to e.g. %s/# (or # for testing).": "MQTT-Client-Subscription z. B. auf %s/# setzen (oder # zum Testen).",
+      "Subscription could not be checked (parent config not readable)": "Subscription nicht prüfbar (Parent-Konfiguration nicht lesbar)",
+      "Summary: everything looks good.": "Fazit: alles in Ordnung.",
+      "Summary: %d error(s), %d warning(s).": "Fazit: %d Fehler, %d Warnung(en).",
+      "More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).": "Weitere Hilfe: README Abschnitt 7 (Fehlersuche) und MQTT Explorer (https://mqtt-explorer.com/)."
     }
   }
 }
