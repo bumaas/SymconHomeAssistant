@@ -52,10 +52,12 @@ Wenn im Splitter "Kein aktiver MQTT Parent gefunden" steht:
 
 ## 4. Funktionsreferenz
 
-Öffentliche Funktion:
+Öffentliche Funktionen:
 
 - `CallService(string $domain, string $service, array $data): bool`  
   Führt einen beliebigen Home Assistant Service per REST aus.
+- `RunSelfTest(): string`  
+  Führt den Selbsttest aus und gibt das Ergebnis als Text zurück (steht auch als Button im Formular bereit, siehe §6).
 
 Beispiel:
 
@@ -77,6 +79,7 @@ HA_CallService($splitterId, 'script', 'turn_on', [
 ## 6. Statusvariablen und Profile
 
 - Diagnosefelder in der Konfiguration (z.B. REST-Fehler, REST-Antwort, REST-Timeout, Parent-Status). Sie sind der erste Anlaufpunkt bei der Fehlersuche.
+- Button **„Selbsttest ausführen"**: prüft die häufigsten Fehlerquellen (MQTT-Parent aktiv/Typ, REST-API & Token, `MQTTBaseTopic`, Broker-Socket, Aktualität der MQTT-Daten, Subscription deckt das Base-Topic ab) und zeigt das Ergebnis als Checkliste (✓/⚠/✗) mit konkreten Tipps im Popup. Schnellster erster Schritt bei Problemen.
 
 > **Fehlersuche:** Eine Übersicht typischer Fehlersituationen (kein MQTT Parent, falscher Status, Schalten nicht möglich) steht im Haupt-README unter [„7. Fehlersuche"](../README.md#7-fehlersuche).
 

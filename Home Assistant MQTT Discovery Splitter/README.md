@@ -119,6 +119,7 @@ Der Splitter empfängt Discovery-Daten wieder live vom MQTT-Parent.
 
 ## Diagnose
 
+- Button **„Selbsttest ausführen"**: prüft die häufigsten Fehlerquellen (Parent ist aktiver MQTT Client, `MQTTDiscoveryPrefix` gesetzt, Subscription deckt `<prefix>/#` ab, Discovery-Cache befüllt/veraltet, fehlende Runtime-Topics, Broker-Socket, Aktualität der MQTT-Daten, Quelle MQTT/Bundle) und zeigt das Ergebnis als Checkliste (✓/⚠/✗) mit konkreten Tipps im Popup. Schnellster erster Schritt bei Problemen; ergänzend siehe Haupt-README [§7 Fehlersuche](../README.md#7-fehlersuche).
 - Das Formular zeigt getrennt an, wie viele Discovery-Configs in der aktuellen MQTT-Session gesehen wurden und wie viele nur noch als stale Cache vorliegen.
 - Für referenzierte Runtime-Topics werden aktuelle, stale und fehlende Topics getrennt ausgewiesen.
 - Leere Payloads entfernen den jeweiligen Cache-Eintrag. Bei Discovery-Configs entspricht das dem üblichen MQTT-Delete über leere retained Config-Payloads.
