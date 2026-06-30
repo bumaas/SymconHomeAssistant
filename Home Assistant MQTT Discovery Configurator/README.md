@@ -3,6 +3,8 @@
 
 Liest MQTT-Discovery-Konfigurationen direkt aus einer MQTT-Discovery-Quelle über den Home Assistant MQTT Discovery Splitter und gruppiert sie zu Gerätekandidaten.
 
+> Teil des Projekts **Home Assistant für IP-Symcon** — [Gesamtübersicht, Betriebsarten und Fehlersuche](../README.md).
+
 ## Funktionsumfang
 
 - Liest gecachte `homeassistant/.../config` Topics aus dem Splitter.

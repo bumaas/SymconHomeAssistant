@@ -3,6 +3,8 @@
 
 Stellt genau eine Entität aus einer bestehenden Home-Assistant-Installation in Symcon dar, unabhängig davon, ob sie einem Gerät zugeordnet ist oder nicht, zum Beispiel Helper, Gruppen oder Wetter-Entitäten.
 
+> Teil des Projekts **Home Assistant für IP-Symcon** — [Gesamtübersicht, Betriebsarten und Fehlersuche](../README.md).
+
 ## Dokumentation
 
 **Inhaltsverzeichnis**

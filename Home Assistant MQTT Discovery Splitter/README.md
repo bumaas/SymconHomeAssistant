@@ -3,6 +3,8 @@
 
 Transportknoten für Geräte oder Dienste, die Home Assistant MQTT Discovery per MQTT publizieren. Eine bestehende Home-Assistant-Installation ist für diesen Pfad nicht erforderlich.
 
+> Teil des Projekts **Home Assistant für IP-Symcon** — [Gesamtübersicht, Betriebsarten und Fehlersuche](../README.md).
+
 ## Funktionsumfang
 
 - Nimmt MQTT-Discovery direkt von einer MQTT-Discovery-Quelle entgegen, nicht aus dem klassischen Home-Assistant-Bridge-Pfad.

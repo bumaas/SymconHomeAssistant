@@ -3,6 +3,8 @@
 
 Findet bestehende Home-Assistant-Installationen im Netzwerk per mDNS (Service `_home-assistant._tcp`) und erstellt daraus Configurator-Instanzen für den klassischen Bridge-Pfad.
 
+> Teil des Projekts **Home Assistant für IP-Symcon** — [Gesamtübersicht, Betriebsarten und Fehlersuche](../README.md).
+
 ## Dokumentation
 
 **Inhaltsverzeichnis**

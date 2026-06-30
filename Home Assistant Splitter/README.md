@@ -3,6 +3,8 @@
 
 Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet eine bestehende Home-Assistant-Installation per `mqtt_statestream` und REST mit den Device-, Entity- und Configurator-Instanzen in Symcon.
 
+> Teil des Projekts **Home Assistant für IP-Symcon** — [Gesamtübersicht, Betriebsarten und Fehlersuche](../README.md).
+
 ## Dokumentation
 
 **Inhaltsverzeichnis**

@@ -3,6 +3,8 @@
 
 Stellt ein einzelnes Gerät aus einer bestehenden Home-Assistant-Installation in Symcon dar und mappt dessen Entitäten auf Variablen und Medienobjekte.
 
+> Teil des Projekts **Home Assistant für IP-Symcon** — [Gesamtübersicht, Betriebsarten und Fehlersuche](../README.md).
+
 ## Dokumentation
 
 **Inhaltsverzeichnis**

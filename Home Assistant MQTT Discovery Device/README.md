@@ -3,6 +3,8 @@
 
 Laufzeitmodul für Geräte, die ihre Struktur und Laufzeitdaten über Home Assistant MQTT Discovery bereitstellen. Eine bestehende Home-Assistant-Installation ist dafür nicht erforderlich.
 
+> Teil des Projekts **Home Assistant für IP-Symcon** — [Gesamtübersicht, Betriebsarten und Fehlersuche](../README.md).
+
 ## Funktionsumfang
 
 - Arbeitet direkt auf MQTT-Discovery-Daten einer MQTT-Discovery-Quelle, nicht auf aus Home Assistant geholten Entitäten.

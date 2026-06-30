@@ -3,6 +3,8 @@
 
 Lädt Geräte und Entitäten aus einer bestehenden Home-Assistant-Installation und legt daraus Device- oder Entity-Instanzen in Symcon an.
 
+> Teil des Projekts **Home Assistant für IP-Symcon** — [Gesamtübersicht, Betriebsarten und Fehlersuche](../README.md).
+
 ## Dokumentation
 
 **Inhaltsverzeichnis**
