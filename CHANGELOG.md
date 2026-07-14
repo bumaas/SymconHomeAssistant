@@ -1,5 +1,9 @@
 # Changelog
 
+## Build 115 - 2026-07-14
+- Splitter-Selbsttest: neuer Prüfpunkt **„Empfangene Domänen"**. Der Splitter merkt sich Hot-Path-schonend, welche HA-Domänen seit dem letzten (Re-)Start tatsächlich Daten geliefert haben. Kommt auffällig nur eine Domäne an (z. B. nur `sensor`), warnt der Selbsttest, dass `mqtt_statestream` per `include`/`exclude` womöglich ganze Domänen ausblendet (typischer Grund für nicht aktualisierte `binary_sensor`-/`switch`-Zustände).
+- README §7.1: Fehlerfall „ganze Domänen fehlen trotz ankommender `sensor`-Werte" dokumentiert (statestream `include`/`exclude`).
+
 ## Build 114 - 2026-06-30
 - Splitter & MQTT Discovery Splitter: Neuer Anwender-**Selbsttest** als Knopf „Selbsttest ausführen" in der Konfiguration. Er fasst die vorhandenen Diagnosesignale read-only zu einer verständlichen Checkliste zusammen (✓/⚠/✗ je Prüfpunkt plus konkreter Lösungstipp) und zeigt sie als Popup.
   - Klassische Bridge: MQTT-Parent aktiv/kompatibel, Parent-Typ (MQTT Client empfohlen), REST-API erreichbar & Token gültig, `MQTTBaseTopic` gesetzt, ankommende MQTT-Daten, Subscription deckt das Base-Topic ab (best effort).

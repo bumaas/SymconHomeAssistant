@@ -60,6 +60,10 @@
       "Parent subscription does not seem to cover \"%s\"": "Parent-Subscription deckt \"%s\" scheinbar nicht ab",
       "Set the MQTT Client subscription to e.g. %s/# (or # for testing).": "MQTT-Client-Subscription z. B. auf %s/# setzen (oder # zum Testen).",
       "Subscription could not be checked (parent config not readable)": "Subscription nicht prüfbar (Parent-Konfiguration nicht lesbar)",
+      "Received domains: none yet (since last restart)": "Empfangene Domänen: noch keine (seit letztem Neustart)",
+      "Only one domain is delivering data: %s": "Nur eine Domäne liefert Daten: %s",
+      "If entities of other domains are missing (e.g. binary_sensor, switch), mqtt_statestream include/exclude in Home Assistant is probably filtering whole domains. Extend include.domains or remove the filter, then reload HA.": "Fehlen Entitäten anderer Domänen (z. B. binary_sensor, switch), blendet vermutlich der include/exclude-Filter von mqtt_statestream in Home Assistant ganze Domänen aus. include.domains erweitern oder Filter entfernen, dann HA neu laden.",
+      "Received domains: %s": "Empfangene Domänen: %s",
       "Summary: everything looks good.": "Fazit: alles in Ordnung.",
       "Summary: %d error(s), %d warning(s).": "Fazit: %d Fehler, %d Warnung(en).",
       "More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).": "Weitere Hilfe: README Abschnitt 7 (Fehlersuche) und MQTT Explorer (https://mqtt-explorer.com/)."

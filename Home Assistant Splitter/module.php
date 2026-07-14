@@ -42,6 +42,13 @@ class HomeAssistantSplitter extends IPSModuleStrict
     // Selbsttest: ab welchem Alter (Sekunden) der letzte MQTT-Empfang als "veraltet" gilt.
     private const int SELFTEST_MQTT_RECENCY_SEC = 300;
 
+    // Selbsttest: welche HA-Domaenen seit dem letzten (Re-)Start tatsaechlich Daten geliefert haben.
+    // Reine Diagnose fuer den Fall, dass mqtt_statestream via include/exclude ganze Domaenen ausblendet.
+    // MUSS im Buffer liegen (ReceiveData laeuft in getrennten PHP-Ausfuehrungen); als Delimited-String,
+    // damit der Hot-Path pro Message nur einen str_contains-Check macht und selten (nur bei neuer
+    // Domaene) schreibt statt JSON zu (de)serialisieren.
+    private const string BUFFER_SEEN_DOMAINS = 'SeenDomains';
+
     public function Create(): void
     {
         parent::Create();
@@ -244,6 +251,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
             $messageStartedAt = microtime(true);
 
+            $this->recordSeenDomain($topic);
+
             $stepStartedAt = microtime(true);
             $this->touchLastMqttMessage();
             if (str_ends_with($topic, '/state')) {
@@ -345,6 +354,35 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $counts = $this->loadTopicStatsCounts();
         $counts[$key] = ($counts[$key] ?? 0) + 1;
         $this->SetBuffer(self::BUFFER_TOPIC_STATS_COUNTS, json_encode($counts, JSON_THROW_ON_ERROR));
+    }
+
+    // Always-on, Hot-Path-schonend: merkt sich die distinkten HA-Domaenen (erstes Segment nach dem
+    // MQTTBaseTopic), die seit dem letzten (Re-)Start Daten geliefert haben. Schreibt nur, wenn eine
+    // Domaene neu ist. Dient dem Selbsttest, um statestream-include/exclude-Filter sichtbar zu machen.
+    private function recordSeenDomain(string $topic): void
+    {
+        $t = trim($topic, '/');
+        if ($t === '') {
+            return;
+        }
+        $base = trim($this->ReadPropertyString('MQTTBaseTopic'), '/');
+        if ($base !== '') {
+            if (!str_starts_with($t, $base . '/')) {
+                return;
+            }
+            $t = substr($t, strlen($base) + 1);
+        }
+        $slash = strpos($t, '/');
+        $domain = $slash === false ? $t : substr($t, 0, $slash);
+        if ($domain === '') {
+            return;
+        }
+
+        $buf = $this->GetBuffer(self::BUFFER_SEEN_DOMAINS);
+        if (str_contains('|' . $buf . '|', '|' . $domain . '|')) {
+            return;
+        }
+        $this->SetBuffer(self::BUFFER_SEEN_DOMAINS, $buf === '' ? $domain : $buf . '|' . $domain);
     }
 
     private function loadTopicStatsCounts(): array
@@ -1167,6 +1205,22 @@ class HomeAssistantSplitter extends IPSModuleStrict
                     $add('•', $this->Translate('Subscription could not be checked (parent config not readable)'));
                 }
             }
+        }
+
+        // 7. Welche Domaenen liefern tatsaechlich Daten? (deckt statestream-include/exclude auf)
+        $seenRaw = $this->GetBuffer(self::BUFFER_SEEN_DOMAINS);
+        $seen = $seenRaw === '' ? [] : explode('|', $seenRaw);
+        sort($seen, SORT_STRING);
+        if ($seen === []) {
+            $add('•', $this->Translate('Received domains: none yet (since last restart)'));
+        } elseif (count($seen) === 1) {
+            $add(
+                'warn',
+                sprintf($this->Translate('Only one domain is delivering data: %s'), $seen[0]),
+                $this->Translate('If entities of other domains are missing (e.g. binary_sensor, switch), mqtt_statestream include/exclude in Home Assistant is probably filtering whole domains. Extend include.domains or remove the filter, then reload HA.')
+            );
+        } else {
+            $add('ok', sprintf($this->Translate('Received domains: %s'), implode(', ', $seen)));
         }
 
         // Fazit
