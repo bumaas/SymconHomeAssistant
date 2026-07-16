@@ -5,3 +5,4 @@ Home Assistant Device/form_result.json
 docs/MQTT_DISCOVERY_A3_TESTPLAN.md
 docs/WEITERES_VORGEHEN.md
 tests/
+.claude/settings.local.json
