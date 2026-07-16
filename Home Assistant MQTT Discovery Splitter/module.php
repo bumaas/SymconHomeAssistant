@@ -206,7 +206,14 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     public function GetConfigurationForm(): string
     {
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
-        $this->applyCurrentDiagnosticsToForm($form);
+        // Nur die billige, strukturelle Feldsichtbarkeit (Bundle-Modus) synchron anwenden. Die schwere
+        // Diagnose (buildDiagnosticsState() dekodiert alle Discovery-Configs und klassifiziert den kompletten
+        // Topic-Cache) darf NICHT im Formular-Request laufen: Bei vielen Kind-Geraeten blockiert das den
+        // Instanz-Wizard "Schnittstelle konfigurieren" und laesst ihn haengen. Die echten Diagnose-Labels
+        // werden per Timer (scheduleDiagnosticsRefresh) unmittelbar nach dem Oeffnen ins offene Formular
+        // nachgeladen (updateDiagnosticsLabels via updateFormFieldSafe).
+        $this->applyStaticFormState($form);
+        $this->scheduleDiagnosticsRefresh();
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
@@ -509,6 +516,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         } else {
             $lines[] = sprintf($this->Translate('Summary: %d error(s), %d warning(s).'), $errors, $warnings);
         }
+        $lines[] = '';
         $lines[] = $this->Translate('More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).');
 
         $title = $this->Translate('Self-test: Home Assistant MQTT Discovery Splitter');
@@ -810,12 +818,11 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $this->updateFormFieldSafe($field, 'caption', $caption);
         }
         $hasStale = $state['has_stale'];
-        // Das Popup wird einmalig beim Formularaufbau (GetConfigurationForm) angezeigt. Zur Laufzeit darf es
-        // nicht erneut auf visible=true gesetzt werden, sonst springt es nach jeder Diagnose-Aktualisierung
-        // direkt wieder auf, sobald der Nutzer es bestaetigt hat. Nach der Bereinigung wird es ausgeblendet.
-        if (!$hasStale) {
-            $this->updateFormFieldSafe('DiagDiscoveryAlert', 'visible', false);
-        }
+        // GetConfigurationForm() rendert das Formular ohne Diagnose und stoesst genau einen aufgeschobenen
+        // Refresh an (Dirty-Flag). Dieser erste Refresh nach dem Oeffnen darf das Popup daher sichtbar setzen,
+        // wenn veraltete Discovery-Configs vorliegen. Da pro Oeffnen nur ein Refresh laeuft, springt es nicht
+        // nach jeder Aktualisierung erneut auf; nach der Bereinigung wird es ausgeblendet.
+        $this->updateFormFieldSafe('DiagDiscoveryAlert', 'visible', $hasStale);
         $this->updateFormFieldSafe('ButtonRemoveStaleDiscovery', 'visible', $hasStale && !$this->isBundleMode());
     }
 
@@ -2006,12 +2013,16 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->SendDebug('Performance', $scope . ' | ' . json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
     }
 
-    private function applyCurrentDiagnosticsToForm(array &$form): void
+    /**
+     * Wendet nur die guenstige, strukturelle Feldsichtbarkeit (Bundle-Modus) auf das Formular an, ohne die
+     * teure Diagnose (buildDiagnosticsState) auszufuehren. Captions bleiben auf den Defaults aus form.json und
+     * werden kurz nach dem Oeffnen per Timer (RefreshDiscoveryDiagnostics -> updateDiagnosticsLabels) gefuellt.
+     */
+    private function applyStaticFormState(array &$form): void
     {
-        $state = $this->buildDiagnosticsState();
-        $captions = $state['captions'];
+        $captions = [];
         $isBundleMode = $this->isBundleMode();
-        $hasStaleDiscovery = $state['has_stale'];
+        $hasStaleDiscovery = false;
         if (isset($form['elements']) && is_array($form['elements'])) {
             $this->applyFormItemsState($form['elements'], $captions, $isBundleMode, $hasStaleDiscovery);
         }
