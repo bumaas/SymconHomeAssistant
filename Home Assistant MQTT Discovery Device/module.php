@@ -11,6 +11,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     use ModuleDebugTrait;
     use HAIdentNamingTrait;
     use HAEntityVariableNamingTrait;
+    use HASharedPresentationTrait;
     use HALegacyVariableMigrationTrait;
     use HAMqttDiscoveryParentClientTrait;
 
@@ -1364,6 +1365,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return $this->buildUpdatePresentation();
         }
 
+        if ((string)($entity['component'] ?? '') === HABinarySensorDefinitions::DOMAIN && $variableType === VARIABLETYPE_BOOLEAN) {
+            $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
+            $deviceClass = trim((string)($metadata['device_class'] ?? ''));
+            [$trueCaption, $falseCaption, $icon] = HABinarySensorDefinitions::getPresentationMeta($deviceClass);
+            return $this->buildSharedBinarySensorPresentation(
+                $this->Translate($trueCaption),
+                $this->Translate($falseCaption),
+                $icon
+            );
+        }
+
         if ((string)($entity['component'] ?? '') === HASwitchDefinitions::DOMAIN && $variableType === VARIABLETYPE_BOOLEAN) {
             return ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH];
         }
@@ -1593,15 +1605,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $suffix = $this->resolveClimatePresentationSuffix($metadata);
 
         if ($min !== null && $max !== null) {
-            return array_filter([
-                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                'MIN' => $min,
-                'MAX' => $max,
-                'STEP_SIZE' => $step,
-                'DIGITS' => $digits,
-                'USAGE_TYPE' => 1,
-                'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
-            ], static fn(mixed $value): bool => $value !== null);
+            return $this->buildSharedTemperatureSliderPresentation(
+                $min,
+                $max,
+                $step,
+                $digits,
+                $suffix === '' ? null : ' ' . $suffix
+            );
         }
 
         return array_filter([
@@ -1793,7 +1803,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $this->recreateVariableIfTypeChanged($ident, $variableType);
             $presentation = $this->buildLightAttributePresentation($attribute, $attributeContext, $meta);
             $position = $basePosition + $this->getLightAttributePositionOffset($attribute);
-            $this->MaintainVariable($ident, (string) ($meta['caption'] ?? $attribute), $variableType, $presentation, $position, true);
+            $this->MaintainVariable($ident, $this->Translate((string) ($meta['caption'] ?? $attribute)), $variableType, $presentation, $position, true);
 
             $variableId = @$this->GetIDForIdent($ident);
             if ($variableId !== false) {
@@ -1901,7 +1911,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $this->recreateVariableIfTypeChanged($ident, $variableType);
             $presentation = $this->buildDeviceTrackerAttributePresentation($attribute, $attributeContext);
             $position = $basePosition + $this->getDeviceTrackerAttributePositionOffset($attribute);
-            $this->MaintainVariable($ident, (string)($meta['caption'] ?? $attribute), $variableType, $presentation, $position, true);
+            $this->MaintainVariable($ident, $this->Translate((string)($meta['caption'] ?? $attribute)), $variableType, $presentation, $position, true);
 
             $variableId = @$this->GetIDForIdent($ident);
             if ($variableId !== false) {
@@ -2173,38 +2183,45 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function buildLightAttributePresentation(string $attribute, array $context, array $meta): array|string
     {
+        // Slider-/Farb-Presentations aus dem gemeinsamen Trait (identisch zum REST-Device-Pfad):
+        // liefert USAGE_TYPE/GRADIENT_TYPE bzw. die Farb-Darstellung, die hier früher fehlten.
+        $suffixRaw          = trim((string) ($meta['suffix'] ?? ''));
+        $isPercent          = $suffixRaw === '%';
+        $presentationSuffix = $this->sharedFormatPresentationSuffix($suffixRaw);
+        $digits             = $this->sharedMetaDigitsOverride($meta);
+
         if ($attribute === 'brightness') {
-            return [
-                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                'MIN' => 0,
-                'MAX' => 255,
-                'STEP_SIZE' => 1,
-                'PERCENTAGE' => true,
-                'DIGITS' => 0,
-                'SUFFIX' => ' %'
-            ];
+            return $this->buildSharedLightBrightnessPresentation($isPercent, $digits, $presentationSuffix);
         }
 
-        if ($attribute === 'color_temp' && is_numeric($context['min_mireds'] ?? null) && is_numeric($context['max_mireds'] ?? null)) {
-            return [
-                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                'MIN' => (float) $context['min_mireds'],
-                'MAX' => (float) $context['max_mireds'],
-                'STEP_SIZE' => 1,
-                'DIGITS' => 0,
-                'SUFFIX' => ' mired'
-            ];
+        if ($attribute === 'rgb_color') {
+            return $this->buildSharedLightRgbColorPresentation();
         }
 
-        if ($attribute === 'color_temp_kelvin' && is_numeric($context['min_color_temp_kelvin'] ?? null) && is_numeric($context['max_color_temp_kelvin'] ?? null)) {
-            return [
-                'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                'MIN' => (float) $context['min_color_temp_kelvin'],
-                'MAX' => (float) $context['max_color_temp_kelvin'],
-                'STEP_SIZE' => 1,
-                'DIGITS' => 0,
-                'SUFFIX' => ' K'
-            ];
+        if ($attribute === 'color_temp') {
+            $slider = $this->buildSharedLightColorTempSliderPresentation(
+                $context['min_mireds'] ?? null,
+                $context['max_mireds'] ?? null,
+                $isPercent,
+                $digits,
+                $presentationSuffix
+            );
+            if ($slider !== null) {
+                return $slider;
+            }
+        }
+
+        if ($attribute === 'color_temp_kelvin') {
+            $slider = $this->buildSharedLightColorTempSliderPresentation(
+                $context['min_color_temp_kelvin'] ?? null,
+                $context['max_color_temp_kelvin'] ?? null,
+                $isPercent,
+                $digits,
+                $presentationSuffix
+            );
+            if ($slider !== null) {
+                return $slider;
+            }
         }
 
         if ($attribute === 'effect') {

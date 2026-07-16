@@ -224,6 +224,13 @@ trait HAEntityVariableNamingTrait
             return trim(substr($name, strlen($deviceName) + 1));
         }
 
+        // zigbee2mqtt & Co.: der Name der primären Entität entspricht dem Gerätenamen, ist aber
+        // anders formatiert (z. B. "Buero/Beleuchtung/Test" → "Buero beleuchtung test"). Ein
+        // slug-identischer Name gilt als "kein eigener Name" → Domänen-Fallback (z. B. "Status").
+        if ($deviceName !== '' && $this->normalizeSharedIdentFragment($name) === $this->normalizeSharedIdentFragment($deviceName)) {
+            return '';
+        }
+
         return $name;
     }
 
@@ -357,6 +364,12 @@ trait HAEntityVariableNamingTrait
         }
 
         if (strcasecmp($name, $instanceName) === 0) {
+            return '';
+        }
+
+        // Slug-tolerant: nur anders formatierter Instanzname (z. B. Slashes vs. Spaces) zählt
+        // ebenfalls als "kein eigener Name" → Domänen-Fallback greift.
+        if ($this->normalizeSharedIdentFragment($name) === $this->normalizeSharedIdentFragment($instanceName)) {
             return '';
         }
 

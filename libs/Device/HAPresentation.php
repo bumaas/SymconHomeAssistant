@@ -5,6 +5,7 @@ declare(strict_types=1);
 trait HAPresentationTrait
 {
     use HAEntityVariableNamingTrait;
+    use HASharedPresentationTrait;
 
     protected function getEntityPresentation(string $domain, array $entity, int $type): array
     {
@@ -521,30 +522,11 @@ trait HAPresentationTrait
 
         [$trueCaption, $falseCaption, $icon] = HABinarySensorDefinitions::getPresentationMeta($deviceClass);
 
-        $options = [
-            [
-                'Value'       => false,
-                'Caption'     => $this->Translate($falseCaption),
-                'IconActive'  => false,
-                'IconValue'   => '',
-                'ColorActive' => false,
-                'ColorValue'  => -1
-            ],
-            [
-                'Value'       => true,
-                'Caption'     => $this->Translate($trueCaption),
-                'IconActive'  => false,
-                'IconValue'   => '',
-                'ColorActive' => false,
-                'ColorValue'  => -1
-            ]
-        ];
-
-        return $this->filterPresentation([
-                                             'PRESENTATION' => HABinarySensorDefinitions::PRESENTATION,
-                                             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR),
-                                             'ICON'         => $icon !== '' ? $icon : null
-                                         ]);
+        return $this->buildSharedBinarySensorPresentation(
+            $this->Translate($trueCaption),
+            $this->Translate($falseCaption),
+            $icon
+        );
     }
 
     private function getUpdatePresentation(): array
@@ -709,10 +691,7 @@ trait HAPresentationTrait
         $digitsOverride     = $this->getMetaDigitsOverride($meta);
 
         if ($attribute === 'rgb_color') {
-            return $this->filterPresentation([
-                                                 'PRESENTATION' => VARIABLE_PRESENTATION_COLOR,
-                                                 'ENCODING'     => 0 // RGB
-                                             ]);
+            return $this->buildSharedLightRgbColorPresentation();
         }
         if ($attribute === 'color_mode') {
             $modes = $attributes['supported_color_modes'] ?? [];
@@ -739,16 +718,7 @@ trait HAPresentationTrait
         }
 
         if ($attribute === 'brightness') {
-            return $this->filterPresentation([
-                                                 'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                                                 'MIN'          => 0,
-                                                 'MAX'          => 255,
-                                                 'STEP_SIZE'    => 1,
-                                                 'PERCENTAGE'   => $isPercent,
-                                                 'DIGITS'       => $digitsOverride ?? 0,
-                                                 'USAGE_TYPE'   => 2, // Intensität (für Composite "Licht")
-                                                 'SUFFIX'       => $presentationSuffix
-                                             ]);
+            return $this->buildSharedLightBrightnessPresentation($isPercent, $digitsOverride, $presentationSuffix);
         }
         if ($attribute === 'color_temp') {
             $min = $attributes['min_mireds'] ?? null;
@@ -1279,21 +1249,13 @@ trait HAPresentationTrait
         ?int $digitsOverride,
         ?string $presentationSuffix
     ): ?array {
-        if (!is_numeric($min) || !is_numeric($max)) {
-            return null;
-        }
-
-        return $this->filterPresentation([
-            'PRESENTATION'  => VARIABLE_PRESENTATION_SLIDER,
-            'MIN'           => (float)$min,
-            'MAX'           => (float)$max,
-            'STEP_SIZE'     => 1,
-            'PERCENTAGE'    => $isPercent,
-            'DIGITS'        => $digitsOverride ?? 0,
-            'USAGE_TYPE'    => 1, // Farbtemperatur (für Composite "Licht")
-            'GRADIENT_TYPE' => 2, // Farbtemperatur-Gradient
-            'SUFFIX'        => $presentationSuffix
-        ]);
+        return $this->buildSharedLightColorTempSliderPresentation(
+            $min,
+            $max,
+            $isPercent,
+            $digitsOverride,
+            $presentationSuffix
+        );
     }
 
     // Zentrale Optionsdarstellung fuer Auswahl-Attribute (alle Domains). Beschreibbare
@@ -1402,24 +1364,21 @@ trait HAPresentationTrait
         }
         $step   = $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE_STEP] ?? $attributes['target_temp_step'] ?? 1;
         $suffix = $this->getClimateTemperatureSuffix($attributes);
+        $digits = $this->getNumericDigits(
+            $attributes,
+            $step,
+            $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE] ??
+            $attributes[HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE] ??
+            $attributes['temperature'] ?? null
+        );
 
-        return $this->filterPresentation([
-                                             'PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
-                                             'MIN'          => (float)$min,
-                                             'MAX'          => (float)$max,
-                                             'STEP_SIZE'    => (float)$step,
-                                             'DIGITS'       => $this->getNumericDigits(
-                                                 $attributes,
-                                                 $step,
-                                                 $attributes[HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE] ??
-                                                 $attributes[HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE] ??
-                                                 $attributes['temperature'] ?? null
-                                             ),
-                                             // Schieberegler: 0 = Temperatur (1 wäre Farbtemperatur).
-                                             'USAGE_TYPE'   => 0,
-                                             'GRADIENT_TYPE' => 1, // Temperatur-Gradient
-                                             'SUFFIX'       => $this->formatPresentationSuffix($suffix)
-                                         ]);
+        return $this->buildSharedTemperatureSliderPresentation(
+            $min,
+            $max,
+            $step,
+            $digits,
+            $this->formatPresentationSuffix($suffix)
+        );
     }
 
     private function getClimateTemperatureSuffix(array $attributes): string
