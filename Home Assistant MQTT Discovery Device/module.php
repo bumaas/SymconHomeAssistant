@@ -2132,6 +2132,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function shouldCreateLightAttribute(string $attribute, array $context): bool
     {
+        // 'brightness' und 'effect' sind in den normalisierten Metadaten (normalizeMetadata) IMMER
+        // als Flag vorhanden. Ihr blosses Vorhandensein taugt daher nicht als Fähigkeits-Signal
+        // (anders als der REST-Pfad, der rohe HA-Attribute ohne Seeding nutzt) — es zählt der Wert.
+        if ($attribute === 'brightness') {
+            $brightness = $context['brightness'] ?? false;
+            return $brightness === true || is_numeric($brightness);
+        }
+        if ($attribute === 'effect') {
+            $effect = $context['effect'] ?? false;
+            return $effect === true
+                || (is_string($effect) && trim($effect) !== '')
+                || HASelectDefinitions::normalizeOptions($context['effect_list'] ?? null) !== [];
+        }
+
         if (array_key_exists($attribute, $context)) {
             return true;
         }
@@ -2139,10 +2153,6 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
         if (!is_array($meta)) {
             return false;
-        }
-
-        if ($attribute === 'effect' && HASelectDefinitions::normalizeOptions($context['effect_list'] ?? null) !== []) {
-            return true;
         }
 
         if ($attribute === 'color_mode') {
