@@ -329,8 +329,17 @@ trait HADeviceCoreTrait
             'Data' => $requestData
         ], true);
 
-        $this->applyOptimisticEntityValue($entityId, $ident, $domain, $formattedPayload, $attributes);
+        if ($this->shouldEmulateStatus()) {
+            $this->applyOptimisticEntityValue($entityId, $ident, $domain, $formattedPayload, $attributes);
+        }
         return true;
+    }
+
+    // Opt-in „Status emulieren": nur wenn aktiv wird der Wert nach dem Senden sofort lokal gesetzt.
+    // Default aus → es wird auf das echte State-Echo des Geräts gewartet (identisch zum Discovery-Device).
+    private function shouldEmulateStatus(): bool
+    {
+        return $this->ReadPropertyBoolean(HADeviceConstants::PROP_EMULATE_STATUS);
     }
 
     private function buildMainEntityRestPayload(string $domain, string $formattedPayload, array $attributes): array
@@ -404,7 +413,9 @@ trait HADeviceCoreTrait
 
         $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $mqttPayload, [], true);
         $this->sendMqttMessage($topic, $mqttPayload);
-        $this->applyOptimisticEntityValue($entityId, $ident, $domain, $mqttPayload, $attributes);
+        if ($this->shouldEmulateStatus()) {
+            $this->applyOptimisticEntityValue($entityId, $ident, $domain, $mqttPayload, $attributes);
+        }
         return true;
     }
 
@@ -436,7 +447,9 @@ trait HADeviceCoreTrait
 
         $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $payload, [], true);
         $this->sendMqttMessage($topic, $payload);
-        $this->applyAttributeOptimisticValue($entityId, $domain, $attribute, $value);
+        if ($this->shouldEmulateStatus()) {
+            $this->applyAttributeOptimisticValue($entityId, $domain, $attribute, $value);
+        }
         return true;
     }
 

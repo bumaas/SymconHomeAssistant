@@ -15,6 +15,8 @@
       "Active": "Aktiv",
       "Attributes (JSON)": "Attribute (JSON)",
       "Expert": "Experte",
+      "Behavior": "Verhalten",
+      "Emulate status (set value immediately)": "Status emulieren (Wert sofort setzen)",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
       "Enable performance timing (debug channel 'Performance')": "Performance-Timing aktivieren (Debug-Kanal 'Performance')",
       "Show technical entity columns": "Technische Entity-Spalten anzeigen",

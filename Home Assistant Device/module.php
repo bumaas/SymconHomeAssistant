@@ -100,6 +100,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_PERFORMANCE_LOG, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_TECHNICAL_ENTITY_COLUMNS, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_UNAVAILABLE_ENTITIES_JSON, false);
+        $this->RegisterPropertyBoolean(self::PROP_EMULATE_STATUS, false);
         $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
         $this->RegisterPropertyString(self::PROP_SOURCE_MODE, 'mqtt');
         $this->RegisterPropertyString(self::PROP_BUNDLE_PATH, '');

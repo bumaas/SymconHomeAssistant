@@ -35,6 +35,17 @@
     },
     {
       "type": "ExpansionPanel",
+      "caption": "Behavior",
+      "items": [
+        {
+          "type": "CheckBox",
+          "name": "EmulateStatus",
+          "caption": "Emulate status (set value immediately)"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
       "caption": "Expert",
       "items": [
         {

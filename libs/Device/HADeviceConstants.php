@@ -34,6 +34,7 @@ interface HADeviceConstants
     public const string PROP_ENABLE_PERFORMANCE_LOG = 'EnablePerformanceLog';
     public const string PROP_SHOW_TECHNICAL_ENTITY_COLUMNS = 'ShowTechnicalEntityColumns';
     public const string PROP_SHOW_UNAVAILABLE_ENTITIES_JSON = 'ShowUnavailableEntitiesJson';
+    public const string PROP_EMULATE_STATUS = 'EmulateStatus';
     public const string PROP_OUTPUT_BUFFER_SIZE = 'OutputBufferSize';
     public const string PROP_SOURCE_MODE = 'SourceMode';
     public const string PROP_BUNDLE_PATH = 'BundlePath';
