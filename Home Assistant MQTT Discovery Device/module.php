@@ -28,6 +28,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string PROP_ENABLE_EXPERT_DEBUG = 'EnableExpertDebug';
     private const string PROP_ENABLE_PERFORMANCE_LOG = 'EnablePerformanceLog';
     private const string PROP_SHOW_EXPERT_COLUMNS = 'ShowExpertColumns';
+    private const string PROP_EMULATE_STATUS = 'EmulateStatus';
 
     private const int STATUS_PARENT_INVALID = 201;
     private const int STATUS_DISCOVERY_CACHE_MISSING = 202;
@@ -112,6 +113,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_PERFORMANCE_LOG, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_EXPERT_COLUMNS, false);
+        $this->RegisterPropertyBoolean(self::PROP_EMULATE_STATUS, false);
 
         $this->RegisterAttributeString(self::ATTR_LAST_MQTT_MESSAGE, '');
         $this->RegisterAttributeString(self::ATTR_AVAILABILITY_STATE, '{}');
@@ -366,6 +368,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 (bool)$entity['retain']
             );
 
+            if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS)) {
+                $this->emulateOptimisticStatus((string) $Ident, $Value);
+            }
+
             return;
         }
 
@@ -401,7 +407,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        if ($entity['optimistic'] || $entity['state_topic'] === '') {
+        if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || $entity['state_topic'] === '') {
             $this->applyOptimisticValue($entity, $Value);
         }
     }
@@ -4369,6 +4375,36 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function coerceBooleanActionValue(mixed $value): ?bool
     {
         return HAMqttDiscoveryLightRuntime::coerceBooleanActionValue($value);
+    }
+
+    // Optimistisches Setzen für Light-Attribut-Variablen (brightness/color_temp/xy_color/…):
+    // die bediente Variable wird direkt mit dem gesetzten Wert (auf ihren Variablentyp gecastet)
+    // beschrieben. Entity-Hauptvariablen laufen weiterhin über applyOptimisticValue().
+    private function emulateOptimisticStatus(string $ident, mixed $value): void
+    {
+        $variableId = @$this->GetIDForIdent($ident);
+        if ($variableId === false) {
+            return;
+        }
+
+        $type = (int) (IPS_GetVariable($variableId)['VariableType'] ?? -1);
+        $castValue = $this->castToVariableType($value, $type);
+        if ($castValue === null) {
+            return;
+        }
+
+        $this->SetValue($ident, $castValue);
+    }
+
+    private function castToVariableType(mixed $value, int $type): bool|int|float|string|null
+    {
+        return match ($type) {
+            VARIABLETYPE_BOOLEAN => $this->coerceBooleanActionValue($value),
+            VARIABLETYPE_INTEGER => is_numeric($value) ? (int) round((float) $value) : null,
+            VARIABLETYPE_FLOAT   => is_numeric($value) ? (float) $value : null,
+            VARIABLETYPE_STRING  => is_scalar($value) ? (string) $value : null,
+            default              => null,
+        };
     }
 
     private function applyOptimisticValue(array $entity, mixed $value): void

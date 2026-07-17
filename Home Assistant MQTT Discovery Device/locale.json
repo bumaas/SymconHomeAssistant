@@ -96,6 +96,8 @@
       "Code Format": "Codeformat",
       "Tilt Position": "Lamellenposition",
       "Last Event": "Letztes Ereignis",
+      "Behavior": "Verhalten",
+      "Emulate status (set value immediately)": "Status emulieren (Wert sofort setzen)",
       "On": "An",
       "Off": "Aus",
       "Battery Low": "Batterie niedrig",
