@@ -169,7 +169,9 @@ final class HAMqttDiscoveryLightRuntime
             'brightness', 'color_temp', 'color_temp_kelvin' => is_numeric($value) ? (int) round((float) $value) : null,
             'transition' => is_numeric($value) ? (float) $value : null,
             'rgb_color' => self::formatRgbStorageValue($value),
-            'rgbw_color', 'rgbww_color', 'hs_color', 'xy_color' => self::formatListStorageValue($value),
+            'xy_color' => self::formatXyStorageValue($value),
+            'hs_color' => self::formatHsStorageValue($value),
+            'rgbw_color', 'rgbww_color' => self::formatListStorageValue($value),
             default => self::normalizeNullableString($value)
         };
     }
@@ -313,6 +315,37 @@ final class HAMqttDiscoveryLightRuntime
 
         return json_encode(
             array_values($value),
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+        );
+    }
+
+    // xy (CIE): Symcons Farb-Darstellung (ENCODING 4) erwartet ein JSON-Objekt {"x":..,"y":..},
+    // kein Array. (Analog zu formatRgbStorageValue, das {"r","g","b"} liefert.)
+    private static function formatXyStorageValue(mixed $value): ?string
+    {
+        $xy = self::normalizeNumberList($value, 2);
+        if ($xy === null) {
+            return null;
+        }
+
+        return json_encode(
+            ['x' => (float) $xy[0], 'y' => (float) $xy[1]],
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+        );
+    }
+
+    // HSV: Symcons Farb-Darstellung (ENCODING 2) erwartet ein JSON-Objekt {"h":..,"s":..,"v":..}.
+    // HA liefert bei hs_color nur Hue/Sat; "v" wird als Vollwert (100) gesetzt (Helligkeit steckt in
+    // der separaten brightness-Variable). Mangels HS-Testgerät noch praktisch zu verifizieren.
+    private static function formatHsStorageValue(mixed $value): ?string
+    {
+        $hs = self::normalizeNumberList($value, 2);
+        if ($hs === null) {
+            return null;
+        }
+
+        return json_encode(
+            ['h' => (float) $hs[0], 's' => (float) $hs[1], 'v' => 100],
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
         );
     }
