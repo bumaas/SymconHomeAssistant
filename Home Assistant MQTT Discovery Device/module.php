@@ -2198,6 +2198,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return $this->buildSharedLightRgbColorPresentation();
         }
 
+        if ($attribute === 'xy_color') {
+            return $this->buildSharedLightXyColorPresentation();
+        }
+
+        if ($attribute === 'hs_color') {
+            return $this->buildSharedLightHsColorPresentation();
+        }
+
         if ($attribute === 'color_temp') {
             $slider = $this->buildSharedLightColorTempSliderPresentation(
                 $context['min_mireds'] ?? null,
@@ -2272,7 +2280,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'Caption' => (string) $value,
                 'IconActive' => false,
                 'IconValue' => '',
-                'Color' => -1
+                'ColorActive' => false,
+                'ColorValue' => -1
             ];
         }
 

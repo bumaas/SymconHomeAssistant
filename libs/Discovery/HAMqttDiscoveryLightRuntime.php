@@ -10,7 +10,9 @@ final class HAMqttDiscoveryLightRuntime
         'color_temp_kelvin' => 'kelvin_to_mired',
         'effect' => 'direct',
         'flash' => 'direct',
-        'transition' => 'direct'
+        'transition' => 'direct',
+        'xy_color' => 'color',
+        'hs_color' => 'color'
     ];
 
     public static function extractStateValue(mixed $value): mixed
@@ -133,6 +135,12 @@ final class HAMqttDiscoveryLightRuntime
             return null;
         }
 
+        // Farbe nutzt im HA-JSON-Schema ein verschachteltes "color"-Objekt statt eines flachen
+        // Attributschlüssels (z. B. {"color":{"x":..,"y":..}}).
+        if ($mode === 'color') {
+            return self::buildColorCommandPayload($attribute, $value);
+        }
+
         $payloadValue = match ($mode) {
             'direct' => self::parseAttributeValue($attribute, $value),
             'kelvin_to_mired' => self::convertKelvinActionValue($value),
@@ -205,6 +213,72 @@ final class HAMqttDiscoveryLightRuntime
             'transition' => is_numeric($value) ? (float) $value : null,
             default => self::normalizeNullableString($value)
         };
+    }
+
+    // Baut das HA-JSON-Kommando für Farb-Attribute: ein verschachteltes "color"-Objekt.
+    // xy_color -> {"color":{"x":X,"y":Y}}, hs_color -> {"color":{"h":H,"s":S}} (Floats).
+    private static function buildColorCommandPayload(string $attribute, mixed $value): ?string
+    {
+        $components = self::parseNumberListLoose($value, 2);
+        if ($components === null) {
+            return null;
+        }
+
+        $color = match ($attribute) {
+            'xy_color' => ['x' => $components[0], 'y' => $components[1]],
+            'hs_color' => ['h' => $components[0], 's' => $components[1]],
+            default => null
+        };
+        if ($color === null) {
+            return null;
+        }
+
+        return json_encode(
+            ['color' => $color],
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+        );
+    }
+
+    // String-toleranter Parser für eine feste Anzahl Zahlen. Akzeptiert Arrays, JSON-Strings
+    // ("[x,y]") und einfache Trennzeichenformate ("x;y" / "x,y") — analog zum REST-Pfad
+    // (HAAttributeActionMapping::parseNumberList), da die WebFront-Farbwahl den Wert als String liefern kann.
+    private static function parseNumberListLoose(mixed $value, int $expectedCount): ?array
+    {
+        $items = $value;
+        if (!is_array($items)) {
+            $text = trim((string) $value);
+            if ($text === '') {
+                return null;
+            }
+            if (($text[0] === '[' || $text[0] === '{')) {
+                try {
+                    $decoded = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
+                    if (is_array($decoded)) {
+                        $items = $decoded;
+                    }
+                } catch (JsonException) {
+                    $items = null;
+                }
+            }
+            if (!is_array($items)) {
+                $items = array_map('trim', preg_split('/[;,]/', $text) ?: []);
+            }
+        }
+
+        $items = array_values($items);
+        if (count($items) < $expectedCount) {
+            return null;
+        }
+
+        $numbers = [];
+        foreach (array_slice($items, 0, $expectedCount) as $item) {
+            if (!is_numeric($item)) {
+                return null;
+            }
+            $numbers[] = (float) $item;
+        }
+
+        return $numbers;
     }
 
     private static function normalizeNumberList(mixed $value, int $expectedCount, bool $allowFloat = true): ?array

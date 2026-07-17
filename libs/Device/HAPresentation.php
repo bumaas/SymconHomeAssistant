@@ -693,6 +693,12 @@ trait HAPresentationTrait
         if ($attribute === 'rgb_color') {
             return $this->buildSharedLightRgbColorPresentation();
         }
+        if ($attribute === 'xy_color') {
+            return $this->buildSharedLightXyColorPresentation();
+        }
+        if ($attribute === 'hs_color') {
+            return $this->buildSharedLightHsColorPresentation();
+        }
         if ($attribute === 'color_mode') {
             $modes = $attributes['supported_color_modes'] ?? [];
             if (!is_array($modes)) {

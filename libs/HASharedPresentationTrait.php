@@ -88,6 +88,24 @@ trait HASharedPresentationTrait
         ];
     }
 
+    // xy-Farbe (CIE): Farb-Darstellung mit xy-Encoding (String-Variable, nativer HA-xy-Wert).
+    private function buildSharedLightXyColorPresentation(): array
+    {
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_COLOR,
+            'ENCODING'     => 4 // xy
+        ];
+    }
+
+    // HS-Farbe: Farb-Darstellung mit HSV-Encoding (String-Variable).
+    private function buildSharedLightHsColorPresentation(): array
+    {
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_COLOR,
+            'ENCODING'     => 2 // HSV
+        ];
+    }
+
     // Ziel-/Ist-Temperatur (climate): begrenzter Slider mit USAGE_TYPE 0 (Temperatur) +
     // Temperatur-Gradient. Liefert null, wenn keine gültigen Grenzen vorliegen.
     private function buildSharedTemperatureSliderPresentation(
