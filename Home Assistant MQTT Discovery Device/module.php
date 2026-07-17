@@ -1813,7 +1813,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
             $variableId = @$this->GetIDForIdent($ident);
             if ($variableId !== false) {
-                if ($this->isLightAttributeWritable($attribute, $attributeContext)) {
+                // Aktion nur aktivieren, wenn die Presentation aktionsfähig ist. Eine Wertanzeige
+                // (VALUE_PRESENTATION) verträgt keine Variablenaktion (IPS-Fehler) — z. B. wenn ein
+                // Slider mangels Grenzen in den Fallback fällt.
+                $actionable = is_array($presentation)
+                    && ($presentation['PRESENTATION'] ?? '') !== VARIABLE_PRESENTATION_VALUE_PRESENTATION;
+                if ($actionable && $this->isLightAttributeWritable($attribute, $attributeContext)) {
                     $this->EnableAction($ident);
                 } else {
                     $this->DisableAction($ident);
@@ -2144,6 +2149,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return HASelectDefinitions::normalizeOptions($context['supported_color_modes'] ?? null) !== [];
         }
 
+        // color_temp_kelvin nur anlegen, wenn tatsächlich Kelvin-Daten vorliegen. HA-MQTT-Lampen
+        // (z. B. zigbee2mqtt) liefern Farbtemperatur i. d. R. nur in mired; ohne Kelvin-Metadaten
+        // bekäme die Variable nie einen Wert/Slider-Grenzen (Deckungsgleich mit der Wertbefüllung,
+        // HAMqttDiscoveryLightRuntime::extractAttributes). color_temp (mired) bleibt kanonisch.
+        if ($attribute === 'color_temp_kelvin') {
+            return is_numeric($context['min_color_temp_kelvin'] ?? null)
+                || is_numeric($context['max_color_temp_kelvin'] ?? null);
+        }
+
         return $this->checkLightAttributeFeatures($meta, $context) && $this->checkLightAttributeColorModes($meta, $context);
     }
 
@@ -2155,6 +2169,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         $meta = HALightDefinitions::ATTRIBUTE_DEFINITIONS[$attribute] ?? null;
         if (!is_array($meta) || !($meta['writable'] ?? false)) {
+            return false;
+        }
+
+        // Konsistent zu shouldCreateLightAttribute(): kein schreibbares color_temp_kelvin ohne Kelvin-Daten.
+        if ($attribute === 'color_temp_kelvin'
+            && !is_numeric($context['min_color_temp_kelvin'] ?? null)
+            && !is_numeric($context['max_color_temp_kelvin'] ?? null)
+            && !array_key_exists('color_temp_kelvin', $context)) {
             return false;
         }
 
