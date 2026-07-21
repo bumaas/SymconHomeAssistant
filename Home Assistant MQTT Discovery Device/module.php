@@ -48,7 +48,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string LOCK_ACTION_SUFFIX = '_lock_action';
     private const string COVER_ACTION_SUFFIX = '_cover_action';
     private const string COVER_TILT_ACTION_SUFFIX = '_cover_tilt_action';
+    private const string UPDATE_INSTALL_SUFFIX = '_update_install';
     private const int LOCK_ACTION_POSITION_OFFSET = 5;
+    private const int UPDATE_INSTALL_POSITION_OFFSET = 5;
     private const int COVER_ACTION_POSITION_OFFSET = 5;
     private const int COVER_TILT_ACTION_POSITION_OFFSET = 6;
 
@@ -319,6 +321,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         if ($target['type'] === 'lock_action') {
             $this->handleLockActionRequest($Ident, $target['entity'], $Value);
+            return;
+        }
+
+        if ($target['type'] === 'update_install') {
+            $this->handleUpdateInstallRequest($Ident, $target['entity'], $Value);
             return;
         }
 
@@ -826,6 +833,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'payload_on' => $row['payload_on'] ?? null,
             'payload_off' => $row['payload_off'] ?? null,
             'payload_press' => $row['payload_press'] ?? null,
+            'payload_install' => $row['payload_install'] ?? null,
             'payload_home' => $row['payload_home'] ?? null,
             'payload_not_home' => $row['payload_not_home'] ?? null,
             'payload_reset' => $row['payload_reset'] ?? null,
@@ -1261,6 +1269,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             }
 
             if ((string)($entity['component'] ?? '') === HAUpdateDefinitions::DOMAIN) {
+                $idents = array_merge($idents, $this->maintainUpdateInstallVariable($entity, $basePosition));
                 $idents = array_merge($idents, $this->maintainUpdateAttributeVariables($entity, $cachedTopics, $basePosition));
                 continue;
             }
@@ -1880,6 +1889,36 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return [$ident];
     }
 
+    private function maintainUpdateInstallVariable(array $entity, int $basePosition): array
+    {
+        if (!$this->hasUpdateInstallControl($entity)) {
+            return [];
+        }
+
+        $ident = $this->buildUpdateInstallIdent((string)($entity['ident_prefix'] ?? $entity['ident']));
+        $this->maintainEnumerationTriggerVariable(
+            $ident,
+            $this->Translate('Install Update'),
+            $basePosition + self::UPDATE_INSTALL_POSITION_OFFSET,
+            [$this->buildEnumerationOption(HAUpdateDefinitions::ACTION_INSTALL, $this->Translate('Install'))]
+        );
+
+        return [$ident];
+    }
+
+    private function hasUpdateInstallControl(array $entity): bool
+    {
+        if (!$entity['create_var']) {
+            return false;
+        }
+
+        if ((string)($entity['component'] ?? '') !== HAUpdateDefinitions::DOMAIN) {
+            return false;
+        }
+
+        return (string)($entity['command_topic'] ?? '') !== '';
+    }
+
     private function maintainImagePreviewMedia(array $entity, int $basePosition): array
     {
         $ident = $this->buildImagePreviewIdent((string)($entity['ident_prefix'] ?? $entity['ident']));
@@ -2391,6 +2430,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function buildLockActionIdent(string $entityIdentPrefix): string
     {
         return $this->buildSharedSuffixIdentFromPrefix($entityIdentPrefix, self::LOCK_ACTION_SUFFIX);
+    }
+
+    private function buildUpdateInstallIdent(string $entityIdentPrefix): string
+    {
+        return $this->buildSharedSuffixIdentFromPrefix($entityIdentPrefix, self::UPDATE_INSTALL_SUFFIX);
     }
 
     private function buildCoverActionIdent(string $entityIdentPrefix): string
@@ -4228,6 +4272,32 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
     }
 
+    private function handleUpdateInstallRequest(string $ident, array $entity, mixed $value): void
+    {
+        $action = is_numeric($value) ? (int)$value : null;
+        if ($action !== HAUpdateDefinitions::ACTION_INSTALL) {
+            return;
+        }
+
+        $topic = (string)($entity['command_topic'] ?? '');
+        if ($topic === '') {
+            return;
+        }
+
+        // HA-Core publiziert bei fehlendem payload_install einen leeren Payload.
+        $payload = $this->scalarToString($entity['payload_install'] ?? null) ?? '';
+
+        $this->debugExpert(__FUNCTION__, 'Sende Update-Install', [
+            'Ident' => $ident,
+            'EntityKey' => $entity['entity_key'] ?? '',
+            'Topic' => $topic,
+            'Payload' => $payload
+        ]);
+
+        $this->sendMqttMessage($topic, $payload, (int)$entity['qos'], (bool)$entity['retain']);
+        $this->resetTriggerActionValue($ident);
+    }
+
     private function handleCoverActionRequest(string $ident, array $entity, mixed $value, bool $tilt): void
     {
         $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
@@ -4679,6 +4749,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 if ($this->buildLockActionIdent($identPrefix) === $ident) {
                     return [
                         'type' => 'lock_action',
+                        'entity' => $lightEntity
+                    ];
+                }
+            }
+
+            if ((string)($lightEntity['component'] ?? '') === HAUpdateDefinitions::DOMAIN) {
+                $identPrefix = (string)($lightEntity['ident_prefix'] ?? $lightEntity['ident']);
+                if ($this->buildUpdateInstallIdent($identPrefix) === $ident) {
+                    return [
+                        'type' => 'update_install',
                         'entity' => $lightEntity
                     ];
                 }

@@ -169,6 +169,7 @@ trait HADomainRegistryTrait
                 'maintainDeviceTrackerAttributeVariables'
             ],
             HAUpdateDefinitions::DOMAIN => [
+                'maintainUpdateInstallVariable',
                 'maintainUpdateAttributeVariables'
             ],
             HAEventDefinitions::DOMAIN => [

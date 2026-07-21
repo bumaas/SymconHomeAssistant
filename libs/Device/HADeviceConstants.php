@@ -14,6 +14,7 @@ interface HADeviceConstants
     public const string VACUUM_ACTION_SUFFIX = '_vacuum_action';
     public const string VACUUM_FAN_SPEED_SUFFIX = '_vacuum_fan_speed';
     public const string LAWN_MOWER_ACTION_SUFFIX = '_lawn_mower_action';
+    public const string UPDATE_INSTALL_SUFFIX = '_update_install';
     public const string MEDIA_PLAYER_ACTION_SUFFIX = '_media_player_action';
     public const string MEDIA_PLAYER_POWER_SUFFIX = '_power';
     public const string CLIMATE_POWER_SUFFIX = '_power';

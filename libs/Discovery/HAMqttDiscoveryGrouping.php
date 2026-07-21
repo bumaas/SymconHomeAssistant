@@ -115,6 +115,7 @@ final class HAMqttDiscoveryGrouping
                 'payload_on'        => $entity['state']['payload_on'] ?? null,
                 'payload_off'       => $entity['state']['payload_off'] ?? null,
                 'payload_press'     => $entity['state']['payload_press'] ?? null,
+                'payload_install'   => $entity['state']['payload_install'] ?? null,
                 'payload_home'      => $entity['state']['payload_home'] ?? null,
                 'payload_not_home'  => $entity['state']['payload_not_home'] ?? null,
                 'payload_reset'     => $entity['state']['payload_reset'] ?? null,

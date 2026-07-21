@@ -11,6 +11,10 @@ final class HAUpdateDefinitions
     public const string FALSE_CAPTION = 'Up to Date';
     public const string ICON = 'arrows-rotate';
 
+    public const int FEATURE_INSTALL = 1;
+
+    public const int ACTION_INSTALL = 0;
+
     public const array SUPPORTED_FEATURES = [
         1  => 'Install',
         2  => 'Specific Version',

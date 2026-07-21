@@ -362,6 +362,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         if ($this->handleLawnMowerAction($Ident, $Value)) {
             return;
         }
+        if ($this->handleUpdateInstallAction($Ident, $Value)) {
+            return;
+        }
         if ($this->handleCameraPowerAction($Ident, $Value)) {
             return;
         }

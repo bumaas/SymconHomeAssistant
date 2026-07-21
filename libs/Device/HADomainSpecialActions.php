@@ -82,6 +82,11 @@ trait HADomainSpecialActionsTrait
         return $this->buildSharedSuffixIdent($entityId, '_camera_power');
     }
 
+    private function getUpdateInstallIdent(string $entityId): string
+    {
+        return $this->buildSharedSuffixIdent($entityId, self::UPDATE_INSTALL_SUFFIX);
+    }
+
     private function getSupportedFeatureFlags(array $attributes, string $attribute = self::KEY_SUPPORTED_FEATURES): int
     {
         return (int)($attributes[$attribute] ?? 0);
@@ -471,6 +476,21 @@ trait HADomainSpecialActionsTrait
         $this->maintainEntityActionVariable($entity, 5, [$this, 'getLawnMowerActionOptions'], [$this, 'getLawnMowerActionIdent'], $this->Translate('Select action'), true);
     }
 
+    protected function maintainUpdateInstallVariable(array $entity): void
+    {
+        $this->maintainEntityActionVariable($entity, 5, [$this, 'getUpdateInstallOptions'], [$this, 'getUpdateInstallIdent'], $this->Translate('Install Update'), true);
+    }
+
+    private function getUpdateInstallOptions(array $attributes): array
+    {
+        $addAll = $this->getSupportedFeatureFlags($attributes) === 0;
+        return $this->buildFeatureEnumerationOptions(
+            $attributes,
+            [[HAUpdateDefinitions::FEATURE_INSTALL, HAUpdateDefinitions::ACTION_INSTALL, $this->Translate('Install')]],
+            $addAll
+        );
+    }
+
     private function supportsCameraPower(array $attributes): bool
     {
         return $this->supportsFeatureFlag($this->getSupportedFeatureFlags($attributes), HACameraDefinitions::FEATURE_ON_OFF);
@@ -625,6 +645,23 @@ trait HADomainSpecialActionsTrait
                 HAValveDefinitions::ACTION_STOP => HAValveDefinitions::FEATURE_STOP
             ],
             'Valve action'
+        );
+    }
+
+    private function handleUpdateInstallAction(string $ident, mixed $value): bool
+    {
+        return $this->handleServiceBackedEnumerationAction(
+            $ident,
+            $value,
+            self::UPDATE_INSTALL_SUFFIX,
+            HAUpdateDefinitions::DOMAIN,
+            [
+                HAUpdateDefinitions::ACTION_INSTALL => ['install', 'install']
+            ],
+            [
+                HAUpdateDefinitions::ACTION_INSTALL => HAUpdateDefinitions::FEATURE_INSTALL
+            ],
+            'Update install'
         );
     }
 

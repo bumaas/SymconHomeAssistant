@@ -371,6 +371,7 @@ trait HADeviceCoreTrait
             'handleVacuumAction',
             'handleVacuumFanSpeedAction',
             'handleLawnMowerAction',
+            'handleUpdateInstallAction',
             'handleCameraPowerAction',
             'handleMediaPlayerPowerAction',
             'handleMediaPlayerAction',
