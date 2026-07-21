@@ -152,7 +152,7 @@
             {
               "type": "ValidationTextBox",
               "name": "entity_id",
-              "caption": "Entitäts-ID",
+              "caption": "Entity ID",
               "enabled": false,
               "width": "100%"
             },

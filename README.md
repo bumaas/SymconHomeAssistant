@@ -1,4 +1,5 @@
 [![Version](https://img.shields.io/badge/Symcon%20Version-9.0%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-1-%28Stable%29-Changelog)
+[![Checks](https://github.com/bumaas/SymconHomeAssistant/actions/workflows/check.yml/badge.svg)](https://github.com/bumaas/SymconHomeAssistant/actions/workflows/check.yml)
 # Home Assistant
 
 Mit diesem Modul lassen sich Geräte, Entitäten und Dienste aus dem Home-Assistant-Umfeld komfortabel in Symcon nutzen.
