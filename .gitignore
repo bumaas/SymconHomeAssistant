@@ -7,6 +7,7 @@ docs/WEITERES_VORGEHEN.md
 # tests/ enthaelt Fixtures mit ggf. privaten Geraetedaten — nur der Locale-Check ist versioniert
 tests/*
 !tests/check_locale.php
+!tests/check_property_contracts.php
 
 # Claude Code (persoenliche Dateien)
 CLAUDE.local.md
