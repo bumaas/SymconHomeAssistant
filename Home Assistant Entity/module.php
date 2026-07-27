@@ -81,6 +81,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterPropertyString(self::PROP_DEVICE_NAME, '');
         $this->RegisterPropertyBoolean(self::PROP_ENABLE_EXPERT_DEBUG, false);
         $this->RegisterPropertyBoolean(self::PROP_SHOW_UNAVAILABLE_ENTITIES_JSON, false);
+        $this->RegisterPropertyBoolean(self::PROP_EMULATE_STATUS, false);
         $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
         $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
