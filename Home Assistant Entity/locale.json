@@ -5,6 +5,8 @@
       "Entity Information": "Entitätsinformationen",
       "MQTT base topic missing": "MQTT-Basetopic fehlt",
       "Entity ID": "Entit\u00e4ts-ID",
+      "Behavior": "Verhalten",
+      "Emulate status (set value immediately)": "Status emulieren (Wert sofort setzen)",
       "Expert": "Experte",
       "Enable extended debug output": "Erweiterte Debug-Ausgaben aktivieren",
       "Show unavailable entities JSON": "JSON f\u00fcr nicht verf\u00fcgbare Entit\u00e4ten anzeigen",
