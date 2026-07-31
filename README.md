@@ -9,7 +9,7 @@ Das Modul unterstützt dafür zwei klar getrennte Anwendungsfälle:
 1. die klassische Bridge, um bestehende Elemente aus einer Home-Assistant-Installation nach Symcon zu übernehmen
 2. MQTT Discovery, um kompatible Geräte und Dienste direkt per MQTT in Symcon einzubinden
 
-So kann Symcon entweder mit einer vorhandenen Home-Assistant-Installation zusammenarbeiten oder Geräte und Dienste direkt über MQTT einbinden. Beide Wege können parallel genutzt werden.
+So kann Symcon entweder mit einer vorhandenen Home-Assistant-Installation zusammenarbeiten oder Geräte und Dienste direkt über MQTT einbinden — auch ganz ohne Home-Assistant-Server. Beide Wege können parallel genutzt werden.
 
 ## Inhaltsverzeichnis
 
