@@ -40,9 +40,10 @@ Definitionsklasse je HA-Domäne), `Device/` (Laufzeitlogik der Device-Module), `
 
 ## Tests
 
-`tests/` ist bis auf `check_locale.php` gitignored (Fixtures können private Gerätedaten
-enthalten). Lokale Laufzeit-Checks: `php tests/check-*.php` (eigenständige Skripte mit
-IPS-Stubs, kein PHPUnit).
+Alle Check-Skripte (`tests/check*.php`) sind versioniert; Fixtures nur nach
+Einzelprüfung auf private Gerätedaten (Freischaltung per `.gitignore`-Ausnahme,
+Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
+(eigenständige Skripte mit IPS-Stubs, kein PHPUnit).
 
 ## CI / Version
 

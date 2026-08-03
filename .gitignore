@@ -3,10 +3,20 @@ libs/icon-meta-data.js
 .junie/
 docs/MQTT_DISCOVERY_A3_TESTPLAN.md
 docs/WEITERES_VORGEHEN.md
-# tests/ enthaelt Fixtures mit ggf. privaten Geraetedaten — nur der Locale-Check ist versioniert
+# tests/: alle Checks sind versioniert; Fixtures nur nach Einzelpruefung
+# (Bundles koennen private Geraetedaten wie IPs, Benutzer- und Ortsnamen enthalten)
 tests/*
+!tests/check-*.php
 !tests/check_locale.php
 !tests/check_property_contracts.php
+!tests/lint-php.ps1
+!tests/fixtures/
+tests/fixtures/*
+!tests/fixtures/README.md
+!tests/fixtures/ha_device_config_bundle_mitsubishi_electric_air_to_air_heat_pump_via_melcloud_home_b_ro.json
+!tests/fixtures/ha_mqtt_discovery_bundle_ebusd.json
+!tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json
+!tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_stale_v2.json
 
 # Claude Code (persoenliche Dateien)
 CLAUDE.local.md

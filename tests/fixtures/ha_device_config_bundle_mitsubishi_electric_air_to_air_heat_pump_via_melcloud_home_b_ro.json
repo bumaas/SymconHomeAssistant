@@ -1,0 +1,186 @@
+[
+    {
+        "entity_id": "binary_sensor.milchstrasse_melcloudhome_650e_5ec4_error_state",
+        "domain": "binary_sensor",
+        "name": "Büro Error State",
+        "attributes": {
+            "device_class": "problem",
+            "friendly_name": "Büro Error State",
+            "supported_features": 0
+        },
+        "device_name": "Büro",
+        "device_manufacturer": "Mitsubishi Electric",
+        "device_model": "Air-to-Air Heat Pump (via MELCloud Home)",
+        "device_id": "3e794a9d9674f3b01207cb70cbb3fa02",
+        "area": "Milchstraße ",
+        "create_var": true,
+        "device": "Büro",
+        "device_class": "problem"
+    },
+    {
+        "entity_id": "binary_sensor.milchstrasse_melcloudhome_650e_5ec4_connection_state",
+        "domain": "binary_sensor",
+        "name": "Büro Connection State",
+        "attributes": {
+            "device_class": "connectivity",
+            "friendly_name": "Büro Connection State",
+            "supported_features": 0
+        },
+        "device_name": "Büro",
+        "device_manufacturer": "Mitsubishi Electric",
+        "device_model": "Air-to-Air Heat Pump (via MELCloud Home)",
+        "device_id": "3e794a9d9674f3b01207cb70cbb3fa02",
+        "area": "Milchstraße ",
+        "create_var": true,
+        "device": "Büro",
+        "device_class": "connectivity"
+    },
+    {
+        "entity_id": "climate.milchstrasse_melcloudhome_650e_5ec4_climate",
+        "domain": "climate",
+        "name": "Büro Climate",
+        "attributes": {
+            "hvac_modes": [
+                "off",
+                "heat",
+                "cool",
+                "auto",
+                "dry",
+                "fan_only"
+            ],
+            "min_temp": 16,
+            "max_temp": 31,
+            "fan_modes": [
+                "auto",
+                "one",
+                "two",
+                "three",
+                "four",
+                "five"
+            ],
+            "swing_modes": [
+                "auto",
+                "swing",
+                "one",
+                "two",
+                "three",
+                "four",
+                "five"
+            ],
+            "swing_horizontal_modes": [
+                "auto",
+                "swing",
+                "left",
+                "leftcentre",
+                "centre",
+                "rightcentre",
+                "right"
+            ],
+            "current_temperature": 26,
+            "fan_mode": "three",
+            "hvac_action": "cooling",
+            "swing_mode": "auto",
+            "swing_horizontal_mode": "auto",
+            "friendly_name": "Büro Climate",
+            "supported_features": 937,
+            "target_temperature": 23,
+            "target_temperature_step": 0.5,
+            "supported_features_list": [
+                "Target Temp",
+                "Fan Mode",
+                "Swing Mode",
+                "Turn On",
+                "Turn Off"
+            ],
+            "target_temp_step": 0.5,
+            "temperature": 23
+        },
+        "device_name": "Büro",
+        "device_manufacturer": "Mitsubishi Electric",
+        "device_model": "Air-to-Air Heat Pump (via MELCloud Home)",
+        "device_id": "3e794a9d9674f3b01207cb70cbb3fa02",
+        "area": "Milchstraße ",
+        "create_var": true,
+        "device": "Büro"
+    },
+    {
+        "entity_id": "sensor.milchstrasse_melcloudhome_650e_5ec4_room_temperature",
+        "domain": "sensor",
+        "name": "Büro Room Temperature",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "°C",
+            "device_class": "temperature",
+            "friendly_name": "Büro Room Temperature",
+            "supported_features": 0
+        },
+        "device_name": "Büro",
+        "device_manufacturer": "Mitsubishi Electric",
+        "device_model": "Air-to-Air Heat Pump (via MELCloud Home)",
+        "device_id": "3e794a9d9674f3b01207cb70cbb3fa02",
+        "area": "Milchstraße ",
+        "create_var": true,
+        "device": "Büro",
+        "device_class": "temperature"
+    },
+    {
+        "entity_id": "sensor.milchstrasse_melcloudhome_650e_5ec4_wifi_signal",
+        "domain": "sensor",
+        "name": "Büro WiFi Signal",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "dBm",
+            "device_class": "signal_strength",
+            "friendly_name": "Büro WiFi Signal",
+            "supported_features": 0
+        },
+        "device_name": "Büro",
+        "device_manufacturer": "Mitsubishi Electric",
+        "device_model": "Air-to-Air Heat Pump (via MELCloud Home)",
+        "device_id": "3e794a9d9674f3b01207cb70cbb3fa02",
+        "area": "Milchstraße ",
+        "create_var": true,
+        "device": "Büro",
+        "device_class": "signal_strength"
+    },
+    {
+        "entity_id": "sensor.milchstrasse_melcloudhome_650e_5ec4_energy",
+        "domain": "sensor",
+        "name": "Büro Energy",
+        "attributes": {
+            "state_class": "total_increasing",
+            "unit_of_measurement": "kWh",
+            "device_class": "energy",
+            "friendly_name": "Büro Energy",
+            "supported_features": 0
+        },
+        "device_name": "Büro",
+        "device_manufacturer": "Mitsubishi Electric",
+        "device_model": "Air-to-Air Heat Pump (via MELCloud Home)",
+        "device_id": "3e794a9d9674f3b01207cb70cbb3fa02",
+        "area": "Milchstraße ",
+        "create_var": true,
+        "device": "Büro",
+        "device_class": "energy"
+    },
+    {
+        "entity_id": "sensor.milchstrasse_melcloudhome_650e_5ec4_outdoor_temperature",
+        "domain": "sensor",
+        "name": "Büro Outdoor Temperature",
+        "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "°C",
+            "device_class": "temperature",
+            "friendly_name": "Büro Outdoor Temperature",
+            "supported_features": 0
+        },
+        "device_name": "Büro",
+        "device_manufacturer": "Mitsubishi Electric",
+        "device_model": "Air-to-Air Heat Pump (via MELCloud Home)",
+        "device_id": "3e794a9d9674f3b01207cb70cbb3fa02",
+        "area": "Milchstraße ",
+        "create_var": true,
+        "device": "Büro",
+        "device_class": "temperature"
+    }
+]
