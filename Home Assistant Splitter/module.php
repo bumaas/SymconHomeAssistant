@@ -534,10 +534,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function updateLastMqttMessageLabel(): void
     {
-        $last = $this->ReadAttributeString('LastMQTTMessage');
-        if ($last === '') {
-            $last = $this->Translate('never');
-        }
+        $last = $this->attributeOrFallback('LastMQTTMessage', $this->Translate('never'));
         $this->updateFormFieldSafe(
             'LastMQTTMessage',
             'caption',
@@ -582,6 +579,62 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return true;
     }
 
+    /**
+     * Gemeinsamer cURL-Unterbau der vier HA-HTTP-Zugriffe (Reachability-Probe, Service-Call,
+     * Raw-Request, Image-Download). Baut das Handle einheitlich auf (Bearer-Auth, RETURNTRANSFER)
+     * und schliesst es nach der Ausfuehrung IMMER mit curl_close(). Die komplette Fehler-/
+     * Erfolgsbehandlung bleibt Sache der Aufrufer.
+     *
+     * Optionen (nur die Abweichungen vom Standardfall):
+     * - headers:        list<string> — zusaetzliche Header nach dem Authorization-Header
+     *                   (Default: ['Content-Type: application/json'])
+     * - connectTimeout: int — CURLOPT_CONNECTTIMEOUT (Default: nicht gesetzt)
+     * - timeout:        int — CURLOPT_TIMEOUT (Default: 10)
+     * - followLocation: bool — CURLOPT_FOLLOWLOCATION + CURLOPT_MAXREDIRS 3 (Default: false)
+     * - postFields:     string — CURLOPT_POST + CURLOPT_POSTFIELDS (Default: kein POST)
+     *
+     * @param array{headers?: list<string>, connectTimeout?: int, timeout?: int, followLocation?: bool, postFields?: string} $options
+     *
+     * @return array{response: string|false, httpCode: int, contentType: string|null, error: string}
+     */
+    private function performCurl(string $url, string $token, array $options = []): array
+    {
+        $ch = curl_init($url);
+
+        $headers = array_merge(
+            ['Authorization: Bearer ' . $token],
+            $options['headers'] ?? ['Content-Type: application/json']
+        );
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        if (isset($options['connectTimeout'])) {
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $options['connectTimeout']);
+        }
+        curl_setopt($ch, CURLOPT_TIMEOUT, $options['timeout'] ?? 10);
+        if ($options['followLocation'] ?? false) {
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+        }
+        if (isset($options['postFields'])) {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $options['postFields']);
+        }
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        return [
+            'response' => $response,
+            'httpCode' => $httpCode,
+            'contentType' => $contentType,
+            'error' => $error
+        ];
+    }
+
     private function isRestApiReachable(): bool
     {
         $credentials = $this->readHaCredentials();
@@ -590,21 +643,10 @@ class HomeAssistantSplitter extends IPSModuleStrict
         }
 
         $url = rtrim($credentials['url'], '/') . '/api/';
-        $ch = curl_init($url);
-
-        $headers = [
-            'Authorization: Bearer ' . $credentials['token'],
-            'Content-Type: application/json'
-        ];
-
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
+        $result = $this->performCurl($url, $credentials['token'], ['connectTimeout' => 5, 'timeout' => 5]);
+        $response = $result['response'];
+        $httpCode = $result['httpCode'];
+        $error = $result['error'];
 
         if ($error) {
             return $this->failRestDiagnostics('cURL: ' . $error);
@@ -706,22 +748,10 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function sendHaRequest(string $url, string $token, string $postData): bool
     {
-        $ch = curl_init($url);
-
-        $headers = [
-            'Authorization: Bearer ' . $token,
-            'Content-Type: application/json'
-        ];
-
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
+        $result = $this->performCurl($url, $token, ['postFields' => $postData]);
+        $response = $result['response'];
+        $httpCode = $result['httpCode'];
+        $error = $result['error'];
 
         if ($error) {
             $this->debugExpert('REST', "cURL Error: $error");
@@ -789,24 +819,14 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function sendHaImageRequest(string $url, string $token): array
     {
-        $ch = curl_init($url);
-
-        $headers = [
-            'Authorization: Bearer ' . $token,
-            'Accept: image/*',
-            'User-Agent: IPS-HomeAssistant'
-        ];
-
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-        $error = curl_error($ch);
+        $result = $this->performCurl($url, $token, [
+            'headers'        => ['Accept: image/*', 'User-Agent: IPS-HomeAssistant'],
+            'followLocation' => true
+        ]);
+        $response = $result['response'];
+        $httpCode = $result['httpCode'];
+        $contentType = $result['contentType'];
+        $error = $result['error'];
 
         if ($error) {
             $this->debugExpert('REST', 'Image cURL error', ['Error' => $error, 'HttpCode' => $httpCode]);
@@ -892,25 +912,15 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function sendHaRequestRaw(string $url, string $token, ?string $postData, string $method): array
     {
-        $ch = curl_init($url);
-
-        $headers = [
-            'Authorization: Bearer ' . $token,
-            'Content-Type: application/json'
-        ];
-
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-
+        $options = [];
         if ($method === 'POST' && $postData !== null) {
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+            $options['postFields'] = $postData;
         }
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
+        $result = $this->performCurl($url, $token, $options);
+        $response = $result['response'];
+        $httpCode = $result['httpCode'];
+        $error = $result['error'];
 
         if ($error) {
             $this->debugExpert('REST', 'cURL error', ['Error' => $error, 'HttpCode' => $httpCode]);
@@ -1635,54 +1645,59 @@ class HomeAssistantSplitter extends IPSModuleStrict
         @ $this->UpdateFormField($name, $property, $value);
     }
 
-    private function buildDiagnosticsCaptions(): array
+    // Attributwert lesen; bei leerem Wert den (vom Aufrufer bereits uebersetzten) Fallback liefern.
+    // Der Translate()-Aufruf mit Literal bleibt bewusst beim Aufrufer (Locale-Check).
+    private function attributeOrFallback(string $attribute, string $translatedFallback): string
+    {
+        $value = $this->ReadAttributeString($attribute);
+        return $value === '' ? $translatedFallback : $value;
+    }
+
+    /**
+     * Datenbeschaffung fuer die Diagnose-Captions (Attribute, Properties, Parent-Kontext).
+     *
+     * @return array{parentId: int, parentStatus: int, parentName: string, lastMqtt: string, baseTopic: string, lastRestError: string, lastRestResponse: string, lastRestTimeout: string}
+     */
+    private function collectDiagnosticsValues(): array
     {
         $parent = $this->buildCurrentParentDebugContext();
-        $parentId = (int)($parent['ParentID'] ?? 0);
-        $parentStatus = (int)($parent['ParentStatus'] ?? 0);
-        $parentName = (string)($parent['ParentName'] ?? '');
-
-        $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
-        if ($lastMqtt === '') {
-            $lastMqtt = $this->Translate('never');
-        }
-
-        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
-        $statusName = $this->getInstanceStatusName($parentStatus);
-        $nameSuffix = $parentName !== '' ? ' (' . $parentName . ')' : '';
-        $statusSuffix = $statusName !== '' ? '(' . $statusName . ')' : '';
-
-        $lastRestError = $this->ReadAttributeString('LastRestError');
-        if ($lastRestError === '') {
-            $lastRestError = $this->Translate('none');
-        }
-
-        $lastRestResponse = $this->ReadAttributeString('LastRestResponse');
-        if ($lastRestResponse === '') {
-            $lastRestResponse = $this->Translate('none');
-        }
-
-        $lastRestTimeout = $this->ReadAttributeString('LastRestTimeout');
-        if ($lastRestTimeout === '') {
-            $lastRestTimeout = $this->Translate('none');
-        }
 
         return [
-            'LastMQTTMessage' => sprintf($this->Translate('Last MQTT message: %s'), $lastMqtt),
+            'parentId'         => (int)($parent['ParentID'] ?? 0),
+            'parentStatus'     => (int)($parent['ParentStatus'] ?? 0),
+            'parentName'       => (string)($parent['ParentName'] ?? ''),
+            'lastMqtt'         => $this->attributeOrFallback('LastMQTTMessage', $this->Translate('never')),
+            'baseTopic'        => trim($this->ReadPropertyString('MQTTBaseTopic')),
+            'lastRestError'    => $this->attributeOrFallback('LastRestError', $this->Translate('none')),
+            'lastRestResponse' => $this->attributeOrFallback('LastRestResponse', $this->Translate('none')),
+            'lastRestTimeout'  => $this->attributeOrFallback('LastRestTimeout', $this->Translate('none'))
+        ];
+    }
+
+    private function buildDiagnosticsCaptions(): array
+    {
+        $values = $this->collectDiagnosticsValues();
+
+        $statusName = $this->getInstanceStatusName($values['parentStatus']);
+        $nameSuffix = $values['parentName'] !== '' ? ' (' . $values['parentName'] . ')' : '';
+        $statusSuffix = $statusName !== '' ? '(' . $statusName . ')' : '';
+
+        return [
+            'LastMQTTMessage' => sprintf($this->Translate('Last MQTT message: %s'), $values['lastMqtt']),
             'DiagParent' => sprintf(
                 $this->Translate('MQTT parent: %d%s | Status %d%s'),
-                $parentId,
+                $values['parentId'],
                 $nameSuffix,
-                $parentStatus,
+                $values['parentStatus'],
                 $statusSuffix
             ),
             'DiagBaseTopic' => sprintf(
                 $this->Translate('MQTT base topic: %s'),
-                $baseTopic !== '' ? $baseTopic : $this->Translate('empty')
+                $values['baseTopic'] !== '' ? $values['baseTopic'] : $this->Translate('empty')
             ),
-            'DiagRest' => sprintf($this->Translate('Last REST error: %s'), $lastRestError),
-            'DiagRestResponse' => sprintf($this->Translate('Last REST response: %s'), $lastRestResponse),
-            'DiagRestTimeout' => sprintf($this->Translate('Last REST timeout: %s'), $lastRestTimeout)
+            'DiagRest' => sprintf($this->Translate('Last REST error: %s'), $values['lastRestError']),
+            'DiagRestResponse' => sprintf($this->Translate('Last REST response: %s'), $values['lastRestResponse']),
+            'DiagRestTimeout' => sprintf($this->Translate('Last REST timeout: %s'), $values['lastRestTimeout'])
         ];
     }
 

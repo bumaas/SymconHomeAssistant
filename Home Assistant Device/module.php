@@ -698,24 +698,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         return $this->buildResolvedEntities(array_values($deduplicated));
     }
 
-    private function readResolvedConfig(string $context): array
-    {
-        $this->ensureResolvedConfigAttributeRegistered($context);
-        $configData = $this->decodeJsonArray($this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG), $context);
-        return $configData ?? [];
-    }
-
-    private function ensureResolvedConfigAttributeRegistered(string $context): void
-    {
-        if (@$this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG) !== false) {
-            return;
-        }
-
-        $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-        $this->debugExpert($context, 'ResolvedConfig in Bestandsinstanz initialisiert');
-    }
-
     private function getResolvedDeviceName(?array $configData = null): string
     {
         $configData ??= $this->readResolvedConfig(__FUNCTION__);
@@ -925,7 +907,13 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return $currentBase;
         }
 
-        $json = json_decode($subscriptions, true, 512, JSON_THROW_ON_ERROR);
+        // Fremde Instanz-Property: ein defektes JSON darf ApplyChanges nicht abbrechen.
+        try {
+            $json = json_decode($subscriptions, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            $this->debugExpert('Config', 'Subscriptions des MQTT-IO sind kein gültiges JSON: ' . $e->getMessage(), ['InstanceID' => $instanceId]);
+            return $currentBase;
+        }
         // Das erste Subscription-Topic wird als Basetopic interpretiert.
         if (is_array($json) && count($json) > 0 && isset($json[0]['Topic'])) {
             $newTopic = rtrim($json[0]['Topic'], '/#');
@@ -1181,7 +1169,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $parsed = $this->parseEntityPayload($payload);
         $rawState = (string)($parsed[self::KEY_STATE] ?? '');
         $this->updateEntityRawStateCache($entityId, $rawState);
-        $this->updateAvailabilityValue($entityId, $rawState);
+        $this->updateAvailabilityValue($rawState);
         $this->applyParsedEntityState($entityId, $parsed);
     }
 
@@ -1248,148 +1236,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->updateEntityPresentation($entityId, $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? []);
     }
 
-    private function parseEntityPayload(string $payload): array
-    {
-        $result = [
-            self::KEY_STATE      => $payload,
-            self::KEY_ATTRIBUTES => []
-        ];
-
-        // HA-State-Payloads können rohe Werte oder JSON mit state/attributes sein.
-        $trimmed = trim($payload);
-        if ($trimmed !== '') {
-            $first = $trimmed[0];
-            if ($first === '{' || $first === '[' || $first === '"') {
-                try {
-                    $json = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
-                } catch (JsonException $e) {
-                    $this->debugRuntimeIssue('ReceiveData', 'Invalid JSON payload', ['Error' => $e->getMessage()]);
-                    return $result;
-                }
-                if (is_array($json)) {
-                    if (array_key_exists(self::KEY_STATE, $json)) {
-                        $result[self::KEY_STATE] = (string)$json[self::KEY_STATE];
-                    }
-                    if (isset($json[self::KEY_ATTRIBUTES]) && is_array($json[self::KEY_ATTRIBUTES])) {
-                        $result[self::KEY_ATTRIBUTES] = $json[self::KEY_ATTRIBUTES];
-                    }
-                } elseif ($json !== null) {
-                    $result[self::KEY_STATE] = (string)$json;
-                }
-            }
-        }
-
-        return $result;
-    }
-
     // --- Technische Helper ---
-
-    private function decodeJsonArray(string $json, string $context): ?array
-    {
-        try {
-            $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            if ($context === 'ReceiveData') {
-                $this->debugRuntimeIssue($context, 'Invalid JSON', ['Error' => $e->getMessage()]);
-            } else {
-                $this->debugExpert($context, 'Invalid JSON', ['Error' => $e->getMessage()]);
-            }
-            return null;
-        }
-
-        return is_array($data) ? $data : null;
-    }
-
-
-    private function sanitizeIdent(string $id): string
-    {
-        return str_replace(['.', ' ', '-'], '_', $id);
-    }
-
-
 
     private function isWriteable(string $domain): bool
     {
         return HADomainCatalog::isMainWritable($this->normalizeDomainAlias($domain));
     }
-    private function initializeStatesFromHa(array $configData): void
-    {
-        // Ohne aktiven Parent ist keine REST-Abfrage möglich.
-        if (!$this->hasActiveParent()) {
-            return;
-        }
-
-        foreach ($configData as $row) {
-            // Konfigurationseintrag normalisieren und validieren.
-            $entity = $this->normalizeEntityStructure($row);
-            $entityId = $entity['entity_id'] ?? '';
-
-            // Nur aktivierte Entitäten mit gültiger ID initialisieren.
-            if ($entity === null || !($entity['create_var'] ?? true) || $entityId === '') {
-                continue;
-            }
-
-            // Initialen State per REST holen und anwenden.
-            $state = $this->requestHaState($entityId);
-            if ($state !== null) {
-                $this->applyInitialState($entityId, $state);
-            }
-        }
-    }
-
-    private function fetchStateMap(array $configData): array
-    {
-        if (!$this->hasActiveParent()) {
-            return [];
-        }
-
-        $stateMap = [];
-        foreach ($configData as $row) {
-            $entity = $this->normalizeEntityStructure($row);
-            if ($entity === null || !($entity['create_var'] ?? true)) {
-                continue;
-            }
-            $entityId = $entity['entity_id'] ?? '';
-            if ($entityId === '') {
-                continue;
-            }
-            $state = $this->requestHaState($entityId);
-            if (is_array($state)) {
-                $stateMap[$entityId] = $state;
-            }
-        }
-        return $stateMap;
-    }
-
-    private function mergeStateAttributes(array $configData, array $stateMap): array
-    {
-        foreach ($configData as &$row) {
-            $entity = $this->normalizeEntityStructure($row);
-            if ($entity === null || !isset($entity['entity_id'])) {
-                continue;
-            }
-            $entityId = $entity['entity_id'];
-            if (!isset($stateMap[$entityId])) {
-                continue;
-            }
-            $state = $stateMap[$entityId];
-            if (!is_array($state)) {
-                continue;
-            }
-            $attrs = $state['attributes'] ?? [];
-            if (!is_array($attrs)) {
-                continue;
-            }
-            $existing = $entity['attributes'] ?? [];
-            if (!is_array($existing)) {
-                $existing = [];
-            }
-            $row['attributes'] = array_merge($existing, $attrs);
-        }
-        unset($row);
-        return $configData;
-    }
-
     private function applyInitialStatesFromMap(array $configData, array $stateMap): void
     {
         foreach ($configData as $row) {
@@ -1407,40 +1259,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
         }
     }
-
-    private function requestHaState(string $entityId): ?array
-    {
-        $endpoint = '/api/states/' . rawurlencode($entityId);
-        $response = $this->sendRestRequestToParent($endpoint, null);
-        if (!is_array($response)) {
-            return null;
-        }
-        $this->WriteAttributeString('LastRESTFetch', date('Y-m-d H:i:s'));
-        $this->updateDiagnosticsLabels();
-        return $response;
-    }
-
-    private function applyInitialState(string $entityId, array $state): void
-    {
-        $rawState = (string)($state[self::KEY_STATE] ?? '');
-        $this->updateEntityRawStateCache($entityId, $rawState);
-        $this->updateAvailabilityValue($entityId, $rawState);
-        $attributes = $state[self::KEY_ATTRIBUTES] ?? null;
-        $parsed = [
-            self::KEY_STATE => $rawState
-        ];
-        if (is_array($attributes)) {
-            $parsed[self::KEY_ATTRIBUTES] = $attributes;
-        }
-
-        $this->applyParsedEntityState($entityId, $parsed);
-    }
-    private function updateFormFieldSafe(string $name, string $property, mixed $value): void
-    {
-        @ $this->UpdateFormField($name, $property, $value);
-    }
-
-
 
     private function applyEntityActiveChange(string $configJson): void
     {

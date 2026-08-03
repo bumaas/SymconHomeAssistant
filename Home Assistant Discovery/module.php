@@ -16,6 +16,9 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     private const string BUFFER_SERVERS         = 'Servers';
     private const string BUFFER_SEARCHACTIVE    = 'SearchActive';
     private const string TIMER_LOAD             = 'DiscoveryTimer';
+    // Kurze Verzögerung, damit GetConfigurationForm sofort zurückkehrt und die
+    // mDNS-Suche danach im Timer läuft (vorher stand hier versehentlich 120*1200 ms = 144 s).
+    private const int SEARCH_START_DELAY_MS     = 1000;
 
     public function Create(): void
     {
@@ -25,12 +28,17 @@ class HomeAssistantDiscovery extends IPSModuleStrict
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
 
         $this->SetBuffer(self::BUFFER_SERVERS, json_encode([], JSON_THROW_ON_ERROR));
-        $this->SetBuffer(self::BUFFER_SEARCHACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
+        $this->markSearchInactive();
     }
 
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        $this->markSearchInactive();
+    }
+
+    private function markSearchInactive(): void
+    {
         $this->SetBuffer(self::BUFFER_SEARCHACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
     }
 
@@ -82,7 +90,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
 
     private function stopSearch(): void
     {
-        $this->SetBuffer(self::BUFFER_SEARCHACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
+        $this->markSearchInactive();
         $this->UpdateFormField('searchingInfo', 'visible', false);
     }
 
@@ -382,7 +390,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
 
         if (!$searchActive) {
             $this->SetBuffer(self::BUFFER_SEARCHACTIVE, json_encode(true, JSON_THROW_ON_ERROR));
-            $this->SetTimerInterval(self::TIMER_LOAD, 120*1200);
+            $this->SetTimerInterval(self::TIMER_LOAD, self::SEARCH_START_DELAY_MS);
         }
 
         $elements   = $this->formElements();
@@ -431,29 +439,34 @@ class HomeAssistantDiscovery extends IPSModuleStrict
                     'column'    => 'host',
                     'direction' => 'ascending'
                 ],
-                'columns'  => [
-                    [
-                        'caption' => $this->Translate('Name'),
-                        'name'    => 'name',
-                        'width'   => '200px'
-                    ],
-                    [
-                        'caption' => $this->Translate('IP Address'),
-                        'name'    => 'host',
-                        'width'   => '150px'
-                    ],
-                    [
-                        'caption' => $this->Translate('Version'),
-                        'name'    => 'version',
-                        'width'   => '100px'
-                    ],
-                    [
-                        'caption' => $this->Translate('Base URL'),
-                        'name'    => 'url',
-                        'width'   => 'auto'
-                    ]
-                ],
+                'columns'  => $this->configuratorColumns(),
                 'values'   => $devices
+            ]
+        ];
+    }
+
+    private function configuratorColumns(): array
+    {
+        return [
+            [
+                'caption' => $this->Translate('Name'),
+                'name'    => 'name',
+                'width'   => '200px'
+            ],
+            [
+                'caption' => $this->Translate('IP Address'),
+                'name'    => 'host',
+                'width'   => '150px'
+            ],
+            [
+                'caption' => $this->Translate('Version'),
+                'name'    => 'version',
+                'width'   => '100px'
+            ],
+            [
+                'caption' => $this->Translate('Base URL'),
+                'name'    => 'url',
+                'width'   => 'auto'
             ]
         ];
     }

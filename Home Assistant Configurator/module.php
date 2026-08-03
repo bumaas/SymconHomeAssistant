@@ -246,10 +246,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             if (!is_array($entity)) {
                 continue;
             }
-            $domain = (string)($entity['domain'] ?? '');
-            if ($domain === '' && isset($entity['entity_id']) && is_string($entity['entity_id']) && str_contains($entity['entity_id'], '.')) {
-                [$domain] = explode('.', $entity['entity_id'], 2);
-            }
+            $domain = $this->resolveDomain($entity);
             if ($domain === '' || !in_array($domain, $domains, true)) {
                 continue;
             }
@@ -705,6 +702,19 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         );
     }
 
+    /**
+     * Domäne einer Entität: explizites Feld, sonst Präfix der entity_id vor dem Punkt.
+     */
+    private function resolveDomain(array $entity): string
+    {
+        $domain = trim((string)($entity['domain'] ?? ''));
+        $entityId = trim((string)($entity['entity_id'] ?? ''));
+        if ($domain === '' && $entityId !== '' && str_contains($entityId, '.')) {
+            [$domain] = explode('.', $entityId, 2);
+        }
+        return $domain;
+    }
+
     private function buildConfiguratorDiagnostics(array $rawEntities, array $resolvedEntities): array
     {
         $diagnostics = $this->createEmptyConfiguratorDiagnostics();
@@ -717,10 +727,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             }
 
             $entityId = trim((string)($rawEntity['entity_id'] ?? ''));
-            $domain = trim((string)($rawEntity['domain'] ?? ''));
-            if ($domain === '' && $entityId !== '' && str_contains($entityId, '.')) {
-                [$domain] = explode('.', $entityId, 2);
-            }
+            $domain = $this->resolveDomain($rawEntity);
 
             if ($domain === '' || HADomainCatalog::isDomainSupported($domain)) {
                 continue;

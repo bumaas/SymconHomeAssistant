@@ -2146,23 +2146,22 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
      */
     private function applyStaticFormState(array &$form): void
     {
-        $captions = [];
         $isBundleMode = $this->isBundleMode();
         $hasStaleDiscovery = false;
         if (isset($form['elements']) && is_array($form['elements'])) {
-            $this->applyFormItemsState($form['elements'], $captions, $isBundleMode, $hasStaleDiscovery);
+            $this->applyFormItemsState($form['elements'], $isBundleMode, $hasStaleDiscovery);
         }
         foreach ($form['actions'] as &$action) {
             if (!isset($action['items']) || !is_array($action['items'])) {
                 continue;
             }
 
-            $this->applyFormItemsState($action['items'], $captions, $isBundleMode, $hasStaleDiscovery);
+            $this->applyFormItemsState($action['items'], $isBundleMode, $hasStaleDiscovery);
         }
         unset($action);
     }
 
-    private function applyFormItemsState(array &$items, array $captions, bool $isBundleMode, bool $hasStaleDiscovery): void
+    private function applyFormItemsState(array &$items, bool $isBundleMode, bool $hasStaleDiscovery): void
     {
         $bundleOnlyFields = [
             'BundlePanel',
@@ -2172,14 +2171,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         foreach ($items as &$item) {
             if (isset($item['items']) && is_array($item['items'])) {
-                $this->applyFormItemsState($item['items'], $captions, $isBundleMode, $hasStaleDiscovery);
+                $this->applyFormItemsState($item['items'], $isBundleMode, $hasStaleDiscovery);
             }
 
             $name = (string)($item['name'] ?? '');
-            if ($name !== '' && array_key_exists($name, $captions)) {
-                $item['caption'] = $captions[$name];
-            }
-
             if ($name !== '' && in_array($name, $bundleOnlyFields, true)) {
                 $item['visible'] = $isBundleMode;
             }
@@ -2394,32 +2389,21 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'received_at' => max(0, (int)($record['received_at'] ?? 0))
         ];
 
-            if (!empty($record['payload_is_binary'])) {
-                $normalized['payload_is_binary'] = true;
-                $normalized['payload_bytes'] = max(0, (int)($record['payload_bytes'] ?? 0));
-                $payloadBase64 = trim((string)($record['payload_base64'] ?? ''));
-                if ($payloadBase64 !== '') {
-                    $normalized['payload_base64'] = $payloadBase64;
-                }
+        if (!empty($record['payload_is_binary'])) {
+            $normalized['payload_is_binary'] = true;
+            $normalized['payload_bytes'] = max(0, (int)($record['payload_bytes'] ?? 0));
+            $payloadBase64 = trim((string)($record['payload_base64'] ?? ''));
+            if ($payloadBase64 !== '') {
+                $normalized['payload_base64'] = $payloadBase64;
             }
+        }
 
         $sessionId = trim((string)($record['session_id'] ?? ''));
         if ($sessionId !== '') {
             $normalized['session_id'] = $sessionId;
         }
 
-        if (array_key_exists('retained', $record) || array_key_exists('retain', $record)) {
-            $normalized['retained'] = (bool)($record['retained'] ?? $record['retain']);
-        }
-
-        if (array_key_exists('qos', $record)) {
-            $normalized['qos'] = max(0, min(2, (int)$record['qos']));
-        }
-
-        $direction = strtolower(trim((string)($record['direction'] ?? '')));
-        if ($direction === 'rx' || $direction === 'tx') {
-            $normalized['direction'] = $direction;
-        }
+        $normalized = $this->applyTransportMetadata($normalized, $record);
 
         if (array_key_exists('is_current_session', $record)) {
             $normalized['is_current_session'] = (bool)$record['is_current_session'];
@@ -2453,20 +2437,30 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $record['session_id'] = $sessionId;
         }
 
-        if (array_key_exists('retained', $metadata) && $metadata['retained'] !== null) {
-            $record['retained'] = (bool)$metadata['retained'];
+        return $this->applyTransportMetadata($record, $metadata);
+    }
+
+    /**
+     * Uebernimmt die MQTT-Transport-Metadaten (retained inkl. retain-Alias, qos, direction) aus
+     * $source in $target. Nicht gesetzte bzw. null-Werte werden ausgelassen, qos wird auf 0..2 begrenzt.
+     */
+    private function applyTransportMetadata(array $target, array $source): array
+    {
+        $retained = $source['retained'] ?? $source['retain'] ?? null;
+        if ($retained !== null) {
+            $target['retained'] = (bool)$retained;
         }
 
-        if (array_key_exists('qos', $metadata) && $metadata['qos'] !== null) {
-            $record['qos'] = max(0, min(2, (int)$metadata['qos']));
+        if (($source['qos'] ?? null) !== null) {
+            $target['qos'] = max(0, min(2, (int)$source['qos']));
         }
 
-        $direction = strtolower(trim((string)($metadata['direction'] ?? '')));
+        $direction = strtolower(trim((string)($source['direction'] ?? '')));
         if ($direction === 'rx' || $direction === 'tx') {
-            $record['direction'] = $direction;
+            $target['direction'] = $direction;
         }
 
-        return $record;
+        return $target;
     }
 
     private function isEquivalentCacheRecord(mixed $left, mixed $right): bool

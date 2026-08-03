@@ -744,17 +744,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         unset($column);
     }
 
-    private function applyCurrentDiagnosticsToForm(array &$form, array $entities, array $warningMap): void
+    private function buildDiagnosticsCaptions(array $entities, array $topics, array $warningMap): array
     {
         $lastMqtt = $this->ReadAttributeString(self::ATTR_LAST_MQTT_MESSAGE);
         if ($lastMqtt === '') {
             $lastMqtt = $this->Translate('never');
         }
 
-        $topics = $this->collectRelevantTopics($entities);
         $activeEntityCount = count(array_filter($entities, static fn(array $entity): bool => (bool)$entity['create_var']));
         $runtimeState = $this->determineRuntimeState($entities);
-        $captions = [
+
+        return [
             'DiagLastMQTT' => sprintf($this->Translate('Last MQTT message: %s'), $lastMqtt),
             'DiagTopics' => sprintf($this->Translate('Topics: %d'), count($topics)),
             'DiagEntities' => sprintf($this->Translate('Entities (active/total): %d/%d'), $activeEntityCount, count($entities)),
@@ -762,6 +762,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'DiagAvailability' => sprintf($this->Translate('Availability: %s'), $this->buildAvailabilitySummary($entities)),
             'DiagWarnings' => sprintf($this->Translate('Warnings: %s'), $this->buildWarningSummary($warningMap))
         ];
+    }
+
+    private function applyCurrentDiagnosticsToForm(array &$form, array $entities, array $warningMap): void
+    {
+        $captions = $this->buildDiagnosticsCaptions($entities, $this->collectRelevantTopics($entities), $warningMap);
 
         foreach ($form['actions'] as &$action) {
             if (!isset($action['items']) || !is_array($action['items'])) {
@@ -1509,15 +1514,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         ];
     }
 
+    private function buildValuePresentation(?int $digits, string $suffix): array
+    {
+        return array_filter([
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'DIGITS' => $digits,
+            'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
+        ], static fn(mixed $value): bool => $value !== null);
+    }
+
     private function buildNumericPresentation(int $variableType, array $entity): array|string
     {
         $unit = (string)($entity['metadata']['unit'] ?? '');
         $suffix = trim($unit);
-        return array_filter([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'DIGITS' => $variableType === VARIABLETYPE_FLOAT ? 2 : 0,
-            'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
-        ], static fn(mixed $value): bool => $value !== null);
+        return $this->buildValuePresentation($variableType === VARIABLETYPE_FLOAT ? 2 : 0, $suffix);
     }
 
     private function buildCoverPresentation(array $metadata, int $variableType): array
@@ -1593,11 +1603,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             ], static fn(mixed $value): bool => $value !== null);
         }
 
-        return array_filter([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'DIGITS' => $variableType === VARIABLETYPE_INTEGER ? 0 : $digits,
-            'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
-        ], static fn(mixed $value): bool => $value !== null);
+        return $this->buildValuePresentation($variableType === VARIABLETYPE_INTEGER ? 0 : $digits, $suffix);
     }
 
     private function buildClimatePresentation(array $metadata, int $variableType): array|string
@@ -1618,11 +1624,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             );
         }
 
-        return array_filter([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'DIGITS' => $variableType === VARIABLETYPE_FLOAT ? $digits : 0,
-            'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
-        ], static fn(mixed $value): bool => $value !== null);
+        return $this->buildValuePresentation($variableType === VARIABLETYPE_FLOAT ? $digits : 0, $suffix);
     }
 
     private function resolveClimatePresentationSuffix(array $metadata): string
@@ -2325,11 +2327,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             ];
         }
 
-        $suffix = trim((string) ($meta['suffix'] ?? ''));
-        return array_filter([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'SUFFIX' => $suffix === '' ? null : ' ' . $suffix
-        ], static fn(mixed $value): bool => $value !== null);
+        return $this->buildValuePresentation(null, $suffixRaw);
     }
 
     private function buildLightStringValueOptions(array $values): ?string
@@ -2569,11 +2567,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             default => null
         };
 
-        return array_filter([
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'DIGITS' => $digits,
-            'SUFFIX' => $suffix !== '' ? (' ' . $suffix) : null
-        ], static fn(mixed $value): bool => $value !== null);
+        return $this->buildValuePresentation($digits, $suffix);
     }
 
     private function buildUpdateAttributePresentation(string $attribute): array
@@ -4766,21 +4760,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function updateDiagnosticsLabels(array $entities, array $topics, ?array $warningMap = null): void
     {
-        $lastMqtt = $this->ReadAttributeString(self::ATTR_LAST_MQTT_MESSAGE);
-        if ($lastMqtt === '') {
-            $lastMqtt = $this->Translate('never');
+        $captions = $this->buildDiagnosticsCaptions($entities, $topics, $warningMap ?? $this->readStateWarnings());
+
+        foreach ($captions as $field => $caption) {
+            $this->updateFormFieldSafe($field, 'caption', $caption);
         }
-
-        $activeEntityCount = count(array_filter($entities, static fn(array $entity): bool => (bool)$entity['create_var']));
-        $runtimeState = $this->determineRuntimeState($entities);
-        $warningMap ??= $this->readStateWarnings();
-
-        $this->updateFormFieldSafe('DiagLastMQTT', 'caption', sprintf($this->Translate('Last MQTT message: %s'), $lastMqtt));
-        $this->updateFormFieldSafe('DiagTopics', 'caption', sprintf($this->Translate('Topics: %d'), count($topics)));
-        $this->updateFormFieldSafe('DiagEntities', 'caption', sprintf($this->Translate('Entities (active/total): %d/%d'), $activeEntityCount, count($entities)));
-        $this->updateFormFieldSafe('DiagResolution', 'caption', sprintf($this->Translate('Resolution: %s'), $this->Translate($runtimeState['resolution'])));
-        $this->updateFormFieldSafe('DiagAvailability', 'caption', sprintf($this->Translate('Availability: %s'), $this->buildAvailabilitySummary($entities)));
-        $this->updateFormFieldSafe('DiagWarnings', 'caption', sprintf($this->Translate('Warnings: %s'), $this->buildWarningSummary($warningMap)));
     }
 
     private function updateInstanceSummary(array $entities): void

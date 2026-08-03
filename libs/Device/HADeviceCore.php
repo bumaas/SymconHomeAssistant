@@ -179,6 +179,141 @@ trait HADeviceCoreTrait
         }
     }
 
+    /**
+     * Holt die aktuellen States aller aktiven Entitäten per REST vom Splitter.
+     *
+     * @return array<string, array> entity_id => State-Antwort
+     */
+    protected function fetchStateMap(array $configData): array
+    {
+        if (!$this->hasActiveParent()) {
+            return [];
+        }
+
+        $stateMap = [];
+        foreach ($configData as $row) {
+            $entity = $this->normalizeActiveConfiguredEntity($row);
+            if ($entity === null) {
+                continue;
+            }
+
+            $state = $this->requestHaState($entity['entity_id']);
+            if (is_array($state)) {
+                $stateMap[$entity['entity_id']] = $state;
+            }
+        }
+
+        return $stateMap;
+    }
+
+    protected function requestHaState(string $entityId): ?array
+    {
+        $endpoint = '/api/states/' . rawurlencode($entityId);
+        $response = $this->sendRestRequestToParent($endpoint, null);
+        if (!is_array($response)) {
+            return null;
+        }
+
+        $this->WriteAttributeString('LastRESTFetch', date('Y-m-d H:i:s'));
+        $this->updateDiagnosticsLabels();
+        return $response;
+    }
+
+    /**
+     * Ergänzt die aufgelöste Konfiguration um die per REST geholten Attribute.
+     */
+    protected function mergeStateAttributes(array $configData, array $stateMap): array
+    {
+        foreach ($configData as &$row) {
+            $entity = $this->normalizeEntityStructure($row);
+            if ($entity === null || !isset($entity['entity_id'])) {
+                continue;
+            }
+
+            $entityId = $entity['entity_id'];
+            if (!isset($stateMap[$entityId]) || !is_array($stateMap[$entityId])) {
+                continue;
+            }
+
+            $attrs = $stateMap[$entityId][self::KEY_ATTRIBUTES] ?? [];
+            if (!is_array($attrs)) {
+                continue;
+            }
+
+            $existing = $entity['attributes'] ?? [];
+            if (!is_array($existing)) {
+                $existing = [];
+            }
+
+            $row['attributes'] = array_merge($existing, $attrs);
+        }
+        unset($row);
+
+        return $configData;
+    }
+
+    protected function applyInitialState(string $entityId, array $state): void
+    {
+        $rawState = (string)($state[self::KEY_STATE] ?? '');
+        $this->updateEntityRawStateCache($entityId, $rawState);
+        $this->updateAvailabilityValue($rawState);
+
+        $parsed = [
+            self::KEY_STATE => $rawState
+        ];
+
+        $attributes = $state[self::KEY_ATTRIBUTES] ?? null;
+        if (is_array($attributes)) {
+            $parsed[self::KEY_ATTRIBUTES] = $attributes;
+        }
+
+        $this->applyParsedEntityState($entityId, $parsed, 'Initialisierung (HA REST)');
+    }
+
+    protected function readResolvedConfig(string $context): array
+    {
+        $this->ensureResolvedConfigAttributeRegistered($context);
+        $configData = $this->decodeJsonArray($this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG), $context);
+        return $configData ?? [];
+    }
+
+    protected function ensureResolvedConfigAttributeRegistered(string $context): void
+    {
+        if (@$this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG) !== false) {
+            return;
+        }
+
+        $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->debugExpert($context, 'ResolvedConfig in Bestandsinstanz initialisiert');
+    }
+
+    protected function decodeJsonArray(string $json, string $context): ?array
+    {
+        try {
+            $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            if ($context === 'ReceiveData') {
+                $this->debugRuntimeIssue($context, 'Invalid JSON', ['Error' => $e->getMessage()]);
+            } else {
+                $this->debugExpert($context, 'Invalid JSON', ['Error' => $e->getMessage()]);
+            }
+            return null;
+        }
+
+        return is_array($data) ? $data : null;
+    }
+
+    protected function sanitizeIdent(string $id): string
+    {
+        return str_replace(['.', ' ', '-'], '_', $id);
+    }
+
+    protected function updateFormFieldSafe(string $name, string $property, mixed $value): void
+    {
+        @ $this->UpdateFormField($name, $property, $value);
+    }
+
     public function ReceiveData($JSONString): string
     {
         if (method_exists($this, 'isModuleRuntimeReady') && !$this->isModuleRuntimeReady()) {
