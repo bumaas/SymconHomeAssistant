@@ -49,6 +49,31 @@ class HomeAssistantSplitter extends IPSModuleStrict
     // Domaene) schreibt statt JSON zu (de)serialisieren.
     private const string BUFFER_SEEN_DOMAINS = 'SeenDomains';
 
+    // Reine Zuordnung HA-Domaene => Definitions-Klasse fuer buildRestServicePayload().
+    // Die input_*-Helfer-Domaenen teilen sich den Service-Aufbau mit ihrer Basis-Domaene.
+    private const array DOMAIN_DEFINITION_MAP = [
+        HALightDefinitions::DOMAIN         => HALightDefinitions::class,
+        HAButtonDefinitions::DOMAIN        => HAButtonDefinitions::class,
+        HAInputButtonDefinitions::DOMAIN   => HAButtonDefinitions::class,
+        HAVacuumDefinitions::DOMAIN        => HAVacuumDefinitions::class,
+        HALawnMowerDefinitions::DOMAIN     => HALawnMowerDefinitions::class,
+        HALockDefinitions::DOMAIN          => HALockDefinitions::class,
+        HACoverDefinitions::DOMAIN         => HACoverDefinitions::class,
+        HAFanDefinitions::DOMAIN           => HAFanDefinitions::class,
+        HAHumidifierDefinitions::DOMAIN    => HAHumidifierDefinitions::class,
+        HAMediaPlayerDefinitions::DOMAIN   => HAMediaPlayerDefinitions::class,
+        HASwitchDefinitions::DOMAIN        => HASwitchDefinitions::class,
+        'input_boolean'                    => HASwitchDefinitions::class,
+        HASelectDefinitions::DOMAIN        => HASelectDefinitions::class,
+        'input_select'                     => HASelectDefinitions::class,
+        HANumberDefinitions::DOMAIN        => HANumberDefinitions::class,
+        'input_number'                     => HANumberDefinitions::class,
+        HAInputTextDefinitions::DOMAIN     => HAInputTextDefinitions::class,
+        HADateTimeDefinitions::DOMAIN      => HADateTimeDefinitions::class,
+        HAInputDateTimeDefinitions::DOMAIN => HAInputDateTimeDefinitions::class,
+        HAClimateDefinitions::DOMAIN       => HAClimateDefinitions::class,
+    ];
+
     public function Create(): void
     {
         parent::Create();
@@ -288,17 +313,16 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return false;
         }
 
-        $haUrl = trim($this->ReadPropertyString('HAUrl'));
-        $token = trim($this->ReadPropertyString('HAToken'));
-        if ($haUrl === '' || $token === '') {
+        $credentials = $this->readHaCredentials();
+        if ($credentials === null) {
             $this->debugExpert('REST', __FUNCTION__, ['Missing HAUrl/HAToken']);
             return false;
         }
 
-        $url = rtrim($haUrl, '/') . '/api/services/' . $domain . '/' . $service;
+        $url = rtrim($credentials['url'], '/') . '/api/services/' . $domain . '/' . $service;
         $postData = json_encode($data, JSON_THROW_ON_ERROR);
         $this->debugExpert('REST', __FUNCTION__, ['Url' => $url, 'Data' => $data]);
-        $ok = $this->sendHaRequest($url, $token, $postData);
+        $ok = $this->sendHaRequest($url, $credentials['token'], $postData);
         if ($ok && isset($data['entity_id']) && is_string($data['entity_id']) && $data['entity_id'] !== '') {
             $this->addPendingRestAck($data['entity_id'], $service);
         }
@@ -521,22 +545,55 @@ class HomeAssistantSplitter extends IPSModuleStrict
         );
     }
 
-    private function isRestApiReachable(): bool
+    /**
+     * Liest HAUrl/HAToken (getrimmt); null, wenn eines der beiden leer ist.
+     * Die Fehlerreaktion (Debug, Diagnose, Rueckgabewert) bleibt Sache des Aufrufers.
+     *
+     * @return array{url: string, token: string}|null
+     */
+    private function readHaCredentials(): ?array
     {
         $haUrl = trim($this->ReadPropertyString('HAUrl'));
         $token = trim($this->ReadPropertyString('HAToken'));
         if ($haUrl === '' || $token === '') {
-            $this->WriteAttributeString('LastRestError', 'Missing HAUrl/HAToken');
-            $this->WriteAttributeString('LastRestResponse', '');
-            $this->updateDiagnosticsLabels();
-            return false;
+            return null;
+        }
+        return ['url' => $haUrl, 'token' => $token];
+    }
+
+    // Einheitlicher Fehlerabschluss der REST-Diagnose: Fehlertext + Response persistieren,
+    // Anzeige aktualisieren, false fuer die direkte Rueckgabe an den Aufrufer.
+    private function failRestDiagnostics(string $error, string $response = ''): false
+    {
+        $this->WriteAttributeString('LastRestError', $error);
+        $this->WriteAttributeString('LastRestResponse', $response);
+        $this->updateDiagnosticsLabels();
+        return false;
+    }
+
+    // Einheitlicher Erfolgsabschluss der REST-Diagnose (Gegenstueck zu failRestDiagnostics()).
+    private function succeedRestDiagnostics(string $response): true
+    {
+        if ($this->ReadAttributeString('LastRestError') !== '') {
+            $this->WriteAttributeString('LastRestError', '');
+        }
+        $this->WriteAttributeString('LastRestResponse', $response);
+        $this->updateDiagnosticsLabels();
+        return true;
+    }
+
+    private function isRestApiReachable(): bool
+    {
+        $credentials = $this->readHaCredentials();
+        if ($credentials === null) {
+            return $this->failRestDiagnostics('Missing HAUrl/HAToken');
         }
 
-        $url = rtrim($haUrl, '/') . '/api/';
+        $url = rtrim($credentials['url'], '/') . '/api/';
         $ch = curl_init($url);
 
         $headers = [
-            'Authorization: Bearer ' . $token,
+            'Authorization: Bearer ' . $credentials['token'],
             'Content-Type: application/json'
         ];
 
@@ -550,30 +607,16 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $error = curl_error($ch);
 
         if ($error) {
-            $this->WriteAttributeString('LastRestError', 'cURL: ' . $error);
-            $this->WriteAttributeString('LastRestResponse', '');
-            $this->updateDiagnosticsLabels();
-            return false;
+            return $this->failRestDiagnostics('cURL: ' . $error);
         }
         if ($response === false || $response === '') {
-            $this->WriteAttributeString('LastRestError', 'Empty response');
-            $this->WriteAttributeString('LastRestResponse', '');
-            $this->updateDiagnosticsLabels();
-            return false;
+            return $this->failRestDiagnostics('Empty response');
         }
         if ($httpCode < 200 || $httpCode >= 300) {
-            $this->WriteAttributeString('LastRestError', 'HTTP ' . $httpCode);
-            $this->WriteAttributeString('LastRestResponse', (string)$response);
-            $this->updateDiagnosticsLabels();
-            return false;
+            return $this->failRestDiagnostics('HTTP ' . $httpCode, (string)$response);
         }
 
-        if ($this->ReadAttributeString('LastRestError') !== '') {
-            $this->WriteAttributeString('LastRestError', '');
-        }
-        $this->WriteAttributeString('LastRestResponse', '');
-        $this->updateDiagnosticsLabels();
-        return true;
+        return $this->succeedRestDiagnostics('');
     }
 
     private function isSetTopic(string $topic, ?string &$domain, ?string &$entity): bool
@@ -603,9 +646,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function sendRestCommand(string $domain, string $entity, string $payload): bool
     {
-        $haUrl = trim($this->ReadPropertyString('HAUrl'));
-        $token = trim($this->ReadPropertyString('HAToken'));
-        if ($haUrl === '' || $token === '') {
+        $credentials = $this->readHaCredentials();
+        if ($credentials === null) {
             $this->debugExpert('REST', 'Missing HAUrl/HAToken, forwarding to MQTT.');
             return false;
         }
@@ -618,11 +660,11 @@ class HomeAssistantSplitter extends IPSModuleStrict
         }
 
         $data['entity_id'] = $domain . '.' . $entity;
-        $url = rtrim($haUrl, '/') . '/api/services/' . $domain . '/' . $service;
+        $url = rtrim($credentials['url'], '/') . '/api/services/' . $domain . '/' . $service;
         $postData = json_encode($data, JSON_THROW_ON_ERROR);
 
         $this->debugExpert('REST', 'Send command', ['Url' => $url, 'Data' => $data]);
-        $ok = $this->sendHaRequest($url, $token, $postData);
+        $ok = $this->sendHaRequest($url, $credentials['token'], $postData);
         if ($ok) {
             $this->addPendingRestAck($domain . '.' . $entity, $service);
         }
@@ -655,25 +697,11 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function buildRestServicePayload(string $domain, mixed $value): array
     {
-        return match ($domain) {
-            HALightDefinitions::DOMAIN => HALightDefinitions::buildRestServicePayload($value),
-            HAButtonDefinitions::DOMAIN, HAInputButtonDefinitions::DOMAIN => HAButtonDefinitions::buildRestServicePayload($value),
-            HAVacuumDefinitions::DOMAIN => HAVacuumDefinitions::buildRestServicePayload($value),
-            HALawnMowerDefinitions::DOMAIN => HALawnMowerDefinitions::buildRestServicePayload($value),
-            HALockDefinitions::DOMAIN => HALockDefinitions::buildRestServicePayload($value),
-            HACoverDefinitions::DOMAIN => HACoverDefinitions::buildRestServicePayload($value),
-            HAFanDefinitions::DOMAIN => HAFanDefinitions::buildRestServicePayload($value),
-            HAHumidifierDefinitions::DOMAIN => HAHumidifierDefinitions::buildRestServicePayload($value),
-            HAMediaPlayerDefinitions::DOMAIN => HAMediaPlayerDefinitions::buildRestServicePayload($value),
-            HASwitchDefinitions::DOMAIN, 'input_boolean' => HASwitchDefinitions::buildRestServicePayload($value),
-            HASelectDefinitions::DOMAIN, 'input_select' => HASelectDefinitions::buildRestServicePayload($value),
-            HANumberDefinitions::DOMAIN, 'input_number' => HANumberDefinitions::buildRestServicePayload($value),
-            HAInputTextDefinitions::DOMAIN => HAInputTextDefinitions::buildRestServicePayload($value),
-            HADateTimeDefinitions::DOMAIN => HADateTimeDefinitions::buildRestServicePayload($value),
-            HAInputDateTimeDefinitions::DOMAIN => HAInputDateTimeDefinitions::buildRestServicePayload($value),
-            HAClimateDefinitions::DOMAIN => HAClimateDefinitions::buildRestServicePayload($value),
-            default => ['', []],
-        };
+        $definitionClass = self::DOMAIN_DEFINITION_MAP[$domain] ?? null;
+        if ($definitionClass === null) {
+            return ['', []];
+        }
+        return $definitionClass::buildRestServicePayload($value);
     }
 
     private function sendHaRequest(string $url, string $token, string $postData): bool
@@ -697,26 +725,15 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
         if ($error) {
             $this->debugExpert('REST', "cURL Error: $error");
-            $this->WriteAttributeString('LastRestError', 'cURL: ' . $error);
-            $this->WriteAttributeString('LastRestResponse', 'HTTP ' . $httpCode);
-            $this->updateDiagnosticsLabels();
-            return false;
+            return $this->failRestDiagnostics('cURL: ' . $error, 'HTTP ' . $httpCode);
         }
 
         if ($httpCode < 200 || $httpCode >= 300) {
             $this->debugExpert('REST', "HTTP Error: $httpCode | Response: $response");
-            $this->WriteAttributeString('LastRestError', 'HTTP ' . $httpCode);
-            $this->WriteAttributeString('LastRestResponse', $this->formatRestResponse($httpCode, $response));
-            $this->updateDiagnosticsLabels();
-            return false;
+            return $this->failRestDiagnostics('HTTP ' . $httpCode, $this->formatRestResponse($httpCode, $response));
         }
 
-        if ($this->ReadAttributeString('LastRestError') !== '') {
-            $this->WriteAttributeString('LastRestError', '');
-        }
-        $this->WriteAttributeString('LastRestResponse', $this->formatRestResponse($httpCode, $response));
-        $this->updateDiagnosticsLabels();
-        return true;
+        return $this->succeedRestDiagnostics($this->formatRestResponse($httpCode, $response));
     }
 
     private function handleRestRequest(array $data): string
@@ -729,16 +746,15 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return json_encode(['Error' => 'Missing endpoint'], JSON_THROW_ON_ERROR);
         }
 
-        $haUrl = trim($this->ReadPropertyString('HAUrl'));
-        $token = trim($this->ReadPropertyString('HAToken'));
-        if ($haUrl === '' || $token === '') {
+        $credentials = $this->readHaCredentials();
+        if ($credentials === null) {
             return json_encode(['Error' => 'Missing HAUrl/HAToken'], JSON_THROW_ON_ERROR);
         }
 
-        $url = rtrim($haUrl, '/') . $endpoint;
+        $url = rtrim($credentials['url'], '/') . $endpoint;
 
         $this->debugExpert('REST', 'Handle request', ['Endpoint' => $endpoint, 'Method' => $method]);
-        $result = $this->sendHaRequestRaw($url, $token, is_string($body) ? $body : null, $method);
+        $result = $this->sendHaRequestRaw($url, $credentials['token'], is_string($body) ? $body : null, $method);
         if (!isset($result['Error']) && isset($result['Response'])) {
             $result['Response'] = $this->mapSupportedFeaturesResponse((string)$result['Response']);
         }
@@ -758,17 +774,16 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return json_encode(['Error' => 'Missing ImageUrl'], JSON_THROW_ON_ERROR);
         }
 
-        $haUrl = trim($this->ReadPropertyString('HAUrl'));
-        $token = trim($this->ReadPropertyString('HAToken'));
-        if ($haUrl === '' || $token === '') {
+        $credentials = $this->readHaCredentials();
+        if ($credentials === null) {
             return json_encode(['Error' => 'Missing HAUrl/HAToken'], JSON_THROW_ON_ERROR);
         }
 
         if (!preg_match('#^https?://#i', $url)) {
-            $url = rtrim($haUrl, '/') . '/' . ltrim($url, '/');
+            $url = rtrim($credentials['url'], '/') . '/' . ltrim($url, '/');
         }
 
-        $result = $this->sendHaImageRequest($url, $token);
+        $result = $this->sendHaImageRequest($url, $credentials['token']);
         return $this->encodeImageResponseForTransport($result);
     }
 
@@ -1104,157 +1119,253 @@ class HomeAssistantSplitter extends IPSModuleStrict
             }
         };
 
-        // 1. MQTT-Parent aktiv & kompatibel
+        // hasCompatibleParentModule(MQTT Client) wird von mehreren Checks benoetigt -> einmal ermitteln.
+        $hasMqttClientParent = $this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT);
+        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
+
+        $results = array_merge(
+            $this->selfTestMqttParent(),
+            $this->selfTestParentType($hasMqttClientParent),
+            $this->selfTestRestApi(),
+            $this->selfTestBaseTopic($baseTopic),
+            $this->selfTestBrokerSocket($hasMqttClientParent),
+            $this->selfTestMqttCredentials($hasMqttClientParent),
+            $this->selfTestMqttRecency(),
+            $this->selfTestSubscriptionCoverage($baseTopic, $hasMqttClientParent),
+            $this->selfTestSeenDomains()
+        );
+        foreach ($results as $result) {
+            $add($result[0], $result[1], $result[2] ?? '');
+        }
+
+        foreach ($this->buildSelfTestSummary($errors, $warnings) as $line) {
+            $lines[] = $line;
+        }
+
+        $title = $this->Translate('Self-test: Home Assistant Splitter (classic bridge)');
+        return $title . "\n\n" . implode("\n", $lines);
+    }
+
+    /**
+     * 1. MQTT-Parent aktiv & kompatibel
+     *
+     * @return list<array{0: string, 1: string, 2?: string}>
+     */
+    private function selfTestMqttParent(): array
+    {
         $parentState = $this->determineParentRuntimeState([HAIds::MODULE_MQTT_CLIENT, HAIds::MODULE_MQTT_SERVER]);
         $parentCtx = $this->buildCurrentParentDebugContext();
         if ($parentState === 'active') {
-            $add('ok', sprintf($this->Translate('MQTT parent: active (#%d, %s)'), (int)$parentCtx['ParentID'], (string)$parentCtx['ModuleName']));
-        } else {
-            $add(
-                'error',
-                $this->Translate('MQTT parent: not connected, inactive or incompatible'),
-                $this->Translate('Connect an active MQTT Client or MQTT Server as parent (status 201/202).')
-            );
+            return [['ok', sprintf($this->Translate('MQTT parent: active (#%d, %s)'), (int)$parentCtx['ParentID'], (string)$parentCtx['ModuleName'])]];
         }
+        return [[
+            'error',
+            $this->Translate('MQTT parent: not connected, inactive or incompatible'),
+            $this->Translate('Connect an active MQTT Client or MQTT Server as parent (status 201/202).')
+        ]];
+    }
 
-        // 2. Parent-Typ
-        if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
-            $add('ok', $this->Translate('Parent type: MQTT Client (recommended)'));
-        } elseif ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_SERVER)) {
-            $add(
+    /**
+     * 2. Parent-Typ
+     *
+     * @return list<array{0: string, 1: string, 2?: string}>
+     */
+    private function selfTestParentType(bool $hasMqttClientParent): array
+    {
+        if ($hasMqttClientParent) {
+            return [['ok', $this->Translate('Parent type: MQTT Client (recommended)')]];
+        }
+        if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_SERVER)) {
+            return [[
                 'warn',
                 $this->Translate('Parent type: MQTT Server'),
                 $this->Translate('An MQTT Client receives the retained replay on connect (immediate full initial state). MQTT Server works too but without that replay.')
-            );
+            ]];
         }
+        return [];
+    }
 
-        // 3. REST erreichbar & Token gueltig (nutzt den vorhandenen aktiven Probe)
+    /**
+     * 3. REST erreichbar & Token gueltig (nutzt den vorhandenen aktiven Probe)
+     *
+     * @return list<array{0: string, 1: string, 2?: string}>
+     */
+    private function selfTestRestApi(): array
+    {
         if ($this->isRestApiReachable()) {
-            $add('ok', $this->Translate('REST API reachable and token valid'));
-        } else {
-            $add(
-                'error',
-                sprintf($this->Translate('REST API not reachable: %s'), $this->ReadAttributeString('LastRestError')),
-                $this->Translate('HTTP 401: check the token. cURL/connection error: check HA URL/port/network. Both HAUrl and HAToken must be set.')
-            );
+            return [['ok', $this->Translate('REST API reachable and token valid')]];
         }
+        return [[
+            'error',
+            sprintf($this->Translate('REST API not reachable: %s'), $this->ReadAttributeString('LastRestError')),
+            $this->Translate('HTTP 401: check the token. cURL/connection error: check HA URL/port/network. Both HAUrl and HAToken must be set.')
+        ]];
+    }
 
-        // 4. MQTTBaseTopic gesetzt
-        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
+    /**
+     * 4. MQTTBaseTopic gesetzt
+     *
+     * @return list<array{0: string, 1: string, 2?: string}>
+     */
+    private function selfTestBaseTopic(string $baseTopic): array
+    {
         if ($baseTopic !== '') {
-            $add('ok', sprintf($this->Translate('MQTT base topic: %s'), $baseTopic));
-        } else {
-            $add(
+            return [['ok', sprintf($this->Translate('MQTT base topic: %s'), $baseTopic)]];
+        }
+        return [[
+            'error',
+            $this->Translate('MQTT base topic is empty'),
+            $this->Translate('Set MQTTBaseTopic to match mqtt_statestream.base_topic in Home Assistant.')
+        ]];
+    }
+
+    /**
+     * 5. Broker-Socket-Status (nur sinnvoll bei MQTT Client; CONNACK/Auth ist darueber nicht sichtbar)
+     *
+     * @return list<array{0: string, 1: string, 2?: string}>
+     */
+    private function selfTestBrokerSocket(bool $hasMqttClientParent): array
+    {
+        if (!$hasMqttClientParent) {
+            return [];
+        }
+        $ioStatus = $this->parentIoInstanceStatus();
+        if ($ioStatus === IS_ACTIVE) {
+            return [['ok', $this->Translate('Broker socket connected')]];
+        }
+        if ($ioStatus !== null) {
+            return [[
                 'error',
-                $this->Translate('MQTT base topic is empty'),
-                $this->Translate('Set MQTTBaseTopic to match mqtt_statestream.base_topic in Home Assistant.')
-            );
+                sprintf($this->Translate('Broker socket not connected (status %d)'), $ioStatus),
+                $this->Translate('Check host/port/network and the MQTT credentials of the MQTT Client.')
+            ]];
         }
+        return [];
+    }
 
-        // 5. Broker-Socket-Status (nur sinnvoll bei MQTT Client; CONNACK/Auth ist darueber nicht sichtbar)
-        if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
-            $ioStatus = $this->parentIoInstanceStatus();
-            if ($ioStatus === IS_ACTIVE) {
-                $add('ok', $this->Translate('Broker socket connected'));
-            } elseif ($ioStatus !== null) {
-                $add(
-                    'error',
-                    sprintf($this->Translate('Broker socket not connected (status %d)'), $ioStatus),
-                    $this->Translate('Check host/port/network and the MQTT credentials of the MQTT Client.')
-                );
+    /**
+     * 5a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die haeufigste Ursache).
+     * Kommen bereits Daten an, funktioniert der anonyme Zugang offensichtlich -> nur Info statt Warnung.
+     *
+     * @return list<array{0: string, 1: string, 2?: string}>
+     */
+    private function selfTestMqttCredentials(bool $hasMqttClientParent): array
+    {
+        if (!$hasMqttClientParent) {
+            return [];
+        }
+        $credentials = $this->parentMqttCredentials();
+        if ($credentials === null) {
+            return [];
+        }
+        if ($credentials['UserName'] === '' && $credentials['Password'] === '') {
+            if ($this->ReadAttributeString('LastMQTTMessage') === '') {
+                return [[
+                    'warn',
+                    $this->Translate('MQTT client has no credentials configured'),
+                    $this->Translate('The Mosquitto broker in Home Assistant rejects anonymous connections by default. Create a Home Assistant user (Settings → People → Users) and enter its name and password in the MQTT Client instance.')
+                ]];
             }
+            return [['•', $this->Translate('MQTT client has no credentials configured (fine, the broker accepts anonymous access)')]];
         }
-
-        // 5a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die haeufigste Ursache).
-        // Kommen bereits Daten an, funktioniert der anonyme Zugang offensichtlich -> nur Info statt Warnung.
-        if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
-            $credentials = $this->parentMqttCredentials();
-            if ($credentials !== null) {
-                if ($credentials['UserName'] === '' && $credentials['Password'] === '') {
-                    if ($this->ReadAttributeString('LastMQTTMessage') === '') {
-                        $add(
-                            'warn',
-                            $this->Translate('MQTT client has no credentials configured'),
-                            $this->Translate('The Mosquitto broker in Home Assistant rejects anonymous connections by default. Create a Home Assistant user (Settings → People → Users) and enter its name and password in the MQTT Client instance.')
-                        );
-                    } else {
-                        $add('•', $this->Translate('MQTT client has no credentials configured (fine, the broker accepts anonymous access)'));
-                    }
-                } elseif ($credentials['UserName'] !== '') {
-                    $add('ok', sprintf($this->Translate('MQTT credentials set (user: %s)'), $credentials['UserName']));
-                }
-            }
+        if ($credentials['UserName'] !== '') {
+            return [['ok', sprintf($this->Translate('MQTT credentials set (user: %s)'), $credentials['UserName'])]];
         }
+        return [];
+    }
 
-        // 6. Kommen MQTT-Daten an? (Aktualitaet, nicht nur Existenz)
+    /**
+     * 6. Kommen MQTT-Daten an? (Aktualitaet, nicht nur Existenz)
+     *
+     * @return list<array{0: string, 1: string, 2?: string}>
+     */
+    private function selfTestMqttRecency(): array
+    {
         $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
         $ageHint = $this->Translate('mqtt_statestream is event-driven, so occasional gaps are normal. A stale value right after Apply usually means a broken connection (wrong MQTT user/password, subscription or base_topic).');
         if ($lastMqtt === '') {
-            $add(
+            return [[
                 'warn',
                 $this->Translate('No MQTT data received yet'),
                 $this->Translate('Check that mqtt_statestream is enabled, the subscription covers the base topic, and base_topic matches MQTTBaseTopic.')
-            );
-        } else {
-            $age = time() - (int)strtotime($lastMqtt);
-            if ($age >= 0 && $age <= self::SELFTEST_MQTT_RECENCY_SEC) {
-                $add('ok', sprintf($this->Translate('MQTT data received (%ds ago)'), $age));
-            } else {
-                $add(
-                    'warn',
-                    sprintf($this->Translate('Last MQTT data at %s (%s ago) – connection may be broken'), $lastMqtt, $this->formatAge($age)),
-                    $ageHint
-                );
-            }
+            ]];
         }
-
-        // 6. Subscription deckt MQTTBaseTopic ab (best effort)
-        if ($baseTopic !== '') {
-            if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_SERVER) && !$this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
-                $add('ok', $this->Translate('Parent is MQTT Server – subscriptions are handled by the broker, not a client'));
-            } else {
-                $covered = $this->parentSubscriptionCoversBaseTopic($baseTopic);
-                if ($covered === true) {
-                    $add('ok', $this->Translate('Parent subscription covers the base topic'));
-                } elseif ($covered === false) {
-                    $add(
-                        'warn',
-                        sprintf($this->Translate('Parent subscription does not seem to cover "%s"'), $baseTopic),
-                        sprintf($this->Translate('Set the MQTT Client subscription to e.g. %s/# (or # for testing).'), $baseTopic)
-                    );
-                } else {
-                    $add('•', $this->Translate('Subscription could not be checked (parent config not readable)'));
-                }
-            }
+        $age = time() - (int)strtotime($lastMqtt);
+        if ($age >= 0 && $age <= self::SELFTEST_MQTT_RECENCY_SEC) {
+            return [['ok', sprintf($this->Translate('MQTT data received (%ds ago)'), $age)]];
         }
+        return [[
+            'warn',
+            sprintf($this->Translate('Last MQTT data at %s (%s ago) – connection may be broken'), $lastMqtt, $this->formatAge($age)),
+            $ageHint
+        ]];
+    }
 
-        // 7. Welche Domaenen liefern tatsaechlich Daten? (deckt statestream-include/exclude auf)
+    /**
+     * 6. Subscription deckt MQTTBaseTopic ab (best effort)
+     *
+     * @return list<array{0: string, 1: string, 2?: string}>
+     */
+    private function selfTestSubscriptionCoverage(string $baseTopic, bool $hasMqttClientParent): array
+    {
+        if ($baseTopic === '') {
+            return [];
+        }
+        if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_SERVER) && !$hasMqttClientParent) {
+            return [['ok', $this->Translate('Parent is MQTT Server – subscriptions are handled by the broker, not a client')]];
+        }
+        $covered = $this->parentSubscriptionCoversBaseTopic($baseTopic);
+        if ($covered === true) {
+            return [['ok', $this->Translate('Parent subscription covers the base topic')]];
+        }
+        if ($covered === false) {
+            return [[
+                'warn',
+                sprintf($this->Translate('Parent subscription does not seem to cover "%s"'), $baseTopic),
+                sprintf($this->Translate('Set the MQTT Client subscription to e.g. %s/# (or # for testing).'), $baseTopic)
+            ]];
+        }
+        return [['•', $this->Translate('Subscription could not be checked (parent config not readable)')]];
+    }
+
+    /**
+     * 7. Welche Domaenen liefern tatsaechlich Daten? (deckt statestream-include/exclude auf)
+     *
+     * @return list<array{0: string, 1: string, 2?: string}>
+     */
+    private function selfTestSeenDomains(): array
+    {
         $seenRaw = $this->GetBuffer(self::BUFFER_SEEN_DOMAINS);
         $seen = $seenRaw === '' ? [] : explode('|', $seenRaw);
         sort($seen, SORT_STRING);
         if ($seen === []) {
-            $add('•', $this->Translate('Received domains: none yet (since last restart)'));
-        } elseif (count($seen) === 1) {
-            $add(
+            return [['•', $this->Translate('Received domains: none yet (since last restart)')]];
+        }
+        if (count($seen) === 1) {
+            return [[
                 'warn',
                 sprintf($this->Translate('Only one domain is delivering data: %s'), $seen[0]),
                 $this->Translate('If entities of other domains are missing (e.g. binary_sensor, switch), mqtt_statestream include/exclude in Home Assistant is probably filtering whole domains. Extend include.domains or remove the filter, then reload HA.')
-            );
-        } else {
-            $add('ok', sprintf($this->Translate('Received domains: %s'), implode(', ', $seen)));
+            ]];
         }
+        return [['ok', sprintf($this->Translate('Received domains: %s'), implode(', ', $seen))]];
+    }
 
-        // Fazit
-        $lines[] = '';
+    /**
+     * Fazit
+     *
+     * @return list<string>
+     */
+    private function buildSelfTestSummary(int $errors, int $warnings): array
+    {
+        $lines = [''];
         if ($errors === 0 && $warnings === 0) {
             $lines[] = $this->Translate('Summary: everything looks good.');
         } else {
             $lines[] = sprintf($this->Translate('Summary: %d error(s), %d warning(s).'), $errors, $warnings);
         }
         $lines[] = $this->Translate('More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).');
-
-        $title = $this->Translate('Self-test: Home Assistant Splitter (classic bridge)');
-        return $title . "\n\n" . implode("\n", $lines);
+        return $lines;
     }
 
     /**

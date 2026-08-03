@@ -47,7 +47,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
                 default => 'Parent ist nicht Home Assistant MQTT Discovery Splitter'
             };
             $this->debugExpert(__FUNCTION__, $message);
-            return json_encode($form, JSON_THROW_ON_ERROR);
+            return $this->encodeForm($form);
         }
 
         $records = $this->loadDiscoveryRecords();
@@ -68,7 +68,23 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
             $form['actions'][] = $diagnosticsPanel;
         }
 
-        $form['actions'][] = [
+        $form['actions'][] = $this->buildConfiguratorAction($values);
+
+        return $this->encodeForm($form);
+    }
+
+    /**
+     * Einheitliche Formular-Serialisierung (beide Ausgänge von GetConfigurationForm
+     * liefern damit identisch kodierte Umlaute/Slashes).
+     */
+    private function encodeForm(array $form): string
+    {
+        return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function buildConfiguratorAction(array $values): array
+    {
+        return [
             'type' => 'Configurator',
             'name' => 'MqttDiscoveryDevices',
             'caption' => $this->Translate('Found MQTT Discovery Devices'),
@@ -85,8 +101,6 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
             ],
             'values' => $values
         ];
-
-        return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     private function loadDiscoveryRecords(): array
@@ -131,6 +145,24 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
             }));
         }
 
+        $this->debugAnalyzedRecords($entities, $groups, $diagnostics);
+
+        return [
+            'groups' => $groups,
+            'diagnostics' => $diagnostics
+        ];
+    }
+
+    /**
+     * Debug-Projektionen der Analyse — nur bei aktiviertem Expert-Debug,
+     * damit die Maps nicht bei jedem Formularaufbau umsonst erzeugt werden.
+     */
+    private function debugAnalyzedRecords(array $entities, array $groups, array $diagnostics): void
+    {
+        if (!(bool)@$this->ReadPropertyBoolean('EnableExpertDebug')) {
+            return;
+        }
+
         $entityMap = [];
         foreach ($entities as $uniqueId => $entity) {
             if (!is_array($entity)) {
@@ -156,7 +188,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
             ];
         }
 
-        $this->debugExpert(__FUNCTION__, 'Grouped discovery devices', [
+        $this->debugExpert('analyzeDiscoveryRecords', 'Grouped discovery devices', [
             'Entities' => count($entities),
             'Groups' => count($groups),
             'Unsupported' => $diagnostics['unsupported'] ?? [],
@@ -164,11 +196,6 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
             'EntityMap' => array_slice($entityMap, 0, 30),
             'GroupMap' => $groupMap
         ]);
-
-        return [
-            'groups' => $groups,
-            'diagnostics' => $diagnostics
-        ];
     }
 
     private function prepareConfiguratorValues(array $groups): array
@@ -183,48 +210,53 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
                 continue;
             }
 
-            $entities = $group['entities'] ?? [];
-            if (!is_array($entities)) {
-                $entities = [];
-            }
-
-            $deviceConfig = $this->grouping->buildDeviceConfig($group);
-            $deviceId = (string)($deviceConfig['device_id'] ?? '');
-            $instanceID = $mappedInstances[$deviceId][0] ?? 0;
-
-            $row = [
-                'instanceID' => $instanceID,
-                'Type' => $this->Translate($this->determineGroupType($group)),
-                'name' => (string)($group['name'] ?? ''),
-                'Manufacturer' => (string)($group['manufacturer'] ?? ''),
-                'Model' => (string)($group['model'] ?? ''),
-                'DeviceID' => $deviceId,
-                'EntityCount' => count($entities),
-                'Summary' => $this->buildEntitySummary($entities),
-                'group' => (string)($group['manufacturer'] ?? '')
-            ];
-
-            if ($deviceId !== '') {
-                $row['create'] = [
-                    'moduleID' => HAIds::MODULE_MQTT_DISCOVERY_DEVICE,
-                    'configuration' => [
-                        'DeviceID' => $deviceId
-                    ],
-                    'name' => (string)($deviceConfig['device_name'] ?? $deviceId)
-                ];
-            }
-
-            $this->debugExpert(__FUNCTION__, 'Prepared MQTT discovery configurator row', [
-                'ConfiguratorParent' => $this->getCurrentParentDebugContext(),
-                'DeviceID' => $deviceId,
-                'InstanceID' => $instanceID,
-                'Create' => $row['create'] ?? null
-            ], true);
-
-            $values[] = $row;
+            $values[] = $this->buildConfiguratorRow($group, $mappedInstances);
         }
 
         return $values;
+    }
+
+    private function buildConfiguratorRow(array $group, array $mappedInstances): array
+    {
+        $entities = $group['entities'] ?? [];
+        if (!is_array($entities)) {
+            $entities = [];
+        }
+
+        $deviceConfig = $this->grouping->buildDeviceConfig($group);
+        $deviceId = (string)($deviceConfig['device_id'] ?? '');
+        $instanceID = $mappedInstances[$deviceId][0] ?? 0;
+
+        $row = [
+            'instanceID' => $instanceID,
+            'Type' => $this->Translate($this->determineGroupType($group)),
+            'name' => (string)($group['name'] ?? ''),
+            'Manufacturer' => (string)($group['manufacturer'] ?? ''),
+            'Model' => (string)($group['model'] ?? ''),
+            'DeviceID' => $deviceId,
+            'EntityCount' => count($entities),
+            'Summary' => $this->buildEntitySummary($entities),
+            'group' => (string)($group['manufacturer'] ?? '')
+        ];
+
+        if ($deviceId !== '') {
+            $row['create'] = [
+                'moduleID' => HAIds::MODULE_MQTT_DISCOVERY_DEVICE,
+                'configuration' => [
+                    'DeviceID' => $deviceId
+                ],
+                'name' => (string)($deviceConfig['device_name'] ?? $deviceId)
+            ];
+        }
+
+        $this->debugExpert('prepareConfiguratorValues', 'Prepared MQTT discovery configurator row', [
+            'ConfiguratorParent' => $this->getCurrentParentDebugContext(),
+            'DeviceID' => $deviceId,
+            'InstanceID' => $instanceID,
+            'Create' => $row['create'] ?? null
+        ], true);
+
+        return $row;
     }
 
     private function determineGroupType(array $group): string

@@ -164,12 +164,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $deviceId     = trim($this->ReadPropertyString(self::PROP_DEVICE_ID));
 
         if (!$isBundleMode && $deviceId === '') {
-            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->resetResolvedDeviceRuntime();
             $this->SetSummary('');
-            $this->SetStatus(self::STATUS_DEVICE_ID_MISSING);
-            $this->updateDiagnosticsLabels();
-            $this->refreshResolvedFormFields();
+            $this->failResolvedConfig(self::STATUS_DEVICE_ID_MISSING, __FUNCTION__);
             return;
         }
 
@@ -183,13 +179,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         } else {
             $configData = $this->resolveDeviceConfigByDeviceId($deviceId);
             if ($configData === []) {
-                $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-                $this->resetResolvedDeviceRuntime();
                 $this->SetSummary($deviceId);
-                $this->SetStatus(self::STATUS_DEVICE_NOT_FOUND);
-                $this->updateDiagnosticsLabels();
-                $this->refreshResolvedFormFields();
-                $this->debugExpert(__FUNCTION__, 'Gerät nicht in Home Assistant gefunden', ['DeviceID' => $deviceId], true);
+                $this->failResolvedConfig(self::STATUS_DEVICE_NOT_FOUND, __FUNCTION__, 'Gerät nicht in Home Assistant gefunden', ['DeviceID' => $deviceId]);
                 return;
             }
         }
@@ -333,84 +324,82 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
-
-        if ($this->handleLockAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleCoverAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleCoverTiltAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleValveAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleVacuumAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleVacuumFanSpeedAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleLawnMowerAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleUpdateInstallAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleCameraPowerAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleMediaPlayerPowerAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleMediaPlayerAction($Ident, $Value)) {
-            return;
-        }
-        if ($this->handleClimatePowerAction($Ident, $Value)) {
-            return;
+        foreach ([
+            'handleLockAction',
+            'handleCoverAction',
+            'handleCoverTiltAction',
+            'handleValveAction',
+            'handleVacuumAction',
+            'handleVacuumFanSpeedAction',
+            'handleLawnMowerAction',
+            'handleUpdateInstallAction',
+            'handleCameraPowerAction',
+            'handleMediaPlayerPowerAction',
+            'handleMediaPlayerAction',
+            'handleClimatePowerAction',
+        ] as $domainActionHandler) {
+            if ($this->$domainActionHandler($Ident, $Value)) {
+                return;
+            }
         }
 
         $entity = $this->findEntityByIdent($Ident);
         if ($entity !== null && !empty($entity['entity_id'])) {
-            $entityId = $entity['entity_id'];
-            $domain   = $entity['domain'] ?? null;
-            if ($domain === null && str_contains($entityId, '.')) {
-                [$domain] = explode('.', $entityId, 2);
-            }
-            $this->debugExpert('RequestAction', 'Entity aufgelöst', ['EntityID' => $entityId, 'Domain' => $domain]);
-
-            if (!$this->isEntityWritable($domain ?? '', $entity['attributes'] ?? [])) {
-                $this->debugExpert('RequestAction', 'Variable ist nicht schreibbar', ['EntityID' => $entityId], true);
-                return;
-            }
-
-            // Payload in das erwartete MQTT-Format bringen.
-            $mqttPayload = $this->formatPayloadForMqtt($domain ?? '', $Value, $entity['attributes'] ?? []);
-            if ($mqttPayload === '') {
-                $this->debugExpert('RequestAction', 'Payload leer', ['Domain' => $domain, 'Value' => $Value], true);
-                return;
-            }
-            $this->debugExpert('RequestAction', 'Payload formatiert', ['Payload' => $mqttPayload]);
-
-            if ($this->trySendMainEntityValueViaRest($entityId, (string)($domain ?? ''), $mqttPayload, $Ident, $entity['attributes'] ?? [])) {
-                return;
-            }
-
-            $topic = $this->getSetTopicForEntity($entityId);
-            if ($topic === '') {
-                return;
-            }
-            $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $mqttPayload, [], true);
-
-            $this->sendMqttMessage($topic, $mqttPayload);
-            $this->resetVariableByDescriptor($Ident, $this->describeVariableByIdent($Ident, $domain));
+            $this->executeMainEntityAction($Ident, $Value, $entity);
             return;
         }
 
+        $this->executeAttributeAction($Ident, $Value);
+    }
+
+    /**
+     * Sendet einen Schaltwert für die Hauptvariable einer Entität
+     * (REST bevorzugt, sonst MQTT-Set-Topic).
+     */
+    private function executeMainEntityAction(string $Ident, mixed $Value, array $entity): void
+    {
+        $entityId = $entity['entity_id'];
+        $domain   = $entity['domain'] ?? null;
+        if ($domain === null && str_contains($entityId, '.')) {
+            [$domain] = explode('.', $entityId, 2);
+        }
+        $this->debugExpert('RequestAction', 'Entity aufgelöst', ['EntityID' => $entityId, 'Domain' => $domain]);
+
+        if (!$this->isEntityWritable($domain ?? '', $entity['attributes'] ?? [])) {
+            $this->debugExpert('RequestAction', 'Variable ist nicht schreibbar', ['EntityID' => $entityId], true);
+            return;
+        }
+
+        // Payload in das erwartete MQTT-Format bringen.
+        $mqttPayload = $this->formatPayloadForMqtt($domain ?? '', $Value, $entity['attributes'] ?? []);
+        if ($mqttPayload === '') {
+            $this->debugExpert('RequestAction', 'Payload leer', ['Domain' => $domain, 'Value' => $Value], true);
+            return;
+        }
+        $this->debugExpert('RequestAction', 'Payload formatiert', ['Payload' => $mqttPayload]);
+
+        if ($this->trySendMainEntityValueViaRest($entityId, (string)($domain ?? ''), $mqttPayload, $Ident, $entity['attributes'] ?? [])) {
+            return;
+        }
+
+        $topic = $this->getSetTopicForEntity($entityId);
+        if ($topic === '') {
+            return;
+        }
+        $this->debugExpert('RequestAction', 'MQTT publish | Topic=' . $topic . ' | Payload=' . $mqttPayload, [], true);
+
+        $this->sendMqttMessage($topic, $mqttPayload);
+        $this->resetVariableByDescriptor($Ident, $this->describeVariableByIdent($Ident, $domain));
+    }
+
+    /**
+     * Sendet einen Schaltwert für eine Attribut-Variable per MQTT-Set-Topic.
+     */
+    private function executeAttributeAction(string $Ident, mixed $Value): void
+    {
         $attributeInfo = $this->resolveAttributeByIdent($Ident);
         if ($attributeInfo === null) {
-            $this->debugExpert(__FUNCTION__, 'Entity/Attribut nicht gefunden', ['Ident' => $Ident], true);
+            $this->debugExpert('RequestAction', 'Entity/Attribut nicht gefunden', ['Ident' => $Ident], true);
             return;
         }
 
@@ -419,11 +408,11 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         $payload = $this->buildDomainAttributePayload($attributeInfo['domain'], $attribute, $Value);
         if ($payload === '' && !HADomainCatalog::supportsAttributePayload($attributeInfo['domain'])) {
-            $this->debugExpert(__FUNCTION__, 'Attribut-Domain nicht unterstützt', ['Attribute' => $attribute, 'Domain' => $attributeInfo['domain']], true);
+            $this->debugExpert('RequestAction', 'Attribut-Domain nicht unterstützt', ['Attribute' => $attribute, 'Domain' => $attributeInfo['domain']], true);
             return;
         }
         if ($payload === '') {
-            $this->debugExpert(__FUNCTION__, 'Attribut Payload leer', ['Attribute' => $attribute], true);
+            $this->debugExpert('RequestAction', 'Attribut Payload leer', ['Attribute' => $attribute], true);
             return;
         }
         $topic = $this->getSetTopicForEntity($entityId);
@@ -431,7 +420,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             $this->debugExpert('Action', 'Kein Set-Topic für Entity | EntityID=' . $entityId, [], true);
             return;
         }
-        $this->debugExpert(__FUNCTION__, 'MQTT publish | Topic=' . $topic . ' | Payload=' . $payload, [], true);
+        $this->debugExpert('RequestAction', 'MQTT publish | Topic=' . $topic . ' | Payload=' . $payload, [], true);
         $this->sendMqttMessage($topic, $payload);
         if ($attributeInfo['domain'] === HAClimateDefinitions::DOMAIN && $attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_MODE) {
             $hvacMode = trim((string)$Value);
@@ -449,68 +438,17 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $config = $this->readResolvedConfig(__FUNCTION__);
         $this->debugExpert(__FUNCTION__, 'config:', $config);
 
-        $values = [];
-        $domainOptions = HADomainCatalog::getDomainSelectOptions();
-        $first        = is_array($config) ? ($config[0] ?? null) : null;
-        $manufacturer = is_array($first) ? trim((string)($first['device_manufacturer'] ?? '')) : '';
-        $model        = is_array($first) ? trim((string)($first['device_model'] ?? '')) : '';
-        $resolvedName = $this->getResolvedDeviceName($config);
-        $resolvedArea = $this->getResolvedDeviceArea($config);
+        $values        = $this->buildResolvedConfigFormValues($config);
+        $labelCaptions = $this->buildDeviceLabelCaptions($config);
 
-        if (is_array($config)) {
-            foreach ($config as $row) {
-                $row = $this->normalizeEntityStructure($row);
-                if ($row === null) {
-                    continue;
-                }
-
-                // Filter out entities with unsupported domains to satisfy the requirement
-                // that they should not appear in the Device instance configuration.
-                if (!HADomainCatalog::isDomainSupported($row['domain'] ?? '')) {
-                    $this->debugExpert(__FUNCTION__, 'Filtering out unsupported domain: ' . ($row['domain'] ?? 'unknown') . ' for entity: ' . ($row['entity_id'] ?? 'unknown'));
-                    continue;
-                }
-
-                // Standardwerte für fehlende Spalten ergänzen.
-                if (!isset($row['create_var'])) {
-                    $row['create_var'] = true;
-                }
-
-                $attributes = $row['attributes'] ?? null;
-                if (is_string($attributes)) {
-                    $decoded = $this->decodeJsonArray($attributes, __FUNCTION__);
-                    if ($decoded !== null) {
-                        $attributes = $decoded;
-                    }
-                }
-
-                // Attribute für die Konfigurationstabelle als JSON-String ausgeben.
-                if (is_array($attributes)) {
-                    $row['attributes'] = json_encode($attributes, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                } else {
-                    $row['attributes'] = '{}';
-                }
-                $this->debugExpert(__FUNCTION__, 'row:', $row);
-
-                $values[] = $row;
-            }
-        }
-
-        $labelCaptions = [
-            'DeviceManufacturer' => sprintf($this->Translate('Manufacturer: %s'), $manufacturer),
-            'DeviceModel'        => sprintf($this->Translate('Model: %s'), $model),
-            self::PROP_DEVICE_NAME => sprintf($this->Translate('Device name (HA): %s'), $resolvedName),
-            self::PROP_DEVICE_AREA => sprintf($this->Translate('Area: %s'), $resolvedArea),
-        ];
-
-        $applyItem = function (array &$item) use ($labelCaptions, $values, $domainOptions): void {
+        $applyItem = function (array &$item) use ($labelCaptions, $values): void {
             $name = (string)($item['name'] ?? '');
             if (isset($labelCaptions[$name])) {
                 $item['caption'] = $labelCaptions[$name];
             }
             if ($name === 'ResolvedConfig') {
                 $item['values'] = $values;
-                $this->applyResolvedConfigColumnSettings($item, $domainOptions);
+                $this->applyResolvedConfigColumnSettings($item);
             }
             // descend into RowLayout / nested items
             if (isset($item['items']) && is_array($item['items'])) {
@@ -539,7 +477,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
             if (($action['name'] ?? '') === 'ResolvedConfig') {
                 $action['values'] = $values;
-                $this->applyResolvedConfigColumnSettings($action, $domainOptions);
+                $this->applyResolvedConfigColumnSettings($action);
             }
         }
         unset($action);
@@ -694,49 +632,46 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $rawPath    = trim($this->ReadPropertyString(self::PROP_BUNDLE_PATH));
         $bundlePath = $this->resolveBundlePath($rawPath);
         if ($bundlePath === '') {
-            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->resetResolvedDeviceRuntime();
-            $this->SetStatus(self::STATUS_BUNDLE_PATH_MISSING);
-            $this->updateDiagnosticsLabels();
-            $this->refreshResolvedFormFields();
+            $this->failResolvedConfig(self::STATUS_BUNDLE_PATH_MISSING, __FUNCTION__);
             return null;
         }
 
         $contents = @file_get_contents($bundlePath);
         if ($contents === false) {
-            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->resetResolvedDeviceRuntime();
-            $this->SetStatus(self::STATUS_BUNDLE_INVALID);
-            $this->updateDiagnosticsLabels();
-            $this->refreshResolvedFormFields();
-            $this->debugExpert(__FUNCTION__, 'Bundle-Datei konnte nicht gelesen werden', ['ConfiguredPath' => $rawPath, 'ResolvedPath' => $bundlePath], true);
+            $this->failResolvedConfig(self::STATUS_BUNDLE_INVALID, __FUNCTION__, 'Bundle-Datei konnte nicht gelesen werden', ['ConfiguredPath' => $rawPath, 'ResolvedPath' => $bundlePath]);
             return null;
         }
 
         try {
             $configData = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
-            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->resetResolvedDeviceRuntime();
-            $this->SetStatus(self::STATUS_BUNDLE_INVALID);
-            $this->updateDiagnosticsLabels();
-            $this->refreshResolvedFormFields();
-            $this->debugExpert(__FUNCTION__, 'Bundle-Datei ist kein gültiges JSON: ' . $e->getMessage(), ['Path' => $bundlePath], true);
+            $this->failResolvedConfig(self::STATUS_BUNDLE_INVALID, __FUNCTION__, 'Bundle-Datei ist kein gültiges JSON: ' . $e->getMessage(), ['Path' => $bundlePath]);
             return null;
         }
 
         if (!is_array($configData) || $configData === []) {
-            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->resetResolvedDeviceRuntime();
-            $this->SetStatus(self::STATUS_BUNDLE_INVALID);
-            $this->updateDiagnosticsLabels();
-            $this->refreshResolvedFormFields();
-            $this->debugExpert(__FUNCTION__, 'Bundle-Datei enthält keine gültige Konfiguration', ['Path' => $bundlePath], true);
+            $this->failResolvedConfig(self::STATUS_BUNDLE_INVALID, __FUNCTION__, 'Bundle-Datei enthält keine gültige Konfiguration', ['Path' => $bundlePath]);
             return null;
         }
 
         $this->debugExpert(__FUNCTION__, 'Bundle geladen', ['ConfiguredPath' => $rawPath, 'ResolvedPath' => $bundlePath, 'Entities' => count($configData)]);
         return $configData;
+    }
+
+    /**
+     * Gemeinsamer Fehlerpfad: aufgelöste Konfiguration verwerfen, Laufzeit
+     * zurücksetzen und den Fehlerstatus samt Formular-/Diagnose-Update melden.
+     */
+    private function failResolvedConfig(int $status, string $context, string $debugMessage = '', array $debugContext = []): void
+    {
+        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->resetResolvedDeviceRuntime();
+        $this->SetStatus($status);
+        $this->updateDiagnosticsLabels();
+        $this->refreshResolvedFormFields();
+        if ($debugMessage !== '') {
+            $this->debugExpert($context, $debugMessage, $debugContext, true);
+        }
     }
 
     private function resolveDeviceConfigByDeviceId(string $deviceId): array
@@ -832,42 +767,43 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         return $area !== '' ? $area : trim($this->ReadPropertyString(self::PROP_DEVICE_AREA));
     }
 
-    private function getResolvedDeviceId(?array $configData = null): string
-    {
-        $configData ??= $this->readResolvedConfig(__FUNCTION__);
-        $first = $configData[0] ?? null;
-        if (is_array($first)) {
-            $deviceId = trim((string)($first['device_id'] ?? ''));
-            if ($deviceId !== '') {
-                return $deviceId;
-            }
-        }
-
-        return trim($this->ReadPropertyString(self::PROP_DEVICE_ID));
-    }
-
     private function refreshResolvedFormFields(): void
     {
-        $configData   = $this->readResolvedConfig(__FUNCTION__);
-        $first        = $configData[0] ?? null;
-        $manufacturer = is_array($first) ? trim((string)($first['device_manufacturer'] ?? '')) : '';
-        $model        = is_array($first) ? trim((string)($first['device_model'] ?? '')) : '';
-        $resolvedName = $this->getResolvedDeviceName($configData);
-        $resolvedArea = $this->getResolvedDeviceArea($configData);
+        $configData = $this->readResolvedConfig(__FUNCTION__);
+        foreach ($this->buildDeviceLabelCaptions($configData) as $name => $caption) {
+            $this->updateFormFieldSafe($name, 'caption', $caption);
+        }
+
         $resolvedConfigForm = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
-        $this->updateFormFieldSafe('DeviceManufacturer', 'caption', sprintf($this->Translate('Manufacturer: %s'), $manufacturer));
-        $this->updateFormFieldSafe('DeviceModel', 'caption', sprintf($this->Translate('Model: %s'), $model));
-        $this->updateFormFieldSafe('DeviceName', 'caption', sprintf($this->Translate('Device name (HA): %s'), $resolvedName));
-        $this->updateFormFieldSafe('DeviceArea', 'caption', sprintf($this->Translate('Area: %s'), $resolvedArea));
         $this->updateFormFieldSafe(
             'ResolvedConfig',
             'columns',
             json_encode(
-                $this->buildResolvedConfigColumns($resolvedConfigForm, HADomainCatalog::getDomainSelectOptions()),
+                $this->buildResolvedConfigColumns($resolvedConfigForm),
                 JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
             )
         );
         $this->updateFormFieldSafe('ResolvedConfig', 'values', json_encode($this->buildResolvedConfigFormValues($configData), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * Captions der Geräte-Stammdaten-Labels; von GetConfigurationForm und
+     * refreshResolvedFormFields gemeinsam genutzt (Schlüssel = Formularfeldname).
+     *
+     * @return array<string, string>
+     */
+    private function buildDeviceLabelCaptions(array $configData): array
+    {
+        $first        = $configData[0] ?? null;
+        $manufacturer = is_array($first) ? trim((string)($first['device_manufacturer'] ?? '')) : '';
+        $model        = is_array($first) ? trim((string)($first['device_model'] ?? '')) : '';
+
+        return [
+            'DeviceManufacturer'   => sprintf($this->Translate('Manufacturer: %s'), $manufacturer),
+            'DeviceModel'          => sprintf($this->Translate('Model: %s'), $model),
+            self::PROP_DEVICE_NAME => sprintf($this->Translate('Device name (HA): %s'), $this->getResolvedDeviceName($configData)),
+            self::PROP_DEVICE_AREA => sprintf($this->Translate('Area: %s'), $this->getResolvedDeviceArea($configData)),
+        ];
     }
 
     private function resetResolvedDeviceRuntime(): void
@@ -908,7 +844,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         return $values;
     }
 
-    private function applyResolvedConfigColumnSettings(array &$list, array $domainOptions): void
+    private function applyResolvedConfigColumnSettings(array &$list): void
     {
         if (!isset($list['columns']) || !is_array($list['columns'])) {
             return;
@@ -924,7 +860,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         unset($column);
     }
 
-    private function buildResolvedConfigColumns(array $form, array $domainOptions): array
+    private function buildResolvedConfigColumns(array $form): array
     {
         foreach ($form['actions'] ?? [] as $element) {
             if (!isset($element['items']) || !is_array($element['items'])) {
@@ -936,7 +872,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                     continue;
                 }
 
-                $this->applyResolvedConfigColumnSettings($item, $domainOptions);
+                $this->applyResolvedConfigColumnSettings($item);
                 return is_array($item['columns'] ?? null) ? $item['columns'] : [];
             }
         }
@@ -1007,7 +943,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      *
      * @return array Liste der Topics für den Filter
      * @throws \JsonException
-     * @throws \JsonException
      */
     private function processEntities(array $configData, string $baseTopic): array
     {
@@ -1023,26 +958,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $renamedEntityIds = [];
         $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
 
-        // Alle Entitäten normalisieren (auch inaktive), damit korrekte Idents für Cleanup bekannt sind
-        $allNormalized = [];
-        foreach ($configData as $row) {
-            $entity = $this->normalizeEntityStructure($row);
-            if ($entity === null) {
-                continue;
-            }
-            $entityId = (string)($entity['entity_id'] ?? '');
-            if ($entityId === '') {
-                continue;
-            }
-            if (($entity['domain'] ?? '') === '') {
-                $this->debugExpert('processEntities', 'Entity ohne Domain', $entity);
-                continue;
-            }
-            $allNormalized[] = $entity;
-        }
-
         // Idents für ALLE Entitäten berechnen (inkl. inaktiver), um historische Idents zu ermitteln
-        $allWithIdents = $this->applySharedEntityIdents($allNormalized);
+        $allWithIdents = $this->applySharedEntityIdents($this->normalizeConfiguredEntityRows($configData));
         $inactiveEntities = [];
         foreach ($allWithIdents as $entity) {
             $entityId = (string)($entity['entity_id'] ?? '');
@@ -1063,18 +980,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
 
             $activeEntityIds[] = $entityId;
-            $basePosition                                = $runningPosition;
-            $runningPosition                             += HADomainCatalog::getPositionBlockSize($entity['domain'] ?? '');
-            $entity['position_base']                     = $basePosition;
-            if (isset($previousEntities[$entityId]['attributes'])
-                && is_array($previousEntities[$entityId]['attributes'])) {
-                $existingAttributes = $previousEntities[$entityId]['attributes'];
-                if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
-                    $entity['attributes'] = $existingAttributes;
-                } else {
-                    $entity['attributes'] = array_merge($existingAttributes, $entity['attributes']);
-                }
-            }
+            $basePosition            = $runningPosition;
+            $runningPosition         += HADomainCatalog::getPositionBlockSize($entity['domain'] ?? '');
+            $entity['position_base'] = $basePosition;
+            $entity                  = $this->mergePreviousEntityAttributes($entity, $previousEntities, $entityId);
             $this->entities[$entityId] = $entity;
             if ($this->hasSharedManagedIdentChanged($previousEntities[$entityId] ?? null, $entity)) {
                 $renamedEntityIds[] = $entityId;
@@ -1102,6 +1011,49 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->cleanupManagedEntityObjects($entityIdsToCleanup, $activeEntityIds, array_merge($previousEntities, $inactiveEntities));
 
         return $filterTopics;
+    }
+
+    /**
+     * Normalisiert alle Konfigurationszeilen zu gültigen Entitäten (inkl. inaktiver),
+     * damit auch für abgewählte Entitäten korrekte Idents für den Cleanup bekannt sind.
+     */
+    private function normalizeConfiguredEntityRows(array $configData): array
+    {
+        $normalized = [];
+        foreach ($configData as $row) {
+            $entity = $this->normalizeEntityStructure($row);
+            if ($entity === null) {
+                continue;
+            }
+            if ((string)($entity['entity_id'] ?? '') === '') {
+                continue;
+            }
+            if (($entity['domain'] ?? '') === '') {
+                $this->debugExpert('processEntities', 'Entity ohne Domain', $entity);
+                continue;
+            }
+            $normalized[] = $entity;
+        }
+        return $normalized;
+    }
+
+    /**
+     * Übernimmt bereits gesammelte Attribute aus dem vorherigen Lauf,
+     * damit sie beim Neuaufbau der Entity-Liste nicht verloren gehen.
+     */
+    private function mergePreviousEntityAttributes(array $entity, array $previousEntities, string $entityId): array
+    {
+        if (!isset($previousEntities[$entityId]['attributes']) || !is_array($previousEntities[$entityId]['attributes'])) {
+            return $entity;
+        }
+
+        $existingAttributes = $previousEntities[$entityId]['attributes'];
+        if (!isset($entity['attributes']) || !is_array($entity['attributes'])) {
+            $entity['attributes'] = $existingAttributes;
+        } else {
+            $entity['attributes'] = array_merge($existingAttributes, $entity['attributes']);
+        }
+        return $entity;
     }
 
     private function cleanupManagedEntityObjects(array $entityIds, array $activeEntityIds, array $previousEntities): void
@@ -1164,7 +1116,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                         'Ident' => $ident
                     ]);
                 }
-            } elseif ($objectType === 5) {
+            } elseif ($objectType === OBJECTTYPE_MEDIA) {
                 IPS_DeleteMedia($childId, true);
                 $this->debugExpert(__FUNCTION__, 'Medienobjekt entfernt', [
                     'ObjectID' => $childId,

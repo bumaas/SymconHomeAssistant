@@ -336,64 +336,74 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         $entity = $target['entity'];
         if ($target['type'] === 'light_attribute') {
-            $attribute = $target['attribute'];
-            $context = $this->buildLightAttributeContext($entity, []);
-            if (!$this->isLightAttributeWritable($attribute, $context)) {
-                $this->debugExpert(__FUNCTION__, 'Light-Attribut ist nicht schreibbar', [
-                    'Ident' => $Ident,
-                    'EntityKey' => $entity['entity_key'],
-                    'Attribute' => $attribute
-                ], true);
-                return;
-            }
-
-            $payload = HAMqttDiscoveryLightRuntime::buildAttributeCommandPayload($attribute, $Value);
-            if ($payload === null) {
-                $this->debugExpert(__FUNCTION__, 'Light-Attributpayload konnte nicht erstellt werden', [
-                    'Ident' => $Ident,
-                    'EntityKey' => $entity['entity_key'],
-                    'Attribute' => $attribute,
-                    'Value' => $Value
-                ], true);
-                return;
-            }
-
-            $this->debugExpert(__FUNCTION__, 'Sende Light-Attribut', [
-                'Ident' => $Ident,
-                'EntityKey' => $entity['entity_key'],
-                'Attribute' => $attribute,
-                'CommandTopic' => $entity['command_topic'],
-                'Payload' => $payload,
-                'QoS' => (int)$entity['qos'],
-                'Retain' => (bool)$entity['retain']
-            ]);
-
-            $this->sendMqttMessage(
-                $entity['command_topic'],
-                $payload,
-                (int)$entity['qos'],
-                (bool)$entity['retain']
-            );
-
-            if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS)) {
-                $this->emulateOptimisticStatus((string) $Ident, $Value);
-            }
-
+            $this->handleLightAttributeRequest((string) $Ident, $entity, $target['attribute'], $Value);
             return;
         }
 
+        $this->handleEntityCommandRequest((string) $Ident, $entity, $Value);
+    }
+
+    // Kategorie 'RequestAction' (statt __FUNCTION__) beibehalten: sie steuert die
+    // Basic-Debug-Freischaltung in ModuleDebugTrait::BASIC_DEBUG_CATEGORIES.
+    private function handleLightAttributeRequest(string $Ident, array $entity, string $attribute, mixed $Value): void
+    {
+        $context = $this->buildLightAttributeContext($entity, []);
+        if (!$this->isLightAttributeWritable($attribute, $context)) {
+            $this->debugExpert('RequestAction', 'Light-Attribut ist nicht schreibbar', [
+                'Ident' => $Ident,
+                'EntityKey' => $entity['entity_key'],
+                'Attribute' => $attribute
+            ], true);
+            return;
+        }
+
+        $payload = HAMqttDiscoveryLightRuntime::buildAttributeCommandPayload($attribute, $Value);
+        if ($payload === null) {
+            $this->debugExpert('RequestAction', 'Light-Attributpayload konnte nicht erstellt werden', [
+                'Ident' => $Ident,
+                'EntityKey' => $entity['entity_key'],
+                'Attribute' => $attribute,
+                'Value' => $Value
+            ], true);
+            return;
+        }
+
+        $this->debugExpert('RequestAction', 'Sende Light-Attribut', [
+            'Ident' => $Ident,
+            'EntityKey' => $entity['entity_key'],
+            'Attribute' => $attribute,
+            'CommandTopic' => $entity['command_topic'],
+            'Payload' => $payload,
+            'QoS' => (int)$entity['qos'],
+            'Retain' => (bool)$entity['retain']
+        ]);
+
+        $this->sendMqttMessage(
+            $entity['command_topic'],
+            $payload,
+            (int)$entity['qos'],
+            (bool)$entity['retain']
+        );
+
+        if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS)) {
+            $this->emulateOptimisticStatus($Ident, $Value);
+        }
+    }
+
+    private function handleEntityCommandRequest(string $Ident, array $entity, mixed $Value): void
+    {
         if (!$this->isEntityWritable($entity)) {
-            $this->debugExpert(__FUNCTION__, 'Entity ist nicht schreibbar', ['Ident' => $Ident, 'EntityKey' => $entity['entity_key']], true);
+            $this->debugExpert('RequestAction', 'Entity ist nicht schreibbar', ['Ident' => $Ident, 'EntityKey' => $entity['entity_key']], true);
             return;
         }
 
         $payload = $this->buildCommandPayload($entity, $Value);
         if ($payload === null) {
-            $this->debugExpert(__FUNCTION__, 'Command payload konnte nicht erstellt werden', ['Ident' => $Ident, 'Value' => $Value], true);
+            $this->debugExpert('RequestAction', 'Command payload konnte nicht erstellt werden', ['Ident' => $Ident, 'Value' => $Value], true);
             return;
         }
 
-        $this->debugExpert(__FUNCTION__, 'Sende Command', [
+        $this->debugExpert('RequestAction', 'Sende Command', [
             'Ident' => $Ident,
             'EntityKey' => $entity['entity_key'],
             'CommandTopic' => $entity['command_topic'],
@@ -607,10 +617,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function storeResolvedDeviceDefinition(array $deviceDefinition): void
     {
-        $this->WriteAttributeString(
-            self::ATTR_RESOLVED_DEVICE_DEFINITION,
-            json_encode($deviceDefinition, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-        );
+        $this->writeJsonAttribute(self::ATTR_RESOLVED_DEVICE_DEFINITION, $deviceDefinition);
     }
 
     private function storeResolvedDeviceDefinitionIfUsable(array $deviceDefinition): void
@@ -631,13 +638,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function readCachedResolvedDeviceDefinition(): ?array
     {
-        try {
-            $decoded = json_decode($this->ReadAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return null;
-        }
-
-        if (!is_array($decoded) || !isset($decoded['entities']) || !is_array($decoded['entities'])) {
+        $decoded = $this->readJsonAttribute(self::ATTR_RESOLVED_DEVICE_DEFINITION);
+        if (!isset($decoded['entities']) || !is_array($decoded['entities'])) {
             return null;
         }
 
@@ -855,14 +857,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function normalizeMetadata(mixed $metadata): array
     {
-        if (is_string($metadata) && trim($metadata) !== '') {
-            try {
-                $metadata = json_decode($metadata, true, 512, JSON_THROW_ON_ERROR);
-            } catch (JsonException) {
-                $metadata = [];
-            }
-        }
-
+        $metadata = $this->decodeJsonCandidate($metadata);
         if (!is_array($metadata)) {
             $metadata = [];
         }
@@ -946,16 +941,23 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return is_numeric($value) ? (float)$value : null;
     }
 
-    private function normalizeAvailability(mixed $availability): array
+    // Nicht-leere Strings als JSON dekodieren (Fallback: leeres Array), alles andere unverändert lassen.
+    private function decodeJsonCandidate(mixed $value): mixed
     {
-        if (is_string($availability) && trim($availability) !== '') {
+        if (is_string($value) && trim($value) !== '') {
             try {
-                $availability = json_decode($availability, true, 512, JSON_THROW_ON_ERROR);
+                return json_decode($value, true, 512, JSON_THROW_ON_ERROR);
             } catch (JsonException) {
-                $availability = [];
+                return [];
             }
         }
 
+        return $value;
+    }
+
+    private function normalizeAvailability(mixed $availability): array
+    {
+        $availability = $this->decodeJsonCandidate($availability);
         if (!is_array($availability)) {
             return [
                 'mode' => 'latest',
@@ -968,13 +970,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $rawEntries = $availability['entries'] ?? [];
         if (is_array($rawEntries)) {
             foreach ($rawEntries as $entry) {
-                if (is_string($entry) && trim($entry) !== '') {
-                    try {
-                        $entry = json_decode($entry, true, 512, JSON_THROW_ON_ERROR);
-                    } catch (JsonException) {
-                        $entry = [];
-                    }
-                }
+                $entry = $this->decodeJsonCandidate($entry);
                 if (!is_array($entry)) {
                     continue;
                 }
@@ -1014,14 +1010,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function normalizeOptions(mixed $options): array
     {
-        if (is_string($options) && trim($options) !== '') {
-            try {
-                $options = json_decode($options, true, 512, JSON_THROW_ON_ERROR);
-            } catch (JsonException) {
-                $options = [];
-            }
-        }
-
+        $options = $this->decodeJsonCandidate($options);
         if (!is_array($options)) {
             return [];
         }
@@ -1756,12 +1745,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function extractDeviceTrackerAttributesFromPayload(string $payload): array
     {
-        try {
-            $decoded = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
-        }
-
+        $decoded = $this->decodeJsonCandidate($payload);
         if (!is_array($decoded)) {
             return [];
         }
@@ -2825,15 +2809,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function readTopicProcessingIndex(): array
     {
-        try {
-            $decoded = json_decode($this->ReadAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            $decoded = [];
-        }
-
-        if (!is_array($decoded)) {
-            $decoded = [];
-        }
+        $decoded = $this->readJsonAttribute(self::ATTR_TOPIC_PROCESSING_INDEX);
 
         $normalizeBucket = static function (mixed $bucket): array {
             if (!is_array($bucket)) {
@@ -2880,10 +2856,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function writeTopicProcessingIndex(array $index): void
     {
-        $this->WriteAttributeString(
-            self::ATTR_TOPIC_PROCESSING_INDEX,
-            json_encode($index, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-        );
+        $this->writeJsonAttribute(self::ATTR_TOPIC_PROCESSING_INDEX, $index);
     }
 
     private function updateReceiveFilter(array $topics): void
@@ -4130,29 +4103,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         if ($entity['component'] === HASelectDefinitions::DOMAIN) {
-            $option = $this->resolveSelectOption($entity['options'], $value);
-            if ($option === null) {
-                return null;
-            }
-
-            if ($entity['command_mode'] === 'template') {
-                return $this->renderCommandTemplate($entity['command_template'], $option);
-            }
-
-            return $option;
+            return $this->applyCommandTemplateIfNeeded($entity, $this->resolveSelectOption($entity['options'], $value));
         }
 
         if ($entity['component'] === HANumberDefinitions::DOMAIN) {
-            $payload = $this->formatNumberCommandPayload($value, is_array($entity['metadata'] ?? null) ? $entity['metadata'] : []);
-            if ($payload === null) {
-                return null;
-            }
-
-            if ($entity['command_mode'] === 'template') {
-                return $this->renderCommandTemplate($entity['command_template'], $payload);
-            }
-
-            return $payload;
+            return $this->applyCommandTemplateIfNeeded(
+                $entity,
+                $this->formatNumberCommandPayload($value, is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [])
+            );
         }
 
         return null;
@@ -4177,59 +4135,26 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             default => null
         };
 
-        $payload = $this->scalarToString($payload);
-        if ($payload === null) {
-            return null;
-        }
-
-        if ($entity['command_mode'] === 'template') {
-            return $this->renderCommandTemplate($entity['command_template'], $payload);
-        }
-
-        return $payload;
+        return $this->applyCommandTemplateIfNeeded($entity, $this->scalarToString($payload));
     }
 
     private function buildCoverCommandPayload(array $entity, mixed $value): ?string
     {
         $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
         if ($this->isCoverPositionEntity($metadata)) {
-            $payload = $this->formatCoverPositionPayload($value);
-            if ($payload === null) {
-                return null;
-            }
-
-            if ($entity['command_mode'] === 'template') {
-                return $this->renderCommandTemplate($entity['command_template'], $payload);
-            }
-
-            return $payload;
+            return $this->applyCommandTemplateIfNeeded($entity, $this->formatCoverPositionPayload($value));
         }
 
-        $payload = $this->normalizeNullableString(HACoverDefinitions::normalizeCommand($value));
-        if ($payload === null) {
-            return null;
-        }
-
-        if ($entity['command_mode'] === 'template') {
-            return $this->renderCommandTemplate($entity['command_template'], $payload);
-        }
-
-        return $payload;
+        return $this->applyCommandTemplateIfNeeded(
+            $entity,
+            $this->normalizeNullableString(HACoverDefinitions::normalizeCommand($value))
+        );
     }
 
     private function buildClimateCommandPayload(array $entity, mixed $value): ?string
     {
         $metadata = is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [];
-        $payload = $this->formatClimateCommandPayload($value, $metadata);
-        if ($payload === null) {
-            return null;
-        }
-
-        if ($entity['command_mode'] === 'template') {
-            return $this->renderCommandTemplate($entity['command_template'], $payload);
-        }
-
-        return $payload;
+        return $this->applyCommandTemplateIfNeeded($entity, $this->formatClimateCommandPayload($value, $metadata));
     }
 
     private function handleLockActionRequest(string $ident, array $entity, mixed $value): void
@@ -4383,15 +4308,26 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         };
     }
 
+    // Wert auf einen numerischen String normalisieren (Komma → Punkt); null, wenn nicht numerisch.
+    private function coerceNumericPayloadValue(mixed $value): ?string
+    {
+        if (is_numeric($value)) {
+            return (string)$value;
+        }
+
+        $normalized = trim((string)$value);
+        if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
+            return null;
+        }
+
+        return str_replace(',', '.', $normalized);
+    }
+
     private function formatCoverPositionPayload(mixed $value): ?string
     {
-        if (!is_numeric($value)) {
-            $normalized = trim((string)$value);
-            if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
-                return null;
-            }
-
-            $value = str_replace(',', '.', $normalized);
+        $value = $this->coerceNumericPayloadValue($value);
+        if ($value === null) {
+            return null;
         }
 
         $position = max(0.0, min(100.0, (float)$value));
@@ -4400,12 +4336,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function formatNumberCommandPayload(mixed $value, array $metadata): ?string
     {
-        if (!is_numeric($value)) {
-            $normalized = trim((string)$value);
-            if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
-                return null;
-            }
-            $value = str_replace(',', '.', $normalized);
+        $value = $this->coerceNumericPayloadValue($value);
+        if ($value === null) {
+            return null;
         }
 
         return $this->inferNumberVariableType($metadata, $value) === VARIABLETYPE_INTEGER
@@ -4415,12 +4348,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function formatClimateCommandPayload(mixed $value, array $metadata): ?string
     {
-        if (!is_numeric($value)) {
-            $normalized = trim((string)$value);
-            if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
-                return null;
-            }
-            $value = str_replace(',', '.', $normalized);
+        $value = $this->coerceNumericPayloadValue($value);
+        if ($value === null) {
+            return null;
         }
 
         $numericValue = (float)$value;
@@ -4474,6 +4404,19 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return preg_replace('/{{\s*value\s*}}/', $value, $raw, 1);
     }
 
+    private function applyCommandTemplateIfNeeded(array $entity, ?string $payload): ?string
+    {
+        if ($payload === null) {
+            return null;
+        }
+
+        if ($entity['command_mode'] === 'template') {
+            return $this->renderCommandTemplate($entity['command_template'], $payload);
+        }
+
+        return $payload;
+    }
+
     private function coerceBooleanActionValue(mixed $value): ?bool
     {
         return HAMqttDiscoveryLightRuntime::coerceBooleanActionValue($value);
@@ -4522,20 +4465,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         if ($entity['component'] === HASwitchDefinitions::DOMAIN) {
-            $boolValue = $this->coerceBooleanActionValue($value);
-            if ($boolValue === null) {
-                return;
-            }
-            $this->SetValue($ident, $boolValue);
+            $this->setOptimisticBooleanValue($ident, $value);
             return;
         }
 
         if ($entity['component'] === HALightDefinitions::DOMAIN) {
-            $boolValue = $this->coerceBooleanActionValue($value);
-            if ($boolValue === null) {
-                return;
-            }
-            $this->SetValue($ident, $boolValue);
+            $this->setOptimisticBooleanValue($ident, $value);
             return;
         }
 
@@ -4552,34 +4487,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         if ($entity['component'] === HANumberDefinitions::DOMAIN) {
-            $variableId = @$this->GetIDForIdent($ident);
-            if ($variableId === false) {
-                return;
-            }
-
-            $castValue = $this->castSensorValue(
-                $value,
-                (int)(IPS_GetVariable($variableId)['VariableType'] ?? VARIABLETYPE_FLOAT)
-            );
-            if ($castValue !== null) {
-                $this->SetValue($ident, $castValue);
-            }
+            $this->setOptimisticCastValue($ident, $value);
             return;
         }
 
         if ($entity['component'] === HAClimateDefinitions::DOMAIN) {
-            $variableId = @$this->GetIDForIdent($ident);
-            if ($variableId === false) {
-                return;
-            }
-
-            $castValue = $this->castSensorValue(
-                $value,
-                (int)(IPS_GetVariable($variableId)['VariableType'] ?? VARIABLETYPE_FLOAT)
-            );
-            if ($castValue !== null) {
-                $this->SetValue($ident, $castValue);
-            }
+            $this->setOptimisticCastValue($ident, $value);
             return;
         }
 
@@ -4614,6 +4527,31 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             if ($castValue !== null) {
                 $this->SetValue($ident, $castValue);
             }
+        }
+    }
+
+    private function setOptimisticBooleanValue(string $ident, mixed $value): void
+    {
+        $boolValue = $this->coerceBooleanActionValue($value);
+        if ($boolValue === null) {
+            return;
+        }
+        $this->SetValue($ident, $boolValue);
+    }
+
+    private function setOptimisticCastValue(string $ident, mixed $value): void
+    {
+        $variableId = @$this->GetIDForIdent($ident);
+        if ($variableId === false) {
+            return;
+        }
+
+        $castValue = $this->castSensorValue(
+            $value,
+            (int)(IPS_GetVariable($variableId)['VariableType'] ?? VARIABLETYPE_FLOAT)
+        );
+        if ($castValue !== null) {
+            $this->SetValue($ident, $castValue);
         }
     }
 
@@ -4945,21 +4883,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function readAvailabilityState(): array
     {
-        try {
-            $state = json_decode($this->ReadAttributeString(self::ATTR_AVAILABILITY_STATE), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
-        }
-
-        return is_array($state) ? $state : [];
+        return $this->readJsonAttribute(self::ATTR_AVAILABILITY_STATE);
     }
 
     private function writeAvailabilityState(array $state): void
     {
-        $this->WriteAttributeString(
-            self::ATTR_AVAILABILITY_STATE,
-            json_encode($state, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-        );
+        $this->writeJsonAttribute(self::ATTR_AVAILABILITY_STATE, $state);
     }
 
     private function getConfiguredDeviceId(): string
@@ -5262,21 +5191,31 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function readStateWarnings(): array
     {
-        try {
-            $warnings = json_decode($this->ReadAttributeString(self::ATTR_STATE_WARNINGS), true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
-        }
-
-        return is_array($warnings) ? $warnings : [];
+        return $this->readJsonAttribute(self::ATTR_STATE_WARNINGS);
     }
 
     private function writeStateWarnings(array $warnings): void
     {
+        $this->writeJsonAttribute(self::ATTR_STATE_WARNINGS, $warnings);
+    }
+
+    private function writeJsonAttribute(string $attribute, array $data): void
+    {
         $this->WriteAttributeString(
-            self::ATTR_STATE_WARNINGS,
-            json_encode($warnings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            $attribute,
+            json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
+    }
+
+    private function readJsonAttribute(string $attribute): array
+    {
+        try {
+            $decoded = json_decode($this->ReadAttributeString($attribute), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function isIndeterminateStateValue(mixed $value): bool

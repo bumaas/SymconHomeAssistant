@@ -73,34 +73,66 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             return json_encode($form, JSON_THROW_ON_ERROR);
         }
 
-        // Do not start a new search if a search is currently active
-        if (!json_decode($this->GetBuffer(self::BUFFER_REFRESH_ACTIVE), false, 512, JSON_THROW_ON_ERROR)) {
-            $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(true, JSON_THROW_ON_ERROR));
+        $this->scheduleCacheRefreshIfIdle();
+        $this->applyOutputBufferSetting();
+        $this->loadCachedEntities();
+        $this->applyDomainFilterToForm($form);
 
-            // Start device search in a timer, not prolonging the execution of GetConfigurationForm
+        $view = $this->buildCurrentConfiguratorView();
 
-            $this->debugExpert(__FUNCTION__, 'RegisterOnceTimer');
-            $this->RegisterOnceTimer(self::TIMER_CACHE_REFRESH, 'IPS_RequestAction($_IPS["TARGET"], "refresh_cache", "");');
-            $this->logPerformanceMarker(__FUNCTION__, 'cache_refresh_scheduled');
+        $diagnosticsPanel = $this->buildDiagnosticsPanel($this->getCachedConfiguratorDiagnostics(), count($view['devices']));
+        if ($diagnosticsPanel !== null) {
+            $form['actions'][] = $diagnosticsPanel;
         }
 
+        $form['actions'][] = $this->buildConfiguratorAction($view['values']);
+
+        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
+            'Result' => 'ok',
+            'EntityCount' => $view['entityCount'],
+            'DeviceCount' => count($view['devices'])
+        ], true);
+        return json_encode($form, JSON_THROW_ON_ERROR);
+    }
+
+    private function scheduleCacheRefreshIfIdle(): void
+    {
+        // Do not start a new search if a search is currently active
+        if (json_decode($this->GetBuffer(self::BUFFER_REFRESH_ACTIVE), false, 512, JSON_THROW_ON_ERROR)) {
+            return;
+        }
+        $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(true, JSON_THROW_ON_ERROR));
+
+        // Start device search in a timer, not prolonging the execution of GetConfigurationForm
+        $this->debugExpert('GetConfigurationForm', 'RegisterOnceTimer');
+        $this->RegisterOnceTimer(self::TIMER_CACHE_REFRESH, 'IPS_RequestAction($_IPS["TARGET"], "refresh_cache", "");');
+        $this->logPerformanceMarker('GetConfigurationForm', 'cache_refresh_scheduled');
+    }
+
+    private function applyOutputBufferSetting(): void
+    {
         $bufferSizeMb = max(0, $this->ReadPropertyInteger('OutputBufferSize'));
         if ($bufferSizeMb > 0) {
-            $bufferSizeBytes = $bufferSizeMb * 1024 * 1024;
-            ini_set('ips.output_buffer', (string) $bufferSizeBytes);
+            ini_set('ips.output_buffer', (string)($bufferSizeMb * 1024 * 1024));
         }
+    }
 
-        if (empty($this->entities)) {
-            try {
-                $this->entities = json_decode($this->ReadAttributeString('CachedEntities'), true, 512, JSON_THROW_ON_ERROR) ?? [];
-            } catch (JsonException) {
-                $this->entities = [];
-            }
+    private function loadCachedEntities(): void
+    {
+        if (!empty($this->entities)) {
+            return;
         }
+        try {
+            $this->entities = json_decode($this->ReadAttributeString('CachedEntities'), true, 512, JSON_THROW_ON_ERROR) ?? [];
+        } catch (JsonException) {
+            $this->entities = [];
+        }
+    }
 
+    private function applyDomainFilterToForm(array &$form): void
+    {
         $domainsList = $this->getConfiguredDomainRows();
         $domainFilterEnabled = $this->ReadPropertyBoolean('EnableDomainFilter');
-        $domainsSimple = $this->getConfiguredDomainNames();
         foreach ($form['elements'] as &$element) {
             if (!isset($element['items']) || !is_array($element['items'])) {
                 continue;
@@ -118,18 +150,30 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             unset($item);
         }
         unset($element);
+    }
 
-        $entitiesForDisplay = $this->getFilteredEntitiesForDisplay($this->entities, $domainFilterEnabled, $domainsSimple);
-        $devices = $this->groupResolvedEntitiesToDevices($entitiesForDisplay);
-        $values = $this->prepareConfiguratorValues($devices);
-        $diagnostics = $this->getCachedConfiguratorDiagnostics();
+    /**
+     * Aufbereitete Configurator-Ansicht (gefilterte Entitäten → Geräte → Zeilen);
+     * von GetConfigurationForm und updateConfiguratorList gemeinsam genutzt.
+     *
+     * @return array{devices: array, values: array, entityCount: int}
+     */
+    private function buildCurrentConfiguratorView(): array
+    {
+        $domainFilterEnabled = $this->ReadPropertyBoolean('EnableDomainFilter');
+        $entitiesForDisplay  = $this->getFilteredEntitiesForDisplay($this->entities, $domainFilterEnabled, $this->getConfiguredDomainNames());
+        $devices             = $this->groupResolvedEntitiesToDevices($entitiesForDisplay);
 
-        $diagnosticsPanel = $this->buildDiagnosticsPanel($diagnostics, count($devices));
-        if ($diagnosticsPanel !== null) {
-            $form['actions'][] = $diagnosticsPanel;
-        }
+        return [
+            'devices'     => $devices,
+            'values'      => $this->prepareConfiguratorValues($devices),
+            'entityCount' => count($entitiesForDisplay)
+        ];
+    }
 
-        $form['actions'][] = [
+    private function buildConfiguratorAction(array $values): array
+    {
+        return [
             'type'     => 'Configurator',
             'name'     => 'HomeAssistantDevices',
             'caption'  => $this->Translate('Found Devices'),
@@ -146,13 +190,6 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             ],
             'values'   => $values
         ];
-
-        $this->logPerformanceSample(__FUNCTION__, $startedAt, [
-            'Result' => 'ok',
-            'EntityCount' => count($entitiesForDisplay),
-            'DeviceCount' => count($devices)
-        ], true);
-        return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
     /** @noinspection PhpUnused */
@@ -185,17 +222,13 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     private function updateConfiguratorList(): void
     {
-        $domainFilterEnabled = $this->ReadPropertyBoolean('EnableDomainFilter');
-        $domainsSimple = $this->getConfiguredDomainNames();
-        $entitiesForDisplay = $this->getFilteredEntitiesForDisplay($this->entities, $domainFilterEnabled, $domainsSimple);
-        $devices = $this->groupResolvedEntitiesToDevices($entitiesForDisplay);
-        $values = $this->prepareConfiguratorValues($devices);
+        $view = $this->buildCurrentConfiguratorView();
         $this->UpdateFormField(
             'HomeAssistantDevices',
             'values',
-            json_encode($values, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            json_encode($view['values'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
-        $this->updateDiagnosticsPanel($this->getCachedConfiguratorDiagnostics(), count($devices));
+        $this->updateDiagnosticsPanel($this->getCachedConfiguratorDiagnostics(), count($view['devices']));
     }
 
     private function getFilteredEntitiesForDisplay(array $entities, bool $domainFilterEnabled, array $domains): array
@@ -270,61 +303,71 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             $values[] = $this->buildDeviceRow($dev, $instanceID, $cleanedEntities, false);
         }
 
-        $this->appendMissingDeviceRows($values, $mappedDeviceInstances, $haDeviceIds);
-        $this->appendDuplicateDeviceRows($values, $mappedDeviceInstances);
-        $this->appendMissingEntityRows($values, $mappedEntityInstances, $haEntityIds);
-        $this->appendDuplicateEntityRows($values, $mappedEntityInstances);
+        $deviceStatusRow = $this->buildStatusRow(...);
+        $entityStatusRow = $this->buildEntityStatusRow(...);
+        $this->appendMissingRows($values, $mappedDeviceInstances, $haDeviceIds, $deviceStatusRow, $this->Translate('Not found in Home Assistant'));
+        $this->appendDuplicateRows($values, $mappedDeviceInstances, $deviceStatusRow, $this->Translate('Duplicate device ID'));
+        $this->appendMissingRows($values, $mappedEntityInstances, $haEntityIds, $entityStatusRow, $this->Translate('Not found in Home Assistant'));
+        $this->appendDuplicateRows($values, $mappedEntityInstances, $entityStatusRow, $this->Translate('Duplicate entity ID'));
         return $values;
     }
 
     private function buildDeviceInstanceMaps(int $configuratorParentId): array
     {
-        $existingInstances = IPS_GetInstanceListByModuleID(HAIds::MODULE_DEVICE);
-        $mappedInstances = [];
-        $blockedDeviceIds = [];
-
-        foreach ($existingInstances as $id) {
-            $inst = IPS_GetInstance($id);
-            $parentId = (int)($inst['ConnectionID'] ?? 0);
-            $devID = (string)@IPS_GetProperty($id, 'DeviceID');
-            if ($devID === '') {
-                continue;
-            }
-            // Only map devices that are attached to the same gateway (Splitter) as this Configurator.
-            if ($configuratorParentId > 0 && $parentId !== $configuratorParentId) {
-                // Device exists on another gateway: hide it in this Configurator.
-                $blockedDeviceIds[$devID] = true;
-                continue;
-            }
-            $mappedInstances[$devID][] = $id;
-        }
-
-        return [$mappedInstances, $blockedDeviceIds];
+        return $this->buildInstanceMaps(HAIds::MODULE_DEVICE, 'DeviceID', $configuratorParentId);
     }
 
     private function buildEntityInstanceMaps(int $configuratorParentId): array
     {
-        $existingInstances = IPS_GetInstanceListByModuleID(HAIds::MODULE_ENTITY);
+        return $this->buildInstanceMaps(HAIds::MODULE_ENTITY, 'EntityID', $configuratorParentId);
+    }
+
+    /**
+     * Mappt vorhandene Instanzen eines Moduls auf ihre HA-ID. Instanzen an einem
+     * anderen Gateway (Splitter) landen in der Blockliste und werden in diesem
+     * Configurator ausgeblendet.
+     *
+     * @return array{0: array<string, int[]>, 1: array<string, true>}
+     */
+    private function buildInstanceMaps(string $moduleId, string $idProperty, int $configuratorParentId): array
+    {
         $mappedInstances = [];
-        $blockedEntityIds = [];
+        $blockedIds      = [];
 
-        foreach ($existingInstances as $id) {
-            $inst = IPS_GetInstance($id);
+        foreach (IPS_GetInstanceListByModuleID($moduleId) as $id) {
+            $inst     = IPS_GetInstance($id);
             $parentId = (int)($inst['ConnectionID'] ?? 0);
-            $entityId = trim((string)@IPS_GetProperty($id, 'EntityID'));
-            if ($entityId === '') {
+            $haId     = trim((string)@IPS_GetProperty($id, $idProperty));
+            if ($haId === '') {
                 continue;
             }
-
             if ($configuratorParentId > 0 && $parentId !== $configuratorParentId) {
-                $blockedEntityIds[$entityId] = true;
+                $blockedIds[$haId] = true;
                 continue;
             }
-
-            $mappedInstances[$entityId][] = $id;
+            $mappedInstances[$haId][] = $id;
         }
 
-        return [$mappedInstances, $blockedEntityIds];
+        return [$mappedInstances, $blockedIds];
+    }
+
+    /**
+     * Gemeinsames Zeilenformat aller Configurator-Einträge
+     * (Device-, Entity- und Status-Zeilen nutzen denselben Spaltensatz).
+     */
+    private function buildConfiguratorRowBase(int $instanceID, string $typeCaption, string $name, string $area, string $manufacturer, string $model, string $deviceId, string $summary): array
+    {
+        return [
+            'instanceID'   => $instanceID,
+            'Type'         => $typeCaption,
+            'name'         => $name,
+            'Area'         => $area,
+            'Manufacturer' => $manufacturer,
+            'Model'        => $model,
+            'DeviceID'     => $deviceId,
+            'Summary'      => $summary,
+            'group'        => $area
+        ];
     }
 
     private function buildDeviceRow(array $dev, int $instanceID, array $cleanedEntities, bool $isBlocked, string $type = 'Device'): array
@@ -332,17 +375,16 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $area = $this->translateConfiguratorArea((string)($dev['area'] ?? HAConfigDefaults::AREA_NONE));
         $summary = $this->translateEntitySummaryForDisplay($this->generateResolvedEntitySummary($cleanedEntities));
 
-        $row = [
-            'instanceID' => $instanceID,
-            'Type'       => $this->Translate($type),
-            'name'       => $dev['name'],
-            'Area'       => $area,
-            'Manufacturer' => $dev['manufacturer'] ?? '',
-            'Model'      => $dev['model'] ?? '',
-            'DeviceID'   => $dev['device_id'],
-            'Summary'    => $summary,
-            'group'      => $area
-        ];
+        $row = $this->buildConfiguratorRowBase(
+            $instanceID,
+            $this->Translate($type),
+            (string)$dev['name'],
+            $area,
+            (string)($dev['manufacturer'] ?? ''),
+            (string)($dev['model'] ?? ''),
+            (string)$dev['device_id'],
+            $summary
+        );
         if (!$isBlocked) {
             $row['create'] = [
                 'moduleID'      => HAIds::MODULE_DEVICE,
@@ -361,17 +403,16 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $entityName = (string)($dev['name'] ?? $entityId);
         $area = $this->translateConfiguratorArea((string)($dev['area'] ?? HAConfigDefaults::AREA_OTHER));
 
-        $row = [
-            'instanceID' => $instanceID,
-            'Type' => $this->Translate('Entity'),
-            'name' => $entityName,
-            'Area' => $area,
-            'Manufacturer' => '',
-            'Model' => '',
-            'DeviceID' => $entityId,
-            'Summary' => $this->translateEntitySummaryForDisplay($this->generateResolvedEntitySummary($cleanedEntities)),
-            'group' => $area
-        ];
+        $row = $this->buildConfiguratorRowBase(
+            $instanceID,
+            $this->Translate('Entity'),
+            $entityName,
+            $area,
+            '',
+            '',
+            $entityId,
+            $this->translateEntitySummaryForDisplay($this->generateResolvedEntitySummary($cleanedEntities))
+        );
 
         $row['create'] = [
             'moduleID' => HAIds::MODULE_ENTITY,
@@ -396,92 +437,66 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         return str_contains($dev['device_id'], '.');
     }
 
-    private function appendMissingDeviceRows(array &$values, array $mappedInstances, array $haDeviceIds): void
+    /**
+     * Zeilen für Instanzen, deren HA-ID nicht (mehr) in Home Assistant existiert.
+     *
+     * @param callable(int, string, string): array $rowBuilder
+     */
+    private function appendMissingRows(array &$values, array $mappedInstances, array $knownIds, callable $rowBuilder, string $summary): void
     {
-        // Add devices that exist in Symcon but no longer exist in Home Assistant.
-        foreach ($mappedInstances as $devId => $instanceIds) {
-            if (isset($haDeviceIds[$devId])) {
+        foreach ($mappedInstances as $haId => $instanceIds) {
+            if (isset($knownIds[$haId])) {
                 continue;
             }
             foreach ($instanceIds as $instanceId) {
-                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('Not found in Home Assistant'));
+                $values[] = $rowBuilder($instanceId, (string)$haId, $summary);
             }
         }
     }
 
-    private function appendDuplicateDeviceRows(array &$values, array $mappedInstances): void
+    /**
+     * Zeilen für zusätzliche Instanzen mit derselben HA-ID (Fehlkonfiguration).
+     *
+     * @param callable(int, string, string): array $rowBuilder
+     */
+    private function appendDuplicateRows(array &$values, array $mappedInstances, callable $rowBuilder, string $summary): void
     {
-        foreach ($mappedInstances as $devId => $instanceIds) {
-            if (count($instanceIds) <= 1) {
-                continue;
-            }
-            // Show additional instances with the same DeviceID (misconfiguration).
-            foreach (array_slice($instanceIds, 1) as $instanceId) {
-                $values[] = $this->buildStatusRow($instanceId, $devId, $this->Translate('Duplicate device ID'));
-            }
-        }
-    }
-
-    private function appendMissingEntityRows(array &$values, array $mappedInstances, array $haEntityIds): void
-    {
-        foreach ($mappedInstances as $entityId => $instanceIds) {
-            if (isset($haEntityIds[$entityId])) {
-                continue;
-            }
-            foreach ($instanceIds as $instanceId) {
-                $values[] = $this->buildEntityStatusRow($instanceId, $entityId, $this->Translate('Not found in Home Assistant'));
-            }
-        }
-    }
-
-    private function appendDuplicateEntityRows(array &$values, array $mappedInstances): void
-    {
-        foreach ($mappedInstances as $entityId => $instanceIds) {
+        foreach ($mappedInstances as $haId => $instanceIds) {
             if (count($instanceIds) <= 1) {
                 continue;
             }
             foreach (array_slice($instanceIds, 1) as $instanceId) {
-                $values[] = $this->buildEntityStatusRow($instanceId, $entityId, $this->Translate('Duplicate entity ID'));
+                $values[] = $rowBuilder($instanceId, (string)$haId, $summary);
             }
         }
     }
 
     private function buildStatusRow(int $instanceId, string $deviceId, string $summary): array
     {
-        $deviceName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
-        $deviceArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
-        $area = $this->translateConfiguratorArea($deviceArea !== '' ? $deviceArea : HAConfigDefaults::NAME_UNKNOWN);
-
-        return [
-            'instanceID'   => $instanceId,
-            'Type'         => $this->Translate('Device'),
-            'name'         => $deviceName !== '' ? $deviceName : IPS_GetName($instanceId),
-            'Area'         => $area,
-            'Manufacturer' => '',
-            'Model'        => '',
-            'DeviceID'     => $deviceId,
-            'Summary'      => $summary,
-            'group'        => $area
-        ];
+        return $this->buildInstanceStatusRow($instanceId, $deviceId, $summary, $this->Translate('Device'), HAConfigDefaults::NAME_UNKNOWN);
     }
 
     private function buildEntityStatusRow(int $instanceId, string $entityId, string $summary): array
     {
-        $entityName = (string)@IPS_GetProperty($instanceId, 'DeviceName');
-        $entityArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
-        $area = $this->translateConfiguratorArea($entityArea !== '' ? $entityArea : HAConfigDefaults::AREA_OTHER);
+        return $this->buildInstanceStatusRow($instanceId, $entityId, $summary, $this->Translate('Entity'), HAConfigDefaults::AREA_OTHER);
+    }
 
-        return [
-            'instanceID' => $instanceId,
-            'Type' => $this->Translate('Entity'),
-            'name' => $entityName !== '' ? $entityName : IPS_GetName($instanceId),
-            'Area' => $area,
-            'Manufacturer' => '',
-            'Model' => '',
-            'DeviceID' => $entityId,
-            'Summary' => $summary,
-            'group' => $area
-        ];
+    private function buildInstanceStatusRow(int $instanceId, string $haId, string $summary, string $typeCaption, string $areaFallback): array
+    {
+        $name       = (string)@IPS_GetProperty($instanceId, 'DeviceName');
+        $storedArea = (string)@IPS_GetProperty($instanceId, 'DeviceArea');
+        $area       = $this->translateConfiguratorArea($storedArea !== '' ? $storedArea : $areaFallback);
+
+        return $this->buildConfiguratorRowBase(
+            $instanceId,
+            $typeCaption,
+            $name !== '' ? $name : IPS_GetName($instanceId),
+            $area,
+            '',
+            '',
+            $haId,
+            $summary
+        );
     }
 
     private function enrichSupportedFeaturesList(array &$entity): void
@@ -725,20 +740,16 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             return;
         }
 
-        $message = $scope . ' | ' . $durationMs . ' ms';
-        if ($context !== []) {
-            $encodedContext = json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            if (is_string($encodedContext) && $encodedContext !== '') {
-                $message .= ' | ' . $encodedContext;
-            }
-        }
-
-        $this->SendDebug('Performance', $message, 0);
+        $this->sendPerformanceDebug($scope . ' | ' . $durationMs . ' ms', $context);
     }
 
     private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
     {
-        $message = $scope . ' | ' . $phase;
+        $this->sendPerformanceDebug($scope . ' | ' . $phase, $context);
+    }
+
+    private function sendPerformanceDebug(string $message, array $context): void
+    {
         if ($context !== []) {
             $encodedContext = json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             if (is_string($encodedContext) && $encodedContext !== '') {

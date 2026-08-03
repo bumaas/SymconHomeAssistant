@@ -152,27 +152,19 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
     {
         $entityId = trim($this->ReadPropertyString(self::PROP_ENTITY_ID));
         if ($entityId === '') {
-            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->SetSummary('');
-            $this->SetStatus(IS_INACTIVE);
+            $this->failResolvedEntity(IS_INACTIVE, '');
             return;
         }
 
         $raw = $this->resolveRawEntityByEntityId($entityId);
         if ($raw === null) {
-            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->SetSummary($entityId);
-            $this->SetStatus(self::STATUS_ENTITY_NOT_FOUND);
-            $this->debugExpert(__FUNCTION__, 'Entity nicht in Home Assistant gefunden', ['EntityID' => $entityId]);
+            $this->failResolvedEntity(self::STATUS_ENTITY_NOT_FOUND, $entityId, 'Entity nicht in Home Assistant gefunden');
             return;
         }
 
         $resolved = $this->buildResolvedEntityRow($raw, true, true);
         if ($resolved === null) {
-            $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->SetSummary($entityId);
-            $this->SetStatus(self::STATUS_ENTITY_INVALID);
-            $this->debugExpert(__FUNCTION__, 'Entity konnte nicht aufgelöst werden', ['EntityID' => $entityId]);
+            $this->failResolvedEntity(self::STATUS_ENTITY_INVALID, $entityId, 'Entity konnte nicht aufgelöst werden');
             return;
         }
 
@@ -218,6 +210,20 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
         $this->refreshResolvedFormFields();
         $this->SetStatus($baseTopic === '' ? self::STATUS_MQTT_BASE_TOPIC_MISSING : IS_ACTIVE);
+    }
+
+    /**
+     * Gemeinsamer Fehlerpfad von UpdateConfiguration: Konfiguration verwerfen,
+     * Zusammenfassung und Status setzen, optional Debug-Meldung ausgeben.
+     */
+    private function failResolvedEntity(int $status, string $summary, string $debugMessage = ''): void
+    {
+        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->SetSummary($summary);
+        $this->SetStatus($status);
+        if ($debugMessage !== '') {
+            $this->debugExpert('UpdateConfiguration', $debugMessage, ['EntityID' => $summary]);
+        }
     }
 
     private function getConfiguredEntities(string $context): array
@@ -372,17 +378,12 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
     private function refreshResolvedFormFields(): void
     {
-        $resolved = $this->getResolvedEntity();
+        $resolved   = $this->getResolvedEntity();
         $attributes = $this->getResolvedAttributesForDisplay($resolved);
-        $deviceClass = $this->getResolvedDeviceClass($resolved, $attributes);
-        $resolvedArea = $this->translateResolvedArea((string)($resolved['area'] ?? ''));
 
-        $this->updateFormFieldSafe('ResolvedName', 'caption', sprintf($this->Translate('Resolved name: %s'), $resolved['name'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedDomain', 'caption', sprintf($this->Translate('Resolved domain: %s'), $resolved['domain'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedDeviceClass', 'caption', sprintf($this->Translate('Resolved device class: %s'), $deviceClass));
-        $this->updateFormFieldSafe('ResolvedDeviceID', 'caption', sprintf($this->Translate('Resolved device ID: %s'), $resolved['device_id'] ?? ''));
-        $this->updateFormFieldSafe('ResolvedArea', 'caption', sprintf($this->Translate('Resolved area: %s'), $resolvedArea));
-        $this->updateFormFieldSafe('ResolvedAttributeCount', 'caption', sprintf($this->Translate('Resolved attribute count: %d'), count($attributes)));
+        foreach ($this->buildResolvedCaptionMap($resolved, $attributes) as $name => $caption) {
+            $this->updateFormFieldSafe($name, 'caption', $caption);
+        }
         $this->updateFormFieldSafe(
             'ResolvedAttributes',
             'values',
@@ -390,36 +391,35 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         );
     }
 
-    private function applyResolvedConfigToForm(array &$form): void
+    /**
+     * Captions der aufgelösten Entity-Stammdaten; von applyResolvedConfigToForm
+     * und refreshResolvedFormFields gemeinsam genutzt (Schlüssel = Formularfeldname).
+     *
+     * @return array<string, string>
+     */
+    private function buildResolvedCaptionMap(array $resolved, array $attributes): array
     {
-        $resolved = $this->getResolvedEntity();
-        $attributes = $this->getResolvedAttributesForDisplay($resolved);
-        $deviceClass = $this->getResolvedDeviceClass($resolved, $attributes);
+        $deviceClass  = $this->getResolvedDeviceClass($resolved, $attributes);
         $resolvedArea = $this->translateResolvedArea((string)($resolved['area'] ?? ''));
 
+        return [
+            'ResolvedName'           => sprintf($this->Translate('Resolved name: %s'), $resolved['name'] ?? ''),
+            'ResolvedDomain'         => sprintf($this->Translate('Resolved domain: %s'), $resolved['domain'] ?? ''),
+            'ResolvedDeviceClass'    => sprintf($this->Translate('Resolved device class: %s'), $deviceClass),
+            'ResolvedDeviceID'       => sprintf($this->Translate('Resolved device ID: %s'), $resolved['device_id'] ?? ''),
+            'ResolvedArea'           => sprintf($this->Translate('Resolved area: %s'), $resolvedArea),
+            'ResolvedAttributeCount' => sprintf($this->Translate('Resolved attribute count: %d'), count($attributes)),
+        ];
+    }
+
+    private function applyResolvedConfigToForm(array &$form): void
+    {
+        $resolved   = $this->getResolvedEntity();
+        $attributes = $this->getResolvedAttributesForDisplay($resolved);
+        $captions   = $this->buildResolvedCaptionMap($resolved, $attributes);
+
         foreach ($form['elements'] as &$element) {
-            if (($element['name'] ?? '') === 'ResolvedName') {
-                $element['caption'] = sprintf($this->Translate('Resolved name: %s'), $resolved['name'] ?? '');
-                continue;
-            }
-            if (($element['name'] ?? '') === 'ResolvedDomain') {
-                $element['caption'] = sprintf($this->Translate('Resolved domain: %s'), $resolved['domain'] ?? '');
-                continue;
-            }
-            if (($element['name'] ?? '') === 'ResolvedDeviceClass') {
-                $element['caption'] = sprintf($this->Translate('Resolved device class: %s'), $deviceClass);
-                continue;
-            }
-            if (($element['name'] ?? '') === 'ResolvedDeviceID') {
-                $element['caption'] = sprintf($this->Translate('Resolved device ID: %s'), $resolved['device_id'] ?? '');
-                continue;
-            }
-            if (($element['name'] ?? '') === 'ResolvedArea') {
-                $element['caption'] = sprintf($this->Translate('Resolved area: %s'), $resolvedArea);
-                continue;
-            }
-            if (($element['name'] ?? '') === 'ResolvedAttributeCount') {
-                $element['caption'] = sprintf($this->Translate('Resolved attribute count: %d'), count($attributes));
+            if ($this->applyResolvedCaptionToItem($element, $captions, $attributes)) {
                 continue;
             }
 
@@ -428,37 +428,29 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             }
 
             foreach ($element['items'] as &$item) {
-                if (($item['name'] ?? '') === 'ResolvedName') {
-                    $item['caption'] = sprintf($this->Translate('Resolved name: %s'), $resolved['name'] ?? '');
-                    continue;
-                }
-                if (($item['name'] ?? '') === 'ResolvedDomain') {
-                    $item['caption'] = sprintf($this->Translate('Resolved domain: %s'), $resolved['domain'] ?? '');
-                    continue;
-                }
-                if (($item['name'] ?? '') === 'ResolvedDeviceClass') {
-                    $item['caption'] = sprintf($this->Translate('Resolved device class: %s'), $deviceClass);
-                    continue;
-                }
-                if (($item['name'] ?? '') === 'ResolvedDeviceID') {
-                    $item['caption'] = sprintf($this->Translate('Resolved device ID: %s'), $resolved['device_id'] ?? '');
-                    continue;
-                }
-                if (($item['name'] ?? '') === 'ResolvedArea') {
-                    $item['caption'] = sprintf($this->Translate('Resolved area: %s'), $resolvedArea);
-                    continue;
-                }
-                if (($item['name'] ?? '') === 'ResolvedAttributeCount') {
-                    $item['caption'] = sprintf($this->Translate('Resolved attribute count: %d'), count($attributes));
-                    continue;
-                }
-                if (($item['name'] ?? '') === 'ResolvedAttributes') {
-                    $item['values'] = $this->formatResolvedAttributesForForm($attributes);
-                }
+                $this->applyResolvedCaptionToItem($item, $captions, $attributes);
             }
             unset($item);
         }
         unset($element);
+    }
+
+    /**
+     * Setzt Caption bzw. Werte eines Formularelements aus der Caption-Map.
+     * Liefert true, wenn das Element behandelt wurde.
+     */
+    private function applyResolvedCaptionToItem(array &$item, array $captions, array $attributes): bool
+    {
+        $name = (string)($item['name'] ?? '');
+        if (isset($captions[$name])) {
+            $item['caption'] = $captions[$name];
+            return true;
+        }
+        if ($name === 'ResolvedAttributes') {
+            $item['values'] = $this->formatResolvedAttributesForForm($attributes);
+            return true;
+        }
+        return false;
     }
 
     private function applyCurrentDiagnosticsToForm(array &$form): void

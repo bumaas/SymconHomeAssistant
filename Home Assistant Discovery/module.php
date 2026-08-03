@@ -182,11 +182,10 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     private function mergeTxtRecords(array $service): array
     {
         $raw = [];
-        if (isset($service['TXTStrings']) && is_array($service['TXTStrings'])) {
-            $raw = array_merge($raw, $service['TXTStrings']);
-        }
-        if (isset($service['TXTRecords']) && is_array($service['TXTRecords'])) {
-            $raw = array_merge($raw, $service['TXTRecords']);
+        foreach (['TXTStrings', 'TXTRecords'] as $key) {
+            if (isset($service[$key]) && is_array($service[$key])) {
+                $raw = array_merge($raw, $service[$key]);
+            }
         }
 
         $result = [];
@@ -226,75 +225,93 @@ class HomeAssistantDiscovery extends IPSModuleStrict
                 unset($hostToId[$host]);
             }
 
-            $formValues[] = [
-                'name'       => $server['name'],
-                'host'       => $host,
-                'version'    => $server['version'],
-                'url'        => $server['url'],
-                'instanceID' => $instanceID,
-                'create'     => [
-                    [
-                        'moduleID'      => HAIds::MODULE_CONFIGURATOR,
-                        'configuration' => new stdClass(),
-                        'name'          => "Home Assistant Konfigurator"
-                    ],
-                    [
-                        'moduleID'      => HAIds::MODULE_SPLITTER,
-                        'configuration' => [
-                            'HAUrl' => $server['url']
-                        ],
-                        'name'          => "Home Assistant Splitter"
-                    ],
-                    [
-                        'moduleID'      => HAIds::MODULE_MQTT_CLIENT,
-                        'configuration' => [
-                            'ClientID'          => $this->buildMqttClientId(),
-                            'KeepAliveInterval' => 60,
-                            'Subscriptions'     => json_encode([['Topic' => 'homeassistant/#', 'QoS' => 1]], JSON_THROW_ON_ERROR),
-                        ],
-                        'name'          => "MQTT Client Home Assistant"
-                    ],
-                    [
-                        'moduleID'      => HAIds::MODULE_CLIENTSOCKET,
-                        'configuration' => [
-                            'Host' => $host,
-                            'Open' => true,
-                            'Port' => 1883
-                        ],
-                        'name'          => "Client Socket Home Assistant"
-                    ]
-                ]
-            ];
+            $formValues[] = $this->buildServerRow(
+                $server['name'],
+                $host,
+                $server['version'],
+                $server['url'],
+                $instanceID,
+                $this->buildCreateBlueprint($server, $host)
+            );
         }
 
         // 2. Offline Instanzen hinzufügen
         foreach ($hostToId as $host => $id) {
-            $displayHost = $host;
-            if (str_starts_with($host, '__missing__')) {
-                $displayHost = $this->Translate('unknown');
-            }
-            $formValues[] = [
-                'name'       => IPS_GetName($id),
-                'host'       => $displayHost,
-                'version'    => $this->Translate('unknown'),
-                'url'        => $this->Translate('offline'),
-                'instanceID' => $id,
-                'create'     => []
-            ];
+            $displayHost = str_starts_with($host, '__missing__') ? $this->Translate('unknown') : $host;
+            $formValues[] = $this->buildServerRow(
+                IPS_GetName($id),
+                $displayHost,
+                $this->Translate('unknown'),
+                $this->Translate('offline'),
+                $id,
+                []
+            );
         }
 
         return $formValues;
     }
 
+    /**
+     * Einheitliche Zeile der Discovery-Tabelle (gefundene wie offline Instanzen).
+     */
+    private function buildServerRow(string $name, string $host, string $version, string $url, int $instanceID, array $create): array
+    {
+        return [
+            'name'       => $name,
+            'host'       => $host,
+            'version'    => $version,
+            'url'        => $url,
+            'instanceID' => $instanceID,
+            'create'     => $create
+        ];
+    }
+
+    /**
+     * Instanz-Blueprint (Configurator → Splitter → MQTT Client → Client Socket)
+     * für einen gefundenen Home-Assistant-Server.
+     */
+    private function buildCreateBlueprint(array $server, string $host): array
+    {
+        return [
+            [
+                'moduleID'      => HAIds::MODULE_CONFIGURATOR,
+                'configuration' => new stdClass(),
+                'name'          => "Home Assistant Konfigurator"
+            ],
+            [
+                'moduleID'      => HAIds::MODULE_SPLITTER,
+                'configuration' => [
+                    'HAUrl' => $server['url']
+                ],
+                'name'          => "Home Assistant Splitter"
+            ],
+            [
+                'moduleID'      => HAIds::MODULE_MQTT_CLIENT,
+                'configuration' => [
+                    'ClientID'          => $this->buildMqttClientId(),
+                    'KeepAliveInterval' => 60,
+                    'Subscriptions'     => json_encode([['Topic' => 'homeassistant/#', 'QoS' => 1]], JSON_THROW_ON_ERROR),
+                ],
+                'name'          => "MQTT Client Home Assistant"
+            ],
+            [
+                'moduleID'      => HAIds::MODULE_CLIENTSOCKET,
+                'configuration' => [
+                    'Host' => $host,
+                    'Open' => true,
+                    'Port' => 1883
+                ],
+                'name'          => "Client Socket Home Assistant"
+            ]
+        ];
+    }
+
     private function getConfiguratorHost(int $id): string
     {
         // Legacy: Configurator had HAUrl stored directly.
-        $url = (string)@IPS_GetProperty($id, 'HAUrl');
-        if ($url !== '') {
-            $host = parse_url($url, PHP_URL_HOST);
-            if (is_string($host) && $host !== '') {
-                return $host;
-            }
+        $host = $this->hostFromInstanceUrl($id);
+        if ($host !== '') {
+            return $host;
         }
 
         // Current: Configurator gets HAUrl from the parent splitter.
@@ -304,12 +321,20 @@ class HomeAssistantDiscovery extends IPSModuleStrict
             return '';
         }
 
-        $parentUrl = (string)@IPS_GetProperty($parentId, 'HAUrl');
-        if ($parentUrl === '') {
+        return $this->hostFromInstanceUrl($parentId);
+    }
+
+    /**
+     * Host-Anteil der HAUrl-Eigenschaft einer Instanz (leer, wenn nicht ermittelbar).
+     */
+    private function hostFromInstanceUrl(int $instanceId): string
+    {
+        $url = (string)@IPS_GetProperty($instanceId, 'HAUrl');
+        if ($url === '') {
             return '';
         }
 
-        $host = parse_url($parentUrl, PHP_URL_HOST);
+        $host = parse_url($url, PHP_URL_HOST);
         return is_string($host) ? $host : '';
     }
 

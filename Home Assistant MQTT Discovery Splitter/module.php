@@ -382,32 +382,63 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $bundleMode = $this->isBundleMode();
 
+        $this->selfTestSource($add, $bundleMode);
+
+        if (!$bundleMode) {
+            $this->selfTestParent($add);
+        }
+
+        $prefix = $this->selfTestPrefix($add);
+
+        if (!$bundleMode && $prefix !== '') {
+            $this->selfTestSubscription($add, $prefix);
+        }
+
+        $total = $this->selfTestDiscoveryCache($add);
+
+        $this->selfTestRuntimeTopics($add, $total);
+
+        if (!$bundleMode) {
+            $this->selfTestBrokerSocket($add);
+            $this->selfTestCredentials($add);
+            $this->selfTestLastMessage($add);
+        }
+
+        return $this->renderSelfTestSummary($lines, $errors, $warnings);
+    }
+
+    private function selfTestSource(Closure $add, bool $bundleMode): void
+    {
         // 0. Quelle
         if ($bundleMode) {
             $add('•', $this->Translate('Source: Bundle (offline analysis, no live MQTT)'));
         } else {
             $add('•', $this->Translate('Source: MQTT (live)'));
         }
+    }
 
-        if (!$bundleMode) {
-            // 1. Parent ist MQTT Client & aktiv
-            if ($this->hasCompatibleActiveParentModule(HAIds::MODULE_MQTT_CLIENT)) {
-                $add('ok', $this->Translate('Parent: MQTT Client active'));
-            } elseif ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
-                $add(
-                    'error',
-                    $this->Translate('Parent: MQTT Client present but inactive'),
-                    $this->Translate('Activate/connect the MQTT Client (status 201).')
-                );
-            } else {
-                $add(
-                    'error',
-                    $this->Translate('Parent: no MQTT Client connected'),
-                    $this->Translate('Discovery requires an MQTT Client as parent (an MQTT Server alone is not enough). The client may point at the local MQTT Server, e.g. 127.0.0.1:1028.')
-                );
-            }
+    private function selfTestParent(Closure $add): void
+    {
+        // 1. Parent ist MQTT Client & aktiv
+        if ($this->hasCompatibleActiveParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+            $add('ok', $this->Translate('Parent: MQTT Client active'));
+        } elseif ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+            $add(
+                'error',
+                $this->Translate('Parent: MQTT Client present but inactive'),
+                $this->Translate('Activate/connect the MQTT Client (status 201).')
+            );
+        } else {
+            $add(
+                'error',
+                $this->Translate('Parent: no MQTT Client connected'),
+                $this->Translate('Discovery requires an MQTT Client as parent (an MQTT Server alone is not enough). The client may point at the local MQTT Server, e.g. 127.0.0.1:1028.')
+            );
         }
+    }
 
+    private function selfTestPrefix(Closure $add): string
+    {
         // 2. Discovery-Prefix gesetzt
         $prefix = $this->getDiscoveryPrefix();
         if ($prefix !== '') {
@@ -420,22 +451,28 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             );
         }
 
-        // 3. Subscription deckt <prefix>/# ab (best effort, nur MQTT-Modus)
-        if (!$bundleMode && $prefix !== '') {
-            $covered = $this->parentSubscriptionCoversPrefix($prefix);
-            if ($covered === true) {
-                $add('ok', $this->Translate('Parent subscription covers the discovery prefix'));
-            } elseif ($covered === false) {
-                $add(
-                    'warn',
-                    sprintf($this->Translate('Parent subscription does not seem to cover "%s/#"'), $prefix),
-                    sprintf($this->Translate('Set the MQTT Client subscription to at least %s/# (or # for testing).'), $prefix)
-                );
-            } else {
-                $add('•', $this->Translate('Subscription could not be checked (parent config not readable)'));
-            }
-        }
+        return $prefix;
+    }
 
+    private function selfTestSubscription(Closure $add, string $prefix): void
+    {
+        // 3. Subscription deckt <prefix>/# ab (best effort, nur MQTT-Modus)
+        $covered = $this->parentSubscriptionCoversPrefix($prefix);
+        if ($covered === true) {
+            $add('ok', $this->Translate('Parent subscription covers the discovery prefix'));
+        } elseif ($covered === false) {
+            $add(
+                'warn',
+                sprintf($this->Translate('Parent subscription does not seem to cover "%s/#"'), $prefix),
+                sprintf($this->Translate('Set the MQTT Client subscription to at least %s/# (or # for testing).'), $prefix)
+            );
+        } else {
+            $add('•', $this->Translate('Subscription could not be checked (parent config not readable)'));
+        }
+    }
+
+    private function selfTestDiscoveryCache(Closure $add): int
+    {
         // 4. Discovery-Cache befuellt + 5. veraltete Configs
         $discoveryAnalysis = $this->analyzeDiscoveryConfigRecords();
         $total = (int)($discoveryAnalysis['total_count'] ?? 0);
@@ -458,6 +495,11 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             );
         }
 
+        return $total;
+    }
+
+    private function selfTestRuntimeTopics(Closure $add, int $total): void
+    {
         // 6. Fehlende Runtime-Topics
         $topicAnalysis = $this->analyzeReferencedRuntimeTopics();
         $missing = (int)($topicAnalysis['missing_count'] ?? 0);
@@ -472,64 +514,74 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 $add('ok', $this->Translate('All referenced runtime topics have payloads'));
             }
         }
+    }
 
+    private function selfTestBrokerSocket(Closure $add): void
+    {
         // 7. Broker-Socket-Status (CONNACK/Auth darueber nicht sichtbar) + MQTT-Aktivitaet
-        if (!$bundleMode) {
-            if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
-                $ioStatus = $this->parentIoInstanceStatus();
-                if ($ioStatus === IS_ACTIVE) {
-                    $add('ok', $this->Translate('Broker socket connected'));
-                } elseif ($ioStatus !== null) {
-                    $add(
-                        'error',
-                        sprintf($this->Translate('Broker socket not connected (status %d)'), $ioStatus),
-                        $this->Translate('Check host/port/network and the MQTT credentials of the MQTT Client.')
-                    );
-                }
-            }
-
-            // 7a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die haeufigste Ursache).
-            // Kommen bereits Daten an, funktioniert der anonyme Zugang offensichtlich -> nur Info statt Warnung.
-            if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
-                $credentials = $this->parentMqttCredentials();
-                if ($credentials !== null) {
-                    if ($credentials['UserName'] === '' && $credentials['Password'] === '') {
-                        if ($this->ReadAttributeString('LastMQTTMessage') === '') {
-                            $add(
-                                'warn',
-                                $this->Translate('MQTT client has no credentials configured'),
-                                $this->Translate('If the broker requires authentication (e.g. Mosquitto in Home Assistant), enter user name and password in the MQTT Client instance. Brokers that allow anonymous access work without credentials.')
-                            );
-                        } else {
-                            $add('•', $this->Translate('MQTT client has no credentials configured (fine, the broker accepts anonymous access)'));
-                        }
-                    } elseif ($credentials['UserName'] !== '') {
-                        $add('ok', sprintf($this->Translate('MQTT credentials set (user: %s)'), $credentials['UserName']));
-                    }
-                }
-            }
-
-            $last = $this->ReadAttributeString('LastMQTTMessage');
-            if ($last === '') {
+        if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+            $ioStatus = $this->parentIoInstanceStatus();
+            if ($ioStatus === IS_ACTIVE) {
+                $add('ok', $this->Translate('Broker socket connected'));
+            } elseif ($ioStatus !== null) {
                 $add(
-                    'warn',
-                    $this->Translate('No MQTT data received yet'),
-                    $this->Translate('Check the parent connection and the subscription.')
+                    'error',
+                    sprintf($this->Translate('Broker socket not connected (status %d)'), $ioStatus),
+                    $this->Translate('Check host/port/network and the MQTT credentials of the MQTT Client.')
                 );
-            } else {
-                $age = time() - (int)strtotime($last);
-                if ($age >= 0 && $age <= self::SELFTEST_MQTT_RECENCY_SEC) {
-                    $add('ok', sprintf($this->Translate('MQTT data received (%ds ago)'), $age));
-                } else {
-                    $add(
-                        'warn',
-                        sprintf($this->Translate('Last MQTT data at %s (%s ago) – connection may be broken'), $last, $this->formatAge($age)),
-                        $this->Translate('A stale value right after Apply usually means a broken connection (wrong MQTT user/password or subscription).')
-                    );
+            }
+        }
+    }
+
+    private function selfTestCredentials(Closure $add): void
+    {
+        // 7a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die haeufigste Ursache).
+        // Kommen bereits Daten an, funktioniert der anonyme Zugang offensichtlich -> nur Info statt Warnung.
+        if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+            $credentials = $this->parentMqttCredentials();
+            if ($credentials !== null) {
+                if ($credentials['UserName'] === '' && $credentials['Password'] === '') {
+                    if ($this->ReadAttributeString('LastMQTTMessage') === '') {
+                        $add(
+                            'warn',
+                            $this->Translate('MQTT client has no credentials configured'),
+                            $this->Translate('If the broker requires authentication (e.g. Mosquitto in Home Assistant), enter user name and password in the MQTT Client instance. Brokers that allow anonymous access work without credentials.')
+                        );
+                    } else {
+                        $add('•', $this->Translate('MQTT client has no credentials configured (fine, the broker accepts anonymous access)'));
+                    }
+                } elseif ($credentials['UserName'] !== '') {
+                    $add('ok', sprintf($this->Translate('MQTT credentials set (user: %s)'), $credentials['UserName']));
                 }
             }
         }
+    }
 
+    private function selfTestLastMessage(Closure $add): void
+    {
+        $last = $this->ReadAttributeString('LastMQTTMessage');
+        if ($last === '') {
+            $add(
+                'warn',
+                $this->Translate('No MQTT data received yet'),
+                $this->Translate('Check the parent connection and the subscription.')
+            );
+        } else {
+            $age = time() - (int)strtotime($last);
+            if ($age >= 0 && $age <= self::SELFTEST_MQTT_RECENCY_SEC) {
+                $add('ok', sprintf($this->Translate('MQTT data received (%ds ago)'), $age));
+            } else {
+                $add(
+                    'warn',
+                    sprintf($this->Translate('Last MQTT data at %s (%s ago) – connection may be broken'), $last, $this->formatAge($age)),
+                    $this->Translate('A stale value right after Apply usually means a broken connection (wrong MQTT user/password or subscription).')
+                );
+            }
+        }
+    }
+
+    private function renderSelfTestSummary(array $lines, int $errors, int $warnings): string
+    {
         // Fazit
         $lines[] = '';
         if ($errors === 0 && $warnings === 0) {
@@ -545,14 +597,28 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     }
 
     /**
+     * Liefert die Instanz-ID des MQTT-Client-Parents, oder null, wenn kein Parent
+     * gesetzt ist oder die Instanz nicht (mehr) existiert.
+     */
+    private function resolveExistingParentId(): ?int
+    {
+        $parentId = $this->getCurrentParentId();
+        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+            return null;
+        }
+
+        return $parentId;
+    }
+
+    /**
      * Liefert den InstanceStatus des IO unter dem MQTT-Client-Parent (Splitter -> MQTT Client -> IO),
      * oder null, wenn die Kette nicht aufloesbar ist. CONNACK-/Auth-Fehler sind hierueber NICHT
      * sichtbar (nur die Socket-Ebene) – ergaenzend dient die Aktualitaet der MQTT-Daten.
      */
     private function parentIoInstanceStatus(): ?int
     {
-        $mqttClientId = $this->getCurrentParentId();
-        if ($mqttClientId <= 0 || !IPS_InstanceExists($mqttClientId)) {
+        $mqttClientId = $this->resolveExistingParentId();
+        if ($mqttClientId === null) {
             return null;
         }
         $ioId = (int)(IPS_GetInstance($mqttClientId)['ConnectionID'] ?? 0);
@@ -571,8 +637,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
      */
     private function parentMqttCredentials(): ?array
     {
-        $parentId = $this->getCurrentParentId();
-        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+        $parentId = $this->resolveExistingParentId();
+        if ($parentId === null) {
             return null;
         }
 
@@ -610,8 +676,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
      */
     private function parentSubscriptionCoversPrefix(string $prefix): ?bool
     {
-        $parentId = $this->getCurrentParentId();
-        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+        $parentId = $this->resolveExistingParentId();
+        if ($parentId === null) {
             return null;
         }
 
@@ -1106,6 +1172,56 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     {
         $rawPath = trim($this->ReadPropertyString('BundlePath'));
         $path = $this->resolveBundlePath($rawPath);
+        $state = $this->initBundleState($rawPath, $path);
+
+        if ($rawPath === '') {
+            return $this->bundleLoadFailure($state, $this->Translate('Bundle path is empty.'), 203);
+        }
+
+        $raw = $this->readBundleFile($path);
+        if ($raw === null) {
+            return $this->bundleLoadFailure($state, $this->Translate('Bundle file could not be read.'));
+        }
+
+        try {
+            $bundle = $this->decodeBundleJson($raw);
+        } catch (JsonException $e) {
+            return $this->bundleLoadFailure($state, $this->Translate('Bundle is not valid JSON: ') . $e->getMessage());
+        }
+
+        if (!is_array($bundle)) {
+            return $this->bundleLoadFailure($state, $this->Translate('Bundle is not a JSON object.'));
+        }
+
+        $envelopeFailure = $this->validateBundleEnvelope($bundle, $state);
+        if ($envelopeFailure !== null) {
+            return $envelopeFailure;
+        }
+
+        $effectivePrefix = $this->resolveBundlePrefix($bundle);
+        if ($effectivePrefix === '') {
+            return $this->bundleLoadFailure($state, $this->Translate('MQTT discovery prefix is empty.'), 202);
+        }
+
+        return [
+            'ok' => true,
+            'bundle' => $bundle,
+            'state' => $this->fillBundleStateFromBundle($state, $bundle, $effectivePrefix)
+        ];
+    }
+
+    private function bundleLoadFailure(array $state, string $translatedError, int $status = 204): array
+    {
+        $state['error'] = $translatedError;
+        return [
+            'ok' => false,
+            'status' => $status,
+            'state' => $state
+        ];
+    }
+
+    private function initBundleState(string $rawPath, string $path): array
+    {
         $state = $this->buildDefaultBundleState();
         $state['mode'] = self::SOURCE_MODE_BUNDLE;
         $state['path'] = $path;
@@ -1113,109 +1229,73 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $state['base_path'] = $this->getDefaultBundleFixturesPath();
         $state['current_session_only'] = $this->ReadPropertyBoolean('BundleCurrentSessionOnly');
 
-        if ($rawPath === '') {
-            $state['error'] = $this->Translate('Bundle path is empty.');
-            return [
-                'ok' => false,
-                'status' => 203,
-                'state' => $state
-            ];
-        }
+        return $state;
+    }
 
+    private function readBundleFile(string $path): ?string
+    {
         $readStartedAt = microtime(true);
         $raw = @file_get_contents($path);
-        $this->logPerformanceSample(__FUNCTION__ . '.file_get_contents', $readStartedAt, [
+        $this->logPerformanceSample('loadConfiguredBundle.file_get_contents', $readStartedAt, [
             'Path' => $path,
             'Bytes' => is_string($raw) ? strlen($raw) : 0,
             'Readable' => $raw !== false
         ], true);
-        if ($raw === false) {
-            $state['error'] = $this->Translate('Bundle file could not be read.');
-            return [
-                'ok' => false,
-                'status' => 204,
-                'state' => $state
-            ];
-        }
 
-        try {
-            $decodeStartedAt = microtime(true);
-            $bundle = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-            $this->logPerformanceSample(__FUNCTION__ . '.json_decode', $decodeStartedAt, [
-                'TopLevelKeys' => is_array($bundle) ? count($bundle) : 0
-            ], true);
-        } catch (JsonException $e) {
-            $state['error'] = $this->Translate('Bundle is not valid JSON: ') . $e->getMessage();
-            return [
-                'ok' => false,
-                'status' => 204,
-                'state' => $state
-            ];
-        }
+        return $raw === false ? null : $raw;
+    }
 
-        if (!is_array($bundle)) {
-            $state['error'] = $this->Translate('Bundle is not a JSON object.');
-            return [
-                'ok' => false,
-                'status' => 204,
-                'state' => $state
-            ];
-        }
+    /**
+     * @throws JsonException
+     */
+    private function decodeBundleJson(string $raw): mixed
+    {
+        $decodeStartedAt = microtime(true);
+        $bundle = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        $this->logPerformanceSample('loadConfiguredBundle.json_decode', $decodeStartedAt, [
+            'TopLevelKeys' => is_array($bundle) ? count($bundle) : 0
+        ], true);
 
+        return $bundle;
+    }
+
+    private function validateBundleEnvelope(array $bundle, array $state): ?array
+    {
         $format = trim((string)($bundle['format'] ?? ''));
         if ($format !== self::EXPORT_FORMAT) {
-            $state['error'] = $this->Translate('Unexpected bundle format.');
-            return [
-                'ok' => false,
-                'status' => 204,
-                'state' => $state
-            ];
+            return $this->bundleLoadFailure($state, $this->Translate('Unexpected bundle format.'));
         }
 
         $version = (int)($bundle['version'] ?? 0);
         if ($version !== self::EXPORT_VERSION) {
-            $state['error'] = sprintf($this->Translate('Unexpected bundle version. Expected V%d.'), self::EXPORT_VERSION);
-            return [
-                'ok' => false,
-                'status' => 204,
-                'state' => $state
-            ];
+            return $this->bundleLoadFailure($state, sprintf($this->Translate('Unexpected bundle version. Expected V%d.'), self::EXPORT_VERSION));
         }
 
         if (!is_array($bundle['discovery_configs'] ?? null)) {
-            $state['error'] = $this->Translate('discovery_configs is missing or is not an array.');
-            return [
-                'ok' => false,
-                'status' => 204,
-                'state' => $state
-            ];
+            return $this->bundleLoadFailure($state, $this->Translate('discovery_configs is missing or is not an array.'));
         }
 
         if (array_key_exists('topic_payloads', $bundle) && !is_array($bundle['topic_payloads'])) {
-            $state['error'] = $this->Translate('topic_payloads is not an array.');
-            return [
-                'ok' => false,
-                'status' => 204,
-                'state' => $state
-            ];
+            return $this->bundleLoadFailure($state, $this->Translate('topic_payloads is not an array.'));
         }
 
+        return null;
+    }
+
+    private function resolveBundlePrefix(array $bundle): string
+    {
         $bundlePrefix = trim((string)($bundle['splitter']['discovery_prefix'] ?? ''), '/');
         $configuredPrefix = $this->getConfiguredDiscoveryPrefix();
-        $effectivePrefix = $bundlePrefix !== '' ? $bundlePrefix : $configuredPrefix;
-        if ($effectivePrefix === '') {
-            $state['error'] = $this->Translate('MQTT discovery prefix is empty.');
-            return [
-                'ok' => false,
-                'status' => 202,
-                'state' => $state
-            ];
-        }
 
+        return $bundlePrefix !== '' ? $bundlePrefix : $configuredPrefix;
+    }
+
+    private function fillBundleStateFromBundle(array $state, array $bundle, string $effectivePrefix): array
+    {
         $state['loaded'] = true;
         $state['error'] = '';
-        $state['bundle_format'] = $format;
-        $state['bundle_version'] = $version;
+        $state['bundle_format'] = trim((string)($bundle['format'] ?? ''));
+        $state['bundle_version'] = (int)($bundle['version'] ?? 0);
         $state['discovery_prefix'] = $effectivePrefix;
         $state['exported_at'] = trim((string)($bundle['exported_at'] ?? ''));
         $state['session_id'] = trim((string)($bundle['session']['id'] ?? ''));
@@ -1225,11 +1305,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $state['topic_payload_count'] = is_array($bundle['topic_payloads'] ?? null) ? count($bundle['topic_payloads']) : 0;
         $state['source_notes'] = trim((string)($bundle['source']['notes'] ?? ''));
 
-        return [
-            'ok' => true,
-            'bundle' => $bundle,
-            'state' => $state
-        ];
+        return $state;
     }
 
     private function hydrateCachesFromBundle(array $bundle, array $state): void
@@ -1421,9 +1497,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $discoveryRecords = $this->getDiscoveryConfigRecords();
         $normalizedRecords = array_values($discoveryRecords);
         $records = $this->annotateCacheRecords($normalizedRecords);
-        usort($records, static function (array $left, array $right): int {
-            return strcmp((string)($left['topic'] ?? ''), (string)($right['topic'] ?? ''));
-        });
+        $records = $this->sortRecordsByTopic($records);
 
         $topics = array_map(static fn(array $record): string => (string)($record['topic'] ?? ''), $records);
         $this->debugExpert(__FUNCTION__, 'Returning discovery config records', [
@@ -1453,9 +1527,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $records = $this->annotateCacheRecords($records);
 
-        usort($records, static function (array $left, array $right): int {
-            return strcmp((string)($left['topic'] ?? ''), (string)($right['topic'] ?? ''));
-        });
+        $records = $this->sortRecordsByTopic($records);
 
         return [
             'Items' => $records,
@@ -1470,9 +1542,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         if ($normalizedOptions['current_session_only']) {
             $discoveryConfigs = $this->filterCurrentSessionRecords($discoveryConfigs);
         }
-        usort($discoveryConfigs, static function (array $left, array $right): int {
-            return strcmp((string)($left['topic'] ?? ''), (string)($right['topic'] ?? ''));
-        });
+        $discoveryConfigs = $this->sortRecordsByTopic($discoveryConfigs);
         $annotatedDiscoveryConfigs = $this->annotateCacheRecords($discoveryConfigs);
         $discoveryAnalysis = $this->analyzeDiscoveryConfigRecords($discoveryConfigs);
         $topicAnalysis = $this->analyzeReferencedRuntimeTopics($discoveryConfigs);
@@ -1565,6 +1635,13 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     {
         $records = array_values($this->readTopicPayloadCache());
 
+        $records = $this->sortRecordsByTopic($records);
+
+        return $records;
+    }
+
+    private function sortRecordsByTopic(array $records): array
+    {
         usort($records, static function (array $left, array $right): int {
             return strcmp((string)($left['topic'] ?? ''), (string)($right['topic'] ?? ''));
         });
@@ -2045,8 +2122,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
-        $context = ['elapsed_ms' => round((microtime(true) - $startedAt) * 1000.0, 3)] + $context;
-        $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
+        $this->emitPerformanceDebug($scope, ['elapsed_ms' => round((microtime(true) - $startedAt) * 1000.0, 3)] + $context);
     }
 
     private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
@@ -2055,8 +2131,12 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
-        $payload = ['phase' => $phase] + $context;
-        $this->SendDebug('Performance', $scope . ' | ' . json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
+        $this->emitPerformanceDebug($scope, ['phase' => $phase] + $context);
+    }
+
+    private function emitPerformanceDebug(string $scope, array $context): void
+    {
+        $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
     }
 
     /**
