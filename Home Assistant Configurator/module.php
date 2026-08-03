@@ -35,9 +35,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
 
     public function Create(): void
     {
-        $this->LogMessage('Create | start', KL_MESSAGE);
         parent::Create();
-        $this->LogMessage('Create | after_parent', KL_MESSAGE);
 
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyBoolean('EnableDomainFilter', false);
@@ -57,10 +55,8 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $this->RegisterPropertyString('DeviceMapping', '[]');
         $this->RegisterAttributeString('CachedEntities', json_encode([], JSON_THROW_ON_ERROR));
         $this->RegisterAttributeString(self::ATTRIBUTE_CACHED_DIAGNOSTICS, json_encode($this->createEmptyConfiguratorDiagnostics(), JSON_THROW_ON_ERROR));
-        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
-        $this->LogMessage('Create | after_SetBuffer', KL_MESSAGE);
     }
 
     public function GetConfigurationForm(): string
@@ -737,7 +733,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             }
         }
 
-        $this->LogMessage($message, KL_MESSAGE);
+        $this->SendDebug('Performance', $message, 0);
     }
 
     private function logPerformanceMarker(string $scope, string $phase, array $context = []): void
@@ -750,7 +746,7 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             }
         }
 
-        $this->LogMessage($message, KL_MESSAGE);
+        $this->SendDebug('Performance', $message, 0);
     }
 
 }

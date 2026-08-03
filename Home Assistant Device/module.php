@@ -75,15 +75,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     public function Create(): void
     {
-        $this->LogMessage('Create | start', KL_MESSAGE);
         parent::Create();
-        $this->LogMessage('Create | after_parent', KL_MESSAGE);
 
         // Nachrichten registrieren, um auf Gateway-Änderungen zu reagieren.
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
-        $this->LogMessage('Create | after_RegisterMessage', KL_MESSAGE);
 
         $this->RegisterAttributeString('MQTTBaseTopic', '');
         $this->RegisterAttributeString('CurrentFilter', '');
@@ -104,10 +101,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterPropertyInteger(self::PROP_OUTPUT_BUFFER_SIZE, 10);
         $this->RegisterPropertyString(self::PROP_SOURCE_MODE, 'mqtt');
         $this->RegisterPropertyString(self::PROP_BUNDLE_PATH, '');
-        $this->LogMessage('Create | after_RegisterProperties', KL_MESSAGE);
 
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HA_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
-        $this->LogMessage('Create | after_RegisterTimer', KL_MESSAGE);
     }
 
 
@@ -135,9 +130,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     public function ApplyChanges(): void
     {
-        $this->LogMessage('ApplyChanges | entry_before_parent', KL_MESSAGE);
         parent::ApplyChanges();
-        $this->LogMessage('ApplyChanges | entry_after_parent', KL_MESSAGE);
         $this->ensureResolvedConfigAttributeRegistered(__FUNCTION__);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
@@ -452,14 +445,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
     public function GetConfigurationForm(): string
     {
-        $resultPath = __DIR__ . '/form_result.jsonx';
-        if (is_file($resultPath)) {
-            $resultContent = file_get_contents($resultPath);
-            if ($resultContent !== false) {
-                return $resultContent;
-            }
-        }
-
         $form   = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
         $config = $this->readResolvedConfig(__FUNCTION__);
         $this->debugExpert(__FUNCTION__, 'config:', $config);
