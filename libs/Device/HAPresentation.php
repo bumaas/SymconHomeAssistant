@@ -242,7 +242,7 @@ trait HAPresentationTrait
             $min          = (float)($meta['min'] ?? null);
             $max          = (float)($meta['max'] ?? null);
             $step         = (float)($meta['step'] ?? null);
-            $percentage   = (boolean)($meta['percentage'] ?? null);
+            $percentage   = (bool)($meta['percentage'] ?? null);
             $usageType    = (int)($meta['usage_type'] ?? null);
             $intervals    = $meta['intervals'] ?? null;
             $presentation = [
