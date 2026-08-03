@@ -488,6 +488,27 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 }
             }
 
+            // 7a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die haeufigste Ursache).
+            // Kommen bereits Daten an, funktioniert der anonyme Zugang offensichtlich -> nur Info statt Warnung.
+            if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+                $credentials = $this->parentMqttCredentials();
+                if ($credentials !== null) {
+                    if ($credentials['UserName'] === '' && $credentials['Password'] === '') {
+                        if ($this->ReadAttributeString('LastMQTTMessage') === '') {
+                            $add(
+                                'warn',
+                                $this->Translate('MQTT client has no credentials configured'),
+                                $this->Translate('If the broker requires authentication (e.g. Mosquitto in Home Assistant), enter user name and password in the MQTT Client instance. Brokers that allow anonymous access work without credentials.')
+                            );
+                        } else {
+                            $add('•', $this->Translate('MQTT client has no credentials configured (fine, the broker accepts anonymous access)'));
+                        }
+                    } elseif ($credentials['UserName'] !== '') {
+                        $add('ok', sprintf($this->Translate('MQTT credentials set (user: %s)'), $credentials['UserName']));
+                    }
+                }
+            }
+
             $last = $this->ReadAttributeString('LastMQTTMessage');
             if ($last === '') {
                 $add(
@@ -539,6 +560,31 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return null;
         }
         return (int)(IPS_GetInstance($ioId)['InstanceStatus'] ?? 0);
+    }
+
+    /**
+     * Liest UserName/Password des MQTT-Client-Parents (best effort).
+     * Liefert null, wenn die Parent-Konfiguration nicht lesbar ist oder keine
+     * Credential-Felder enthaelt (z. B. anderer Parent-Modultyp).
+     *
+     * @return array{UserName: string, Password: string}|null
+     */
+    private function parentMqttCredentials(): ?array
+    {
+        $parentId = $this->getCurrentParentId();
+        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+            return null;
+        }
+
+        $config = $this->readInstanceConfiguration($parentId);
+        if (!is_array($config) || !array_key_exists('UserName', $config)) {
+            return null;
+        }
+
+        return [
+            'UserName' => trim((string)($config['UserName'] ?? '')),
+            'Password' => (string)($config['Password'] ?? '')
+        ];
     }
 
     private function formatAge(int $seconds): string

@@ -1165,6 +1165,27 @@ class HomeAssistantSplitter extends IPSModuleStrict
             }
         }
 
+        // 5a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die haeufigste Ursache).
+        // Kommen bereits Daten an, funktioniert der anonyme Zugang offensichtlich -> nur Info statt Warnung.
+        if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+            $credentials = $this->parentMqttCredentials();
+            if ($credentials !== null) {
+                if ($credentials['UserName'] === '' && $credentials['Password'] === '') {
+                    if ($this->ReadAttributeString('LastMQTTMessage') === '') {
+                        $add(
+                            'warn',
+                            $this->Translate('MQTT client has no credentials configured'),
+                            $this->Translate('The Mosquitto broker in Home Assistant rejects anonymous connections by default. Create a Home Assistant user (Settings → People → Users) and enter its name and password in the MQTT Client instance.')
+                        );
+                    } else {
+                        $add('•', $this->Translate('MQTT client has no credentials configured (fine, the broker accepts anonymous access)'));
+                    }
+                } elseif ($credentials['UserName'] !== '') {
+                    $add('ok', sprintf($this->Translate('MQTT credentials set (user: %s)'), $credentials['UserName']));
+                }
+            }
+        }
+
         // 6. Kommen MQTT-Daten an? (Aktualitaet, nicht nur Existenz)
         $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
         $ageHint = $this->Translate('mqtt_statestream is event-driven, so occasional gaps are normal. A stale value right after Apply usually means a broken connection (wrong MQTT user/password, subscription or base_topic).');
@@ -1252,6 +1273,35 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return null;
         }
         return (int)(IPS_GetInstance($ioId)['InstanceStatus'] ?? 0);
+    }
+
+    /**
+     * Liest UserName/Password des MQTT-Client-Parents (best effort).
+     * Liefert null, wenn die Parent-Konfiguration nicht lesbar ist oder keine
+     * Credential-Felder enthaelt (z. B. anderer Parent-Modultyp).
+     *
+     * @return array{UserName: string, Password: string}|null
+     */
+    private function parentMqttCredentials(): ?array
+    {
+        $parentId = $this->getCurrentParentId();
+        if ($parentId <= 0 || !IPS_InstanceExists($parentId)) {
+            return null;
+        }
+
+        try {
+            $config = json_decode(IPS_GetConfiguration($parentId), true, 512, JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
+            return null;
+        }
+        if (!is_array($config) || !array_key_exists('UserName', $config)) {
+            return null;
+        }
+
+        return [
+            'UserName' => trim((string)($config['UserName'] ?? '')),
+            'Password' => (string)($config['Password'] ?? '')
+        ];
     }
 
     private function formatAge(int $seconds): string

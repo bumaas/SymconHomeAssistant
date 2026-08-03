@@ -114,6 +114,12 @@ Typische Module in diesem Pfad:
 ### 4.1 Klassische Bridge
 
 1. MQTT Client oder MQTT Server in Symcon einrichten.
+   **Wichtig:** Der Mosquitto-Broker in Home Assistant lehnt anonyme Verbindungen standardmäßig ab.
+   Daher in Home Assistant einen Benutzer anlegen (Einstellungen → Personen → Benutzer, z. B. `mqtt-symcon`)
+   und dessen Name und Passwort in der Symcon-MQTT-Client-Instanz eintragen — sonst wird die Verbindung
+   nach dem TCP-Aufbau abgewiesen und die Instanz als fehlerhaft markiert.
+   (Die `Home Assistant Discovery` legt die Instanzkette ohne Zugangsdaten an, weil sie diese nicht kennt —
+   die Zugangsdaten müssen danach manuell im MQTT Client ergänzt werden.)
 2. `Home Assistant Splitter` anlegen und mit diesem Parent verbinden.
 3. Im Splitter `MQTTBaseTopic`, `HAUrl` und `HAToken` setzen.
 4. `Home Assistant Discovery` oder direkt `Home Assistant Configurator` nutzen.
@@ -134,6 +140,7 @@ mqtt_statestream:
 
 1. MQTT Client in Symcon einrichten.
    Wenn der Broker als Symcon MQTT Server laeuft, kann der MQTT Client direkt auf diesen Server verbunden werden, z. B. per `127.0.0.1:1028`.
+   Verlangt der Broker eine Anmeldung (z. B. Mosquitto in Home Assistant), Benutzername und Passwort in der MQTT-Client-Instanz eintragen.
 2. Subscription so setzen, dass mindestens `homeassistant/#` empfangen wird.
 3. Zusätzlich die Topics des Geräts oder Dienstes abonnieren, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 4. `Home Assistant MQTT Discovery Splitter` anlegen und mit diesem MQTT-Client verbinden.
@@ -239,12 +246,13 @@ Home Assistant MQTT Discovery Configurator / Device
 
 ## 7. Fehlersuche
 
-> **Selbsttest im Modul:** Sowohl der `Home Assistant Splitter` (klassische Bridge) als auch der `Home Assistant MQTT Discovery Splitter` bieten in der Konfiguration den Knopf **„Selbsttest ausführen"**. Er prüft die häufigsten Fehlerquellen (Parent aktiv/Typ, REST/Token, `MQTTBaseTopic` bzw. Discovery-Prefix, ankommende MQTT-Daten, Subscription, Discovery-Cache) und zeigt das Ergebnis als Checkliste mit konkreten Tipps. Das ist der schnellste erste Schritt bei Problemen.
+> **Selbsttest im Modul:** Sowohl der `Home Assistant Splitter` (klassische Bridge) als auch der `Home Assistant MQTT Discovery Splitter` bieten in der Konfiguration den Knopf **„Selbsttest ausführen"**. Er prüft die häufigsten Fehlerquellen (Parent aktiv/Typ, REST/Token, `MQTTBaseTopic` bzw. Discovery-Prefix, MQTT-Zugangsdaten, ankommende MQTT-Daten, Subscription, Discovery-Cache) und zeigt das Ergebnis als Checkliste mit konkreten Tipps. Das ist der schnellste erste Schritt bei Problemen.
 
 > **Diagnosewerkzeug MQTT Explorer:** Für die Analyse des MQTT-Verkehrs empfiehlt sich der kostenlose [MQTT Explorer](https://mqtt-explorer.com/). Er verbindet sich mit demselben Broker wie Symcon und zeigt live alle Topics samt Werten als Baum an. Damit lässt sich prüfen, ob Topics wie `<MQTTBaseTopic>/switch/<entity>/state` (klassische Bridge) bzw. `homeassistant/.../config` (MQTT Discovery) überhaupt ankommen und welche Werte sie tragen.
 
 ### 7.1 Klassische Bridge
 
+- **Wenn der MQTT Client bzw. Client Socket als fehlerhaft markiert wird, obwohl IP und Port 1883 stimmen:** Fast immer fehlen die MQTT-Zugangsdaten. Der Mosquitto-Broker in Home Assistant lehnt anonyme Verbindungen standardmäßig ab — in Home Assistant einen Benutzer anlegen (Einstellungen → Personen → Benutzer) und dessen Name und Passwort in der Symcon-MQTT-Client-Instanz eintragen. Die `Home Assistant Discovery` legt die Instanzkette ohne Zugangsdaten an; sie müssen manuell ergänzt werden.
 - Wenn im `Home Assistant Splitter` `Kein aktiver MQTT Parent gefunden` steht: Verbindung zum MQTT-Client oder MQTT-Server prüfen.
 - **Wenn der angezeigte Status nicht mit Home Assistant übereinstimmt:** Zustände kommen ausschließlich über den `mqtt_statestream`, nicht über REST. Stimmt die Anzeige nicht, fehlen die aktuellen Statusdaten. `mqtt_statestream` in Home Assistant prüfen und sicherstellen, dass `base_topic` zu `MQTTBaseTopic` passt.
   - **MQTT Client als Parent** verwenden (nicht nur MQTT Server): Nur der Client erhält beim Verbinden den retained-Replay und damit sofort den echten Initialzustand. Subscription z. B. `homeassistant/#` (testweise `#`).
