@@ -3,18 +3,18 @@
 declare(strict_types=1);
 
 /**
- * Prueft die Uebersetzungs-Vollstaendigkeit der Module dieses Repos:
+ * Prüft die Übersetzungs-Vollständigkeit der Module dieses Repos:
  *
- *  - Jeder caption/label/suffix-Text aus form.json braucht einen de-Schluessel in locale.json.
+ *  - Jeder caption/label/suffix-Text aus form.json braucht einen de-Schlüssel in locale.json.
  *  - Jeder Translate('...')-Text (module.php und form.json-Skripte, z. B. onClick)
- *    braucht ebenfalls einen de-Schluessel.
- *  - Verwaiste de-Schluessel werden nur gemeldet, nicht als Fehler gewertet
- *    (dynamische Nutzung wie zusammengesetzte Captions ist moeglich).
+ *    braucht ebenfalls einen de-Schlüssel.
+ *  - Verwaiste de-Schlüssel werden nur gemeldet, nicht als Fehler gewertet
+ *    (dynamische Nutzung wie zusammengesetzte Captions ist möglich).
  *  - Translate-Texte aus libs/ (gemeinsame Traits) werden nur als Hinweis gemeldet,
  *    wenn sie in KEINER locale.json vorkommen: welche Module einen Trait-Text zur
  *    Laufzeit wirklich ausgeben, ist statisch nicht sauber bestimmbar.
  *
- * Exit-Code 1 bei fehlenden Uebersetzungen (fuer die CI), sonst 0.
+ * Exit-Code 1 bei fehlenden Übersetzungen (für die CI), sonst 0.
  * Aufruf: php tests/check_locale.php
  */
 
@@ -39,12 +39,13 @@ foreach ($moduleDirs as $moduleDir) {
 
     $localeFile = $dir . '/locale.json';
     if (!is_file($localeFile)) {
-        echo "keine locale.json vorhanden - uebersprungen\n\n";
+        echo "keine locale.json vorhanden - übersprungen\n\n";
         continue;
     }
-    $locale = json_decode(file_get_contents($localeFile), true, 512, JSON_THROW_ON_ERROR);
-    $deKeys = array_keys($locale['translations']['de'] ?? []);
-    $allDeKeys = array_merge($allDeKeys, $deKeys);
+    $locale         = json_decode(file_get_contents($localeFile), true, 512, JSON_THROW_ON_ERROR);
+    $deTranslations = $locale['translations']['de'] ?? [];
+    $deKeys         = array_keys($deTranslations);
+    $allDeKeys      = array_merge($allDeKeys, $deKeys);
 
     $modulePhp = file_get_contents($dir . '/module.php');
 
@@ -61,46 +62,46 @@ foreach ($moduleDirs as $moduleDir) {
     // 2) Translate-Aufrufe aus module.php und aus den Skripten in form.json (z. B. onClick)
     $translateTexts = collectTranslateTexts($modulePhp . "\n" . $formRaw);
 
-    // Fehlend: form.json-Text ohne de-Schluessel
+    // Fehlend: form.json-Text ohne de-Schlüssel
     $missingForm = [];
     foreach ($formTexts as $text => $paths) {
-        if (!in_array($text, $deKeys, true)) {
+        if (!isset($deTranslations[$text])) {
             $missingForm[$text] = $paths[0];
         }
     }
 
-    // Fehlend: Translate-Text ohne de-Schluessel
+    // Fehlend: Translate-Text ohne de-Schlüssel
     $missingPhp = [];
     foreach (array_keys($translateTexts) as $text) {
-        if (!in_array($text, $deKeys, true)) {
+        if (!isset($deTranslations[$text])) {
             $missingPhp[] = $text;
         }
     }
 
-    // Verwaist: de-Schluessel weder als form.json-Text noch als Translate-Text.
-    // Texte aus libs/ zaehlen nicht als verwaist (gemeinsame Traits).
+    // Verwaist: de-Schlüssel weder als form.json-Text noch als Translate-Text.
+    // Texte aus libs/ zählen nicht als verwaist (gemeinsame Traits).
     $orphans = [];
     foreach ($deKeys as $key) {
         if (!isset($formTexts[$key]) && !isset($translateTexts[$key])) {
-            $inLiteral = str_contains($modulePhp, $key) || ($formRaw !== '' && str_contains($formRaw, $key));
-            $orphans[] = [$key, $inLiteral ? 'kommt woertlich in module.php/form.json vor' : 'nirgends im Modulordner gefunden'];
+            $inLiteral = str_contains($modulePhp, $key) || str_contains($formRaw, $key);
+            $orphans[] = [$key, $inLiteral ? 'kommt wörtlich in module.php/form.json vor' : 'nirgends im Modulordner gefunden'];
         }
     }
 
     echo 'form.json Texte (unique): ' . count($formTexts) . "\n";
-    echo 'locale de-Schluessel:     ' . count($deKeys) . "\n";
+    echo 'locale de-Schlüssel:      ' . count($deKeys) . "\n";
     echo 'Translate-Texte:          ' . count($translateTexts) . "\n";
     echo 'Sprachen in locale.json:  ' . implode(', ', array_keys($locale['translations'] ?? [])) . "\n\n";
 
-    echo 'FEHLENDE UEBERSETZUNGEN (form.json -> kein de-Schluessel): ' . count($missingForm) . "\n";
+    echo 'FEHLENDE ÜBERSETZUNGEN (form.json -> kein de-Schlüssel): ' . count($missingForm) . "\n";
     foreach ($missingForm as $text => $path) {
         echo "  - \"$text\"  ($path)\n";
     }
-    echo 'FEHLENDE UEBERSETZUNGEN (Translate -> kein de-Schluessel): ' . count($missingPhp) . "\n";
+    echo 'FEHLENDE ÜBERSETZUNGEN (Translate -> kein de-Schlüssel): ' . count($missingPhp) . "\n";
     foreach ($missingPhp as $text) {
         echo "  - \"$text\"\n";
     }
-    echo 'VERWAISTE de-SCHLUESSEL (nur Hinweis, kein Fehler): ' . count($orphans) . "\n";
+    echo 'VERWAISTE de-SCHLÜSSEL (nur Hinweis, kein Fehler): ' . count($orphans) . "\n";
     foreach ($orphans as [$key, $note]) {
         echo "  - \"$key\"  [$note]\n";
     }
@@ -117,18 +118,18 @@ unset($libsTexts['']);
 $missingLibs = array_diff(array_keys($libsTexts), $allDeKeys);
 echo "==== libs/ (gemeinsame Traits) ====\n";
 echo 'Translate-Texte in libs/: ' . count($libsTexts) . "\n";
-echo 'IN KEINER locale.json UEBERSETZT (nur Hinweis, kein Fehler): ' . count($missingLibs) . "\n";
+echo 'IN KEINER locale.json ÜBERSETZT (nur Hinweis, kein Fehler): ' . count($missingLibs) . "\n";
 foreach ($missingLibs as $text) {
     echo "  - \"$text\"\n";
 }
 echo "\n";
 
 if ($fail) {
-    echo "FEHLER: Es fehlen Uebersetzungen (siehe oben).\n";
+    echo "FEHLER: Es fehlen Übersetzungen (siehe oben).\n";
     exit(1);
 }
 
-echo "OK: Alle Texte sind uebersetzt.\n";
+echo "OK: Alle Texte sind übersetzt.\n";
 
 function collectFormTexts(array $node, string $path, array &$formTexts): void
 {
@@ -156,9 +157,9 @@ function collectLibsSources(string $libsDir): string
 }
 
 /**
- * Sammelt die Argumente aller Translate('...')-/Translate("...")-Aufrufe im uebergebenen Quelltext.
+ * Sammelt die Argumente aller Translate('...')-/Translate("...")-Aufrufe im übergebenen Quelltext.
  *
- * @return array<string, true> Texte als Schluessel (dedupliziert)
+ * @return array<string, true> Texte als Schlüssel (dedupliziert)
  */
 function collectTranslateTexts(string $code): array
 {

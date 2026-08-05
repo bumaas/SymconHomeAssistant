@@ -30,19 +30,19 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const string SOURCE_MODE_BUNDLE = 'bundle';
     private const string TIMER_TOPIC_STATS = 'TopicStatsTimer';
 
-    // Opt-in Topic-Statistik: zaehlt eingehende Messages je Entitaet und gibt sie periodisch aggregiert aus
-    // (statt pro Message zu loggen). Der Zustand MUSS in Buffern liegen: ReceiveData (Zaehlen) und der
-    // Timer (DumpTopicStatistics) laufen in getrennten PHP-Ausfuehrungen, Member-Variablen ueberleben das
-    // nicht. Ohne Buffer waere der Zaehler beim Dump immer leer und der Fensterstart auf 0 (=> riesiges
+    // Opt-in Topic-Statistik: zählt eingehende Messages je Entität und gibt sie periodisch aggregiert aus
+    // (statt pro Message zu loggen). Der Zustand MUSS in Buffern liegen: ReceiveData (Zählen) und der
+    // Timer (DumpTopicStatistics) laufen in getrennten PHP-Ausführungen, Member-Variablen überleben das
+    // nicht. Ohne Buffer wäre der Zähler beim Dump immer leer und der Fensterstart auf 0 (=> riesiges
     // "Fenster <epoch>s | total=0").
     private const string BUFFER_TOPIC_STATS_COUNTS = 'TopicStatsCounts';
     private const string BUFFER_TOPIC_STATS_START  = 'TopicStatsWindowStart';
 
     // Das "Last MQTT message"-Attribut ist reine Diagnose. Im MQTT-Modus sieht dieser Splitter denselben
     // Firehose (~13 Messages/Sek.), ein WriteAttributeString pro Message ist also dauerhafte Last ohne
-    // Mehrwert (Sekunden-Granularitaet). Das Label wird ohnehin nur ueber scheduleDiagnosticsRefresh()
-    // gedebounced aktualisiert; daher reicht es, das Attribut hoechstens alle paar Sekunden zu schreiben.
-    // Der Drossel-Zeitstempel MUSS im Buffer liegen (ReceiveData laeuft ueber getrennte PHP-Ausfuehrungen).
+    // Mehrwert (Sekunden-Granularität). Das Label wird ohnehin nur über scheduleDiagnosticsRefresh()
+    // gedebounced aktualisiert; daher reicht es, das Attribut höchstens alle paar Sekunden zu schreiben.
+    // Der Drossel-Zeitstempel MUSS im Buffer liegen (ReceiveData läuft über getrennte PHP-Ausführungen).
     private const string BUFFER_LAST_MQTT_TOUCH    = 'LastMqttTouchEpoch';
     private const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
 
@@ -208,9 +208,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
         // Nur die billige, strukturelle Feldsichtbarkeit (Bundle-Modus) synchron anwenden. Die schwere
         // Diagnose (buildDiagnosticsState() dekodiert alle Discovery-Configs und klassifiziert den kompletten
-        // Topic-Cache) darf NICHT im Formular-Request laufen: Bei vielen Kind-Geraeten blockiert das den
-        // Instanz-Wizard "Schnittstelle konfigurieren" und laesst ihn haengen. Die echten Diagnose-Labels
-        // werden per Timer (scheduleDiagnosticsRefresh) unmittelbar nach dem Oeffnen ins offene Formular
+        // Topic-Cache) darf NICHT im Formular-Request laufen: Bei vielen Kind-Geräten blockiert das den
+        // Instanz-Wizard "Schnittstelle konfigurieren" und lässt ihn hängen. Die echten Diagnose-Labels
+        // werden per Timer (scheduleDiagnosticsRefresh) unmittelbar nach dem Öffnen ins offene Formular
         // nachgeladen (updateDiagnosticsLabels via updateFormFieldSafe).
         $this->applyStaticFormState($form);
         $this->scheduleDiagnosticsRefresh();
@@ -352,7 +352,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     }
 
     /**
-     * Anwender-Selbsttest fuer den MQTT-Discovery-Pfad: fasst die vorhandenen Diagnosesignale
+     * Anwender-Selbsttest für den MQTT-Discovery-Pfad: fasst die vorhandenen Diagnosesignale
      * zu einer Checkliste zusammen. Aufruf per `echo HAMD_RunSelfTest($id);`; rein lesend.
      *
      * @noinspection PhpUnused
@@ -473,7 +473,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function selfTestDiscoveryCache(Closure $add): int
     {
-        // 4. Discovery-Cache befuellt + 5. veraltete Configs
+        // 4. Discovery-Cache befüllt + 5. veraltete Configs
         $discoveryAnalysis = $this->analyzeDiscoveryConfigRecords();
         $total = (int)($discoveryAnalysis['total_count'] ?? 0);
         $current = (int)($discoveryAnalysis['current_count'] ?? 0);
@@ -518,7 +518,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function selfTestBrokerSocket(Closure $add): void
     {
-        // 7. Broker-Socket-Status (CONNACK/Auth darueber nicht sichtbar) + MQTT-Aktivitaet
+        // 7. Broker-Socket-Status (CONNACK/Auth darüber nicht sichtbar) + MQTT-Aktivität
         if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
             $ioStatus = $this->parentIoInstanceStatus();
             if ($ioStatus === IS_ACTIVE) {
@@ -535,7 +535,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function selfTestCredentials(Closure $add): void
     {
-        // 7a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die haeufigste Ursache).
+        // 7a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die häufigste Ursache).
         // Kommen bereits Daten an, funktioniert der anonyme Zugang offensichtlich -> nur Info statt Warnung.
         if ($this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
             $credentials = $this->parentMqttCredentials();
@@ -612,8 +612,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     /**
      * Liefert den InstanceStatus des IO unter dem MQTT-Client-Parent (Splitter -> MQTT Client -> IO),
-     * oder null, wenn die Kette nicht aufloesbar ist. CONNACK-/Auth-Fehler sind hierueber NICHT
-     * sichtbar (nur die Socket-Ebene) – ergaenzend dient die Aktualitaet der MQTT-Daten.
+     * oder null, wenn die Kette nicht auflösbar ist. CONNACK-/Auth-Fehler sind hierüber NICHT
+     * sichtbar (nur die Socket-Ebene) – ergänzend dient die Aktualität der MQTT-Daten.
      */
     private function parentIoInstanceStatus(): ?int
     {
@@ -631,7 +631,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     /**
      * Liest UserName/Password des MQTT-Client-Parents (best effort).
      * Liefert null, wenn die Parent-Konfiguration nicht lesbar ist oder keine
-     * Credential-Felder enthaelt (z. B. anderer Parent-Modultyp).
+     * Credential-Felder enthält (z. B. anderer Parent-Modultyp).
      *
      * @return array{UserName: string, Password: string}|null
      */
@@ -671,7 +671,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     }
 
     /**
-     * Best effort: prueft, ob eine Subscription des MQTT-Client-Parents den Discovery-Prefix abdeckt.
+     * Best effort: prüft, ob eine Subscription des MQTT-Client-Parents den Discovery-Prefix abdeckt.
      * Liefert true/false bei klarer Aussage, null wenn die Parent-Konfiguration nicht lesbar ist.
      */
     private function parentSubscriptionCoversPrefix(string $prefix): ?bool
@@ -840,7 +840,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         if ($dataId === HAIds::DATA_MQTT_RX || $dataId === HAIds::DATA_MQTT_TX) {
             $topic = (string)($data['Topic'] ?? '');
 
-            // Statistik VOR dem Bookkeeping-Drop zaehlen, damit die echte eingehende Last je Geraet sichtbar wird.
+            // Statistik VOR dem Bookkeeping-Drop zählen, damit die echte eingehende Last je Gerät sichtbar wird.
             if ($this->isTopicStatisticsEnabled()) {
                 $this->recordTopicStatistic($topic);
             }
@@ -930,17 +930,17 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $this->updateFormFieldSafe($field, 'caption', $caption);
         }
         $hasStale = $state['has_stale'];
-        // GetConfigurationForm() rendert das Formular ohne Diagnose und stoesst genau einen aufgeschobenen
-        // Refresh an (Dirty-Flag). Dieser erste Refresh nach dem Oeffnen darf das Popup daher sichtbar setzen,
-        // wenn veraltete Discovery-Configs vorliegen. Da pro Oeffnen nur ein Refresh laeuft, springt es nicht
+        // GetConfigurationForm() rendert das Formular ohne Diagnose und stößt genau einen aufgeschobenen
+        // Refresh an (Dirty-Flag). Dieser erste Refresh nach dem Öffnen darf das Popup daher sichtbar setzen,
+        // wenn veraltete Discovery-Configs vorliegen. Da pro Öffnen nur ein Refresh läuft, springt es nicht
         // nach jeder Aktualisierung erneut auf; nach der Bereinigung wird es ausgeblendet.
         $this->updateFormFieldSafe('DiagDiscoveryAlert', 'visible', $hasStale);
         $this->updateFormFieldSafe('ButtonRemoveStaleDiscovery', 'visible', $hasStale && !$this->isBundleMode());
     }
 
-    // Schreibt das LastMQTTMessage-Attribut hoechstens alle LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, damit die
+    // Schreibt das LastMQTTMessage-Attribut höchstens alle LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, damit die
     // Diagnose nicht pro eingehender Message persistiert (siehe BUFFER_LAST_MQTT_TOUCH). Das Label selbst wird
-    // weiterhin ueber scheduleDiagnosticsRefresh() gedebounced aus diesem Attribut aktualisiert.
+    // weiterhin über scheduleDiagnosticsRefresh() gedebounced aus diesem Attribut aktualisiert.
     private function touchLastMqttMessage(): void
     {
         $now = time();
@@ -1886,7 +1886,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     /**
      * Berechnet die Diagnose-Analysen genau einmal und liefert Captions plus Stale-Flag.
-     * Bewusst gebuendelt, damit getDiscoveryConfigRecords()/analyzeDiscoveryConfigRecords()
+     * Bewusst gebündelt, damit getDiscoveryConfigRecords()/analyzeDiscoveryConfigRecords()
      * pro Refresh nicht mehrfach laufen (Diagnose-Refresh blockiert den Instanz-Thread).
      */
     private function buildDiagnosticsState(): array
@@ -1997,7 +1997,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private function applyTopicStatisticsConfiguration(): void
     {
         $enabled = $this->isTopicStatisticsEnabled();
-        // Fenster bei jedem ApplyChanges neu starten und Zaehler leeren.
+        // Fenster bei jedem ApplyChanges neu starten und Zähler leeren.
         $this->SetBuffer(self::BUFFER_TOPIC_STATS_COUNTS, '');
         $this->SetBuffer(self::BUFFER_TOPIC_STATS_START, $enabled ? (string)time() : '');
 
@@ -2039,8 +2039,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         return is_array($decoded) ? $decoded : [];
     }
 
-    // Schluessel = Topic ohne letztes Segment (Attribut-/State-Suffix) => eine Entitaet, alle ihre
-    // Sub-Topics zaehlen zusammen. Geraete-Gruppierung erfolgt beim Dump ueber den gemeinsamen Praefix.
+    // Schlüssel = Topic ohne letztes Segment (Attribut-/State-Suffix) => eine Entität, alle ihre
+    // Sub-Topics zählen zusammen. Geräte-Gruppierung erfolgt beim Dump über den gemeinsamen Präfix.
     private function statisticsKeyForTopic(string $topic): string
     {
         $topic = trim($topic, '/');
@@ -2067,9 +2067,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
-        // Pro Geraet gruppieren: Objekt-ID (letztes Segment der Entity-Keys) ueber gemeinsamen Praefix
-        // clustern, damit z. B. alle marstek_*-Entitaeten domainuebergreifend in einer Zeile zusammenlaufen.
-        // (Clustern der vollen Keys wuerde am gemeinsamen "<base>/<domain>/" alles zusammenwerfen.)
+        // Pro Gerät gruppieren: Objekt-ID (letztes Segment der Entity-Keys) über gemeinsamen Präfix
+        // clustern, damit z. B. alle marstek_*-Entitäten domainübergreifend in einer Zeile zusammenlaufen.
+        // (Clustern der vollen Keys würde am gemeinsamen "<base>/<domain>/" alles zusammenwerfen.)
         $byObjectId = [];
         foreach ($counts as $entityKey => $n) {
             $pos = strrpos((string)$entityKey, '/');
@@ -2093,7 +2093,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $perMin = static fn(int $n): string => number_format($n / ($elapsed / 60.0), 1, '.', '');
         $this->SendDebug('TopicStats', sprintf(
-            'Fenster %ds | total=%d (%s/min) | Entitaeten=%d | Geraete=%d',
+            'Fenster %ds | total=%d (%s/min) | Entitäten=%d | Geräte=%d',
             $elapsed,
             $total,
             $perMin($total),
@@ -2104,7 +2104,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $rank = 0;
         foreach ($devices as $deviceKey => $sum) {
             if (++$rank > 20) {
-                $this->SendDebug('TopicStats', sprintf('  ... (%d weitere Geraete)', count($devices) - 20), 0);
+                $this->SendDebug('TopicStats', sprintf('  ... (%d weitere Geräte)', count($devices) - 20), 0);
                 break;
             }
             $this->SendDebug('TopicStats', sprintf('  %-50s %6d (%s/min)', $deviceKey, $sum, $perMin($sum)), 0);
@@ -2140,9 +2140,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     }
 
     /**
-     * Wendet nur die guenstige, strukturelle Feldsichtbarkeit (Bundle-Modus) auf das Formular an, ohne die
-     * teure Diagnose (buildDiagnosticsState) auszufuehren. Captions bleiben auf den Defaults aus form.json und
-     * werden kurz nach dem Oeffnen per Timer (RefreshDiscoveryDiagnostics -> updateDiagnosticsLabels) gefuellt.
+     * Wendet nur die günstige, strukturelle Feldsichtbarkeit (Bundle-Modus) auf das Formular an, ohne die
+     * teure Diagnose (buildDiagnosticsState) auszuführen. Captions bleiben auf den Defaults aus form.json und
+     * werden kurz nach dem Öffnen per Timer (RefreshDiscoveryDiagnostics -> updateDiagnosticsLabels) gefüllt.
      */
     private function applyStaticFormState(array &$form): void
     {
@@ -2441,7 +2441,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     }
 
     /**
-     * Uebernimmt die MQTT-Transport-Metadaten (retained inkl. retain-Alias, qos, direction) aus
+     * Übernimmt die MQTT-Transport-Metadaten (retained inkl. retain-Alias, qos, direction) aus
      * $source in $target. Nicht gesetzte bzw. null-Werte werden ausgelassen, qos wird auf 0..2 begrenzt.
      */
     private function applyTransportMetadata(array $target, array $source): array

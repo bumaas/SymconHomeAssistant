@@ -16,41 +16,41 @@ class HomeAssistantSplitter extends IPSModuleStrict
     private const string TIMER_RESTACK = 'RestAckTimer';
     private const string TIMER_TOPIC_STATS = 'TopicStatsTimer';
 
-    // Debounce der Diagnose-Anzeige (einheitlich mit dem Discovery-Splitter): hochfrequente Ausloeser
-    // setzen nur ein Dirty-Flag und bewaffnen den Timer; das teure updateDiagnosticsLabels() laeuft dann
-    // gebuendelt einmal pro Intervall statt pro Ausloeser.
+    // Debounce der Diagnose-Anzeige (einheitlich mit dem Discovery-Splitter): hochfrequente Auslöser
+    // setzen nur ein Dirty-Flag und bewaffnen den Timer; das teure updateDiagnosticsLabels() läuft dann
+    // gebündelt einmal pro Intervall statt pro Auslöser.
     private const string TIMER_DIAGNOSTICS_REFRESH   = 'DiagnosticsRefresh';
     private const string ATTRIBUTE_DIAGNOSTICS_DIRTY = 'DiagnosticsDirty';
     private const int DIAGNOSTICS_REFRESH_INTERVAL_MS = 1000;
 
-    // Opt-in Topic-Statistik: zaehlt eingehende Messages je Entitaet und gibt sie periodisch aggregiert aus
-    // (statt pro Message zu loggen). Der Zustand MUSS in Buffern liegen: ReceiveData (Zaehlen) und der
-    // Timer (DumpTopicStatistics) laufen in getrennten PHP-Ausfuehrungen, Member-Variablen ueberleben das
-    // nicht. Ohne Buffer waere der Zaehler beim Dump immer leer und der Fensterstart auf 0 (=> riesiges
+    // Opt-in Topic-Statistik: zählt eingehende Messages je Entität und gibt sie periodisch aggregiert aus
+    // (statt pro Message zu loggen). Der Zustand MUSS in Buffern liegen: ReceiveData (Zählen) und der
+    // Timer (DumpTopicStatistics) laufen in getrennten PHP-Ausführungen, Member-Variablen überleben das
+    // nicht. Ohne Buffer wäre der Zähler beim Dump immer leer und der Fensterstart auf 0 (=> riesiges
     // "Fenster <epoch>s | total=0").
     private const string BUFFER_TOPIC_STATS_COUNTS = 'TopicStatsCounts';
     private const string BUFFER_TOPIC_STATS_START  = 'TopicStatsWindowStart';
 
-    // Das "Last MQTT message"-Label ist reine Diagnose. Bei ~13 Messages/Sek. wuerde ein
+    // Das "Last MQTT message"-Label ist reine Diagnose. Bei ~13 Messages/Sek. würde ein
     // WriteAttributeString + UpdateFormField pro Message dauerhaft messbare Last erzeugen, ohne
-    // Mehrwert (das Label hat Sekunden-Granularitaet). Daher hoechstens alle paar Sekunden schreiben.
-    // Der Drossel-Zeitstempel MUSS im Buffer liegen: ReceiveData laeuft ueber getrennte
-    // PHP-Ausfuehrungen, Member-Variablen ueberleben das nicht.
+    // Mehrwert (das Label hat Sekunden-Granularität). Daher höchstens alle paar Sekunden schreiben.
+    // Der Drossel-Zeitstempel MUSS im Buffer liegen: ReceiveData läuft über getrennte
+    // PHP-Ausführungen, Member-Variablen überleben das nicht.
     private const string BUFFER_LAST_MQTT_TOUCH    = 'LastMqttTouchEpoch';
     private const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
 
     // Selbsttest: ab welchem Alter (Sekunden) der letzte MQTT-Empfang als "veraltet" gilt.
     private const int SELFTEST_MQTT_RECENCY_SEC = 300;
 
-    // Selbsttest: welche HA-Domaenen seit dem letzten (Re-)Start tatsaechlich Daten geliefert haben.
-    // Reine Diagnose fuer den Fall, dass mqtt_statestream via include/exclude ganze Domaenen ausblendet.
-    // MUSS im Buffer liegen (ReceiveData laeuft in getrennten PHP-Ausfuehrungen); als Delimited-String,
+    // Selbsttest: welche HA-Domänen seit dem letzten (Re-)Start tatsächlich Daten geliefert haben.
+    // Reine Diagnose für den Fall, dass mqtt_statestream via include/exclude ganze Domänen ausblendet.
+    // MUSS im Buffer liegen (ReceiveData läuft in getrennten PHP-Ausführungen); als Delimited-String,
     // damit der Hot-Path pro Message nur einen str_contains-Check macht und selten (nur bei neuer
-    // Domaene) schreibt statt JSON zu (de)serialisieren.
+    // Domäne) schreibt statt JSON zu (de)serialisieren.
     private const string BUFFER_SEEN_DOMAINS = 'SeenDomains';
 
-    // Reine Zuordnung HA-Domaene => Definitions-Klasse fuer buildRestServicePayload().
-    // Die input_*-Helfer-Domaenen teilen sich den Service-Aufbau mit ihrer Basis-Domaene.
+    // Reine Zuordnung HA-Domäne => Definitions-Klasse für buildRestServicePayload().
+    // Die input_*-Helfer-Domänen teilen sich den Service-Aufbau mit ihrer Basis-Domäne.
     private const array DOMAIN_DEFINITION_MAP = [
         HALightDefinitions::DOMAIN         => HALightDefinitions::class,
         HAButtonDefinitions::DOMAIN        => HAButtonDefinitions::class,
@@ -261,13 +261,13 @@ class HomeAssistantSplitter extends IPSModuleStrict
         if ($dataId === HAIds::DATA_MQTT_RX || $dataId === HAIds::DATA_MQTT_TX) {
             $topic = (string)($data['Topic'] ?? '');
 
-            // Statistik VOR dem Bookkeeping-Drop zaehlen, damit die echte eingehende Last je Geraet sichtbar
+            // Statistik VOR dem Bookkeeping-Drop zählen, damit die echte eingehende Last je Gerät sichtbar
             // wird (inkl. der Topics, die wir gleich verwerfen).
             if ($this->isTopicStatisticsEnabled()) {
                 $this->recordTopicStatistic($topic);
             }
 
-            // Universelle HA-Bookkeeping-Topics (Zeitstempel etc.) werden von keinem Device benoetigt und
+            // Universelle HA-Bookkeeping-Topics (Zeitstempel etc.) werden von keinem Device benötigt und
             // dort ohnehin verworfen. Sie hier vor dem Broadcast abzuweisen erspart die teure synchrone
             // Weiterleitung an alle Kinder (jede Weiterleitung kostet messbar, das Ergebnis ist null).
             if (HADomainCatalog::isIgnorableBookkeepingTopic($topic)) {
@@ -352,7 +352,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     private function applyTopicStatisticsConfiguration(): void
     {
         $enabled = $this->isTopicStatisticsEnabled();
-        // Fenster bei jedem ApplyChanges neu starten und Zaehler leeren.
+        // Fenster bei jedem ApplyChanges neu starten und Zähler leeren.
         $this->SetBuffer(self::BUFFER_TOPIC_STATS_COUNTS, '');
         $this->SetBuffer(self::BUFFER_TOPIC_STATS_START, $enabled ? (string)time() : '');
 
@@ -380,9 +380,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->SetBuffer(self::BUFFER_TOPIC_STATS_COUNTS, json_encode($counts, JSON_THROW_ON_ERROR));
     }
 
-    // Always-on, Hot-Path-schonend: merkt sich die distinkten HA-Domaenen (erstes Segment nach dem
+    // Always-on, Hot-Path-schonend: merkt sich die distinkten HA-Domänen (erstes Segment nach dem
     // MQTTBaseTopic), die seit dem letzten (Re-)Start Daten geliefert haben. Schreibt nur, wenn eine
-    // Domaene neu ist. Dient dem Selbsttest, um statestream-include/exclude-Filter sichtbar zu machen.
+    // Domäne neu ist. Dient dem Selbsttest, um statestream-include/exclude-Filter sichtbar zu machen.
     private function recordSeenDomain(string $topic): void
     {
         $t = trim($topic, '/');
@@ -423,8 +423,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return is_array($decoded) ? $decoded : [];
     }
 
-    // Schluessel = Topic ohne letztes Segment (Attribut-/State-Suffix) => eine Entitaet, alle ihre
-    // Sub-Topics zaehlen zusammen. Geraete-Gruppierung erfolgt beim Dump ueber den gemeinsamen Praefix.
+    // Schlüssel = Topic ohne letztes Segment (Attribut-/State-Suffix) => eine Entität, alle ihre
+    // Sub-Topics zählen zusammen. Geräte-Gruppierung erfolgt beim Dump über den gemeinsamen Präfix.
     private function statisticsKeyForTopic(string $topic): string
     {
         $topic = trim($topic, '/');
@@ -451,9 +451,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return;
         }
 
-        // Pro Geraet gruppieren: Objekt-ID (letztes Segment der Entity-Keys) ueber gemeinsamen Praefix
-        // clustern, damit z. B. alle marstek_*-Entitaeten domainuebergreifend in einer Zeile zusammenlaufen.
-        // (Clustern der vollen Keys wuerde am gemeinsamen "<base>/<domain>/" alles zusammenwerfen.)
+        // Pro Gerät gruppieren: Objekt-ID (letztes Segment der Entity-Keys) über gemeinsamen Präfix
+        // clustern, damit z. B. alle marstek_*-Entitäten domainübergreifend in einer Zeile zusammenlaufen.
+        // (Clustern der vollen Keys würde am gemeinsamen "<base>/<domain>/" alles zusammenwerfen.)
         $byObjectId = [];
         foreach ($counts as $entityKey => $n) {
             $pos = strrpos((string)$entityKey, '/');
@@ -477,7 +477,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
         $perMin = static fn(int $n): string => number_format($n / ($elapsed / 60.0), 1, '.', '');
         $header = sprintf(
-            'Fenster %ds | total=%d (%s/min) | Entitaeten=%d | Geraete=%d',
+            'Fenster %ds | total=%d (%s/min) | Entitäten=%d | Geräte=%d',
             $elapsed,
             $total,
             $perMin($total),
@@ -489,16 +489,16 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $rank = 0;
         foreach ($devices as $deviceKey => $sum) {
             if (++$rank > 20) {
-                $this->SendDebug('TopicStats', sprintf('  ... (%d weitere Geraete)', count($devices) - 20), 0);
+                $this->SendDebug('TopicStats', sprintf('  ... (%d weitere Geräte)', count($devices) - 20), 0);
                 break;
             }
             $this->SendDebug('TopicStats', sprintf('  %-50s %6d (%s/min)', $deviceKey, $sum, $perMin($sum)), 0);
         }
     }
 
-    // Schreibt das LastMQTTMessage-Attribut hoechstens alle LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, damit die
+    // Schreibt das LastMQTTMessage-Attribut höchstens alle LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, damit die
     // Diagnose nicht pro eingehender Message persistiert (siehe BUFFER_LAST_MQTT_TOUCH). Die Anzeige wird nur
-    // bei tatsaechlicher Aenderung angestossen und ueber scheduleDiagnosticsRefresh() gedebounced refresht.
+    // bei tatsächlicher Änderung angestoßen und über scheduleDiagnosticsRefresh() gedebounced refresht.
     private function touchLastMqttMessage(): void
     {
         $now = time();
@@ -511,7 +511,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->scheduleDiagnosticsRefresh();
     }
 
-    // Buendelt hochfrequente Diagnose-Aktualisierungen: nur Dirty-Flag setzen und den Timer bewaffnen.
+    // Bündelt hochfrequente Diagnose-Aktualisierungen: nur Dirty-Flag setzen und den Timer bewaffnen.
     // Einheitlich mit dem Discovery-Splitter (RefreshDiagnostics konsumiert das Flag).
     private function scheduleDiagnosticsRefresh(): void
     {
@@ -544,7 +544,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     /**
      * Liest HAUrl/HAToken (getrimmt); null, wenn eines der beiden leer ist.
-     * Die Fehlerreaktion (Debug, Diagnose, Rueckgabewert) bleibt Sache des Aufrufers.
+     * Die Fehlerreaktion (Debug, Diagnose, Rückgabewert) bleibt Sache des Aufrufers.
      *
      * @return array{url: string, token: string}|null
      */
@@ -559,7 +559,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     }
 
     // Einheitlicher Fehlerabschluss der REST-Diagnose: Fehlertext + Response persistieren,
-    // Anzeige aktualisieren, false fuer die direkte Rueckgabe an den Aufrufer.
+    // Anzeige aktualisieren, false für die direkte Rückgabe an den Aufrufer.
     private function failRestDiagnostics(string $error, string $response = ''): false
     {
         $this->WriteAttributeString('LastRestError', $error);
@@ -568,7 +568,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return false;
     }
 
-    // Einheitlicher Erfolgsabschluss der REST-Diagnose (Gegenstueck zu failRestDiagnostics()).
+    // Einheitlicher Erfolgsabschluss der REST-Diagnose (Gegenstück zu failRestDiagnostics()).
     private function succeedRestDiagnostics(string $response): true
     {
         if ($this->ReadAttributeString('LastRestError') !== '') {
@@ -582,11 +582,11 @@ class HomeAssistantSplitter extends IPSModuleStrict
     /**
      * Gemeinsamer cURL-Unterbau der vier HA-HTTP-Zugriffe (Reachability-Probe, Service-Call,
      * Raw-Request, Image-Download). Baut das Handle einheitlich auf (Bearer-Auth, RETURNTRANSFER)
-     * und schliesst es nach der Ausfuehrung IMMER mit curl_close(). Die komplette Fehler-/
+     * und schließt es nach der Ausführung IMMER mit curl_close(). Die komplette Fehler-/
      * Erfolgsbehandlung bleibt Sache der Aufrufer.
      *
      * Optionen (nur die Abweichungen vom Standardfall):
-     * - headers:        list<string> — zusaetzliche Header nach dem Authorization-Header
+     * - headers:        list<string> — zusätzliche Header nach dem Authorization-Header
      *                   (Default: ['Content-Type: application/json'])
      * - connectTimeout: int — CURLOPT_CONNECTTIMEOUT (Default: nicht gesetzt)
      * - timeout:        int — CURLOPT_TIMEOUT (Default: 10)
@@ -1101,7 +1101,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     /**
      * Anwender-Selbsttest: fasst die vorhandenen Diagnosesignale zu einer Checkliste zusammen.
-     * Wird vom Button im Formular per `echo HA_RunSelfTest($id);` aufgerufen; die Rueckgabe
+     * Wird vom Button im Formular per `echo HA_RunSelfTest($id);` aufgerufen; die Rückgabe
      * erscheint als Popup. Rein lesend (plus der ohnehin existierende REST-Probe).
      *
      * @noinspection PhpUnused
@@ -1129,7 +1129,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             }
         };
 
-        // hasCompatibleParentModule(MQTT Client) wird von mehreren Checks benoetigt -> einmal ermitteln.
+        // hasCompatibleParentModule(MQTT Client) wird von mehreren Checks benötigt -> einmal ermitteln.
         $hasMqttClientParent = $this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT);
         $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
 
@@ -1196,7 +1196,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     }
 
     /**
-     * 3. REST erreichbar & Token gueltig (nutzt den vorhandenen aktiven Probe)
+     * 3. REST erreichbar & Token gültig (nutzt den vorhandenen aktiven Probe)
      *
      * @return list<array{0: string, 1: string, 2?: string}>
      */
@@ -1230,7 +1230,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     }
 
     /**
-     * 5. Broker-Socket-Status (nur sinnvoll bei MQTT Client; CONNACK/Auth ist darueber nicht sichtbar)
+     * 5. Broker-Socket-Status (nur sinnvoll bei MQTT Client; CONNACK/Auth ist darüber nicht sichtbar)
      *
      * @return list<array{0: string, 1: string, 2?: string}>
      */
@@ -1254,7 +1254,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     }
 
     /**
-     * 5a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die haeufigste Ursache).
+     * 5a. MQTT-Zugangsdaten des Parents (fehlende Credentials sind bei Mosquitto die häufigste Ursache).
      * Kommen bereits Daten an, funktioniert der anonyme Zugang offensichtlich -> nur Info statt Warnung.
      *
      * @return list<array{0: string, 1: string, 2?: string}>
@@ -1285,7 +1285,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     }
 
     /**
-     * 6. Kommen MQTT-Daten an? (Aktualitaet, nicht nur Existenz)
+     * 6. Kommen MQTT-Daten an? (Aktualität, nicht nur Existenz)
      *
      * @return list<array{0: string, 1: string, 2?: string}>
      */
@@ -1339,7 +1339,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     }
 
     /**
-     * 7. Welche Domaenen liefern tatsaechlich Daten? (deckt statestream-include/exclude auf)
+     * 7. Welche Domänen liefern tatsächlich Daten? (deckt statestream-include/exclude auf)
      *
      * @return list<array{0: string, 1: string, 2?: string}>
      */
@@ -1380,8 +1380,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     /**
      * Liefert den InstanceStatus des IO unter dem MQTT-Client-Parent (Splitter -> MQTT Client -> IO),
-     * oder null, wenn die Kette nicht aufloesbar ist. CONNACK-/Auth-Fehler sind hierueber NICHT
-     * sichtbar (nur die Socket-Ebene) – ergaenzend dient die Aktualitaet der MQTT-Daten.
+     * oder null, wenn die Kette nicht auflösbar ist. CONNACK-/Auth-Fehler sind hierüber NICHT
+     * sichtbar (nur die Socket-Ebene) – ergänzend dient die Aktualität der MQTT-Daten.
      */
     private function parentIoInstanceStatus(): ?int
     {
@@ -1399,7 +1399,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     /**
      * Liest UserName/Password des MQTT-Client-Parents (best effort).
      * Liefert null, wenn die Parent-Konfiguration nicht lesbar ist oder keine
-     * Credential-Felder enthaelt (z. B. anderer Parent-Modultyp).
+     * Credential-Felder enthält (z. B. anderer Parent-Modultyp).
      *
      * @return array{UserName: string, Password: string}|null
      */
@@ -1443,7 +1443,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     }
 
     /**
-     * Best effort: prueft, ob eine Subscription des MQTT-Client-Parents das Base-Topic abdeckt.
+     * Best effort: prüft, ob eine Subscription des MQTT-Client-Parents das Base-Topic abdeckt.
      * Liefert true/false bei klarer Aussage, null wenn die Parent-Konfiguration nicht lesbar ist.
      */
     private function parentSubscriptionCoversBaseTopic(string $baseTopic): ?bool
@@ -1463,7 +1463,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return null;
         }
 
-        // Subscription-Topics aus allen Feldern sammeln, deren Schluessel "subscri" enthaelt.
+        // Subscription-Topics aus allen Feldern sammeln, deren Schlüssel "subscri" enthält.
         $subscriptions = [];
         foreach ($config as $key => $value) {
             if (stripos((string)$key, 'subscri') === false) {
@@ -1645,7 +1645,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         @ $this->UpdateFormField($name, $property, $value);
     }
 
-    // Attributwert lesen; bei leerem Wert den (vom Aufrufer bereits uebersetzten) Fallback liefern.
+    // Attributwert lesen; bei leerem Wert den (vom Aufrufer bereits übersetzten) Fallback liefern.
     // Der Translate()-Aufruf mit Literal bleibt bewusst beim Aufrufer (Locale-Check).
     private function attributeOrFallback(string $attribute, string $translatedFallback): string
     {
@@ -1654,7 +1654,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     }
 
     /**
-     * Datenbeschaffung fuer die Diagnose-Captions (Attribute, Properties, Parent-Kontext).
+     * Datenbeschaffung für die Diagnose-Captions (Attribute, Properties, Parent-Kontext).
      *
      * @return array{parentId: int, parentStatus: int, parentName: string, lastMqtt: string, baseTopic: string, lastRestError: string, lastRestResponse: string, lastRestTimeout: string}
      */

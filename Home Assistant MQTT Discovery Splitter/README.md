@@ -21,7 +21,7 @@ Transportknoten für Geräte oder Dienste, die Home Assistant MQTT Discovery per
 ## Voraussetzungen
 
 - Im Live-Betrieb: MQTT Client Instanz als Parent.
-- Wenn der Symcon MQTT Server als Broker genutzt wird, wird fuer den Discovery-Pfad trotzdem ein MQTT Client benoetigt. Dessen IO kann direkt auf den lokalen MQTT Server zeigen, z. B. `127.0.0.1:1028`.
+- Wenn der Symcon MQTT Server als Broker genutzt wird, wird für den Discovery-Pfad trotzdem ein MQTT Client benötigt. Dessen IO kann direkt auf den lokalen MQTT Server zeigen, z. B. `127.0.0.1:1028`.
 - Im Bundle-Modus: kein MQTT-Parent erforderlich.
 - Eine bestehende Home-Assistant-Installation ist nicht erforderlich.
 - Der MQTT Client muss im Live-Betrieb den Discovery-Prefix abonnieren, z. B. `homeassistant/#` oder `#`.
@@ -40,7 +40,7 @@ Transportknoten für Geräte oder Dienste, die Home Assistant MQTT Discovery per
 - `MQTTDiscoveryPrefix`: Prefix für MQTT-Discovery-Konfigurationen, typischerweise `homeassistant`.
 - `MQTTDiscoveryPrefix` ist kein MQTT-Filter mit Wildcards, sondern der literale Prefix der Discovery-Topics. Gültig ist daher typischerweise `homeassistant`, nicht `#`.
 - Wildcards wie `#` oder `+` gehören nur in die Subscription des MQTT-Clients, z. B. `homeassistant/#` oder `#`.
-- Wenn der Broker lokal als Symcon MQTT Server laeuft, kann der MQTT Client direkt auf diesen Broker verbunden werden, z. B. Host `127.0.0.1` und Port `1028`.
+- Wenn der Broker lokal als Symcon MQTT Server läuft, kann der MQTT Client direkt auf diesen Broker verbunden werden, z. B. Host `127.0.0.1` und Port `1028`.
 - `BundlePath`: Dateiname oder absoluter Pfad zum Discovery-Bundle. Relative Angaben werden gegen `<modulpath>/tests/fixtures` aufgelöst.
 - `BundleCurrentSessionOnly`: Lädt aus dem Bundle nur Discovery-Configs und Topic-Payloads der exportierten Session.
 - `ReplayTopicsOnApply`: Replayed im Bundle-Modus nach `ApplyChanges()` alle gecachten Runtime-Topics einmal an die Child-Instanzen.
@@ -89,7 +89,7 @@ Transportknoten für Geräte oder Dienste, die Home Assistant MQTT Discovery per
 2. Wenn Discovery-Topics trotz bestehender Broker-Verbindung nicht vollständig auftauchen: `MQTT-IO reconnecten` ausführen.
 3. Kurz warten, bis retained Discovery-Topics erneut eingelaufen sind und die Zähler im Formular plausibel aussehen.
 4. Danach den passenden Export ziehen:
-   - `Discovery-Bundle herunterladen`: kompletter Cache, inklusive aelterer Sessions.
+   - `Discovery-Bundle herunterladen`: kompletter Cache, inklusive älterer Sessions.
    - `Discovery-Bundle aktuelle Session herunterladen`: nur die aktuell per Reconnect oder Verbindungsaufbau gesehene Session.
 
 Empfohlene Verwendung:

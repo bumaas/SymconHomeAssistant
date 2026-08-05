@@ -104,7 +104,7 @@ Typische Module in diesem Pfad:
 ### Für MQTT Discovery
 
 - MQTT Client in Symcon
-- Wenn der Symcon MQTT Server als Broker genutzt wird, bleibt fuer den Discovery-Pfad trotzdem ein MQTT Client erforderlich. Der MQTT-Client kann dabei direkt auf den lokalen MQTT Server zeigen, z. B. `127.0.0.1:1028`.
+- Wenn der Symcon MQTT Server als Broker genutzt wird, bleibt für den Discovery-Pfad trotzdem ein MQTT Client erforderlich. Der MQTT-Client kann dabei direkt auf den lokalen MQTT Server zeigen, z. B. `127.0.0.1:1028`.
 - ein Gerät oder Dienst, das bzw. der Home Assistant MQTT Discovery an den Broker meldet
 - passende Subscription für die Discovery-Meldungen, typischerweise `homeassistant/#`
 - zusätzlich die MQTT-Topics des Geräts oder Dienstes, damit aktuelle Werte ankommen, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`
@@ -139,7 +139,7 @@ mqtt_statestream:
 ### 4.2 MQTT Discovery
 
 1. MQTT Client in Symcon einrichten.
-   Wenn der Broker als Symcon MQTT Server laeuft, kann der MQTT Client direkt auf diesen Server verbunden werden, z. B. per `127.0.0.1:1028`.
+   Wenn der Broker als Symcon MQTT Server läuft, kann der MQTT Client direkt auf diesen Server verbunden werden, z. B. per `127.0.0.1:1028`.
    Verlangt der Broker eine Anmeldung (z. B. Mosquitto in Home Assistant), Benutzername und Passwort in der MQTT-Client-Instanz eintragen.
 2. Subscription so setzen, dass mindestens `homeassistant/#` empfangen wird.
 3. Zusätzlich die Topics des Geräts oder Dienstes abonnieren, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
@@ -290,9 +290,9 @@ Ja. Die Modulgruppen sind absichtlich getrennt und können parallel genutzt werd
 
 ### Warum braucht MQTT Discovery einen MQTT Client und nicht nur den MQTT Server?
 
-Der MQTT-Discovery-Pfad baut seinen Discovery-Cache aus den retained `homeassistant/.../config` Topics auf. Dafuer braucht der Splitter einen abonnierenden MQTT Client als Parent, der die Discovery- und Runtime-Topics aktiv vom Broker empfaengt und bei einem Reconnect erneut als retained Replay bekommt. Genau darauf basiert auch die Funktion `MQTT-IO reconnecten`.
+Der MQTT-Discovery-Pfad baut seinen Discovery-Cache aus den retained `homeassistant/.../config` Topics auf. Dafür braucht der Splitter einen abonnierenden MQTT Client als Parent, der die Discovery- und Runtime-Topics aktiv vom Broker empfängt und bei einem Reconnect erneut als retained Replay bekommt. Genau darauf basiert auch die Funktion `MQTT-IO reconnecten`.
 
-Der Symcon MQTT Server kann dabei weiterhin der Broker sein. Fuer den Discovery-Pfad wird dann zusaetzlich ein MQTT Client verwendet, dessen IO direkt auf den lokalen MQTT Server zeigen kann, z. B. `127.0.0.1:1028`.
+Der Symcon MQTT Server kann dabei weiterhin der Broker sein. Für den Discovery-Pfad wird dann zusätzlich ein MQTT Client verwendet, dessen IO direkt auf den lokalen MQTT Server zeigen kann, z. B. `127.0.0.1:1028`.
 
 ### Spenden
 

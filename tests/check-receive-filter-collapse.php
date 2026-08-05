@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-// Prueft den geteilten Cluster-Kern (HADomainCatalog::clusterByCommonPrefix / longestCommonStringPrefix)
+// Prüft den geteilten Cluster-Kern (HADomainCatalog::clusterByCommonPrefix / longestCommonStringPrefix)
 // und die zwei Anwendungsformen:
 //  - Legacy (HADeviceCore): Gruppierung nach <base>/<domain>, Kollaps der Objekt-IDs, Kodierung "\\?\/".
-//  - Discovery (MQTT Discovery Device): generelles Praefix-Clustering ueber volle Topics, Kodierung "(?:\\/|/)".
+//  - Discovery (MQTT Discovery Device): generelles Präfix-Clustering über volle Topics, Kodierung "(?:\\/|/)".
 // Verifiziert Kollaps, Trennung mehrerer Namensfamilien, Matching inkl. escaped Slashes, Reject fremder
-// Geraete und den Fallback bei heterogenen Namen.
+// Geräte und den Fallback bei heterogenen Namen.
 
 require_once dirname(__DIR__) . '/libs/HADomainCatalog.php';
 
@@ -53,7 +53,7 @@ function legacyParts(array $topics): array
     return $parts;
 }
 
-// --- Discovery-Pfad: generelles Clustering ueber volle Topics, Kodierung "(?:\\/|/)" ---
+// --- Discovery-Pfad: generelles Clustering über volle Topics, Kodierung "(?:\\/|/)" ---
 function encodeDiscovery(string $topic): string
 {
     return str_replace('\/', '(?:\\\\/|/)', preg_quote($topic, '/'));
@@ -113,7 +113,7 @@ $check(count($lp) === 4, 'Legacy: 4 Parts (2 sensor-Cluster + update + event)');
 $check(rxMatch($lp, '', 'homeassistant/sensor/gast_gast_licht_fernbedienung_batteriespannung/last_updated'), 'Legacy match gast');
 $check(rxMatch($lp, '', 'homeassistant/sensor/bilresa_scroll_wheel_aktuelle_schalterstellung_9/state_class'), 'Legacy match bilresa');
 $check(rxMatch($lp, '', 'homeassistant\/event\/gast_gast_licht_fernbedienung_taste_2\/state'), 'Legacy match escaped slashes');
-$check(!rxMatch($lp, '', 'homeassistant/sensor/evcc_home_power/state'), 'Legacy reject fremdes Geraet');
+$check(!rxMatch($lp, '', 'homeassistant/sensor/evcc_home_power/state'), 'Legacy reject fremdes Gerät');
 $check(!rxMatch($lp, '', 'homeassistant/switch/other_relay/state'), 'Legacy reject fremde Domain');
 
 // ===== Discovery: volle Leaf-Topics eines Producers (carconnectivity) =====
@@ -129,7 +129,7 @@ echo "\nDiscovery parts: " . count($dp) . ' (von ' . count($discoveryTopics) . "
 foreach ($dp as $p) {
     echo '  | ' . $p . "\n";
 }
-// 4 carconnectivity-Topics teilen langen Praefix => 1 Cluster; homeassistant/foo => 1 Single => 2
+// 4 carconnectivity-Topics teilen langen Präfix => 1 Cluster; homeassistant/foo => 1 Single => 2
 $check(count($dp) === 2, 'Discovery: 2 Parts (carconnectivity-Cluster + foo-Single)');
 $check(rxMatch($dp, '?:', 'carconnectivity/0/garage/WVG/charging/state'), 'Discovery match state');
 $check(rxMatch($dp, '?:', 'carconnectivity/0/garage/WVG/climatization/state'), 'Discovery match climatization');
@@ -137,7 +137,7 @@ $check(rxMatch($dp, '?:', 'carconnectivity\/0\/garage\/WVG\/drive\/state'), 'Dis
 $check(rxMatch($dp, '?:', 'homeassistant/sensor/foo/state'), 'Discovery match Single');
 $check(!rxMatch($dp, '?:', 'carconnectivity/1/other/XYZ/state'), 'Discovery reject anderes Fahrzeug');
 
-// ===== Heterogen (kein gemeinsamer Praefix) -> Fallback Einzelauflistung =====
+// ===== Heterogen (kein gemeinsamer Präfix) -> Fallback Einzelauflistung =====
 $het = ['homeassistant/sensor/foo', 'homeassistant/sensor/bar'];
 $check(count(legacyParts($het)) === 2, 'Heterogen Legacy: 2 Einzel-Parts');
 $check(count(discoveryParts(['a/foo', 'a/bar'])) === 2, 'Heterogen Discovery: 2 Einzel-Parts');

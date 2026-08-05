@@ -70,9 +70,9 @@ trait HAIdentNamingTrait
 
         uasort($descriptors, static fn(array $left, array $right): int => strcmp($left['sort_key'], $right['sort_key']));
 
-        // Gemeinsamen object_id-Praefix je Geraet ermitteln (= HA-Geraete-Slug, z. B.
+        // Gemeinsamen object_id-Präfix je Gerät ermitteln (= HA-Geräte-Slug, z. B.
         // "milchstrasse_melcloudhome_650e_5ec4"). Dieser wird aus den entity_ids selbst
-        // abgeleitet und ist daher – anders als der veraenderliche device_name – stabil.
+        // abgeleitet und ist daher – anders als der veränderliche device_name – stabil.
         $deviceObjectIdPrefixes = $this->computeSharedDeviceObjectIdPrefixes($descriptors);
 
         // Pre-register all existing idents so new entities cannot claim those tokens.
@@ -107,20 +107,20 @@ trait HAIdentNamingTrait
             $stemCandidates = [];
 
             if ($localObjectId === '') {
-                // Primaere Entitaet (Geraete-Hauptzustand) -> domain_status, unveraendert.
+                // Primäre Entität (Geräte-Hauptzustand) -> domain_status, unverändert.
                 $stemCandidates[] = '';
             } else {
-                // Kurzform: object_id ohne den geraeteweiten Slug -> "sensor_room_temperature"
+                // Kurzform: object_id ohne den geräteweiten Slug -> "sensor_room_temperature"
                 // statt "sensor_<slug>_room_temperature".
                 $prefixStrippedStem = $this->stripSharedObjectIdPrefix(
                     $normalizedObjectId,
                     $deviceObjectIdPrefixes[$descriptor['device_key']] ?? ''
                 );
                 // Keine Migration des Bestands: Existiert bereits eine Variable mit dem langen
-                // Legacy-Ident, bleibt dieser erhalten. Nur wirklich neue Entitaeten (ohne Variable
+                // Legacy-Ident, bleibt dieser erhalten. Nur wirklich neue Entitäten (ohne Variable
                 // unter dem Legacy-Ident) erhalten die Kurzform. Idents wurden nie persistiert und
-                // bisher deterministisch aus der entity_id berechnet -> die Existenzpruefung ist die
-                // einzige verlaessliche "neu vs. bestehend"-Unterscheidung.
+                // bisher deterministisch aus der entity_id berechnet -> die Existenzprüfung ist die
+                // einzige verlässliche "neu vs. bestehend"-Unterscheidung.
                 $legacyIdent = $this->createSharedIdentAssignment($domain, $localObjectId, $isPrimary)['ident'];
                 if ($prefixStrippedStem !== '' && !$this->sharedManagedIdentExists($legacyIdent)) {
                     $stemCandidates[] = $prefixStrippedStem;
@@ -165,9 +165,9 @@ trait HAIdentNamingTrait
         return $assignments;
     }
 
-    // Prueft, ob in dieser Instanz bereits eine verwaltete Variable mit diesem Ident existiert.
-    // Schuetzt den Bestand vor Ident-Migration: nur fehlende (neue) Idents werden gekuerzt.
-    // Default ohne Symcon-Kontext (Tests): false. Im Modul ueber GetIDForIdent abgesichert.
+    // Prüft, ob in dieser Instanz bereits eine verwaltete Variable mit diesem Ident existiert.
+    // Schützt den Bestand vor Ident-Migration: nur fehlende (neue) Idents werden gekürzt.
+    // Default ohne Symcon-Kontext (Tests): false. Im Modul über GetIDForIdent abgesichert.
     protected function sharedManagedIdentExists(string $ident): bool
     {
         if ($ident === '' || !method_exists($this, 'GetIDForIdent')) {
@@ -177,8 +177,8 @@ trait HAIdentNamingTrait
         return @$this->GetIDForIdent($ident) !== false;
     }
 
-    // Geraete-Identitaet zum Gruppieren der object_ids. device_id ist stabil und HA-eindeutig;
-    // sonst device_name + device_model als Ersatz. Leer, wenn keine Geraetezuordnung vorliegt.
+    // Geräte-Identität zum Gruppieren der object_ids. device_id ist stabil und HA-eindeutig;
+    // sonst device_name + device_model als Ersatz. Leer, wenn keine Gerätezuordnung vorliegt.
     private function getSharedEntityDeviceKey(array $entity): string
     {
         $deviceId = trim((string)($entity['device_id'] ?? ''));
@@ -195,9 +195,9 @@ trait HAIdentNamingTrait
         return 'nm:' . $name . '|' . $model;
     }
 
-    // Pro Geraet den laengsten gemeinsamen object_id-Praefix (segmentweise an '_') ueber alle
-    // Entitaeten bilden. Nur Gruppen mit >=2 Entitaeten liefern einen Praefix; bei einer einzelnen
-    // Entitaet laesst sich der Geraete-Slug nicht vom Entitaets-Suffix trennen.
+    // Pro Gerät den längsten gemeinsamen object_id-Präfix (segmentweise an '_') über alle
+    // Entitäten bilden. Nur Gruppen mit >=2 Entitäten liefern einen Präfix; bei einer einzelnen
+    // Entität lässt sich der Geräte-Slug nicht vom Entitäts-Suffix trennen.
     private function computeSharedDeviceObjectIdPrefixes(array $descriptors): array
     {
         $segmentsByDevice = [];
@@ -241,8 +241,8 @@ trait HAIdentNamingTrait
         return $common;
     }
 
-    // Schneidet den geraeteweiten Praefix segmentscharf vom object_id ab. Liefert den
-    // entitaetsspezifischen Rest ('' wenn der object_id exakt dem Praefix entspricht).
+    // Schneidet den geräteweiten Präfix segmentscharf vom object_id ab. Liefert den
+    // entitätsspezifischen Rest ('' wenn der object_id exakt dem Präfix entspricht).
     private function stripSharedObjectIdPrefix(string $normalizedObjectId, string $prefix): string
     {
         if ($prefix === '' || $normalizedObjectId === '') {

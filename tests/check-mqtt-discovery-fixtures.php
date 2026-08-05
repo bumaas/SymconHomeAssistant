@@ -60,9 +60,9 @@ function findDefaultFixtures(): array
     }
 
     sort($paths);
-    // Beim automatischen Einsammeln nur echte Discovery-Bundles beruecksichtigen.
-    // Der fixtures-Ordner enthaelt auch andere Exporte (z. B. Entity/Device-Config-Bundles),
-    // die dieser Test nicht prueft. Explizit uebergebene Pfade werden weiterhin streng validiert.
+    // Beim automatischen Einsammeln nur echte Discovery-Bundles berücksichtigen.
+    // Der fixtures-Ordner enthält auch andere Exporte (z. B. Entity/Device-Config-Bundles),
+    // die dieser Test nicht prüft. Explizit übergebene Pfade werden weiterhin streng validiert.
     return array_values(array_filter(
         $paths,
         static fn(string $path): bool => is_file($path) && isDiscoveryBundleFile($path)
@@ -119,7 +119,7 @@ function analyzeFixture(string $fixturePath): array
     if ($bundleVersion === 2) {
         $referencedTopics = $bundle['referenced_topics'] ?? null;
         if (!is_array($referencedTopics)) {
-            $errors[] = 'referenced_topics fehlt oder ist fuer Version 2 kein Array.';
+            $errors[] = 'referenced_topics fehlt oder ist für Version 2 kein Array.';
         } else {
             foreach ($referencedTopics as $index => $topicEntry) {
                 if (!is_array($topicEntry)) {
@@ -136,7 +136,7 @@ function analyzeFixture(string $fixturePath): array
                     $errors[] = 'referenced_topics[' . $index . '] ohne topic.';
                 }
                 if (!in_array($status, ['current', 'stale', 'missing'], true)) {
-                    $errors[] = 'referenced_topics[' . $index . '] mit ungueltigem status.';
+                    $errors[] = 'referenced_topics[' . $index . '] mit ungültigem status.';
                 }
                 if ($primaryKind === null) {
                     $errors[] = 'referenced_topics[' . $index . '] ohne primary_kind.';
@@ -171,7 +171,7 @@ function analyzeFixture(string $fixturePath): array
         $topic = normalizeString($record['topic'] ?? null);
         $payload = $record['payload'] ?? null;
         if ($topic === null || !is_string($payload) || trim($payload) === '') {
-            $errors[] = 'Discovery-Record ohne gueltiges topic/payload bei Index ' . $index . '.';
+            $errors[] = 'Discovery-Record ohne gültiges topic/payload bei Index ' . $index . '.';
             continue;
         }
 
@@ -192,7 +192,7 @@ function analyzeFixture(string $fixturePath): array
         foreach ($parsedEntities as $parsed) {
             $uniqueId = (string)($parsed['unique_id'] ?? '');
             if ($uniqueId === '') {
-                $errors[] = 'Geparste Entity ohne unique_id fuer Topic ' . $topic . '.';
+                $errors[] = 'Geparste Entity ohne unique_id für Topic ' . $topic . '.';
                 continue;
             }
 
@@ -220,13 +220,13 @@ function analyzeFixture(string $fixturePath): array
     }
 
     if ($supportedEntryCount === 0) {
-        $errors[] = 'Keine Discovery-Configs fuer aktuell unterstuetzte Komponenten gefunden.';
+        $errors[] = 'Keine Discovery-Configs für aktuell unterstützte Komponenten gefunden.';
     }
     if ($supportedParseFailures !== []) {
-        $errors[] = 'Unterstuetzte Discovery-Configs konnten nicht geparst werden: ' . implode(', ', array_slice($supportedParseFailures, 0, 5));
+        $errors[] = 'Unterstützte Discovery-Configs konnten nicht geparst werden: ' . implode(', ', array_slice($supportedParseFailures, 0, 5));
     }
     if ($entities === []) {
-        $errors[] = 'Keine unterstuetzten Discovery-Entities geparst.';
+        $errors[] = 'Keine unterstützten Discovery-Entities geparst.';
     }
 
     $groups = $grouping->groupEntitiesToDevices(array_values($entities));
@@ -243,7 +243,7 @@ function analyzeFixture(string $fixturePath): array
     }
 
     if ($groupedEntityCount !== count($entities)) {
-        $errors[] = 'Gruppierung enthaelt nicht alle geparsten Entities.';
+        $errors[] = 'Gruppierung enthält nicht alle geparsten Entities.';
     }
 
     return [

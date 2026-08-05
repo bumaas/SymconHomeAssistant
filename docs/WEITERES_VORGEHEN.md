@@ -16,7 +16,7 @@ Diese Datei bündelt die nächsten fachlichen und technischen Arbeitspakete für
 3. Verifikation, Fixtures und kleine Prüfwerkzeuge weiter ausbauen
 4. Dokumentation und Migrationshinweise auf dem vereinheitlichten Stand halten
 
-## 3. Arbeitspaket A: MQTT Discovery v1 abschliessen
+## 3. Arbeitspaket A: MQTT Discovery v1 abschließen
 
 Kurzdefinition `v1`:
 
@@ -151,7 +151,7 @@ Geliefert:
 
 Verifiziert im Repo:
 
-- Formular, Locale und Modulcode des MQTT Discovery Splitters enthalten den Bundle-Modus einschliesslich Replay-Button und Session-Export.
+- Formular, Locale und Modulcode des MQTT Discovery Splitters enthalten den Bundle-Modus einschließlich Replay-Button und Session-Export.
 - Modul-README dokumentiert Bundle-Modus, Session-Export und die relevanten Properties.
 
 Offen/Nachlauf:
@@ -180,7 +180,7 @@ Bereits im Repo sichtbar:
 Noch offen:
 
 - Zigbee2MQTT-v1-Pfade mit echten Beispiel-Payloads absichern
-- Komplexere Climate-Mode-/Action-Templates bleiben mit der aktuellen Template-Reduktion noch ausserhalb des robusten Discovery-Kernpfads
+- Komplexere Climate-Mode-/Action-Templates bleiben mit der aktuellen Template-Reduktion noch außerhalb des robusten Discovery-Kernpfads
 - Bridge-Entities und Endgeräte klar voneinander trennen
 - Producer-spezifische Unterschiede ausschließlich in Parser, Template-Reduktion oder vorgeschalteter Normalisierung behandeln
 

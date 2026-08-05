@@ -19,7 +19,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private HAMqttDiscoveryGrouping $grouping;
 
     // Arbeitsspeicher-Cache der normalisierten Verarbeitungsstrukturen, damit ReceiveData nicht
-    // bei jeder MQTT-Message die komplette Geraetedefinition neu dekodiert/normalisiert.
+    // bei jeder MQTT-Message die komplette Gerätedefinition neu dekodiert/normalisiert.
     private ?array $runtimeProcessingContextCache = null;
     private bool $runtimeProcessingContextCacheHit = false;
 
@@ -470,11 +470,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     }
 
     /**
-     * Liefert die fuer die Message-Verarbeitung benoetigten, normalisierten Strukturen
+     * Liefert die für die Message-Verarbeitung benötigten, normalisierten Strukturen
      * (Entities, Lookup, Topic-Index). Diese werden im Arbeitsspeicher zwischengespeichert und nur
-     * neu aufgebaut, wenn sich die zugrundeliegenden Attribute aendern (Signatur ueber Roh-Strings).
-     * Das vermeidet das teure Dekodieren/Normalisieren der kompletten Geraetedefinition bei jeder
-     * eingehenden MQTT-Message. Der Cache wird zusaetzlich in ApplyChanges invalidiert.
+     * neu aufgebaut, wenn sich die zugrundeliegenden Attribute ändern (Signatur über Roh-Strings).
+     * Das vermeidet das teure Dekodieren/Normalisieren der kompletten Gerätedefinition bei jeder
+     * eingehenden MQTT-Message. Der Cache wird zusätzlich in ApplyChanges invalidiert.
      */
     private function getRuntimeProcessingContext(): array
     {
@@ -2865,10 +2865,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     }
 
     /**
-     * Fasst verwandte Topics ueber ihren gemeinsamen Praefix zusammen (geteilter Cluster-Kern in
+     * Fasst verwandte Topics über ihren gemeinsamen Präfix zusammen (geteilter Cluster-Kern in
      * HADomainCatalog), statt jedes Topic einzeln aufzulisten. Reduziert die Zahl der Regex-Alternativen,
-     * die der Kernel pro Nachricht je Kind-Instanz auswertet. Kollabierte Muster sind geringfuegig breiter;
-     * unkritisch, da ReceiveData nicht zugeordnete Topics ueber den Topic-Index ohnehin verwirft.
+     * die der Kernel pro Nachricht je Kind-Instanz auswertet. Kollabierte Muster sind geringfügig breiter;
+     * unkritisch, da ReceiveData nicht zugeordnete Topics über den Topic-Index ohnehin verwirft.
      *
      * @param string[] $topics
      * @return string[]

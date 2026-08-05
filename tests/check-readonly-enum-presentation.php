@@ -6,8 +6,8 @@ declare(strict_types=1);
  * Regression test for the presentation/action mismatch reported in the forum:
  * a read-only enum variable (e.g. climate hvac_action, fan current_direction)
  * must NOT receive an ENUMERATION presentation, which Symcon only allows for
- * variables WITH a Variablenaktion ("Diese Darstellung ist nur fuer Variablen
- * mit einer Variablenaktion verfuegbar"). Read-only enums use a VALUE_PRESENTATION
+ * variables WITH a Variablenaktion ("Diese Darstellung ist nur für Variablen
+ * mit einer Variablenaktion verfügbar"). Read-only enums use a VALUE_PRESENTATION
  * with options instead.
  *
  * The fix is domain-agnostic: buildOptionPresentation() picks the presentation by
@@ -111,11 +111,11 @@ function assertReadonlyEnum(string $label, array $presentation): ?string
 function assertWritableEnum(string $label, array $presentation): ?string
 {
     if (($presentation['PRESENTATION'] ?? null) !== VARIABLE_PRESENTATION_ENUMERATION) {
-        return $label . ': erwartete Aufzaehlung, bekam ' . var_export($presentation['PRESENTATION'] ?? null, true);
+        return $label . ': erwartete Aufzählung, bekam ' . var_export($presentation['PRESENTATION'] ?? null, true);
     }
     $keys = optionKeys($presentation);
     if (!in_array('Color', $keys, true) || in_array('ColorActive', $keys, true)) {
-        return $label . ': Optionsschema passt nicht zur Aufzaehlung (keys: ' . implode(',', $keys) . ').';
+        return $label . ': Optionsschema passt nicht zur Aufzählung (keys: ' . implode(',', $keys) . ').';
     }
     return null;
 }
@@ -160,7 +160,7 @@ function main(): int
         return 1;
     }
 
-    fwrite(STDOUT, "OK: read-only Enums -> Wertanzeige, beschreibbare Enums -> Aufzaehlung (climate, fan).\n");
+    fwrite(STDOUT, "OK: read-only Enums -> Wertanzeige, beschreibbare Enums -> Aufzählung (climate, fan).\n");
     return 0;
 }
 

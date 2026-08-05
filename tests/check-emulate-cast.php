@@ -49,7 +49,7 @@ $check('string from array=>null', castToVariableType([1, 2], VARIABLETYPE_STRING
 
 echo "\n";
 if ($fail === 0) {
-    echo "Alle Assertions gruen.\n";
+    echo "Alle Assertions grün.\n";
     exit(0);
 }
 printf("%d Assertion(en) fehlgeschlagen.\n", $fail);

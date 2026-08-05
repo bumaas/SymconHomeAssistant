@@ -395,7 +395,7 @@ trait HAPresentationTrait
         }
 
         if ($attribute === 'preset_mode') {
-            // current_direction ist read-only -> Wertanzeige; nur beschreibbare Attribute werden Aufzaehlung.
+            // current_direction ist read-only -> Wertanzeige; nur beschreibbare Attribute werden Aufzählung.
             $presentation = $this->buildOptionPresentation(
                 $attributes['preset_modes'] ?? null,
                 $this->isWritableFanAttribute($attribute, $attributes)
@@ -1229,7 +1229,7 @@ trait HAPresentationTrait
                 $optionsRaw[] = trim($current);
             }
             // hvac_action ist immer read-only ($isWritable === false) -> Wertanzeige mit Optionen,
-            // niemals Aufzaehlung (die braucht eine Variablenaktion).
+            // niemals Aufzählung (die braucht eine Variablenaktion).
             $presentation = $this->getClimateAttributeOptionPresentation($optionsRaw, $isWritable);
             if ($presentation !== null) {
                 return $presentation;
@@ -1264,13 +1264,13 @@ trait HAPresentationTrait
         );
     }
 
-    // Zentrale Optionsdarstellung fuer Auswahl-Attribute (alle Domains). Beschreibbare
-    // (aktionsfaehige) Variablen erhalten eine Aufzaehlung, read-only Variablen eine Wertanzeige
-    // mit Optionen. Andernfalls meldet Symcon "Diese Darstellung ist nur fuer Variablen mit einer
-    // Variablenaktion verfuegbar", weil Praesentation und fehlende Aktion nicht zusammenpassen.
-    // Die Optionsschemata unterscheiden sich: Aufzaehlung nutzt "Color", die Wertanzeige
-    // "ColorActive"/"ColorValue". Der optionale captionResolver erlaubt domaenenspezifische
-    // Beschriftungen (z. B. climate hvac_action -> "Heizen"/"Kuehlen").
+    // Zentrale Optionsdarstellung für Auswahl-Attribute (alle Domains). Beschreibbare
+    // (aktionsfähige) Variablen erhalten eine Aufzählung, read-only Variablen eine Wertanzeige
+    // mit Optionen. Andernfalls meldet Symcon "Diese Darstellung ist nur für Variablen mit einer
+    // Variablenaktion verfügbar", weil Präsentation und fehlende Aktion nicht zusammenpassen.
+    // Die Optionsschemata unterscheiden sich: Aufzählung nutzt "Color", die Wertanzeige
+    // "ColorActive"/"ColorValue". Der optionale captionResolver erlaubt domänenspezifische
+    // Beschriftungen (z. B. climate hvac_action -> "Heizen"/"Kühlen").
     protected function buildOptionPresentation(array|string|null $options, bool $writable, ?callable $captionResolver = null): ?array
     {
         $normalized = HASelectDefinitions::normalizeOptions($options);

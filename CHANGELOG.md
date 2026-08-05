@@ -29,13 +29,13 @@
 - Device/Entity: `climate`-Hauptwerte werden zentral fachlich aus Temperaturattributen abgeleitet, sodass textuelle HVAC-States wie `cool` oder `heat` die Solltemperatur nicht mehr auf `0` ziehen.
 
 ## Build 91 - 2026-05-25
-- MQTT Discovery Device: `lock`, `image` und `device_tracker` im klassischen Discovery-Pfad ergaenzt, inklusive identstabiler Namensbildung und passender Zusatzobjekte.
+- MQTT Discovery Device: `lock`, `image` und `device_tracker` im klassischen Discovery-Pfad ergänzt, inklusive identstabiler Namensbildung und passender Zusatzobjekte.
 - MQTT Discovery Device: Klima-Werte und `device_tracker`-Hauptzustand folgen wieder strikt dem MQTT-Statuspfad statt lokaler Ersatzwerte.
 - MQTT Discovery Splitter: stale Discovery-Configs werden in der Diagnose jetzt deutlich als Warnung markiert.
-- MQTT Discovery Splitter: binaere Topic-Payloads werden im Bundle als Base64 konserviert und beim Replay wiederhergestellt.
+- MQTT Discovery Splitter: binäre Topic-Payloads werden im Bundle als Base64 konserviert und beim Replay wiederhergestellt.
 
 ## Build 90 - 2026-05-23
-- Device: Attribut-Updates fuer `cover` und `valve` verwenden jetzt korrekt `void`-Updater und laufen nicht mehr in einen PHP-`TypeError` bei stateful attribute topics.
+- Device: Attribut-Updates für `cover` und `valve` verwenden jetzt korrekt `void`-Updater und laufen nicht mehr in einen PHP-`TypeError` bei stateful attribute topics.
 
 ## Build 66 - 2026-05-10
 - MQTT Discovery: Splitter, Configurator und Device als eigener Laufzeitpfad für homeassistant/.../config ergänzt.

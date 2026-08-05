@@ -35,12 +35,12 @@ function main(): int
         }
 
         if (($parsed['kind'] ?? null) !== 'json_path') {
-            fwrite(STDERR, "Unerwarteter Template-Typ fuer {$case['template']}\n");
+            fwrite(STDERR, "Unerwarteter Template-Typ für {$case['template']}\n");
             return 1;
         }
 
         if (($parsed['path'] ?? null) !== $case['expected']) {
-            fwrite(STDERR, "Unerwarteter Pfad fuer {$case['template']}: " . json_encode($parsed['path']) . "\n");
+            fwrite(STDERR, "Unerwarteter Pfad für {$case['template']}: " . json_encode($parsed['path']) . "\n");
             return 1;
         }
     }

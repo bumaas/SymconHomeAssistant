@@ -67,4 +67,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "OK: $($phpFiles.Count) PHP-Dateien ohne Syntaxfehler geprueft, Discovery-Fixtures, Light-Runtime-Checks und Runtime-Regressionen erfolgreich."
+Write-Host "OK: $($phpFiles.Count) PHP-Dateien ohne Syntaxfehler geprüft, Discovery-Fixtures, Light-Runtime-Checks und Runtime-Regressionen erfolgreich."

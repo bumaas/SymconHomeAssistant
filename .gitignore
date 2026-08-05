@@ -3,8 +3,8 @@ libs/icon-meta-data.js
 .junie/
 docs/MQTT_DISCOVERY_A3_TESTPLAN.md
 docs/WEITERES_VORGEHEN.md
-# tests/: alle Checks sind versioniert; Fixtures nur nach Einzelpruefung
-# (Bundles koennen private Geraetedaten wie IPs, Benutzer- und Ortsnamen enthalten)
+# tests/: alle Checks sind versioniert; Fixtures nur nach Einzelprüfung
+# (Bundles können private Gerätedaten wie IPs, Benutzer- und Ortsnamen enthalten)
 tests/*
 !tests/check-*.php
 !tests/check_locale.php
@@ -18,6 +18,6 @@ tests/fixtures/*
 !tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json
 !tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_stale_v2.json
 
-# Claude Code (persoenliche Dateien)
+# Claude Code (persönliche Dateien)
 CLAUDE.local.md
 .claude/settings.local.json

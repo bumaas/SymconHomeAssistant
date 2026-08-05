@@ -117,7 +117,7 @@ trait HAEntityStoreTrait
 
     // In-Memory-Spiegel des State-Caches: Das EntityStateCache-Attribut wird pro Prozess nur einmal
     // dekodiert und danach aus dem Speicher bedient. Geschrieben wird write-through (das Attribut bleibt
-    // konsistent, daher keine Flush-Punkte noetig), aber nur wenn sich der Inhalt tatsaechlich aendert.
+    // konsistent, daher keine Flush-Punkte nötig), aber nur wenn sich der Inhalt tatsächlich ändert.
     private ?array $entityStateCacheMemory = null;
     private ?string $entityStateCacheEncoded = null;
 

@@ -20,8 +20,8 @@ trait HAAttributeHandlersTrait
 
         // Hinweis: Universelle Bookkeeping-Attribute (last_updated/last_changed/attribution/icon, vgl.
         // HADomainCatalog::IGNORABLE_BOOKKEEPING_ATTRIBUTES) werden bereits im Splitter vor dem Broadcast
-        // verworfen und erreichen das Device im Normalbetrieb nicht. Eine erneute Pruefung hier waere
-        // redundant; unveraenderte Wiederholungen faengt ohnehin der Skip-if-unchanged in
+        // verworfen und erreichen das Device im Normalbetrieb nicht. Eine erneute Prüfung hier wäre
+        // redundant; unveränderte Wiederholungen fängt ohnehin der Skip-if-unchanged in
         // storeAttributeTopicValue ab.
 
         $currentDomain = $this->entities[$entityId]['domain'] ?? $domain;
@@ -584,10 +584,10 @@ trait HAAttributeHandlersTrait
 
     private function storeAttributeTopicValue(string $entityId, string $attribute, mixed $value, bool $refreshPresentation = true): void
     {
-        // Unveraenderte Attributwerte (haeufig bei wiederkehrenden Sensor-/Metadaten-Topics wie
+        // Unveränderte Attributwerte (häufig bei wiederkehrenden Sensor-/Metadaten-Topics wie
         // state_class, friendly_name oder event_types) nicht erneut speichern und vor allem keine teure
-        // Presentation-Synchronisation ausloesen. Verglichen wird gegen den State-Cache, da dieser den
-        // Rohwert haelt (die Entity-Attribute werden domainspezifisch gefiltert und sind kein zuverlaessiger
+        // Presentation-Synchronisation auslösen. Verglichen wird gegen den State-Cache, da dieser den
+        // Rohwert hält (die Entity-Attribute werden domainspezifisch gefiltert und sind kein zuverlässiger
         // Vergleichswert).
         $cachedAttributes = $this->getCachedEntityAttributes($entityId);
         if (array_key_exists($attribute, $cachedAttributes) && $cachedAttributes[$attribute] === $value) {

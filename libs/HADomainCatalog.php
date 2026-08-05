@@ -293,8 +293,8 @@ final class HADomainCatalog
      * Universelle HA-Attribut-Topics, die HA (z. B. via mqtt_statestream) als eigene Topics publiziert,
      * die das Device aber nicht verarbeitet: reine Bookkeeping-Zeitstempel (last_updated/last_changed/
      * last_reported), Quellenhinweis (attribution) und der HA-Icon-Hinweis (icon; die Darstellung kommt aus
-     * den IPS-Profilen/Domain-Definitionen, nicht aus dem HA-Icon). Sie werden nie zu IPS-Variablen, wuerden
-     * aber pro Message eine teure Presentation-Synchronisation ausloesen. Single Source of Truth fuer beide
+     * den IPS-Profilen/Domain-Definitionen, nicht aus dem HA-Icon). Sie werden nie zu IPS-Variablen, würden
+     * aber pro Message eine teure Presentation-Synchronisation auslösen. Single Source of Truth für beide
      * Splitter (die sie gar nicht erst an Kinder weiterreichen) und das Device (das sie verwirft).
      *
      * @var string[]
@@ -314,8 +314,8 @@ final class HADomainCatalog
     }
 
     /**
-     * Laengster gemeinsamer String-Praefix einer Liste. Basis fuer das Zusammenfassen verwandter
-     * Empfangsfilter-Topics in den Geraetemodulen.
+     * Längster gemeinsamer String-Präfix einer Liste. Basis für das Zusammenfassen verwandter
+     * Empfangsfilter-Topics in den Gerätemodulen.
      *
      * @param string[] $strings
      */
@@ -339,9 +339,9 @@ final class HADomainCatalog
     }
 
     /**
-     * Fasst bereits sortierte Namen in Cluster mit gemeinsamem Praefix (>= $minPrefix Zeichen) zusammen.
-     * So lassen sich K Einzeltopics im Empfangsfilter auf wenige kompakte Praefix-Muster reduzieren
-     * (geteilter Kern fuer beide Geraetepfade; die jeweilige Topic-Kodierung wenden die Module selbst an).
+     * Fasst bereits sortierte Namen in Cluster mit gemeinsamem Präfix (>= $minPrefix Zeichen) zusammen.
+     * So lassen sich K Einzeltopics im Empfangsfilter auf wenige kompakte Präfix-Muster reduzieren
+     * (geteilter Kern für beide Gerätepfade; die jeweilige Topic-Kodierung wenden die Module selbst an).
      *
      * @param string[] $names  alphabetisch sortiert
      * @return array<int, array{members: string[], prefix: string}>

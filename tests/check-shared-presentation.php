@@ -172,7 +172,7 @@ $check('binary_sensor (kein Icon)', $h->binarySensor('An', 'Aus', ''), [
 
 echo "\n";
 if ($fail === 0) {
-    echo "Alle Assertions gruen.\n";
+    echo "Alle Assertions grün.\n";
     exit(0);
 }
 printf("%d Assertion(en) fehlgeschlagen.\n", $fail);

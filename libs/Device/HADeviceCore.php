@@ -891,12 +891,12 @@ trait HADeviceCoreTrait
     }
 
     /**
-     * Baut die Regex-Alternativen fuer den Empfangsfilter. Statt pro Entity ein eigenes Voll-Topic zu
+     * Baut die Regex-Alternativen für den Empfangsfilter. Statt pro Entity ein eigenes Voll-Topic zu
      * listen (O(K) Alternativen, die der Kernel pro Nachricht je Kind-Instanz auswertet), werden Topics je
-     * "<base>/<domain>"-Gruppe zusammengefasst und ihr laengster gemeinsamer Namenspraefix faktorisiert.
-     * Bei geraetetypischen Slug-Namen (z. B. "marstek_venus_modbus_*") kollabiert eine ganze Domain damit
-     * auf EIN Muster. Der Filter wird dadurch geringfuegig breiter; das ist unkritisch, weil ReceiveData
-     * nicht zugeordnete Topics ohnehin verwirft. Heterogene Gruppen fallen auf die Einzelauflistung zurueck.
+     * "<base>/<domain>"-Gruppe zusammengefasst und ihr längster gemeinsamer Namenspräfix faktorisiert.
+     * Bei gerätetypischen Slug-Namen (z. B. "marstek_venus_modbus_*") kollabiert eine ganze Domain damit
+     * auf EIN Muster. Der Filter wird dadurch geringfügig breiter; das ist unkritisch, weil ReceiveData
+     * nicht zugeordnete Topics ohnehin verwirft. Heterogene Gruppen fallen auf die Einzelauflistung zurück.
      *
      * @param string[] $topics
      * @return string[]
@@ -942,7 +942,7 @@ trait HADeviceCoreTrait
 
     private function encodeReceiveFilterTopic(string $topic): string
     {
-        // Slashes muessen im JSON sowohl als "/" als auch escaped als "\/" matchen koennen.
+        // Slashes müssen im JSON sowohl als "/" als auch escaped als "\/" matchen können.
         return str_replace('\/', '\\\\?\/', preg_quote($topic, '/'));
     }
 

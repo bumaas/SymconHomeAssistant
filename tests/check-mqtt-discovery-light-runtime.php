@@ -110,7 +110,7 @@ function loadBundle(string $fixturePath): array
 
     $bundle = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($bundle)) {
-        throw new RuntimeException('Fixture-Datei ist kein gueltiges JSON-Objekt.');
+        throw new RuntimeException('Fixture-Datei ist kein gültiges JSON-Objekt.');
     }
 
     return $bundle;
@@ -201,45 +201,45 @@ function assertParsedLightMetadata(array $lightEntities, array $rawLightConfigs)
     foreach ($lightEntities as $entity) {
         $uniqueId = (string)($entity['unique_id'] ?? '');
         if ($uniqueId === '' || !isset($rawLightConfigs[$uniqueId])) {
-            throw new RuntimeException('Raw-Light-Config fuer UniqueID fehlt: ' . $uniqueId);
+            throw new RuntimeException('Raw-Light-Config für UniqueID fehlt: ' . $uniqueId);
         }
 
         $config = $rawLightConfigs[$uniqueId];
         $state = $entity['state'] ?? [];
         if (!is_array($state)) {
-            throw new RuntimeException('State-Struktur fehlt fuer Light ' . $uniqueId);
+            throw new RuntimeException('State-Struktur fehlt für Light ' . $uniqueId);
         }
 
         assertSameValue(
             normalizeString($config['schema'] ?? null),
             normalizeString($state['schema'] ?? null),
-            'schema mismatch fuer ' . $uniqueId
+            'schema mismatch für ' . $uniqueId
         );
         assertSameValue(
             (bool)($config['brightness'] ?? false),
             (bool)($state['brightness'] ?? false),
-            'brightness mismatch fuer ' . $uniqueId
+            'brightness mismatch für ' . $uniqueId
         );
         assertSameValue(
             is_numeric($config['brightness_scale'] ?? null) ? (int)$config['brightness_scale'] : null,
             is_numeric($state['brightness_scale'] ?? null) ? (int)$state['brightness_scale'] : null,
-            'brightness_scale mismatch fuer ' . $uniqueId
+            'brightness_scale mismatch für ' . $uniqueId
         );
         assertSameValue(
             normalizeOptions($config['supported_color_modes'] ?? null),
             normalizeOptions($state['supported_color_modes'] ?? null),
-            'supported_color_modes mismatch fuer ' . $uniqueId
+            'supported_color_modes mismatch für ' . $uniqueId
         );
         assertSameValue(
             normalizeOptions($config['effect_list'] ?? null),
             normalizeOptions($state['effect_list'] ?? null),
-            'effect_list mismatch fuer ' . $uniqueId
+            'effect_list mismatch für ' . $uniqueId
         );
 
         if (normalizeOptions($config['effect_list'] ?? null) !== []) {
             $supportedFeatures = (int)($state['supported_features'] ?? 0);
             if (($supportedFeatures & 4) === 0) {
-                throw new RuntimeException('supported_features enthaelt kein Effect-Bit fuer ' . $uniqueId);
+                throw new RuntimeException('supported_features enthält kein Effect-Bit für ' . $uniqueId);
             }
         }
     }
@@ -250,14 +250,14 @@ function assertGroupedLightMetadata(array $lightEntities, array $groupedLightRow
     foreach ($lightEntities as $entity) {
         $entityKey = (string)($entity['unique_id'] ?? '');
         if ($entityKey === '' || !isset($groupedLightRows[$entityKey])) {
-            throw new RuntimeException('Grouped-Light-Row fehlt fuer ' . $entityKey);
+            throw new RuntimeException('Grouped-Light-Row fehlt für ' . $entityKey);
         }
 
         $row = $groupedLightRows[$entityKey];
         $metadata = $row['metadata'] ?? [];
         $state = $entity['state'] ?? [];
         if (!is_array($metadata) || !is_array($state)) {
-            throw new RuntimeException('Metadaten fehlen fuer ' . $entityKey);
+            throw new RuntimeException('Metadaten fehlen für ' . $entityKey);
         }
 
         foreach ([
@@ -269,18 +269,18 @@ function assertGroupedLightMetadata(array $lightEntities, array $groupedLightRow
             'max_color_temp_kelvin',
             'schema'
         ] as $field) {
-            assertSameValue($state[$field] ?? null, $metadata[$field] ?? null, $field . ' mismatch fuer ' . $entityKey);
+            assertSameValue($state[$field] ?? null, $metadata[$field] ?? null, $field . ' mismatch für ' . $entityKey);
         }
 
         assertSameValue(
             normalizeOptions($state['supported_color_modes'] ?? null),
             normalizeOptions($metadata['supported_color_modes'] ?? null),
-            'grouped supported_color_modes mismatch fuer ' . $entityKey
+            'grouped supported_color_modes mismatch für ' . $entityKey
         );
         assertSameValue(
             normalizeOptions($state['effect_list'] ?? null),
             normalizeOptions($metadata['effect_list'] ?? null),
-            'grouped effect_list mismatch fuer ' . $entityKey
+            'grouped effect_list mismatch für ' . $entityKey
         );
     }
 }
@@ -300,7 +300,7 @@ function assertRuntimeStateSamples(array $lightEntities, array $topicPayloads): 
         }
 
         $actual = HAMqttDiscoveryLightRuntime::extractStateValue($decoded);
-        assertSameValue($decoded['state'], $actual, 'Runtime-State-Extraktion mismatch fuer Topic ' . $stateTopic);
+        assertSameValue($decoded['state'], $actual, 'Runtime-State-Extraktion mismatch für Topic ' . $stateTopic);
         $samples++;
     }
 
@@ -331,12 +331,12 @@ function assertRuntimeAttributeSamples(array $lightEntities, array $topicPayload
         }
 
         if (array_key_exists('brightness', $decoded)) {
-            assertSameValue((int) $decoded['brightness'], $attributes['brightness'] ?? null, 'brightness mismatch fuer Topic ' . $stateTopic);
+            assertSameValue((int) $decoded['brightness'], $attributes['brightness'] ?? null, 'brightness mismatch für Topic ' . $stateTopic);
             $brightnessSamples++;
         }
 
         if (array_key_exists('color_temp', $decoded)) {
-            assertSameValue((int) $decoded['color_temp'], $attributes['color_temp'] ?? null, 'color_temp mismatch fuer Topic ' . $stateTopic);
+            assertSameValue((int) $decoded['color_temp'], $attributes['color_temp'] ?? null, 'color_temp mismatch für Topic ' . $stateTopic);
             $colorTempSamples++;
         }
 
@@ -344,7 +344,7 @@ function assertRuntimeAttributeSamples(array $lightEntities, array $topicPayload
             assertSameValue(
                 [(float) $decoded['color']['x'], (float) $decoded['color']['y']],
                 $attributes['xy_color'] ?? null,
-                'xy_color mismatch fuer Topic ' . $stateTopic
+                'xy_color mismatch für Topic ' . $stateTopic
             );
             $xySamples++;
         }
@@ -353,7 +353,7 @@ function assertRuntimeAttributeSamples(array $lightEntities, array $topicPayload
     }
 
     if ($samples === 0 || $brightnessSamples === 0 || $colorTempSamples === 0 || $xySamples === 0) {
-        throw new RuntimeException('Light-Attributsamples sind unvollstaendig.');
+        throw new RuntimeException('Light-Attributsamples sind unvollständig.');
     }
 
     return $samples;
@@ -370,11 +370,11 @@ function assertCommandPayloads(): void
         [0, '{"state":"OFF"}']
     ] as [$input, $expected]) {
         $actual = HAMqttDiscoveryLightRuntime::buildCommandPayload($input);
-        assertSameValue($expected, $actual, 'Command-Payload mismatch fuer Input ' . var_export($input, true));
+        assertSameValue($expected, $actual, 'Command-Payload mismatch für Input ' . var_export($input, true));
     }
 
     if (HAMqttDiscoveryLightRuntime::buildCommandPayload('maybe') !== null) {
-        throw new RuntimeException('Ungueltiger Light-Command wurde nicht verworfen.');
+        throw new RuntimeException('Ungültiger Light-Command wurde nicht verworfen.');
     }
 }
 
