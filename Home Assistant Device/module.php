@@ -103,6 +103,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterPropertyString(self::PROP_BUNDLE_PATH, '');
 
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HA_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
+        $this->registerDeferredApplyTimer();
     }
 
 
@@ -111,9 +112,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
+        // ApplyChanges nicht direkt im Nachrichten-Kontext ausführen: Beim KR_READY-Broadcast
+        // laufen sonst alle Instanzen im selben Insight-Trace über den Splitter, dessen
+        // Schleifenschutz die Weiterleitung nach ~120 Einträgen abbricht.
         if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
-            $this->debugExpert('MessageSink', 'Kernel bereit. Aktualisiere...');
-            $this->ApplyChanges();
+            $this->debugExpert('MessageSink', 'Kernel bereit. Aktualisierung geplant...');
+            $this->scheduleDeferredApply();
             return;
         }
 
@@ -123,8 +127,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         // Wenn sich die Verbindung ändert, ist die Konfiguration neu zu laden.
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
-            $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisiere...');
-            $this->ApplyChanges();
+            $this->debugExpert('MessageSink', 'Verbindungsstatus geändert. Aktualisierung geplant...');
+            $this->scheduleDeferredApply();
         }
     }
 
@@ -178,6 +182,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
         } else {
             $configData = $this->resolveDeviceConfigByDeviceId($deviceId);
+            if ($configData === null) {
+                // Abfrage fehlgeschlagen (Parent/REST nicht verfügbar): Befund unbekannt,
+                // bestehende Konfiguration und Status nicht verwerfen.
+                $this->debugExpert(__FUNCTION__, 'Entitäten-Abfrage fehlgeschlagen. Bestehende Konfiguration bleibt erhalten.', ['DeviceID' => $deviceId], true);
+                return;
+            }
             if ($configData === []) {
                 $this->SetSummary($deviceId);
                 $this->failResolvedConfig(self::STATUS_DEVICE_NOT_FOUND, __FUNCTION__, 'Gerät nicht in Home Assistant gefunden', ['DeviceID' => $deviceId]);
@@ -318,6 +328,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
+
+        if ($this->handleDeferredApplyAction($Ident)) {
+            return;
+        }
 
         if ($Ident === 'UpdateEntityActive') {
             $this->applyEntityActiveChange($Value);
@@ -674,10 +688,17 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
     }
 
-    private function resolveDeviceConfigByDeviceId(string $deviceId): array
+    /**
+     * @return array|null aufgelöste Konfiguration; [] wenn das Gerät keine Entitäten hat,
+     *                    null wenn die Abfrage fehlschlug (Parent/REST nicht verfügbar).
+     */
+    private function resolveDeviceConfigByDeviceId(string $deviceId): ?array
     {
         $rawEntities = $this->fetchEntitiesByDeviceId($deviceId);
-        if (!is_array($rawEntities) || $rawEntities === []) {
+        if ($rawEntities === null) {
+            return null;
+        }
+        if ($rawEntities === []) {
             return [];
         }
 

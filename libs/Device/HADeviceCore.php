@@ -406,12 +406,44 @@ trait HADeviceCoreTrait
 
         return $result;
     }
+    /**
+     * Registriert den Einmal-Timer, der ApplyChanges aus Nachrichten-Kontexten
+     * (KR_READY, Parent-Statuswechsel) in einen eigenen Thread entkoppelt.
+     */
+    protected function registerDeferredApplyTimer(): void
+    {
+        $this->RegisterTimer(
+            self::TIMER_DEFERRED_APPLY,
+            0,
+            'IPS_RequestAction($_IPS["TARGET"], "' . self::ACTION_DEFERRED_APPLY . '", "");'
+        );
+    }
+
+    protected function scheduleDeferredApply(): void
+    {
+        $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::DEFERRED_APPLY_DELAY_MS);
+    }
+
+    protected function handleDeferredApplyAction(string $Ident): bool
+    {
+        if ($Ident !== self::ACTION_DEFERRED_APPLY) {
+            return false;
+        }
+        $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, 0);
+        $this->ApplyChanges();
+        return true;
+    }
+
     public function RequestAction($Ident, $Value): void
     {
         if (method_exists($this, 'isModuleRuntimeReady') && !$this->isModuleRuntimeReady()) {
             return;
         }
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
+
+        if ($this->handleDeferredApplyAction((string)$Ident)) {
+            return;
+        }
 
         if ($this->handleDirectDomainActions($Ident, $Value)) {
             return;

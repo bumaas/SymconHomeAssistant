@@ -37,6 +37,12 @@ trait HARestParentClientTrait
         ], JSON_THROW_ON_ERROR);
 
         $responseJson = $this->SendDataToParent($payload);
+        // SendDataToParent liefert false, wenn der Kernel die Weiterleitung abbricht
+        // (z. B. Insight-Schleifenschutz beim Start) — dann kein String.
+        if (!is_string($responseJson)) {
+            $this->debugExpert('REST', 'Send to parent failed (kernel aborted request)');
+            return null;
+        }
         if ($responseJson === '') {
             $this->debugExpert('REST', 'Empty response from parent');
             return null;

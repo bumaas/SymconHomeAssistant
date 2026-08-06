@@ -206,21 +206,26 @@ EOT;
         return $entities;
     }
 
-    private function resolveRawEntityByEntityId(string $entityId): ?array
+    /**
+     * @return array|false|null Entity-Rohdaten; false, wenn die Entity in Home Assistant
+     *                          nicht existiert; null, wenn die Abfrage fehlschlug (Parent/
+     *                          REST nicht verfügbar) und der Befund daher unbekannt ist.
+     */
+    private function resolveRawEntityByEntityId(string $entityId): array|false|null
     {
         if ($entityId === '') {
-            return null;
+            return false;
         }
 
         $entities = $this->fetchEntitiesByIds([$entityId]);
-        if (!is_array($entities) || $entities === []) {
+        if ($entities === null) {
             return null;
         }
 
         return array_find(
             $entities,
             static fn(mixed $entity): bool => is_array($entity) && (($entity['entity_id'] ?? '') === $entityId)
-        );
+        ) ?? false;
     }
 
     private function renderHATemplate(string $template): ?array

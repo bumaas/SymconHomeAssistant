@@ -89,13 +89,16 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterAttributeString('EntityStateCache', '{}');
 
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HAE_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
+        $this->registerDeferredApplyTimer();
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
+        // ApplyChanges nicht direkt im Nachrichten-Kontext ausführen (Insight-Schleifenschutz,
+        // siehe HomeAssistantDevice::MessageSink).
         if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
-            $this->debugExpert(__FUNCTION__, 'Kernel bereit. Aktualisiere...');
-            $this->ApplyChanges();
+            $this->debugExpert(__FUNCTION__, 'Kernel bereit. Aktualisierung geplant...');
+            $this->scheduleDeferredApply();
             return;
         }
 
@@ -104,8 +107,8 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         }
 
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT || $Message === IM_CHANGESTATUS) {
-            $this->debugExpert(__FUNCTION__, 'Verbindungsstatus geändert. Aktualisiere...');
-            $this->ApplyChanges();
+            $this->debugExpert(__FUNCTION__, 'Verbindungsstatus geändert. Aktualisierung geplant...');
+            $this->scheduleDeferredApply();
         }
     }
 
@@ -158,6 +161,12 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
         $raw = $this->resolveRawEntityByEntityId($entityId);
         if ($raw === null) {
+            // Abfrage fehlgeschlagen (Parent/REST nicht verfügbar): Befund unbekannt,
+            // bestehende Konfiguration und Status nicht verwerfen.
+            $this->debugExpert(__FUNCTION__, 'Entity-Abfrage fehlgeschlagen. Bestehende Konfiguration bleibt erhalten.', ['EntityID' => $entityId], true);
+            return;
+        }
+        if ($raw === false) {
             $this->failResolvedEntity(self::STATUS_ENTITY_NOT_FOUND, $entityId, 'Entity nicht in Home Assistant gefunden');
             return;
         }

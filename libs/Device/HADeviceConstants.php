@@ -27,6 +27,9 @@ interface HADeviceConstants
     public const string TIMER_MEDIA_PLAYER_PROGRESS = 'MediaPlayerProgressTimer';
     public const string BUFFER_MEDIA_PLAYER_PROGRESS_DEBUG = 'MediaPlayerProgressDebug';
     public const int MEDIA_PLAYER_PROGRESS_DEBUG_INTERVAL = 10;
+    public const string TIMER_DEFERRED_APPLY = 'DeferredApplyTimer';
+    public const string ACTION_DEFERRED_APPLY = 'DeferredApply';
+    public const int DEFERRED_APPLY_DELAY_MS = 100;
 
     public const string PROP_DEVICE_AREA = 'DeviceArea';
     public const string PROP_DEVICE_NAME = 'DeviceName';
