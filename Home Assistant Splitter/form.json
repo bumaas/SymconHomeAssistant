@@ -53,6 +53,17 @@
           "caption": "Enable performance timing (debug channel 'Performance')"
         },
         {
+          "type": "NumberSpinner",
+          "name": "PerformanceSlowThresholdMs",
+          "caption": "Performance outlier threshold (ms, 0 = off)",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        {
+          "type": "Label",
+          "caption": "With performance timing enabled, outliers above the threshold and periodic window summaries are written to the Symcon log (no debug window needed)."
+        },
+        {
           "type": "CheckBox",
           "name": "EnableTopicStatistics",
           "caption": "Enable topic statistics (debug channel 'TopicStats')"
@@ -60,7 +71,7 @@
         {
           "type": "NumberSpinner",
           "name": "TopicStatisticsIntervalMinutes",
-          "caption": "Topic statistics interval (minutes)",
+          "caption": "Statistics interval (minutes)",
           "minimum": 1,
           "maximum": 1440
         },

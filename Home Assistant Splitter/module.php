@@ -49,6 +49,29 @@ class HomeAssistantSplitter extends IPSModuleStrict
     // Domäne) schreibt statt JSON zu (de)serialisieren.
     private const string BUFFER_SEEN_DOMAINS = 'SeenDomains';
 
+    // Performance-Dauermessung (gated über EnablePerformanceLog): aggregiert die Samples je Scope in
+    // einem Fenster (count/sum/max/slow) und schreibt periodisch eine Zusammenfassung ins Symcon-Log —
+    // im Gegensatz zum SendDebug-Kanal auch ohne offenes Debugfenster über Stunden auswertbar.
+    // Zustand MUSS in Buffern liegen: ReceiveData (Messen) und der Timer (Dump) laufen in getrennten
+    // PHP-Ausführungen, Member-Variablen überleben das nicht.
+    private const string TIMER_PERF_STATS        = 'PerfStatsTimer';
+    private const string BUFFER_PERF_STATS       = 'PerfStatsBuffer';
+    private const string BUFFER_PERF_STATS_START = 'PerfStatsWindowStart';
+
+    // Ausreißer oberhalb PerformanceSlowThresholdMs landen sofort im Symcon-Log, aber gedrosselt
+    // (max. eine Zeile pro Intervall), damit ein Lastgewitter das Log nicht flutet; unterdrückte
+    // Ausreißer bleiben über slowCount in der Fensterstatistik sichtbar. Nur die Gesamt-Scopes werden
+    // geschwellt — ownWork/sendToChildren stecken als Aufschlüsselung im Kontext des total-Samples.
+    private const string BUFFER_PERF_SLOW_LOG_TS  = 'PerfSlowLogEpoch';
+    private const int PERF_SLOW_LOG_THROTTLE_SEC  = 10;
+    private const array PERF_SLOW_LOG_SCOPES      = ['ReceiveData.total', 'Upstream.eventDelta'];
+
+    // Upstream-Delta: Event-State-Payloads tragen die HA-Ereigniszeit; das Delta zur Empfangszeit misst
+    // die gesamte Strecke HA → Broker → MQTT-Client → Splitter inklusive der Wartezeit vor diesem
+    // ReceiveData-Aufruf (die In-Handler-Messung allein kann diese Queue-Wartezeit nicht sehen).
+    // Größere Deltas sind Retained-Replays nach Reconnect und keine Latenz.
+    private const int PERF_UPSTREAM_MAX_DELTA_SEC = 60;
+
     // Reine Zuordnung HA-Domäne => Definitions-Klasse für buildRestServicePayload().
     // Die input_*-Helfer-Domänen teilen sich den Service-Aufbau mit ihrer Basis-Domäne.
     private const array DOMAIN_DEFINITION_MAP = [
@@ -89,6 +112,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterPropertyInteger('RestAckTimeoutSec', 5);
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
         $this->RegisterPropertyBoolean('EnablePerformanceLog', false);
+        $this->RegisterPropertyInteger('PerformanceSlowThresholdMs', 100);
         $this->RegisterPropertyBoolean('EnableTopicStatistics', false);
         $this->RegisterPropertyInteger('TopicStatisticsIntervalMinutes', 15);
         $this->RegisterPropertyString('DebugResponseFormat', 'json_compact');
@@ -103,6 +127,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
         $this->RegisterTimer(self::TIMER_RESTACK, 0, 'HA_CheckRestAcks($_IPS["TARGET"]);');
         $this->RegisterTimer(self::TIMER_TOPIC_STATS, 0, 'HA_DumpTopicStatistics($_IPS["TARGET"]);');
+        $this->RegisterTimer(self::TIMER_PERF_STATS, 0, 'HA_DumpPerformanceStatistics($_IPS["TARGET"]);');
         $this->RegisterTimer(self::TIMER_DIAGNOSTICS_REFRESH, 0, 'HA_RefreshDiagnostics($_IPS["TARGET"]);');
     }
 
@@ -160,6 +185,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->SetReceiveDataFilter('.*');
 
         $this->applyTopicStatisticsConfiguration();
+        $this->applyPerformanceStatisticsConfiguration();
         $this->updateLastMqttMessageLabel();
         $this->updateDiagnosticsLabels();
         $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
@@ -288,14 +314,19 @@ class HomeAssistantSplitter extends IPSModuleStrict
             if ($entityId !== '') {
                 $this->clearPendingRestAck($entityId);
             }
-            $this->logPerformanceSample('ReceiveData.ownWork', $stepStartedAt, ['topic' => $topic]);
+            $this->recordUpstreamEventDelta($topic, (string)($data['Payload'] ?? ''));
+            $ownWorkMs = $this->logPerformanceSample('ReceiveData.ownWork', $stepStartedAt, ['topic' => $topic]);
 
             $data['DataID'] = HAIds::DATA_SPLITTER_TO_DEVICE;
             $stepStartedAt = microtime(true);
             $this->SendDataToChildren(json_encode($data, JSON_THROW_ON_ERROR));
-            $this->logPerformanceSample('ReceiveData.sendToChildren', $stepStartedAt, ['topic' => $topic]);
+            $sendToChildrenMs = $this->logPerformanceSample('ReceiveData.sendToChildren', $stepStartedAt, ['topic' => $topic]);
 
-            $this->logPerformanceSample('ReceiveData.total', $messageStartedAt, ['topic' => $topic]);
+            $this->logPerformanceSample('ReceiveData.total', $messageStartedAt, [
+                'topic'             => $topic,
+                'ownWork_ms'        => $ownWorkMs,
+                'sendToChildren_ms' => $sendToChildrenMs,
+            ]);
             return '';
         }
 
@@ -334,14 +365,175 @@ class HomeAssistantSplitter extends IPSModuleStrict
         return (bool)@$this->ReadPropertyBoolean('EnablePerformanceLog');
     }
 
-    private function logPerformanceSample(string $scope, float $startedAt, array $context = []): void
+    // Liefert die gemessene Dauer (ms) zurück, damit Aufrufer Teilschritte in den Kontext des
+    // Gesamt-Samples aufnehmen können (Aufschlüsselung in der Ausreißer-Logzeile).
+    private function logPerformanceSample(string $scope, float $startedAt, array $context = []): float
+    {
+        if (!$this->isPerformanceLogEnabled()) {
+            return 0.0;
+        }
+
+        $elapsedMs = round((microtime(true) - $startedAt) * 1000.0, 3);
+        $context = ['elapsed_ms' => $elapsedMs] + $context;
+        $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
+        $this->recordPerformanceSample($scope, $elapsedMs, $context);
+        return $elapsedMs;
+    }
+
+    private function applyPerformanceStatisticsConfiguration(): void
+    {
+        $enabled = $this->isPerformanceLogEnabled();
+        // Fenster bei jedem ApplyChanges neu starten und Aggregation leeren.
+        $this->SetBuffer(self::BUFFER_PERF_STATS, '');
+        $this->SetBuffer(self::BUFFER_PERF_STATS_START, $enabled ? (string)time() : '');
+
+        if (!$enabled) {
+            $this->SetTimerInterval(self::TIMER_PERF_STATS, 0);
+            return;
+        }
+
+        $minutes = max(1, (int)@$this->ReadPropertyInteger('TopicStatisticsIntervalMinutes'));
+        $this->SetTimerInterval(self::TIMER_PERF_STATS, $minutes * 60 * 1000);
+    }
+
+    private function recordPerformanceSample(string $scope, float $elapsedMs, array $context): void
+    {
+        // Fensterstart faul setzen, falls ApplyChanges ihn (noch) nicht gesetzt hat.
+        if ($this->GetBuffer(self::BUFFER_PERF_STATS_START) === '') {
+            $this->SetBuffer(self::BUFFER_PERF_STATS_START, (string)time());
+        }
+
+        $stats = $this->loadPerformanceStats();
+        $entry = $stats[$scope] ?? ['count' => 0, 'sumMs' => 0.0, 'maxMs' => 0.0, 'maxAt' => 0, 'maxTopic' => '', 'slowCount' => 0];
+        $entry['count']++;
+        $entry['sumMs'] += $elapsedMs;
+        if ($elapsedMs > (float)$entry['maxMs']) {
+            $entry['maxMs'] = $elapsedMs;
+            $entry['maxAt'] = time();
+            $entry['maxTopic'] = (string)($context['topic'] ?? '');
+        }
+
+        $thresholdMs = (int)@$this->ReadPropertyInteger('PerformanceSlowThresholdMs');
+        if ($thresholdMs > 0 && $elapsedMs >= $thresholdMs && in_array($scope, self::PERF_SLOW_LOG_SCOPES, true)) {
+            $entry['slowCount']++;
+            $this->logSlowPerformanceSample($scope, $context);
+        }
+
+        $stats[$scope] = $entry;
+        $this->SetBuffer(self::BUFFER_PERF_STATS, json_encode($stats, JSON_THROW_ON_ERROR));
+    }
+
+    private function loadPerformanceStats(): array
+    {
+        $raw = $this->GetBuffer(self::BUFFER_PERF_STATS);
+        if ($raw === '') {
+            return [];
+        }
+        try {
+            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    // Ausreißer sofort und persistent ins Symcon-Log — gedrosselt, damit ein Lastgewitter das Log
+    // nicht flutet (unterdrückte Ausreißer bleiben über slowCount in der Fensterstatistik sichtbar).
+    private function logSlowPerformanceSample(string $scope, array $context): void
+    {
+        $now = time();
+        $last = (int)$this->GetBuffer(self::BUFFER_PERF_SLOW_LOG_TS);
+        if ($last > 0 && ($now - $last) < self::PERF_SLOW_LOG_THROTTLE_SEC) {
+            return;
+        }
+        $this->SetBuffer(self::BUFFER_PERF_SLOW_LOG_TS, (string)$now);
+        $this->LogMessage(
+            sprintf('Performance-Ausreißer %s | %s', $scope, json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+            KL_WARNING
+        );
+    }
+
+    // Event-State-Payloads tragen die HA-Ereigniszeit; Details siehe PERF_UPSTREAM_MAX_DELTA_SEC.
+    private function recordUpstreamEventDelta(string $topic, string $payloadHex): void
     {
         if (!$this->isPerformanceLogEnabled()) {
             return;
         }
 
-        $context = ['elapsed_ms' => round((microtime(true) - $startedAt) * 1000.0, 3)] + $context;
-        $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
+        $t = trim($topic, '/');
+        $base = trim($this->ReadPropertyString('MQTTBaseTopic'), '/');
+        if ($base !== '') {
+            if (!str_starts_with($t, $base . '/')) {
+                return;
+            }
+            $t = substr($t, strlen($base) + 1);
+        }
+        if (!str_starts_with($t, 'event/') || !str_ends_with($t, '/state')) {
+            return;
+        }
+
+        $payload = trim($this->decodePayload($payloadHex), "\" \t\r\n");
+        if ($payload === '') {
+            return;
+        }
+        if (is_numeric($payload)) {
+            $eventTs = (float)$payload;
+        } else {
+            try {
+                $eventTs = (float)(new DateTimeImmutable($payload))->format('U.u');
+            } catch (Exception) {
+                return;
+            }
+        }
+
+        $deltaSec = microtime(true) - $eventTs;
+        if ($deltaSec < 0.0 || $deltaSec > self::PERF_UPSTREAM_MAX_DELTA_SEC) {
+            return;
+        }
+        $this->logPerformanceSample('Upstream.eventDelta', $eventTs, ['topic' => $topic]);
+    }
+
+    /** @noinspection PhpUnused */
+    public function DumpPerformanceStatistics(): void
+    {
+        $now = time();
+        $startedAt = (int)$this->GetBuffer(self::BUFFER_PERF_STATS_START);
+        $elapsed = $startedAt > 0 ? max(1, $now - $startedAt) : 0;
+        $stats = $this->loadPerformanceStats();
+        $this->SetBuffer(self::BUFFER_PERF_STATS, '');
+        $this->SetBuffer(self::BUFFER_PERF_STATS_START, (string)$now);
+
+        if ($stats === []) {
+            $this->SendDebug('Performance', sprintf('Fenster %ds | keine Samples', $elapsed), 0);
+            return;
+        }
+
+        ksort($stats, SORT_STRING);
+        $parts = [];
+        foreach ($stats as $scope => $entry) {
+            $count = (int)$entry['count'];
+            if ($count <= 0) {
+                continue;
+            }
+            $slowCount = (int)$entry['slowCount'];
+            $parts[] = sprintf(
+                '%s: n=%d (%.1f/min) avg=%.1fms max=%.1fms (%s%s)%s',
+                $scope,
+                $count,
+                $count / ($elapsed / 60.0),
+                (float)$entry['sumMs'] / $count,
+                (float)$entry['maxMs'],
+                date('H:i:s', (int)$entry['maxAt']),
+                $entry['maxTopic'] !== '' ? ', ' . $entry['maxTopic'] : '',
+                $slowCount > 0 ? sprintf(' | slow=%d', $slowCount) : ''
+            );
+        }
+
+        // Eine kompakte Zeile pro Fenster ins persistente Symcon-Log (auswertbar ohne Debugfenster),
+        // dieselbe Information zusätzlich auf den Debug-Kanal.
+        $summary = sprintf('Performance-Fenster %ds | %s', $elapsed, implode(' | ', $parts));
+        $this->LogMessage($summary, KL_NOTIFY);
+        $this->SendDebug('Performance', $summary, 0);
     }
 
     private function isTopicStatisticsEnabled(): bool

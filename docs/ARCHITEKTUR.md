@@ -252,6 +252,16 @@ Umgesetzt:
 - **Bookkeeping-Verwurf nur einmal:** Die Filterung erfolgt zentral im Splitter vor dem Broadcast; die
   früher zusätzlich im Device vorhandene (dann redundante) Prüfung wurde entfernt.
 - **Diagnose:** Performance-Instrumentierung in beiden Splittern und beiden Geräten (per Property gated).
+- **Performance-Dauermessung im klassischen Splitter** (ab 1.4 build 143, gated über `EnablePerformanceLog`):
+  Die pro-Message-Samples werden zusätzlich je Scope in Buffern aggregiert (count/avg/max/slow) und
+  periodisch (Intervall = `TopicStatisticsIntervalMinutes`) als eine kompakte Zeile ins **Symcon-Log**
+  geschrieben — im Gegensatz zum Debug-Kanal auch ohne offenes Debugfenster über Stunden auswertbar.
+  Ausreißer ≥ `PerformanceSlowThresholdMs` (Default 100 ms, 0 = aus) landen sofort als KL_WARNING im Log
+  (gedrosselt auf 1 Zeile/10 s; unterdrückte zählt `slow=` im Fenster-Dump), inklusive Aufschlüsselung
+  `ownWork_ms`/`sendToChildren_ms`. Zusätzlich misst der Scope `Upstream.eventDelta` bei
+  Event-State-Topics das Delta „HA-Ereigniszeit → Empfang im Splitter" (Deltas > 60 s = Retained-Replays
+  werden verworfen) — damit lässt sich pro Ausreißer trennen, ob die Verzögerung **vor** Symcon
+  (`eventDelta` groß) oder **im** Splitter (`total` groß) entsteht.
 
 Gemessene Erkenntnis (Tastendruck-Latenz): Die verbleibenden, gelegentlichen Mehrsekunden-Verzögerungen
 entstehen nachweislich **vor** Symcon (Vergleich HA-Event-Zeitstempel im Payload vs. Empfangszeit im
