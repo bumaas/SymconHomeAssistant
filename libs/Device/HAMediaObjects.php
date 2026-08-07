@@ -199,14 +199,110 @@ trait HAMediaObjectsTrait
             return;
         }
 
-        $content = $this->fetchMediaImageContent($absoluteUrl);
-        if ($content === null) {
+        // Download nicht hier (MQTT-Hotpath), sondern entkoppelt über den MediaRefresh-Timer.
+        $this->scheduleMediaRefresh($ident, $absoluteUrl, $filePrefix, $debugCategory);
+    }
+
+    // ----- Entkoppelte Bild-Aktualisierung (Konstanten und Begründung: HADeviceConstants) -----
+
+    protected function registerMediaRefreshTimer(): void
+    {
+        $this->RegisterTimer(
+            self::TIMER_MEDIA_REFRESH,
+            0,
+            'IPS_RequestAction($_IPS["TARGET"], "' . self::ACTION_MEDIA_REFRESH . '", "");'
+        );
+    }
+
+    // ApplyChanges-Reset: über einen Konfigurationswechsel hinweg keine veralteten Aufträge ausführen.
+    protected function resetPendingMediaRefresh(): void
+    {
+        $this->SetTimerInterval(self::TIMER_MEDIA_REFRESH, 0);
+        $this->SetBuffer(self::BUFFER_PENDING_MEDIA_JOBS, '');
+    }
+
+    private function scheduleMediaRefresh(string $ident, string $url, string $filePrefix, string $debugCategory): void
+    {
+        $jobs = $this->loadMediaRefreshBuffer(self::BUFFER_PENDING_MEDIA_JOBS);
+        $jobs[$ident] = ['url' => $url, 'filePrefix' => $filePrefix, 'category' => $debugCategory];
+        $this->SetBuffer(self::BUFFER_PENDING_MEDIA_JOBS, json_encode($jobs, JSON_THROW_ON_ERROR));
+        if ($this->GetTimerInterval(self::TIMER_MEDIA_REFRESH) <= 0) {
+            $this->SetTimerInterval(self::TIMER_MEDIA_REFRESH, self::MEDIA_REFRESH_DELAY_MS);
+        }
+        $this->debugExpert($debugCategory, 'Bild-Aktualisierung eingereiht', ['Ident' => $ident, 'Url' => $url]);
+    }
+
+    protected function handleMediaRefreshAction(string $ident): bool
+    {
+        if ($ident !== self::ACTION_MEDIA_REFRESH) {
+            return false;
+        }
+        $this->processPendingMediaRefreshJobs();
+        return true;
+    }
+
+    private function processPendingMediaRefreshJobs(): void
+    {
+        $this->SetTimerInterval(self::TIMER_MEDIA_REFRESH, 0);
+        $jobs = $this->loadMediaRefreshBuffer(self::BUFFER_PENDING_MEDIA_JOBS);
+        $this->SetBuffer(self::BUFFER_PENDING_MEDIA_JOBS, '');
+        if ($jobs === []) {
             return;
         }
 
-        $this->ensureEntityPreviewMediaFile($mediaId, $ident, $absoluteUrl, $filePrefix);
-        IPS_SetMediaContent($mediaId, base64_encode($content));
-        $this->debugExpert($debugCategory, 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
+        $now = time();
+        // Alte Einträge verwerfen, damit der Mindestabstands-Buffer nicht unbegrenzt wächst.
+        $lastFetch = array_filter(
+            $this->loadMediaRefreshBuffer(self::BUFFER_MEDIA_LAST_FETCH),
+            static fn($ts): bool => is_int($ts) && ($now - $ts) < 3600
+        );
+
+        foreach ($jobs as $ident => $job) {
+            if (!is_array($job)) {
+                continue;
+            }
+            $ident = (string)$ident;
+            $url = (string)($job['url'] ?? '');
+            $category = (string)($job['category'] ?? 'MediaRefresh');
+            if ($url === '') {
+                continue;
+            }
+            $last = (int)($lastFetch[$ident] ?? 0);
+            if ($last > 0 && ($now - $last) < self::MEDIA_REFRESH_MIN_INTERVAL_SEC) {
+                $this->debugExpert($category, 'Bild-Aktualisierung übersprungen (Mindestabstand)', ['Ident' => $ident]);
+                continue;
+            }
+            $mediaId = @$this->GetIDForIdent($ident);
+            if ($mediaId === false) {
+                continue;
+            }
+
+            // Auch fehlgeschlagene Abrufe zählen für den Mindestabstand (kein Hämmern bei Fehlern).
+            $lastFetch[$ident] = $now;
+            $content = $this->fetchMediaImageContent($url);
+            if ($content === null) {
+                continue;
+            }
+            $this->ensureEntityPreviewMediaFile($mediaId, $ident, $url, (string)($job['filePrefix'] ?? 'ha_media'));
+            IPS_SetMediaContent($mediaId, base64_encode($content));
+            $this->debugExpert($category, 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
+        }
+
+        $this->SetBuffer(self::BUFFER_MEDIA_LAST_FETCH, json_encode($lastFetch, JSON_THROW_ON_ERROR));
+    }
+
+    private function loadMediaRefreshBuffer(string $bufferName): array
+    {
+        $raw = $this->GetBuffer($bufferName);
+        if ($raw === '') {
+            return [];
+        }
+        try {
+            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+        return is_array($decoded) ? $decoded : [];
     }
 
     protected function getCameraStreamMediaName(string $entityId): string
@@ -341,25 +437,10 @@ trait HAMediaObjectsTrait
             return;
         }
 
-        $content = $this->fetchMediaImageContent($absoluteUrl);
-        if ($content === null) {
-            return;
-        }
-        $this->ensureMediaPlayerCoverMediaFile($mediaId, $ident, $absoluteUrl);
-        IPS_SetMediaContent($mediaId, base64_encode($content));
-        $this->debugExpert('MediaCover', 'Bild aktualisiert', ['Ident' => $ident, 'Bytes' => strlen($content)]);
-    }
-
-    private function ensureMediaPlayerCoverMediaFile(int $mediaId, string $ident, string $url): void
-    {
-        $media = IPS_GetMedia($mediaId);
-        $current = (string)($media['MediaFile'] ?? '');
-        $extension = $this->detectMediaImageExtension($url);
-        $safeIdent = preg_replace('/\W/', '_', $ident);
-        $file = 'media/ha_media_cover_' . $safeIdent . '.' . $extension;
-        if ($file !== '' && $current !== $file) {
-            IPS_SetMediaFile($mediaId, $file, false);
-        }
+        // Download nicht hier (MQTT-Hotpath), sondern entkoppelt über den MediaRefresh-Timer.
+        // Der Dateiname entsteht dort über ensureEntityPreviewMediaFile mit demselben Muster
+        // ('media/ha_media_cover_<ident>.<ext>') wie zuvor.
+        $this->scheduleMediaRefresh($ident, $absoluteUrl, 'ha_media_cover', 'MediaCover');
     }
 
     private function ensureMediaPlayerCoverMediaFileDefault(int $mediaId, string $ident): void

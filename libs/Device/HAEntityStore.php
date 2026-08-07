@@ -216,7 +216,7 @@ trait HAEntityStoreTrait
     }
 
     // Initiale Anlage und Refresh teilen sich einen Pfad für Hauptvariable und Domain-Extras.
-    private function syncEntityPresentation(array $entity, bool $initializeDescriptorValue = false): void
+    private function syncEntityPresentation(array $entity, bool $initializeDescriptorValue = false, bool $withExtraMaintenance = true): void
     {
         $entityId = (string)($entity['entity_id'] ?? '');
         if ($entityId === '') {
@@ -252,10 +252,15 @@ trait HAEntityStoreTrait
         if (!$exists || $wasLegacy || $this->shouldApplyDomainActionStateOnExisting($domain)) {
             $this->applyDomainActionState($domain, $ident, $entity);
         }
-        $this->applyDomainExtraMaintenance($domain, $entity);
+        // Die Domain-Extra-Maintenance iteriert alle Attribut-Definitionen der Domain und ist damit
+        // die teuerste Stufe der Kaskade. Gezielte Refreshes (Wertänderung eines bekannten Attributs)
+        // überspringen sie — Variablen anlegen muss nur der volle Pfad (neue Schlüssel, ApplyChanges).
+        if ($withExtraMaintenance) {
+            $this->applyDomainExtraMaintenance($domain, $entity);
+        }
     }
 
-    private function updateEntityPresentation(string $entityId, array $attributes): void
+    private function updateEntityPresentation(string $entityId, array $attributes, bool $withExtraMaintenance = true): void
     {
         if (!isset($this->entities[$entityId])) {
             return;
@@ -280,7 +285,7 @@ trait HAEntityStoreTrait
         $this->entities[$entityId]['attributes'] = $mergedAttributes;
         $entity = $this->entities[$entityId];
         $entity['attributes'] = $mergedAttributes;
-        $this->syncEntityPresentation($entity);
+        $this->syncEntityPresentation($entity, false, $withExtraMaintenance);
         $this->refreshEntityMainValueFromCache($entityId, $entity, $mergedAttributes);
     }
 

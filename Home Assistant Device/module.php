@@ -104,6 +104,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HA_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
         $this->registerDeferredApplyTimer();
+        $this->registerMediaRefreshTimer();
     }
 
 
@@ -142,6 +143,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
         $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 0);
+        $this->resetPendingMediaRefresh();
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
 
@@ -330,6 +332,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
 
         if ($this->handleDeferredApplyAction($Ident)) {
+            return;
+        }
+
+        if ($this->handleMediaRefreshAction($Ident)) {
             return;
         }
 

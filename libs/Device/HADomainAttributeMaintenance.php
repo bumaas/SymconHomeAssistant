@@ -1439,6 +1439,25 @@ trait HADomainAttributeMaintenanceTrait
         }
     }
 
+    // Gezielte Variante nach Wertänderung EINES Attributs: nur die Variablen auffrischen, deren
+    // Darstellung laut Trigger-Tabelle von genau diesem Attribut abhängt. Die Presentation selbst
+    // wird aus dem vollen Attributsatz gebaut (Optionen + Feature-Flags brauchen den Kontext).
+    protected function refreshDomainAttributePresentationsForTrigger(string $domain, string $entityId, string $changedAttribute): void
+    {
+        $attributes = $this->getStoredAttributeTopicAttributes($entityId);
+        foreach ($this->getDomainAttributeRefreshTriggers($domain) as $attribute => $triggerKeys) {
+            if (in_array($changedAttribute, $triggerKeys, true)) {
+                $this->refreshDomainAttributePresentationIfExists($domain, $entityId, $attribute, $attributes);
+            }
+        }
+
+        foreach ($this->getDomainActionStateRefreshTriggers($domain) as $attribute => $triggerKeys) {
+            if (in_array($changedAttribute, $triggerKeys, true)) {
+                $this->ensureDomainActionVariable($domain, $entityId, $attribute, $attributes);
+            }
+        }
+    }
+
     private function hasAnyAttributeKey(array $attributes, array $keys): bool
     {
         return array_any($keys, static fn($key) => array_key_exists($key, $attributes));

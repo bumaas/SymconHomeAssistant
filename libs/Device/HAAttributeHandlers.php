@@ -288,6 +288,14 @@ trait HAAttributeHandlersTrait
 
     protected function handleCameraAttributeTopic(string $entityId, string $attribute, string $payload): bool
     {
+        // Für Kameras unbenutzt: Die Preview-URL entsteht aus HAUrl + entityId (camera_proxy mit
+        // Long-Lived-Token), der Stream aus stream_source/rtsp_url. entity_picture (und der ohnehin
+        // schon im Splitter verworfene access_token) rotieren mit jedem HA-Token-Wechsel und würden
+        // sonst pro Rotation die volle Presentation-Kaskade samt Bild-Download zünden.
+        if ($attribute === 'entity_picture' || $attribute === 'access_token') {
+            return true;
+        }
+
         $value = $this->parseAttributePayload($payload);
         if ($value === null) {
             return true;
@@ -403,10 +411,26 @@ trait HAAttributeHandlersTrait
             }
             $value = $this->parseAttributePayload($payload);
             if ($value !== null) {
+                // Unverändert-Prüfung wie in storeAttributeTopicValue: identische Wiederholungen
+                // (häufig bei Listen-Attributen wie source_list) lösen sonst pro Message die volle
+                // Presentation-Kaskade aus.
+                $cachedAttributes = $this->getCachedEntityAttributes($entityId);
+                $isKnownKey = array_key_exists($attribute, $cachedAttributes);
+                if ($isKnownKey && $cachedAttributes[$attribute] === $value) {
+                    return true;
+                }
                 $this->storeEntityAttribute($entityId, $attribute, $value);
                 $this->updateEntityCache($entityId, null, [$attribute => $value]);
                 if ($updatePresentationUnknown) {
-                    $this->refreshAttributeTopicPresentation($entityId);
+                    if ($isKnownKey) {
+                        // Nur der Wert eines bekannten Attributs hat sich geändert: gezielt die
+                        // abhängigen Darstellungen auffrischen. Die volle Maintenance-Kaskade
+                        // (alle Attribut-Definitionen je Message) bleibt neuen Schlüsseln
+                        // vorbehalten, die ggf. erst Variablen anlegen müssen.
+                        $this->refreshPresentationForChangedAttribute($entityId, $attribute);
+                    } else {
+                        $this->refreshAttributeTopicPresentation($entityId);
+                    }
                 }
             }
             return true;
@@ -604,6 +628,21 @@ trait HAAttributeHandlersTrait
     private function refreshAttributeTopicPresentation(string $entityId): void
     {
         $this->updateEntityPresentation($entityId, $this->getStoredAttributeTopicAttributes($entityId));
+    }
+
+    // Wertänderung eines bereits bekannten Attributs: Hauptvariable ohne Domain-Extra-Maintenance
+    // synchronisieren und nur die laut Trigger-Tabelle abhängigen Attribut-Variablen auffrischen
+    // (z. B. source ← source_list) — statt der vollen Kaskade über alle Attribut-Definitionen.
+    private function refreshPresentationForChangedAttribute(string $entityId, string $attribute): void
+    {
+        $this->updateEntityPresentation($entityId, $this->getStoredAttributeTopicAttributes($entityId), false);
+
+        $domain = HADomainCatalog::normalizeDomainAlias(
+            (string)($this->entities[$entityId]['domain'] ?? $this->getEntityDomain($entityId))
+        );
+        if ($domain !== '') {
+            $this->refreshDomainAttributePresentationsForTrigger($domain, $entityId, $attribute);
+        }
     }
 
     private function getStoredAttributeTopicAttributes(string $entityId): array

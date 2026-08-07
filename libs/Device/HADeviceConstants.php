@@ -31,6 +31,18 @@ interface HADeviceConstants
     public const string ACTION_DEFERRED_APPLY = 'DeferredApply';
     public const int DEFERRED_APPLY_DELAY_MS = 100;
 
+    // Entkoppelte Bild-Downloads (Kamera-Preview, Image-Preview, Media-Player-Cover): Auslöser reihen
+    // nur einen Auftrag in den Buffer ein (Debounce bündelt Trigger-Salven, z. B. die HA-Token-Rotation),
+    // der One-Shot-Timer lädt dann außerhalb des MQTT-Hotpaths. Der Mindestabstand pro Medienobjekt
+    // begrenzt die Abrufe bei flatternden Zuständen; Timer-Callback via IPS_RequestAction, damit der
+    // Trait-Code präfix-unabhängig für Device (HA_) und Entity (HAE_) funktioniert.
+    public const string TIMER_MEDIA_REFRESH = 'MediaRefreshTimer';
+    public const string ACTION_MEDIA_REFRESH = 'MediaRefresh';
+    public const int MEDIA_REFRESH_DELAY_MS = 1000;
+    public const string BUFFER_PENDING_MEDIA_JOBS = 'PendingMediaJobs';
+    public const string BUFFER_MEDIA_LAST_FETCH = 'MediaLastFetch';
+    public const int MEDIA_REFRESH_MIN_INTERVAL_SEC = 10;
+
     public const string PROP_DEVICE_AREA = 'DeviceArea';
     public const string PROP_DEVICE_NAME = 'DeviceName';
     public const string PROP_DEVICE_ID = 'DeviceID';

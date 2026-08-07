@@ -292,14 +292,17 @@ final class HADomainCatalog
     /**
      * Universelle HA-Attribut-Topics, die HA (z. B. via mqtt_statestream) als eigene Topics publiziert,
      * die das Device aber nicht verarbeitet: reine Bookkeeping-Zeitstempel (last_updated/last_changed/
-     * last_reported), Quellenhinweis (attribution) und der HA-Icon-Hinweis (icon; die Darstellung kommt aus
-     * den IPS-Profilen/Domain-Definitionen, nicht aus dem HA-Icon). Sie werden nie zu IPS-Variablen, würden
-     * aber pro Message eine teure Presentation-Synchronisation auslösen. Single Source of Truth für beide
-     * Splitter (die sie gar nicht erst an Kinder weiterreichen) und das Device (das sie verwirft).
+     * last_reported), Quellenhinweis (attribution), der HA-Icon-Hinweis (icon; die Darstellung kommt aus
+     * den IPS-Profilen/Domain-Definitionen, nicht aus dem HA-Icon) und der rotierende Kamera-access_token
+     * (wird von keinem Modul verwendet — Preview/Stream authentifizieren sich anders; HA rotiert ihn alle
+     * paar Minuten und würde damit pro Rotation eine teure Verarbeitungskaskade auslösen). Sie werden nie
+     * zu IPS-Variablen, würden aber pro Message eine teure Presentation-Synchronisation auslösen. Single
+     * Source of Truth für beide Splitter (die sie gar nicht erst an Kinder weiterreichen) und das Device
+     * (das sie verwirft).
      *
      * @var string[]
      */
-    public const array IGNORABLE_BOOKKEEPING_ATTRIBUTES = ['last_updated', 'last_changed', 'last_reported', 'attribution', 'icon'];
+    public const array IGNORABLE_BOOKKEEPING_ATTRIBUTES = ['last_updated', 'last_changed', 'last_reported', 'attribution', 'icon', 'access_token'];
 
     public static function isIgnorableBookkeepingAttribute(string $attribute): bool
     {

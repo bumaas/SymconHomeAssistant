@@ -269,6 +269,26 @@ Splitter zeigte z. B. ~2,2 s Differenz), also auf der Strecke HA → MQTT-Broker
 liegt die Verarbeitung im einstelligen bis niedrigen zweistelligen Millisekundenbereich. Quellseitiger
 Hebel: HA `mqtt_statestream` per `publish_timestamps: false` und `include`/`exclude` eingrenzen.
 
+Befund der Dauermessung (07.08.2026, build 143) und Gegenmaßnahmen (build 144):
+- **Kamera-Topics blockierten den Hotpath sekundenlang:** Jedes `state`-/`access_token`-/
+  `entity_picture`-Topic einer Kamera lud synchron ein Vorschaubild (~540 ms / 1,76 MB via
+  `/api/camera_proxy/…` + Base64-JSON-Transport + `IPS_SetMediaContent` ≈ 0,8–2,6 s), ausgelöst
+  ca. alle 5 min durch die HA-Token-Rotation. Media-Player-Cover und Image-Preview luden ebenso synchron.
+- **Maßnahmen (build 144):**
+  1. `access_token` ist Bookkeeping (`HADomainCatalog::IGNORABLE_BOOKKEEPING_ATTRIBUTES`) — der Splitter
+     verwirft es vor dem Broadcast; die Kamera ignoriert zusätzlich `entity_picture` (beide modulseitig
+     unbenutzt: Preview = camera_proxy + Long-Lived-Token, Stream = `stream_source`/`rtsp_url`).
+  2. **Alle Bild-Downloads entkoppelt** (`HAMediaObjectsTrait`): Auslöser reihen nur einen Auftrag in den
+     Buffer `PendingMediaJobs` (gleicher Ident überschreibt → Bündelung) und bewaffnen den One-Shot-Timer
+     `MediaRefreshTimer` (1 s Debounce, Callback präfix-unabhängig via `IPS_RequestAction`); der Timer
+     lädt außerhalb des Hotpaths, mit 10 s Mindestabstand je Medienobjekt (auch nach Fehlversuchen).
+  3. **Kaskaden-Eindämmung im Unknown-Attribut-Zweig** (`handleAttributeTopicWithDefinitions`): jetzt mit
+     Unverändert-Prüfung (identische Wiederholungen z. B. von `source_list` sind kostenlos); bei reiner
+     Wertänderung läuft ein gezielter Refresh (Hauptvariable ohne `applyDomainExtraMaintenance` plus
+     `refreshDomainAttributePresentationsForTrigger` über die Trigger-Tabellen) statt der vollen
+     Maintenance-Schleife über alle Attribut-Definitionen; nur neue Schlüssel nehmen weiter die volle
+     Kaskade (Variablen-Anlage). Check: `tests/check-deferred-media-refresh.php`.
+
 Geparkte nächste Schritte:
 - Breiten Empfang im Splitter gegen den real benötigten Topic-Bereich absichern
 - `TX` nur dann an Kinder weiterreichen, wenn dafür ein fachlicher Bedarf besteht

@@ -445,6 +445,10 @@ trait HADeviceCoreTrait
             return;
         }
 
+        if ($this->handleMediaRefreshAction((string)$Ident)) {
+            return;
+        }
+
         if ($this->handleDirectDomainActions($Ident, $Value)) {
             return;
         }
