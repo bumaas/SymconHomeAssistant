@@ -91,6 +91,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HAE_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
         $this->registerDeferredApplyTimer();
         $this->registerMediaRefreshTimer();
+        $this->registerStateCacheFlushTimer();
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -125,6 +126,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
 
         $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 0);
         $this->resetPendingMediaRefresh();
+        $this->flushEntityStateCache();
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
 

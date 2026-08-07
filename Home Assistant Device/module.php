@@ -46,6 +46,13 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     private const int STATUS_BUNDLE_INVALID = 213;
     private const string ATTR_RESOLVED_CONFIG = 'ResolvedConfig';
 
+    // Ausreißer-Diagnose (gated über EnablePerformanceLog): Schritt-Samples oberhalb der Schwelle
+    // landen gedrosselt im Symcon-Log — die Schritt-Scopes zeigen dann, WO die Zeit steckt.
+    // Drossel-Zeitstempel MUSS im Buffer liegen (ReceiveData läuft in getrennten PHP-Ausführungen).
+    private const float PERF_SLOW_THRESHOLD_MS = 100.0;
+    private const string BUFFER_PERF_SLOW_LOG_TS = 'PerfSlowLogEpoch';
+    private const int PERF_SLOW_LOG_THROTTLE_SEC = 10;
+
     use ModuleDebugTrait;
     use HAIdentNamingTrait;
     use HADomainStateHandlersTrait;
@@ -105,6 +112,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterTimer(self::TIMER_MEDIA_PLAYER_PROGRESS, 0, 'HA_UpdateMediaPlayerProgress($_IPS["TARGET"]);');
         $this->registerDeferredApplyTimer();
         $this->registerMediaRefreshTimer();
+        $this->registerStateCacheFlushTimer();
     }
 
 
@@ -144,6 +152,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
         $this->SetTimerInterval(self::TIMER_MEDIA_PLAYER_PROGRESS, 0);
         $this->resetPendingMediaRefresh();
+        $this->flushEntityStateCache();
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
 
@@ -275,12 +284,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $messageStartedAt = microtime(true);
 
         $stepStartedAt = microtime(true);
-        $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s'));
-        $this->logPerformanceSample('ReceiveData.writeLastMQTTMessage', $stepStartedAt);
-
-        $stepStartedAt = microtime(true);
-        $this->updateDiagnosticsLabels();
-        $this->logPerformanceSample('ReceiveData.updateDiagnosticsLabels', $stepStartedAt);
+        $this->touchLastMqttMessage();
+        $this->logPerformanceSample('ReceiveData.touchLastMqttMessage', $stepStartedAt);
 
         $stepStartedAt = microtime(true);
         $handledAsState = $this->tryHandleStateFromTopic($topic, $payload);
@@ -317,8 +322,25 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
-        $context = ['elapsed_ms' => round((microtime(true) - $startedAt) * 1000.0, 3)] + $context;
+        $elapsedMs = round((microtime(true) - $startedAt) * 1000.0, 3);
+        $context = ['elapsed_ms' => $elapsedMs] + $context;
         $this->SendDebug('Performance', $scope . ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0);
+
+        // Ausreißer persistent ins Symcon-Log (gedrosselt); nur die Schritt-Scopes, nicht das
+        // total-Sample — sonst erzeugt jede langsame Message zwei Zeilen ohne Mehrwert.
+        if ($elapsedMs < self::PERF_SLOW_THRESHOLD_MS || $scope === 'ReceiveData.total') {
+            return;
+        }
+        $now = time();
+        $last = (int)$this->GetBuffer(self::BUFFER_PERF_SLOW_LOG_TS);
+        if ($last > 0 && ($now - $last) < self::PERF_SLOW_LOG_THROTTLE_SEC) {
+            return;
+        }
+        $this->SetBuffer(self::BUFFER_PERF_SLOW_LOG_TS, (string)$now);
+        $this->LogMessage(
+            sprintf('Performance-Ausreißer %s | %s', $scope, json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+            KL_WARNING
+        );
     }
 
     /**
@@ -336,6 +358,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         if ($this->handleMediaRefreshAction($Ident)) {
+            return;
+        }
+
+        if ($this->handleStateCacheFlushAction($Ident)) {
             return;
         }
 

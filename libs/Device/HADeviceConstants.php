@@ -43,6 +43,17 @@ interface HADeviceConstants
     public const string BUFFER_MEDIA_LAST_FETCH = 'MediaLastFetch';
     public const int MEDIA_REFRESH_MIN_INTERVAL_SEC = 10;
 
+    // Entkoppelte Persistenz des EntityStateCache (Begründung: HAEntityStore, readEntityStateCache).
+    public const string TIMER_STATE_CACHE_FLUSH = 'StateCacheFlushTimer';
+    public const string ACTION_STATE_CACHE_FLUSH = 'StateCacheFlush';
+    public const int STATE_CACHE_FLUSH_DELAY_MS = 10000;
+    public const string BUFFER_ENTITY_STATE_CACHE = 'EntityStateCacheBuffer';
+
+    // Drossel für LastMQTTMessage + Diagnose-Labels (Muster wie im Splitter): Zeitstempel im Buffer,
+    // weil ReceiveData über getrennte PHP-Ausführungen läuft.
+    public const string BUFFER_LAST_MQTT_TOUCH = 'LastMqttTouchEpoch';
+    public const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
+
     public const string PROP_DEVICE_AREA = 'DeviceArea';
     public const string PROP_DEVICE_NAME = 'DeviceName';
     public const string PROP_DEVICE_ID = 'DeviceID';

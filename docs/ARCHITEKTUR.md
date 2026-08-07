@@ -289,6 +289,28 @@ Befund der Dauermessung (07.08.2026, build 143) und Gegenmaßnahmen (build 144):
      Maintenance-Schleife über alle Attribut-Definitionen; nur neue Schlüssel nehmen weiter die volle
      Kaskade (Variablen-Anlage). Check: `tests/check-deferred-media-refresh.php`.
 
+Grundrauschen-Analyse (07.08.2026, nach build 144) und Gegenmaßnahmen (build 145):
+- **Befund:** Verbleibende 100–300-ms-Ausreißer stecken laut Schritt-Messung in
+  `applyState.setMainValueAndCache`. Messbarer Sockel: Der EntityStateCache (evcc ~47 KB bei 100+
+  Entitäten) wurde **zweimal pro Message** als Attribut geschrieben; ein 47-KB-Kernel-Write kostet
+  gemessen 2,5–12 ms (1 KB: 0,03 ms). Die Spitzen darüber sind Kontention unter Last (Stall-Detektoren:
+  weder der 10-s-Settings-Save noch Einzeloperationen blockieren isoliert >36 ms; Symcon-Insight
+  zeichnet jede Schreiboperation auf). Der Entity-Pfad schrieb zudem den **kompletten Message-JSON**
+  pro Message ins LastMQTTMessage-Attribut; das Device-Modul aktualisierte Diagnose-Labels pro Message.
+- **Maßnahmen (build 145):**
+  1. **EntityStateCache zweistufig** (`HAEntityStore`): heißer Pfad schreibt nur noch den Buffer;
+     das Attribut persistiert gebündelt ein One-Shot-Flush-Timer (10 s, `IPS_RequestAction`-basiert,
+     Flush zusätzlich in ApplyChanges). Nach Kernel-Neustart gilt der letzte Flush-Stand — unkritisch,
+     der Cache wird aus dem retained-Replay neu aufgebaut. Check: `tests/check-state-cache-flush.php`.
+  2. **LastMQTTMessage/Diagnose-Labels gedrosselt** (Parität zum Splitter): `touchLastMqttMessage`
+     schreibt Attribut + Labels höchstens alle 5 s; der Entity-Pfad speichert dabei nur noch den
+     Zeitstempel statt des Message-JSONs.
+  3. Schritt-Ausreißer-Diagnose im Device-Modul (gated über `EnablePerformanceLog`, Schwelle 100 ms,
+     gedrosselt 1 Zeile/10 s) — macht künftige Hotspots ohne Debugfenster sichtbar.
+- **Offen (Kernel-/Quellseite):** Kontentions-Spitzen unter Last (Insight-Overhead pro Operation —
+  Input für die laufende Untersuchung mit paresy) und quellseitige Entlastung via `mqtt_statestream`
+  exclude (Marstek-Diagnose-Entitäten, evcc-Forecast-Topics).
+
 Geparkte nächste Schritte:
 - Breiten Empfang im Splitter gegen den real benötigten Topic-Bereich absichern
 - `TX` nur dann an Kinder weiterreichen, wenn dafür ein fachlicher Bedarf besteht

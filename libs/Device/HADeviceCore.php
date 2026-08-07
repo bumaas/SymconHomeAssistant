@@ -320,7 +320,9 @@ trait HADeviceCoreTrait
             return '';
         }
         $this->debugExpert(__FUNCTION__, 'MQTT Payload empfangen', ['Payload' => $JSONString]);
-        $this->WriteAttributeString('LastMQTTMessage', $JSONString);
+        // Gedrosselt und als Zeitstempel (zuvor landete hier der komplette Message-JSON pro Message
+        // im Attribut — Settings-Churn ohne Diagnose-Mehrwert; der Payload steht im Debug darüber).
+        $this->touchLastMqttMessage();
 
         $data = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($data)) {
@@ -446,6 +448,10 @@ trait HADeviceCoreTrait
         }
 
         if ($this->handleMediaRefreshAction((string)$Ident)) {
+            return;
+        }
+
+        if ($this->handleStateCacheFlushAction((string)$Ident)) {
             return;
         }
 

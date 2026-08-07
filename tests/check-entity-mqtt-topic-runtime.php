@@ -143,6 +143,10 @@ final class EntityMqttTopicRuntimeHarness implements HADeviceConstants
     {
     }
 
+    protected function touchLastMqttMessage(): void
+    {
+    }
+
     protected function isManagedEntityId(string $entityId): bool
     {
         return isset($this->entities[$entityId]) || isset($this->configuredEntities[$entityId]);

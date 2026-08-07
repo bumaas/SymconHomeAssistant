@@ -115,9 +115,14 @@ trait HAEntityStoreTrait
         $this->storeEntityAttributes($entityId, $merged);
     }
 
-    // In-Memory-Spiegel des State-Caches: Das EntityStateCache-Attribut wird pro Prozess nur einmal
-    // dekodiert und danach aus dem Speicher bedient. Geschrieben wird write-through (das Attribut bleibt
-    // konsistent, daher keine Flush-Punkte nötig), aber nur wenn sich der Inhalt tatsächlich ändert.
+    // In-Memory-Spiegel des State-Caches: pro PHP-Ausführung einmal dekodiert, danach aus dem Speicher
+    // bedient. Persistenz zweistufig: Der heiße Pfad schreibt nur in den Buffer (kernel-seitig
+    // In-Memory, überlebt getrennte PHP-Ausführungen, keine Settings-Persistenz); das
+    // EntityStateCache-Attribut schreibt gebündelt der One-Shot-Flush-Timer. Grund: Der Cache kann
+    // groß werden (z. B. evcc ~47 KB) und wurde zuvor bis zu zweimal pro Message als Attribut
+    // geschrieben — ein 47-KB-Kernel-Write kostet gemessen 2,5–12 ms. Nach einem Kernel-Neustart ist
+    // der Buffer leer und es gilt der letzte Flush-Stand (max. STATE_CACHE_FLUSH_DELAY_MS alt) —
+    // verschmerzbar, weil der Cache aus dem retained-Replay des Brokers ohnehin neu aufgebaut wird.
     private ?array $entityStateCacheMemory = null;
     private ?string $entityStateCacheEncoded = null;
 
@@ -128,7 +133,10 @@ trait HAEntityStoreTrait
             return $this->entityStateCacheMemory;
         }
 
-        $raw = $this->ReadAttributeString('EntityStateCache');
+        $raw = $this->GetBuffer(self::BUFFER_ENTITY_STATE_CACHE);
+        if ($raw === '') {
+            $raw = $this->ReadAttributeString('EntityStateCache');
+        }
         $this->entityStateCacheEncoded = $raw;
         if ($raw === '') {
             return $this->entityStateCacheMemory = [];
@@ -152,7 +160,55 @@ trait HAEntityStoreTrait
         }
 
         $this->entityStateCacheEncoded = $encoded;
+        $this->SetBuffer(self::BUFFER_ENTITY_STATE_CACHE, $encoded);
+        if ($this->GetTimerInterval(self::TIMER_STATE_CACHE_FLUSH) <= 0) {
+            $this->SetTimerInterval(self::TIMER_STATE_CACHE_FLUSH, self::STATE_CACHE_FLUSH_DELAY_MS);
+        }
+    }
+
+    protected function registerStateCacheFlushTimer(): void
+    {
+        $this->RegisterTimer(
+            self::TIMER_STATE_CACHE_FLUSH,
+            0,
+            'IPS_RequestAction($_IPS["TARGET"], "' . self::ACTION_STATE_CACHE_FLUSH . '", "");'
+        );
+    }
+
+    protected function handleStateCacheFlushAction(string $ident): bool
+    {
+        if ($ident !== self::ACTION_STATE_CACHE_FLUSH) {
+            return false;
+        }
+        $this->flushEntityStateCache();
+        return true;
+    }
+
+    // Persistiert den Buffer-Stand ins Attribut (Flush-Timer und ApplyChanges).
+    protected function flushEntityStateCache(): void
+    {
+        $this->SetTimerInterval(self::TIMER_STATE_CACHE_FLUSH, 0);
+        $encoded = $this->GetBuffer(self::BUFFER_ENTITY_STATE_CACHE);
+        if ($encoded === '' || $encoded === $this->ReadAttributeString('EntityStateCache')) {
+            return;
+        }
         $this->WriteAttributeString('EntityStateCache', $encoded);
+    }
+
+    // Schreibt das LastMQTTMessage-Attribut und aktualisiert die Diagnose-Labels höchstens alle
+    // LAST_MQTT_LABEL_THROTTLE_SEC Sekunden (Muster wie im Splitter): Bei mehreren Messages/Sek.
+    // würden WriteAttributeString + mehrere UpdateFormField pro Message dauerhaft messbare Last
+    // erzeugen, ohne Mehrwert — das Label hat Sekunden-Granularität.
+    protected function touchLastMqttMessage(): void
+    {
+        $now = time();
+        $last = (int)$this->GetBuffer(self::BUFFER_LAST_MQTT_TOUCH);
+        if ($last > 0 && ($now - $last) < self::LAST_MQTT_LABEL_THROTTLE_SEC) {
+            return;
+        }
+        $this->SetBuffer(self::BUFFER_LAST_MQTT_TOUCH, (string)$now);
+        $this->WriteAttributeString('LastMQTTMessage', date('Y-m-d H:i:s', $now));
+        $this->updateDiagnosticsLabels();
     }
 
     private function getEntityStateCacheEntry(string $entityId, ?array $cache = null): array
