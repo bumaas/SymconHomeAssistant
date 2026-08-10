@@ -686,6 +686,17 @@ class HomeAssistantSplitter extends IPSModuleStrict
             }
             $this->SendDebug('TopicStats', sprintf('  %-50s %6d (%s/min)', $deviceKey, $sum, $perMin($sum)), 0);
         }
+
+        // Kopfzeile + Top-Geräte zusätzlich als eine kompakte Zeile ins persistente Symcon-Log
+        // (auswertbar ohne Debugfenster, z. B. aus einer eingesandten Logdatei) — analog Performance-Fenster.
+        $topParts = [];
+        foreach (array_slice($devices, 0, 10, true) as $deviceKey => $sum) {
+            $topParts[] = sprintf('%s %d (%s/min)', $deviceKey, $sum, $perMin($sum));
+        }
+        if (count($devices) > 10) {
+            $topParts[] = sprintf('… (%d weitere)', count($devices) - 10);
+        }
+        $this->LogMessage(sprintf('Topic-Statistik %s | Top: %s', $header, implode(', ', $topParts)), KL_NOTIFY);
     }
 
     // Schreibt das LastMQTTMessage-Attribut höchstens alle LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, damit die

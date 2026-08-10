@@ -2092,14 +2092,15 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         arsort($devices);
 
         $perMin = static fn(int $n): string => number_format($n / ($elapsed / 60.0), 1, '.', '');
-        $this->SendDebug('TopicStats', sprintf(
+        $header = sprintf(
             'Fenster %ds | total=%d (%s/min) | Entitäten=%d | Geräte=%d',
             $elapsed,
             $total,
             $perMin($total),
             count($counts),
             count($devices)
-        ), 0);
+        );
+        $this->SendDebug('TopicStats', $header, 0);
 
         $rank = 0;
         foreach ($devices as $deviceKey => $sum) {
@@ -2109,6 +2110,17 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             }
             $this->SendDebug('TopicStats', sprintf('  %-50s %6d (%s/min)', $deviceKey, $sum, $perMin($sum)), 0);
         }
+
+        // Kopfzeile + Top-Geräte zusätzlich als eine kompakte Zeile ins persistente Symcon-Log
+        // (auswertbar ohne Debugfenster, z. B. aus einer eingesandten Logdatei) — analog Performance-Fenster.
+        $topParts = [];
+        foreach (array_slice($devices, 0, 10, true) as $deviceKey => $sum) {
+            $topParts[] = sprintf('%s %d (%s/min)', $deviceKey, $sum, $perMin($sum));
+        }
+        if (count($devices) > 10) {
+            $topParts[] = sprintf('… (%d weitere)', count($devices) - 10);
+        }
+        $this->LogMessage(sprintf('Topic-Statistik %s | Top: %s', $header, implode(', ', $topParts)), KL_NOTIFY);
     }
 
     private function isPerformanceLogEnabled(): bool

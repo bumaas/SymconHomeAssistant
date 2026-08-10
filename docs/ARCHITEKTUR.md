@@ -261,7 +261,10 @@ Umgesetzt:
   `ownWork_ms`/`sendToChildren_ms`. Zusätzlich misst der Scope `Upstream.eventDelta` bei
   Event-State-Topics das Delta „HA-Ereigniszeit → Empfang im Splitter" (Deltas > 60 s = Retained-Replays
   werden verworfen) — damit lässt sich pro Ausreißer trennen, ob die Verzögerung **vor** Symcon
-  (`eventDelta` groß) oder **im** Splitter (`total` groß) entsteht.
+  (`eventDelta` groß) oder **im** Splitter (`total` groß) entsteht. Auch die **Topic-Statistik**
+  (`EnableTopicStatistics`, beide Splitter) schreibt ihre Fenster-Kopfzeile samt Top-10-Geräten seit
+  1.4 build 146 zusätzlich als eine Zeile ins Symcon-Log (Präfix `Topic-Statistik`) — so liefert eine
+  eingesandte Logdatei neben den Performance-Fenstern auch die Message-Last je Gerät.
 
 Gemessene Erkenntnis (Tastendruck-Latenz): Die verbleibenden, gelegentlichen Mehrsekunden-Verzögerungen
 entstehen nachweislich **vor** Symcon (Vergleich HA-Event-Zeitstempel im Payload vs. Empfangszeit im
