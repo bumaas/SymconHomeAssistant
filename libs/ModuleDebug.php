@@ -16,10 +16,19 @@ trait ModuleDebugTrait
         'UpdateCacheFromHA'
     ];
 
+    // P5: Property-Read pro Ausführung memoisieren — debugExpert läuft im
+    // Message-Hotpath vielfach; Property-Änderungen greifen ohnehin erst mit
+    // der nächsten Ausführung (ApplyChanges).
+    private ?bool $moduleDebugExpertEnabled = null;
+
+    private function isExpertDebugEnabled(): bool
+    {
+        return $this->moduleDebugExpertEnabled ??= (bool)@$this->ReadPropertyBoolean('EnableExpertDebug');
+    }
+
     private function debugExpert(string $category, string $message, array $context = [], bool $always = false): void
     {
-        $expertDebugEnabled = @$this->ReadPropertyBoolean('EnableExpertDebug');
-        if (!$always && !$expertDebugEnabled && !in_array($category, self::BASIC_DEBUG_CATEGORIES, true)) {
+        if (!$always && !$this->isExpertDebugEnabled() && !in_array($category, self::BASIC_DEBUG_CATEGORIES, true)) {
             return;
         }
 

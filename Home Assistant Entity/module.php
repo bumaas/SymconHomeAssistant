@@ -118,6 +118,8 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
     {
         parent::ApplyChanges();
         $this->ensureResolvedConfigAttributeRegistered(__FUNCTION__);
+        // Property-Änderungen (z. B. DeviceName) fließen ins Naming ein — Cache verwerfen.
+        $this->invalidateConfiguredEntitiesCache();
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert(__FUNCTION__, 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.');
@@ -182,8 +184,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         }
 
         $resolvedConfig = [$resolved];
-        $this->WriteAttributeString(
-            self::ATTR_RESOLVED_CONFIG,
+        $this->writeResolvedConfig(
             json_encode($resolvedConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
 
@@ -199,8 +200,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $stateMap = $this->fetchStateMap($resolvedConfig);
         if ($stateMap !== []) {
             $resolvedConfig = $this->mergeStateAttributes($resolvedConfig, $stateMap);
-            $this->WriteAttributeString(
-                self::ATTR_RESOLVED_CONFIG,
+            $this->writeResolvedConfig(
                 json_encode($resolvedConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
             );
         }
@@ -231,7 +231,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
      */
     private function failResolvedEntity(int $status, string $summary, string $debugMessage = ''): void
     {
-        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->writeResolvedConfig('[]');
         $this->SetSummary($summary);
         $this->SetStatus($status);
         if ($debugMessage !== '') {
@@ -239,12 +239,15 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         }
     }
 
-    private function getConfiguredEntities(string $context): array
+    // Ungecachter Neuaufbau der aktiven Entitäten; Aufruf ausschließlich über den
+    // Cache-Wrapper getConfiguredEntities (HADeviceCore).
+    private function buildConfiguredEntitiesUncached(array $configData): array
     {
-        $configData = $this->readResolvedConfig($context);
-
         $configuredEntities = [];
         foreach ($configData as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
             $row = $this->normalizeEntityStructure($row);
             if ($row === null || (($row['create_var'] ?? true) === false)) {
                 continue;

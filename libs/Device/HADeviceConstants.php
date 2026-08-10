@@ -54,6 +54,19 @@ interface HADeviceConstants
     public const string BUFFER_LAST_MQTT_TOUCH = 'LastMqttTouchEpoch';
     public const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
 
+    // Ausführungsübergreifender Cache der aufgelösten Entitäten-Konfiguration
+    // (Begründung: HADeviceCore, getConfiguredEntities). Der Build-Marker in der
+    // Signatur entwertet Alt-Blobs nach einem Modul-Update automatisch.
+    public const string BUFFER_CONFIGURED_ENTITIES_CACHE = 'ConfiguredEntitiesCache';
+    public const string CONFIGURED_ENTITIES_CACHE_MARKER = 'b147';
+    public const int CONFIGURED_ENTITIES_CACHE_MAX_BYTES = 1048576;
+    public const string BUFFER_CONFIGURED_CACHE_WARN_TS = 'ConfiguredEntitiesCacheWarnEpoch';
+    public const int CONFIGURED_ENTITIES_CACHE_WARN_THROTTLE_SEC = 3600;
+
+    // P7: Die Unavailable-Entities-JSON-Variable wird nicht mehr pro Message,
+    // sondern gebündelt über den StateCacheFlush-Timer aktualisiert.
+    public const string BUFFER_UNAVAILABLE_JSON_DIRTY = 'UnavailableJsonDirty';
+
     public const string PROP_DEVICE_AREA = 'DeviceArea';
     public const string PROP_DEVICE_NAME = 'DeviceName';
     public const string PROP_DEVICE_ID = 'DeviceID';

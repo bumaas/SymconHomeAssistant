@@ -245,7 +245,13 @@ Umgesetzt:
   `HADomainCatalog::IGNORABLE_BOOKKEEPING_ATTRIBUTES` bzw. `isIgnorableBookkeepingTopic()`. Das Device
   verwirft dieselben Attribute über `HADomainCatalog::isIgnorableBookkeepingAttribute()` – konsistent.
 - **Device-seitig:** In-Memory-State-Cache, Skip-if-unchanged für Attribut-Topics (Vergleich gegen den
-  State-Cache), Verarbeitungsstrukturen werden nicht mehr pro Message neu dekodiert.
+  State-Cache), Verarbeitungsstrukturen werden nicht mehr pro Message neu dekodiert. Seit Build 147 gilt
+  das auch für das klassische Device und die Entity-Instanz: `getConfiguredEntities()` ist ein
+  zweistufiger Cache in `HADeviceCoreTrait` (Instanz-Memo + signaturvalidierter Instanz-Buffer
+  `ConfiguredEntitiesCache` inkl. Dedup-Namenszähler; Invalidierung über den Choke-Point
+  `writeResolvedConfig()` und `ApplyChanges`). Zuvor wurde die ResolvedConfig (150–250 KB) pro
+  MQTT-Message 3–4× gelesen, dekodiert und mit ~3 Kernel-Aufrufen je Entität benannt — bei ~300
+  Entitäten >1 s pro Message. Regressionswächter: `tests/check-configured-entities-cache.php`.
 - **Empfangsfilter-Kollaps:** Beide Geräte-Pfade fassen verwandte Topics über ihren gemeinsamen Präfix zu
   wenigen Regex-Mustern zusammen (geteilter Kern `HADomainCatalog::clusterByCommonPrefix`), statt jedes
   Topic einzeln zu listen → weniger Filter-Auswertung pro Nachricht je Kind-Instanz.

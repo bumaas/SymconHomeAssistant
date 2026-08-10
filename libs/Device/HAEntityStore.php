@@ -10,6 +10,12 @@ trait HAEntityStoreTrait
             return true;
         }
 
+        // O(1) über den Konfigurations-Index (HADeviceCore); Fallback für
+        // Harnesse ohne Core-Trait bleibt der lineare Scan.
+        if (method_exists($this, 'getConfiguredEntityById')) {
+            return $this->getConfiguredEntityById($entityId) !== null;
+        }
+
         return array_any(
             $this->getConfiguredEntities(__FUNCTION__),
             static fn(array $row): bool => ($row['entity_id'] ?? '') === $entityId
@@ -184,15 +190,21 @@ trait HAEntityStoreTrait
         return true;
     }
 
-    // Persistiert den Buffer-Stand ins Attribut (Flush-Timer und ApplyChanges).
+    // Persistiert den Buffer-Stand ins Attribut (Flush-Timer und ApplyChanges)
+    // und aktualisiert bei Bedarf die Unavailable-Entities-JSON-Variable (P7:
+    // gebündelt statt pro Message).
     protected function flushEntityStateCache(): void
     {
         $this->SetTimerInterval(self::TIMER_STATE_CACHE_FLUSH, 0);
         $encoded = $this->GetBuffer(self::BUFFER_ENTITY_STATE_CACHE);
-        if ($encoded === '' || $encoded === $this->ReadAttributeString('EntityStateCache')) {
-            return;
+        if ($encoded !== '' && $encoded !== $this->ReadAttributeString('EntityStateCache')) {
+            $this->WriteAttributeString('EntityStateCache', $encoded);
         }
-        $this->WriteAttributeString('EntityStateCache', $encoded);
+
+        if ($this->GetBuffer(self::BUFFER_UNAVAILABLE_JSON_DIRTY) === '1') {
+            $this->SetBuffer(self::BUFFER_UNAVAILABLE_JSON_DIRTY, '');
+            $this->updateUnavailableEntitiesJsonVariable();
+        }
     }
 
     // Schreibt das LastMQTTMessage-Attribut und aktualisiert die Diagnose-Labels höchstens alle
@@ -400,7 +412,17 @@ trait HAEntityStoreTrait
             return;
         }
 
-        $this->updateUnavailableEntitiesJsonVariable();
+        if (!$this->shouldShowUnavailableEntitiesJson()) {
+            return;
+        }
+
+        // P7: Nicht mehr pro Message schreiben — Dirty-Flag setzen, der
+        // StateCacheFlush-Timer schreibt gebündelt (und mit korrekter
+        // Datenbasis aus der gecachten Konfiguration).
+        $this->SetBuffer(self::BUFFER_UNAVAILABLE_JSON_DIRTY, '1');
+        if ($this->GetTimerInterval(self::TIMER_STATE_CACHE_FLUSH) <= 0) {
+            $this->SetTimerInterval(self::TIMER_STATE_CACHE_FLUSH, self::STATE_CACHE_FLUSH_DELAY_MS);
+        }
     }
 
     private function shouldShowUnavailableEntitiesJson(): bool
@@ -449,9 +471,20 @@ trait HAEntityStoreTrait
             return;
         }
 
+        // Datenbasis ist die (gecachte) Entitäten-Konfiguration — das Laufzeit-Array
+        // $this->entities ist außerhalb von ApplyChanges leer (getrennte
+        // PHP-Ausführungen) und lieferte hier zuvor stets ein leeres Ergebnis.
+        $rows = method_exists($this, 'getConfiguredEntities')
+            ? $this->getConfiguredEntities(__FUNCTION__)
+            : array_values($this->entities);
+
         $entries = [];
-        foreach ($this->entities as $entityId => $entity) {
-            if (($entity['create_var'] ?? true) === false) {
+        foreach ($rows as $entity) {
+            if (!is_array($entity)) {
+                continue;
+            }
+            $entityId = (string)($entity['entity_id'] ?? '');
+            if ($entityId === '' || ($entity['create_var'] ?? true) === false) {
                 continue;
             }
 
@@ -461,7 +494,10 @@ trait HAEntityStoreTrait
                 continue;
             }
 
-            $entityIdent = $this->getSharedEntityMainIdent($entityId);
+            $entityIdent = trim((string)($entity['ident'] ?? ''));
+            if ($entityIdent === '') {
+                $entityIdent = $this->getSharedEntityMainIdent($entityId);
+            }
             $objectId = @$this->GetIDForIdent($entityIdent);
             if ($objectId === false) {
                 continue;

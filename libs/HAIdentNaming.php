@@ -371,6 +371,12 @@ trait HAIdentNamingTrait
 
     private function findSharedConfiguredEntityByEntityId(string $entityId): ?array
     {
+        // O(1) über den Konfigurations-Index (HADeviceCore); Fallback für Module
+        // ohne Core-Trait (MQTT-Discovery-Device) bleibt der lineare Scan.
+        if (method_exists($this, 'getConfiguredEntityById')) {
+            return $this->getConfiguredEntityById($entityId);
+        }
+
         return array_find(
             $this->getSharedConfiguredEntitiesForNaming(),
             static fn(array $row): bool => ($row['entity_id'] ?? '') === $entityId
@@ -539,17 +545,20 @@ trait HAIdentNamingTrait
         return $value;
     }
 
+    /** @var array<class-string, int> Parameterzahl von getConfiguredEntities je Klasse (Reflection-Memo) */
+    private static array $sharedNamingConfiguredEntitiesParamCount = [];
+
     private function getSharedConfiguredEntitiesForNaming(): array
     {
         if (!method_exists($this, 'getConfiguredEntities')) {
             return [];
         }
 
-        $method = new ReflectionMethod($this, 'getConfiguredEntities');
-        $entities = $method->getNumberOfParameters() === 0
+        $paramCount = self::$sharedNamingConfiguredEntitiesParamCount[static::class]
+            ??= (new ReflectionMethod($this, 'getConfiguredEntities'))->getNumberOfParameters();
+
+        return $paramCount === 0
             ? $this->getConfiguredEntities()
             : $this->getConfiguredEntities(__FUNCTION__);
-
-        return $entities;
     }
 }

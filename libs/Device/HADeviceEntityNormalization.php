@@ -49,6 +49,11 @@ trait HADeviceEntityNormalizationTrait
     // Sucht die passende Konfigurationszeile zu einer Entity-ID.
     private function findConfiguredEntityById(string $entityId): ?array
     {
+        // O(1) über den Konfigurations-Index (HADeviceCore); Fallback: linearer Scan.
+        if (method_exists($this, 'getConfiguredEntityById')) {
+            return $this->getConfiguredEntityById($entityId);
+        }
+
         return array_find(
             $this->getConfiguredEntities(__FUNCTION__),
             static fn(array $row): bool => ($row['entity_id'] ?? '') === $entityId

@@ -145,6 +145,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     {
         parent::ApplyChanges();
         $this->ensureResolvedConfigAttributeRegistered(__FUNCTION__);
+        // Property-Änderungen (z. B. DeviceName) fließen ins Naming ein — Cache verwerfen.
+        $this->invalidateConfiguredEntitiesCache();
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.');
@@ -208,8 +210,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         $configData = $this->mergeCreateVarSettings($configData, $existingCreateVarMap);
 
-        $this->WriteAttributeString(
-            self::ATTR_RESOLVED_CONFIG,
+        $this->writeResolvedConfig(
             json_encode($configData, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
 
@@ -220,8 +221,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $stateMap = $this->fetchStateMap($configData);
         if ($stateMap !== []) {
             $configData = $this->mergeStateAttributes($configData, $stateMap);
-            $this->WriteAttributeString(
-                self::ATTR_RESOLVED_CONFIG,
+            $this->writeResolvedConfig(
                 json_encode($configData, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
             );
         }
@@ -311,9 +311,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         return '';
     }
 
+    // P5: Property-Read pro Ausführung memoisieren (Aufruf mehrfach je Message).
+    private ?bool $performanceLogEnabled = null;
+
     private function isPerformanceLogEnabled(): bool
     {
-        return (bool)@$this->ReadPropertyBoolean(self::PROP_ENABLE_PERFORMANCE_LOG);
+        return $this->performanceLogEnabled ??= (bool)@$this->ReadPropertyBoolean(self::PROP_ENABLE_PERFORMANCE_LOG);
     }
 
     private function logPerformanceSample(string $scope, float $startedAt, array $context = []): void
@@ -616,12 +619,15 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     }
 
 
-    private function getConfiguredEntities(string $context): array
+    // Ungecachter Neuaufbau der aktiven Entitäten; Aufruf ausschließlich über den
+    // Cache-Wrapper getConfiguredEntities (HADeviceCore).
+    private function buildConfiguredEntitiesUncached(array $configData): array
     {
-        $configData = $this->readResolvedConfig($context);
-
         $configuredEntities = [];
         foreach ($configData as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
             $row = $this->normalizeActiveConfiguredEntity($row);
             if ($row === null) {
                 continue;
@@ -710,7 +716,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     private function failResolvedConfig(int $status, string $context, string $debugMessage = '', array $debugContext = []): void
     {
-        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->writeResolvedConfig('[]');
         $this->resetResolvedDeviceRuntime();
         $this->SetStatus($status);
         $this->updateDiagnosticsLabels();
@@ -1346,8 +1352,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         $updated = $this->mergeCreateVarSettings($this->readResolvedConfig(__FUNCTION__), $createVarMap);
-        $this->WriteAttributeString(
-            self::ATTR_RESOLVED_CONFIG,
+        $this->writeResolvedConfig(
             json_encode($updated, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
 

@@ -284,8 +284,185 @@ trait HADeviceCoreTrait
         }
 
         $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+        $this->writeResolvedConfig('[]');
         $this->debugExpert($context, 'ResolvedConfig in Bestandsinstanz initialisiert');
+    }
+
+    // ------------------------------------------------------------------
+    // Zweistufiger Cache der aufgelösten Entitäten-Konfiguration.
+    //
+    // ReceiveData läuft pro MQTT-Message in einer eigenen PHP-Ausführung; ohne
+    // Cache wurde die ResolvedConfig (bei großen Geräten 150–250 KB) pro Message
+    // mehrfach gelesen, dekodiert und mit ~3 Kernel-Aufrufen je Entität benannt —
+    // bei ~300 Entitäten über 1 s pro Message, der Splitter staut sich.
+    // Stufe 1: Instanz-Memo (gültig für die laufende Ausführung; alle
+    // Schreibstellen invalidieren über writeResolvedConfig). Stufe 2: Instanz-
+    // Buffer, signaturvalidiert (Länge+CRC der Roh-Konfiguration, Naming-Eingaben,
+    // Build-Marker) und damit selbstheilend. Stufe 3: Neuaufbau.
+    // ------------------------------------------------------------------
+    private ?array $configuredEntitiesMemo = null;
+    /** @var array<string, array>|null entity_id => Konfigurationszeile */
+    private ?array $configuredEntitiesById = null;
+
+    protected function getConfiguredEntities(string $context): array
+    {
+        if ($this->configuredEntitiesMemo !== null) {
+            return $this->configuredEntitiesMemo;
+        }
+
+        $startedAt = microtime(true);
+        $raw = $this->readResolvedConfigRaw($context);
+        $signature = $this->buildConfiguredEntitiesSignature($raw);
+
+        $blob = $this->GetBuffer(self::BUFFER_CONFIGURED_ENTITIES_CACHE);
+        if ($blob !== '') {
+            $decoded = json_decode($blob, true);
+            if (is_array($decoded)
+                && ($decoded['sig'] ?? null) === $signature
+                && is_array($decoded['entities'] ?? null)
+                && is_array($decoded['baseNameCounts'] ?? null)) {
+                // Dedup-Namenszähler zwingend mitrestaurieren — ohne sie würden
+                // die Unterscheidungs-Suffixe fehlen und MaintainVariable
+                // gleichnamige Variablen umbenennen.
+                if (property_exists($this, 'sharedEntityBaseNameCounts')) {
+                    $this->sharedEntityBaseNameCounts = $decoded['baseNameCounts'];
+                }
+                $this->logConfigResolvePerformance($startedAt, true, count($decoded['entities']), strlen($blob));
+                return $this->rememberConfiguredEntities($decoded['entities']);
+            }
+        }
+
+        $configData = $this->decodeJsonArray($raw, $context) ?? [];
+        $entities = $this->buildConfiguredEntitiesUncached($configData);
+        $cacheBytes = $this->storeConfiguredEntitiesCache($entities, $signature);
+        $this->logConfigResolvePerformance($startedAt, false, count($entities), $cacheBytes);
+        return $this->rememberConfiguredEntities($entities);
+    }
+
+    // O(1)-Zugriff auf eine Konfigurationszeile (statt linearem Scan pro Aufruf).
+    protected function getConfiguredEntityById(string $entityId): ?array
+    {
+        if ($entityId === '') {
+            return null;
+        }
+        if ($this->configuredEntitiesById === null) {
+            $this->getConfiguredEntities(__FUNCTION__);
+        }
+        return $this->configuredEntitiesById[$entityId] ?? null;
+    }
+
+    // Choke-Point für ALLE Schreibstellen der ResolvedConfig: Attribut schreiben
+    // und den Konfigurations-Cache (Memo + Buffer) invalidieren.
+    protected function writeResolvedConfig(string $json): void
+    {
+        $this->WriteAttributeString(self::ATTR_RESOLVED_CONFIG, $json);
+        $this->invalidateConfiguredEntitiesCache();
+    }
+
+    protected function invalidateConfiguredEntitiesCache(): void
+    {
+        $this->configuredEntitiesMemo = null;
+        $this->configuredEntitiesById = null;
+        $this->SetBuffer(self::BUFFER_CONFIGURED_ENTITIES_CACHE, '');
+    }
+
+    private function readResolvedConfigRaw(string $context): string
+    {
+        // Existenzprüfung und Lesen in EINEM Attribut-Zugriff (Hotpath: 1 Read pro Ausführung).
+        $raw = @$this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG);
+        if ($raw === false) {
+            $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
+            $this->writeResolvedConfig('[]');
+            $this->debugExpert($context, 'ResolvedConfig in Bestandsinstanz initialisiert');
+            return '[]';
+        }
+        return is_string($raw) ? $raw : '[]';
+    }
+
+    private function buildConfiguredEntitiesSignature(string $raw): string
+    {
+        // Naming-Eingaben gehören in die Signatur: DeviceName-Property bzw.
+        // Instanzname fließen in Idents und Dedup-Namenszähler ein.
+        $namingInputs = method_exists($this, 'getSharedCurrentInstanceDeviceName')
+            ? $this->getSharedCurrentInstanceDeviceName()
+            : '';
+        return strlen($raw)
+            . ':' . sprintf('%08x', crc32($raw))
+            . ':' . sprintf('%08x', crc32($namingInputs))
+            . ':' . self::CONFIGURED_ENTITIES_CACHE_MARKER;
+    }
+
+    private function rememberConfiguredEntities(array $entities): array
+    {
+        $this->configuredEntitiesMemo = $entities;
+        $index = [];
+        foreach ($entities as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $entityId = (string)($row['entity_id'] ?? '');
+            if ($entityId !== '') {
+                $index[$entityId] = $row;
+            }
+        }
+        $this->configuredEntitiesById = $index;
+        return $entities;
+    }
+
+    private function storeConfiguredEntitiesCache(array $entities, string $signature): int
+    {
+        $counts = property_exists($this, 'sharedEntityBaseNameCounts') ? $this->sharedEntityBaseNameCounts : [];
+        try {
+            $blob = json_encode([
+                'sig'            => $signature,
+                'entities'       => $entities,
+                'baseNameCounts' => $counts,
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        } catch (JsonException) {
+            $this->SetBuffer(self::BUFFER_CONFIGURED_ENTITIES_CACHE, '');
+            return 0;
+        }
+
+        $bytes = strlen($blob);
+        if ($bytes > self::CONFIGURED_ENTITIES_CACHE_MAX_BYTES) {
+            // Größen-Guard: zu großer Blob bleibt Memo-only (Stufe 1 wirkt weiter).
+            $this->SetBuffer(self::BUFFER_CONFIGURED_ENTITIES_CACHE, '');
+            $this->warnConfiguredEntitiesCacheOversize($bytes);
+            return $bytes;
+        }
+
+        $this->SetBuffer(self::BUFFER_CONFIGURED_ENTITIES_CACHE, $blob);
+        return $bytes;
+    }
+
+    private function warnConfiguredEntitiesCacheOversize(int $bytes): void
+    {
+        $now = time();
+        $last = (int)$this->GetBuffer(self::BUFFER_CONFIGURED_CACHE_WARN_TS);
+        if ($last > 0 && ($now - $last) < self::CONFIGURED_ENTITIES_CACHE_WARN_THROTTLE_SEC) {
+            return;
+        }
+        $this->SetBuffer(self::BUFFER_CONFIGURED_CACHE_WARN_TS, (string)$now);
+        $this->LogMessage(
+            sprintf(
+                'Entitäten-Konfigurations-Cache übersteigt %d KB (%d Bytes) — Cache wirkt nur noch pro Ausführung.',
+                intdiv(self::CONFIGURED_ENTITIES_CACHE_MAX_BYTES, 1024),
+                $bytes
+            ),
+            KL_WARNING
+        );
+    }
+
+    private function logConfigResolvePerformance(float $startedAt, bool $cached, int $entityCount, int $cacheBytes): void
+    {
+        if (!method_exists($this, 'logPerformanceSample')) {
+            return;
+        }
+        $this->logPerformanceSample('ReceiveData.configResolve', $startedAt, [
+            'cached'     => $cached,
+            'entities'   => $entityCount,
+            'cacheBytes' => $cacheBytes,
+        ]);
     }
 
     protected function decodeJsonArray(string $json, string $context): ?array
@@ -1077,18 +1254,23 @@ trait HADeviceCoreTrait
 
     protected function setValueWithDebug(string $ident, $value): void
     {
-        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] ?? '';
-        if ($caller !== 'UpdateMediaPlayerProgress' || $this->shouldLogMediaPlayerProgress($ident)) {
-            $this->debugExpert('SetValue', $caller, [
-                'Ident' => $ident,
-                'ValueType' => get_debug_type($value),
-                'Value' => $value
-            ]);
+        // P6: debug_backtrace nur bei aktivem Expert-Debug — die SetValue-Debugzeile
+        // wird ohne Expert-Debug ohnehin verworfen, der Backtrace wäre reine
+        // Verlustzeit im Message-Hotpath.
+        if ($this->isExpertDebugEnabled()) {
+            $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] ?? '';
+            if ($caller !== 'UpdateMediaPlayerProgress' || $this->shouldLogMediaPlayerProgress($ident)) {
+                $this->debugExpert('SetValue', $caller, [
+                    'Ident' => $ident,
+                    'ValueType' => get_debug_type($value),
+                    'Value' => $value
+                ]);
+            }
         }
         $variableId = @$this->GetIDForIdent($ident);
         if ($variableId === false) {
             $this->debugRuntimeIssue('SetValue', 'Ident nicht gefunden', [
-                'Caller' => $caller,
+                'Caller' => $caller ?? (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] ?? ''),
                 'Ident' => $ident
             ]);
             return;
