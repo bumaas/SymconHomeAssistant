@@ -505,11 +505,28 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $missing = (int)($topicAnalysis['missing_count'] ?? 0);
         if ($total > 0) {
             if ($missing > 0) {
-                $add(
-                    'warn',
-                    sprintf($this->Translate('%d referenced runtime topics have no payload yet'), $missing),
-                    $this->Translate('Also subscribe to the device/service topics so values arrive, e.g. zigbee2mqtt/# for Zigbee2MQTT.')
-                );
+                $coverage = $this->analyzeSubscriptionCoverage($topicAnalysis['missing_topics'] ?? []);
+                if ($coverage['state'] === 'gap') {
+                    $add(
+                        'warn',
+                        sprintf(
+                            $this->Translate('%d of %d missing runtime topics are not covered by any MQTT client subscription'),
+                            count($coverage['uncovered']),
+                            $missing
+                        ),
+                        sprintf(
+                            $this->Translate('Current subscriptions: %s. Add e.g. %s (or # to cover everything).'),
+                            implode(', ', $coverage['filters']),
+                            implode(', ', $coverage['suggestions'])
+                        )
+                    );
+                } else {
+                    $add(
+                        'warn',
+                        sprintf($this->Translate('%d referenced runtime topics have no payload yet'), $missing),
+                        $this->Translate('Also subscribe to the device/service topics so values arrive, e.g. zigbee2mqtt/# for Zigbee2MQTT.')
+                    );
+                }
             } else {
                 $add('ok', $this->Translate('All referenced runtime topics have payloads'));
             }
@@ -676,6 +693,27 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
      */
     private function parentSubscriptionCoversPrefix(string $prefix): ?bool
     {
+        $subscriptions = $this->readParentSubscriptionFilters();
+        if ($subscriptions === null || $subscriptions === []) {
+            return null;
+        }
+
+        foreach ($subscriptions as $sub) {
+            if (HAMqttTopicFilter::filterCoversPrefix($sub, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Abonnement-Filter des MQTT-Client-Parents; null, wenn die Konfiguration nicht lesbar ist.
+     *
+     * @return string[]|null
+     */
+    private function readParentSubscriptionFilters(): ?array
+    {
         $parentId = $this->resolveExistingParentId();
         if ($parentId === null) {
             return null;
@@ -686,67 +724,44 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return null;
         }
 
-        $subscriptions = [];
-        foreach ($config as $key => $value) {
-            if (stripos((string)$key, 'subscri') === false) {
-                continue;
-            }
-            foreach ($this->flattenSubscriptionTopics($value) as $topic) {
-                $subscriptions[] = $topic;
-            }
-        }
-
-        if ($subscriptions === []) {
-            return null;
-        }
-
-        $base = trim($prefix, '/');
-        foreach ($subscriptions as $sub) {
-            $sub = trim((string)$sub, '/');
-            if ($sub === '#' || $sub === '') {
-                return true;
-            }
-            $subBase = trim((string) preg_replace('~/?[#+].*$~', '', $sub), '/');
-            if ($subBase === '' || $subBase === $base
-                || str_starts_with($base . '/', $subBase . '/')
-                || str_starts_with($subBase . '/', $base . '/')) {
-                return true;
-            }
-        }
-
-        return false;
+        return HAMqttTopicFilter::collectSubscriptionsFromConfig($config);
     }
 
-    private function flattenSubscriptionTopics(mixed $value): array
+    /**
+     * Prüft, welche der übergebenen Topics von den Abonnements des MQTT-Client-Parents
+     * abgedeckt sind. state: 'ok' = alle abgedeckt, 'gap' = mindestens eines nicht,
+     * 'unknown' = Abonnements nicht lesbar, 'not_applicable' = Bundle-Modus oder
+     * Parent ist kein MQTT Client.
+     *
+     * @param string[] $topics
+     * @return array{state: string, filters: string[], uncovered: string[], suggestions: string[]}
+     */
+    private function analyzeSubscriptionCoverage(array $topics): array
     {
-        $topics = [];
-        if (is_string($value)) {
-            $trimmed = trim($value);
-            if ($trimmed === '') {
-                return [];
-            }
-            if (str_starts_with($trimmed, '[') || str_starts_with($trimmed, '{')) {
-                try {
-                    $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
-                    return $this->flattenSubscriptionTopics($decoded);
-                } catch (Throwable) {
-                    return [$trimmed];
-                }
-            }
-            return [$trimmed];
+        $result = [
+            'state' => 'not_applicable',
+            'filters' => [],
+            'uncovered' => [],
+            'suggestions' => []
+        ];
+
+        if ($this->isBundleMode() || !$this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT)) {
+            return $result;
         }
-        if (is_array($value)) {
-            foreach ($value as $key => $item) {
-                if (is_string($item) && stripos((string)$key, 'topic') !== false) {
-                    $topics[] = $item;
-                } elseif (is_array($item)) {
-                    foreach ($this->flattenSubscriptionTopics($item) as $topic) {
-                        $topics[] = $topic;
-                    }
-                }
-            }
+
+        $filters = $this->readParentSubscriptionFilters();
+        if ($filters === null || $filters === []) {
+            $result['state'] = 'unknown';
+            return $result;
         }
-        return $topics;
+
+        $uncovered = HAMqttTopicFilter::uncoveredTopics($topics, $filters);
+        $result['state'] = $uncovered === [] ? 'ok' : 'gap';
+        $result['filters'] = $filters;
+        $result['uncovered'] = $uncovered;
+        $result['suggestions'] = HAMqttTopicFilter::suggestFilters($uncovered);
+
+        return $result;
     }
 
     /** @noinspection PhpUnused */
@@ -931,11 +946,12 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         }
         $hasStale = $state['has_stale'];
         // GetConfigurationForm() rendert das Formular ohne Diagnose und stößt genau einen aufgeschobenen
-        // Refresh an (Dirty-Flag). Dieser erste Refresh nach dem Öffnen darf das Popup daher sichtbar setzen,
-        // wenn veraltete Discovery-Configs vorliegen. Da pro Öffnen nur ein Refresh läuft, springt es nicht
-        // nach jeder Aktualisierung erneut auf; nach der Bereinigung wird es ausgeblendet.
+        // Refresh an (Dirty-Flag). Dieser erste Refresh nach dem Öffnen darf die Popups daher sichtbar setzen,
+        // wenn veraltete Discovery-Configs bzw. nicht abonnierte referenzierte Topics vorliegen. Da pro Öffnen
+        // nur ein Refresh läuft, springen sie nicht nach jeder Aktualisierung erneut auf.
         $this->updateFormFieldSafe('DiagDiscoveryAlert', 'visible', $hasStale);
         $this->updateFormFieldSafe('ButtonRemoveStaleDiscovery', 'visible', $hasStale && !$this->isBundleMode());
+        $this->updateFormFieldSafe('DiagSubscriptionAlert', 'visible', (bool)($state['has_subscription_gap'] ?? false));
     }
 
     // Schreibt das LastMQTTMessage-Attribut höchstens alle LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, damit die
@@ -1563,6 +1579,19 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $topicPayloads = $this->annotateCacheRecords($topicPayloads);
 
+        $subscriptionCoverage = $this->analyzeSubscriptionCoverage($topicAnalysis['referenced_topics']);
+        $coverageCheckable = in_array($subscriptionCoverage['state'], ['ok', 'gap'], true);
+        $uncoveredLookup = array_fill_keys($subscriptionCoverage['uncovered'], true);
+        $referencedTopicEntries = array_map(
+            static function (array $entry) use ($coverageCheckable, $uncoveredLookup): array {
+                $entry['subscription_covered'] = $coverageCheckable
+                    ? !isset($uncoveredLookup[(string)($entry['topic'] ?? '')])
+                    : null;
+                return $entry;
+            },
+            $topicAnalysis['topic_entries']
+        );
+
         $bundle = [
             'format' => self::EXPORT_FORMAT,
             'version' => self::EXPORT_VERSION,
@@ -1570,7 +1599,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'splitter' => [
                 'instance_id' => $this->InstanceID,
                 'instance_name' => IPS_GetName($this->InstanceID),
-                'discovery_prefix' => $this->getDiscoveryPrefix()
+                'discovery_prefix' => $this->getDiscoveryPrefix(),
+                'parent_subscriptions' => $subscriptionCoverage['filters'],
+                'subscription_check' => $subscriptionCoverage['state']
             ],
             'session' => $this->buildExportSessionInfo(),
             'options' => [
@@ -1595,10 +1626,11 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                     'stale' => $topicAnalysis['stale_count'],
                     'missing' => $topicAnalysis['missing_count'],
                     'extra_cached' => $topicAnalysis['extra_count'],
+                    'unsubscribed' => count($subscriptionCoverage['uncovered']),
                     'by_kind' => $topicAnalysis['by_kind_diagnostics']
                 ]
             ],
-            'referenced_topics' => $topicAnalysis['topic_entries'],
+            'referenced_topics' => $referencedTopicEntries,
             'extra_cached_topics' => $topicAnalysis['extra_topics'],
             'discovery_configs' => $annotatedDiscoveryConfigs,
             'topic_payloads' => $topicPayloads,
@@ -1894,14 +1926,16 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $discoveryRecords = array_values($this->getDiscoveryConfigRecords());
         $discoveryAnalysis = $this->analyzeDiscoveryConfigRecords($discoveryRecords);
         $topicAnalysis = $this->analyzeReferencedRuntimeTopics($discoveryRecords);
+        $subscriptionCoverage = $this->analyzeSubscriptionCoverage($topicAnalysis['referenced_topics'] ?? []);
 
         return [
-            'captions' => $this->buildDiagnosticsCaptions($discoveryAnalysis, $topicAnalysis),
-            'has_stale' => ((int)($discoveryAnalysis['stale_count'] ?? 0)) > 0
+            'captions' => $this->buildDiagnosticsCaptions($discoveryAnalysis, $topicAnalysis, $subscriptionCoverage),
+            'has_stale' => ((int)($discoveryAnalysis['stale_count'] ?? 0)) > 0,
+            'has_subscription_gap' => $subscriptionCoverage['state'] === 'gap'
         ];
     }
 
-    private function buildDiagnosticsCaptions(array $discoveryAnalysis, array $topicAnalysis): array
+    private function buildDiagnosticsCaptions(array $discoveryAnalysis, array $topicAnalysis, array $subscriptionCoverage): array
     {
         $instance = IPS_GetInstance($this->InstanceID);
         $instanceStatus = (int)($instance['InstanceStatus'] ?? 0);
@@ -1985,8 +2019,22 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'DiagTopicPreview' => $this->Translate('Missing/stale runtime topics: ') . $this->buildCombinedTopicIssuePreview(
                 $topicAnalysis['missing_topics'],
                 $topicAnalysis['stale_topics']
-            )
+            ),
+            'DiagSubscriptionGap' => $this->buildSubscriptionGapCaption($subscriptionCoverage)
         ];
+    }
+
+    private function buildSubscriptionGapCaption(array $subscriptionCoverage): string
+    {
+        return match ($subscriptionCoverage['state']) {
+            'gap' => sprintf(
+                $this->Translate('Unsubscribed referenced topics: %d (suggested subscription: %s)'),
+                count($subscriptionCoverage['uncovered']),
+                implode(', ', $subscriptionCoverage['suggestions'])
+            ),
+            'ok' => $this->Translate('Unsubscribed referenced topics: none'),
+            default => $this->Translate('Unsubscribed referenced topics: not verifiable')
+        };
     }
 
     private function isTopicStatisticsEnabled(): bool

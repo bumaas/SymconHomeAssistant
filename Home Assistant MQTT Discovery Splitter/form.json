@@ -167,6 +167,25 @@
           "type": "Label",
           "name": "DiagTopicPreview",
           "caption": "Missing/stale runtime topics: -"
+        },
+        {
+          "type": "PopupAlert",
+          "name": "DiagSubscriptionAlert",
+          "visible": false,
+          "popup": {
+            "closeCaption": "OK",
+            "items": [
+              {
+                "type": "Label",
+                "caption": "Referenced topics are not covered by any MQTT client subscription – their values can never arrive. Add matching subscriptions in the MQTT client (see 'Unsubscribed referenced topics' for a suggestion), or subscribe # to cover everything."
+              }
+            ]
+          }
+        },
+        {
+          "type": "Label",
+          "name": "DiagSubscriptionGap",
+          "caption": "Unsubscribed referenced topics: -"
         }
       ]
     },

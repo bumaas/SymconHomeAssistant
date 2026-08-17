@@ -1666,70 +1666,18 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return null;
         }
 
-        // Subscription-Topics aus allen Feldern sammeln, deren Schlüssel "subscri" enthält.
-        $subscriptions = [];
-        foreach ($config as $key => $value) {
-            if (stripos((string)$key, 'subscri') === false) {
-                continue;
-            }
-            foreach ($this->flattenSubscriptionTopics($value) as $topic) {
-                $subscriptions[] = $topic;
-            }
-        }
-
+        $subscriptions = HAMqttTopicFilter::collectSubscriptionsFromConfig($config);
         if ($subscriptions === []) {
             return null;
         }
 
-        $base = trim($baseTopic, '/');
         foreach ($subscriptions as $sub) {
-            $sub = trim((string)$sub, '/');
-            if ($sub === '#' || $sub === '') {
-                return true;
-            }
-            // Wildcards abschneiden und gegen das Base-Topic vergleichen.
-            $subBase = trim((string) preg_replace('~/?[#+].*$~', '', $sub), '/');
-            if ($subBase === '' || $subBase === $base
-                || str_starts_with($base . '/', $subBase . '/')
-                || str_starts_with($subBase . '/', $base . '/')) {
+            if (HAMqttTopicFilter::filterCoversPrefix($sub, $baseTopic)) {
                 return true;
             }
         }
 
         return false;
-    }
-
-    private function flattenSubscriptionTopics(mixed $value): array
-    {
-        $topics = [];
-        if (is_string($value)) {
-            $trimmed = trim($value);
-            if ($trimmed === '') {
-                return [];
-            }
-            // Listen-Properties liefern oft JSON; sonst der String selbst als Topic.
-            if (str_starts_with($trimmed, '[') || str_starts_with($trimmed, '{')) {
-                try {
-                    $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
-                    return $this->flattenSubscriptionTopics($decoded);
-                } catch (Throwable) {
-                    return [$trimmed];
-                }
-            }
-            return [$trimmed];
-        }
-        if (is_array($value)) {
-            foreach ($value as $key => $item) {
-                if (is_string($item) && stripos((string)$key, 'topic') !== false) {
-                    $topics[] = $item;
-                } elseif (is_array($item)) {
-                    foreach ($this->flattenSubscriptionTopics($item) as $topic) {
-                        $topics[] = $topic;
-                    }
-                }
-            }
-        }
-        return $topics;
     }
 
     /** @noinspection PhpUnused */
