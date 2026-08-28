@@ -143,7 +143,7 @@ mqtt_statestream:
 1. MQTT Client in Symcon einrichten.
    Wenn der Broker als Symcon MQTT Server läuft, kann der MQTT Client direkt auf diesen Server verbunden werden, z. B. per `127.0.0.1:1028`.
    Verlangt der Broker eine Anmeldung (z. B. Mosquitto in Home Assistant), Benutzername und Passwort in der MQTT-Client-Instanz eintragen.
-2. Subscription so setzen, dass mindestens `homeassistant/#` empfangen wird. Sie gehört in die Liste `Subscriptions` der MQTT-Client-Instanz, nicht in die Module dieser Bibliothek.
+2. Subscription so setzen, dass mindestens `homeassistant/#` empfangen wird. Sie gehört in die Liste `Subscriptions` der MQTT-Client-Instanz, nicht in die Module dieser Bibliothek — aus der Splitter-Konfiguration erreichbar über **„Schnittstelle konfigurieren"**.
 3. Zusätzlich die Topics des Geräts oder Dienstes abonnieren, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
 4. `Home Assistant MQTT Discovery Splitter` anlegen und mit diesem MQTT-Client verbinden.
 5. Im Splitter `MQTTDiscoveryPrefix` auf den literalen Discovery-Prefix setzen, typischerweise `homeassistant`.
@@ -285,7 +285,7 @@ Die übrigen Abschnitte behandeln „es kommt nichts an" — hier geht es um den
 1. **`publish_timestamps: false`** in der `mqtt_statestream`-Konfiguration. Der größte Hebel: Die Topics `last_changed`/`last_updated` verwirft der Splitter ohnehin, sie machen aber zwei Drittel der Nachrichten aus.
 2. **`include`/`exclude`** in `mqtt_statestream`: nur die Entitäten publizieren, die in Symcon wirklich gebraucht werden. Sekundengenaue Diagnosewerte von Wechselrichtern, Wallboxen oder Wärmepumpen sind hier meist der Hauptposten.
 3. **Abonnement des MQTT Clients eingrenzen** auf `<base_topic>/#`. Steht dort `#`, reicht der Client den gesamten Broker-Verkehr an den Splitter weiter — auch Topics fremder Geräte. Tauchen in der Topic-Statistik Namen auf, die gar nicht aus Home Assistant stammen, ist das die Ursache. (Seit 1.4 build 150 sortiert der Splitter solche Topics zusätzlich selbst aus.)
-   **Wo:** nicht im HA-Modul, sondern in der **MQTT-Client-Instanz**, mit der der Splitter verbunden ist — dort den Filter in die Liste `Subscriptions` eintragen. Welche Instanz das ist, steht in der Splitter-Konfiguration im Abschnitt **Diagnose** (zugeklappt, erst aufklappen) in der Zeile `MQTT-Parent`, mitsamt Instanz-ID und Namen. Direkt dorthin gelangt man auch über das Zahnrad im Konfigurationsreiter der Splitter-Instanz.
+   **Wo:** nicht im HA-Modul, sondern in der **MQTT-Client-Instanz**, mit der der Splitter verbunden ist — dort den Filter in die Liste `Subscriptions` eintragen. Am schnellsten dorthin: in der Splitter-Konfiguration oben auf **„Schnittstelle konfigurieren"** klicken, das öffnet genau diese Instanz. (Welche es ist, steht außerdem im zugeklappten Abschnitt **Diagnose** in der Zeile `MQTT-Parent` mit Instanz-ID und Namen.)
 4. **Diagnose-Schalter wieder abschalten:** `Topic-Statistik` und `Performance-Timing` kosten selbst Rechenzeit pro Nachricht und gehören nach der Messung aus.
 
 ## 8. FAQ

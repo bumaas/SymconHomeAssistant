@@ -1486,7 +1486,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
                 sprintf(
                     // Ortsangabe bewusst mit im Text: Anwender suchen die Einstellung regelmäßig im
                     // HA-Modul selbst (Supportfälle bgersmann 08/2026, roesl 08/2026).
-                    $this->Translate('The subscription is not set here but in the MQTT Client instance this splitter is connected to (its "Subscriptions" list). Enter %s/# there.'),
+                    $this->Translate('The subscription is not set here but in the MQTT Client instance this splitter is connected to — open it via "Configure interface" and enter %s/# in its "Subscriptions" list.'),
                     $baseTopic
                 )
             ]];

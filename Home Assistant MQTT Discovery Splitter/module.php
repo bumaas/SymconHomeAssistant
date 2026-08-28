@@ -467,7 +467,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 sprintf(
                     // Ortsangabe bewusst mit im Text: Anwender suchen die Einstellung regelmäßig im
                     // Modul selbst (Supportfälle bgersmann 08/2026, roesl 08/2026).
-                    $this->Translate('The subscription is not set here but in the MQTT Client instance this splitter is connected to (its "Subscriptions" list). Enter at least %s/# there.'),
+                    $this->Translate('The subscription is not set here but in the MQTT Client instance this splitter is connected to — open it via "Configure interface" and enter at least %s/# in its "Subscriptions" list.'),
                     $prefix
                 )
             );
@@ -520,7 +520,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                             $missing
                         ),
                         sprintf(
-                            $this->Translate('Subscriptions are set in the MQTT Client instance this splitter is connected to, not here. Current: %s. Add e.g. %s there (or # to cover everything).'),
+                            $this->Translate('Subscriptions are set in the MQTT Client instance this splitter is connected to, not here (open it via "Configure interface"). Current: %s. Add e.g. %s there (or # to cover everything).'),
                             implode(', ', $coverage['filters']),
                             implode(', ', $coverage['suggestions'])
                         )
