@@ -70,7 +70,7 @@
       "Parent is MQTT Server – subscriptions are handled by the broker, not a client": "Parent ist MQTT Server – Subscriptions übernimmt der Broker, nicht ein Client",
       "Parent subscription covers the base topic": "Parent-Subscription deckt das Base-Topic ab",
       "Parent subscription does not seem to cover \"%s\"": "Parent-Subscription deckt \"%s\" scheinbar nicht ab",
-      "Set the MQTT Client subscription to e.g. %s/# (or # for testing).": "MQTT-Client-Subscription z. B. auf %s/# setzen (oder # zum Testen).",
+      "The subscription is not set here but in the MQTT Client instance this splitter is connected to (its \"Subscriptions\" list). Enter %s/# there.": "Die Subscription wird nicht hier eingestellt, sondern in der MQTT-Client-Instanz, mit der dieser Splitter verbunden ist (deren Liste \"Subscriptions\"). Dort %s/# eintragen.",
       "Subscription could not be checked (parent config not readable)": "Subscription nicht prüfbar (Parent-Konfiguration nicht lesbar)",
       "Received domains: none yet (since last restart)": "Empfangene Domänen: noch keine (seit letztem Neustart)",
       "Only one domain is delivering data: %s": "Nur eine Domäne liefert Daten: %s",

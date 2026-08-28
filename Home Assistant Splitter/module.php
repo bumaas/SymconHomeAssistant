@@ -1483,7 +1483,12 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return [[
                 'warn',
                 sprintf($this->Translate('Parent subscription does not seem to cover "%s"'), $baseTopic),
-                sprintf($this->Translate('Set the MQTT Client subscription to e.g. %s/# (or # for testing).'), $baseTopic)
+                sprintf(
+                    // Ortsangabe bewusst mit im Text: Anwender suchen die Einstellung regelmäßig im
+                    // HA-Modul selbst (Supportfälle bgersmann 08/2026, roesl 08/2026).
+                    $this->Translate('The subscription is not set here but in the MQTT Client instance this splitter is connected to (its "Subscriptions" list). Enter %s/# there.'),
+                    $baseTopic
+                )
             ]];
         }
         return [['•', $this->Translate('Subscription could not be checked (parent config not readable)')]];

@@ -31,7 +31,7 @@ Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet e
 - Bestehende Home-Assistant-Installation.
 - Home Assistant MQTT Integration aktiv.
 - MQTT Client oder MQTT Server Instanz als Parent. **Empfohlen: MQTT Client** — er erhält beim Verbinden den retained-Replay (sofortiger vollständiger Initial-State). MQTT Server funktioniert ebenfalls.
-- Bei MQTT Client: `ClientID` setzen und Subscription auf den Statestream-Baum konfigurieren, also `homeassistant/#` (bzw. `<base_topic>/#`). **Nicht `#` verwenden:** Der Splitter bekommt sonst den gesamten Broker-Verkehr, auch Topics fremder Geräte, die nichts mit Home Assistant zu tun haben. (Für die *MQTT-Discovery-Module* gilt das Gegenteil — dort liegen die State-Topics der Geräte außerhalb von `homeassistant/`, ein weites Abonnement ist dort richtig.)
+- Bei MQTT Client: `ClientID` setzen und Subscription auf den Statestream-Baum konfigurieren, also `homeassistant/#` (bzw. `<base_topic>/#`). **Das Abonnement wird nicht in diesem Modul eingestellt**, sondern in der MQTT-Client-Instanz, mit der der Splitter verbunden ist: im Objektbaum diese Instanz öffnen und den Filter in deren Liste `Subscriptions` eintragen (mehrere Einträge sind möglich). **Nicht `#` verwenden:** Der Splitter bekommt sonst den gesamten Broker-Verkehr, auch Topics fremder Geräte, die nichts mit Home Assistant zu tun haben. (Für die *MQTT-Discovery-Module* gilt das Gegenteil — dort liegen die State-Topics der Geräte außerhalb von `homeassistant/`, ein weites Abonnement ist dort richtig.)
 - Ports: MQTT i.d.R. `1883` (oder `8883` bei TLS), Home Assistant REST typischerweise `8123`.
 
 ## 3. Installation

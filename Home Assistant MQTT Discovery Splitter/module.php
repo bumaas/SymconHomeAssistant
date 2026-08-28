@@ -464,7 +464,12 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $add(
                 'warn',
                 sprintf($this->Translate('Parent subscription does not seem to cover "%s/#"'), $prefix),
-                sprintf($this->Translate('Set the MQTT Client subscription to at least %s/# (or # for testing).'), $prefix)
+                sprintf(
+                    // Ortsangabe bewusst mit im Text: Anwender suchen die Einstellung regelmäßig im
+                    // Modul selbst (Supportfälle bgersmann 08/2026, roesl 08/2026).
+                    $this->Translate('The subscription is not set here but in the MQTT Client instance this splitter is connected to (its "Subscriptions" list). Enter at least %s/# there.'),
+                    $prefix
+                )
             );
         } else {
             $add('•', $this->Translate('Subscription could not be checked (parent config not readable)'));
@@ -515,7 +520,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                             $missing
                         ),
                         sprintf(
-                            $this->Translate('Current subscriptions: %s. Add e.g. %s (or # to cover everything).'),
+                            $this->Translate('Subscriptions are set in the MQTT Client instance this splitter is connected to, not here. Current: %s. Add e.g. %s there (or # to cover everything).'),
                             implode(', ', $coverage['filters']),
                             implode(', ', $coverage['suggestions'])
                         )
