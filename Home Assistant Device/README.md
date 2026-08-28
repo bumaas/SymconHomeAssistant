@@ -254,8 +254,10 @@ Mit `include` und `exclude` können Domains und Entitäten gezielt ein- oder aus
 mqtt_statestream:
   base_topic: homeassistant
   publish_attributes: true
-  publish_timestamps: true
+  publish_timestamps: false
 ```
+
+`publish_timestamps` gehört auf `false`: Die damit zusätzlich publizierten Topics `last_changed` und `last_updated` verwirft der Splitter ausnahmslos, sie verdreifachen aber die Nachrichtenmenge.
 
 #### Reaktionszeit bei Tasterereignissen
 

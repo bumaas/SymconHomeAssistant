@@ -70,5 +70,32 @@ $check(HAMqttTopicFilter::collectSubscriptionsFromConfig(['ClientID' => 'x']) ==
 $check(HAMqttTopicFilter::flattenSubscriptionTopics('homeassistant/#') === ['homeassistant/#'], 'Einzelner Topic-String');
 $check(HAMqttTopicFilter::flattenSubscriptionTopics([['Topic' => 'a/#'], ['Topic' => 'b/#']]) === ['a/#', 'b/#'], 'Verschachtelte Topic-Arrays');
 
+// receiveDataFilterPattern: der Kernel-Filter des klassischen Splitters lässt nur Datenpakete
+// unterhalb des Base-Topics durch. Gegen echte Datenpaket-JSONs geprüft — einmal mit escapten
+// Slashes (Standard von json_encode), einmal ohne (JSON_UNESCAPED_SLASHES).
+$pattern = HAMqttTopicFilter::receiveDataFilterPattern('homeassistant');
+$matches = static fn(string $json): bool => (bool)preg_match('/^' . $pattern . '$/s', $json);
+
+$rxEscaped   = '{"DataID":"{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}","PacketType":3,"Topic":"homeassistant\/sensor\/evcc_pv_power\/state","Payload":"1234"}';
+$rxPlain     = '{"DataID":"{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}","PacketType":3,"Topic":"homeassistant/sensor/evcc_pv_power/state","Payload":"1234"}';
+$foreign     = '{"DataID":"{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}","PacketType":3,"Topic":"hb\/device\/HR2C04000089HH3\/status","Payload":"{}"}';
+$foreignZ    = '{"DataID":"{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}","PacketType":3,"Topic":"zigbee2mqtt/0x001788/state","Payload":"ON"}';
+
+$check($matches($rxEscaped), 'Filter: eigenes Topic mit escapten Slashes kommt durch');
+$check($matches($rxPlain), 'Filter: eigenes Topic mit unescapten Slashes kommt durch');
+$check(!$matches($foreign), 'Filter: fremdes Topic (hb/device/...) wird ausgesortiert');
+$check(!$matches($foreignZ), 'Filter: fremdes Topic (zigbee2mqtt/...) wird ausgesortiert');
+
+// Das Muster darf keinen Slash enthalten (der Kernel wendet es mit eigenem Delimiter an) und
+// Sonderzeichen des Base-Topics müssen literal behandelt werden.
+$patternDeep = HAMqttTopicFilter::receiveDataFilterPattern('/ha.prod/state/');
+$check(!str_contains($patternDeep, '/'), 'Filter: Muster enthält keinen Slash');
+$matchesDeep = static fn(string $json): bool => (bool)preg_match('~^' . $patternDeep . '$~s', $json);
+$check($matchesDeep('{"Topic":"ha.prod\/state\/sensor\/x\/state"}'), 'Filter: mehrstufiges Base-Topic matcht über erstes Segment');
+$check(!$matchesDeep('{"Topic":"haXprod/state/sensor/x/state"}'), 'Filter: Punkt wird als Literal behandelt (kein RegEx-Joker)');
+$check(HAMqttTopicFilter::receiveDataFilterPattern('') === '.*', 'Filter: leeres Base-Topic filtert nicht');
+$check(HAMqttTopicFilter::receiveDataFilterPattern('  ') === '.*', 'Filter: nur Leerzeichen filtert nicht');
+$check(HAMqttTopicFilter::receiveDataFilterPattern('/') === '.*', 'Filter: nur Slash filtert nicht');
+
 echo $fail === 0 ? "Alle Prüfungen bestanden.\n" : "$fail Prüfung(en) fehlgeschlagen.\n";
 exit($fail === 0 ? 0 : 1);

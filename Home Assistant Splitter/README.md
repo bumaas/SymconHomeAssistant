@@ -31,7 +31,7 @@ Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet e
 - Bestehende Home-Assistant-Installation.
 - Home Assistant MQTT Integration aktiv.
 - MQTT Client oder MQTT Server Instanz als Parent. **Empfohlen: MQTT Client** — er erhält beim Verbinden den retained-Replay (sofortiger vollständiger Initial-State). MQTT Server funktioniert ebenfalls.
-- Bei MQTT Client: `ClientID` setzen und Subscription konfigurieren (z.B. `#` oder `homeassistant/#`).
+- Bei MQTT Client: `ClientID` setzen und Subscription auf den Statestream-Baum konfigurieren, also `homeassistant/#` (bzw. `<base_topic>/#`). **Nicht `#` verwenden:** Der Splitter bekommt sonst den gesamten Broker-Verkehr, auch Topics fremder Geräte, die nichts mit Home Assistant zu tun haben. (Für die *MQTT-Discovery-Module* gilt das Gegenteil — dort liegen die State-Topics der Geräte außerhalb von `homeassistant/`, ein weites Abonnement ist dort richtig.)
 - Ports: MQTT i.d.R. `1883` (oder `8883` bei TLS), Home Assistant REST typischerweise `8123`.
 
 ## 3. Installation
@@ -45,7 +45,7 @@ Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet e
 Wenn im Splitter "Kein aktiver MQTT Parent gefunden" steht:
 
 1. In Symcon muss ein MQTT Client oder MQTT Server als Parent vorhanden und aktiv verbunden sein.
-2. Beim MQTT Client muss eine Subscription gesetzt sein, z. B. homeassistant/# (oder testweise #).
+2. Beim MQTT Client muss eine Subscription gesetzt sein, die den Statestream-Baum abdeckt: `homeassistant/#` bzw. `<base_topic>/#`.
 3. Der Splitter muss genau mit dieser MQTT Instanz verbunden sein.
 4. MQTTBaseTopic im Splitter muss zum mqtt_statestream.base_topic in Home Assistant passen.
 5. Dass im MQTT Explorer nicht sofort alle Entitäten sichtbar sind, ist normal: viele Topics erscheinen erst bei Zustandsänderungen.
@@ -95,8 +95,10 @@ Mit `include` und `exclude` können Domains/Entitäten gezielt ein- oder ausgesc
 mqtt_statestream:
   base_topic: homeassistant
   publish_attributes: true
-  publish_timestamps: true
+  publish_timestamps: false
 ```
+
+`publish_timestamps` gehört auf `false`: Home Assistant publiziert damit zu jedem Wert zusätzlich `last_changed` und `last_updated`, und beide verwirft der Splitter ausnahmslos (Symcon führt die Zeitstempel seiner Variablen selbst). Auf `true` verdreifacht sich die Nachrichtenmenge ohne Gewinn.
 
 ### Spenden
 

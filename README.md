@@ -133,8 +133,10 @@ Damit Zustände und zusätzliche Informationen in Symcon ankommen, muss `mqtt_st
 mqtt_statestream:
   base_topic: homeassistant
   publish_attributes: true
-  publish_timestamps: true
+  publish_timestamps: false
 ```
+
+> **`publish_timestamps` bewusst auf `false`:** Home Assistant publiziert damit zu jedem Wert zusätzlich `last_changed` und `last_updated`. Beide verwirft der Splitter ausnahmslos — Symcon führt die Zeitstempel seiner Variablen selbst. Auf `true` verdreifacht sich die Nachrichtenmenge ohne jeden Gewinn; auf schwächerer Hardware ist das der wirksamste Hebel gegen hohe Last (siehe [Hohe CPU-Last](#73-hohe-cpu-last-durch-die-nachrichtenmenge)).
 
 ### 4.2 MQTT Discovery
 
@@ -255,7 +257,7 @@ Home Assistant MQTT Discovery Configurator / Device
 - **Wenn der MQTT Client bzw. Client Socket als fehlerhaft markiert wird, obwohl IP und Port 1883 stimmen:** Fast immer fehlen die MQTT-Zugangsdaten. Der Mosquitto-Broker in Home Assistant lehnt anonyme Verbindungen standardmäßig ab — in Home Assistant einen Benutzer anlegen (Einstellungen → Personen → Benutzer) und dessen Name und Passwort in der Symcon-MQTT-Client-Instanz eintragen. Die `Home Assistant Discovery` legt die Instanzkette ohne Zugangsdaten an; sie müssen manuell ergänzt werden.
 - Wenn im `Home Assistant Splitter` `Kein aktiver MQTT Parent gefunden` steht: Verbindung zum MQTT-Client oder MQTT-Server prüfen.
 - **Wenn der angezeigte Status nicht mit Home Assistant übereinstimmt:** Zustände kommen ausschließlich über den `mqtt_statestream`, nicht über REST. Stimmt die Anzeige nicht, fehlen die aktuellen Statusdaten. `mqtt_statestream` in Home Assistant prüfen und sicherstellen, dass `base_topic` zu `MQTTBaseTopic` passt.
-  - **MQTT Client als Parent** verwenden (nicht nur MQTT Server): Nur der Client erhält beim Verbinden den retained-Replay und damit sofort den echten Initialzustand. Subscription z. B. `homeassistant/#` (testweise `#`).
+  - **MQTT Client als Parent** verwenden (nicht nur MQTT Server): Nur der Client erhält beim Verbinden den retained-Replay und damit sofort den echten Initialzustand. Subscription auf den Statestream-Baum setzen: `homeassistant/#` bzw. `<base_topic>/#` — nicht `#`, sonst läuft aller Broker-Verkehr durch den Splitter.
   - Im MQTT Explorer gegenprüfen, ob unter `<MQTTBaseTopic>/switch/<entity>/state` tatsächlich `on`/`off` liegt. Kommt nichts an, bleibt der zuletzt gesetzte bzw. der Default-Wert stehen.
 - **Wenn ganze Domänen fehlen (z. B. Fenster/`binary_sensor` oder Steckdosen/`switch`), obwohl `sensor`-Werte ankommen:** Dann blendet in Home Assistant der `include`/`exclude`-Filter von `mqtt_statestream` diese Domänen aus. Prüfen, ob unter `mqtt_statestream` ein `include:`-Block nur bestimmte Domänen publiziert (z. B. nur `sensor`), und die fehlenden Domänen ergänzen oder den Filter entfernen; danach Home Assistant neu laden. Der Selbsttest-Button des Splitters zeigt unter „Empfangene Domänen" an, welche Domänen tatsächlich eintreffen.
 - **Wenn sich Entitäten nicht schalten lassen:** Das Schalten läuft über REST (z. B. `switch.turn_on`/`turn_off`), nicht über MQTT. Voraussetzungen: gültige `HAUrl` und gültiges `HAToken` im Splitter.
@@ -269,6 +271,21 @@ Home Assistant MQTT Discovery Configurator / Device
 - Für Analyse und Support stehen im Discovery-Splitter zwei Exporte bereit:
   - `Discovery-Bundle herunterladen`
   - `Discovery-Bundle aktuelle Session herunterladen`
+
+### 7.3 Hohe CPU-Last durch die Nachrichtenmenge
+
+Die übrigen Abschnitte behandeln „es kommt nichts an" — hier geht es um den umgekehrten Fall: Alles funktioniert, aber die CPU-Last ist dauerhaft hoch und Symcon reagiert träge.
+
+**Erkennungszeichen:** Die Last bleibt auch dann oben, wenn gar keine Geräte-Instanzen angelegt sind, und sie fällt nach dem Abschalten der Quelle erst mit einigen Minuten Verzögerung. Dieses Nachlaufen ist der entscheidende Hinweis: Es ist ein Rückstau — es kommt mehr herein, als der Rechner abarbeitet. Deshalb kippt so ein System nicht allmählich, sondern springt bei wenigen Prozent mehr Nachrichten von unauffällig auf Vollauslastung.
+
+**Messen** statt raten: Im Splitter unter *Experte* `Topic-Statistik aktivieren` (Intervall z. B. 5 Minuten). Jedes Fenster landet als Zeile mit dem Präfix `Topic-Statistik` im Symcon-Log und nennt Nachrichten und Datenmenge je Gerät sowie die größte Einzelnachricht. Damit ist sofort sichtbar, welches Gerät die Last erzeugt — und ob es die Menge (viele kleine Nachrichten) oder einzelne große Payloads sind.
+
+**Gegenmittel, in dieser Reihenfolge:**
+
+1. **`publish_timestamps: false`** in der `mqtt_statestream`-Konfiguration. Der größte Hebel: Die Topics `last_changed`/`last_updated` verwirft der Splitter ohnehin, sie machen aber zwei Drittel der Nachrichten aus.
+2. **`include`/`exclude`** in `mqtt_statestream`: nur die Entitäten publizieren, die in Symcon wirklich gebraucht werden. Sekundengenaue Diagnosewerte von Wechselrichtern, Wallboxen oder Wärmepumpen sind hier meist der Hauptposten.
+3. **Abonnement des MQTT Clients eingrenzen** auf `<base_topic>/#`. Steht dort `#`, reicht der Client den gesamten Broker-Verkehr an den Splitter weiter — auch Topics fremder Geräte. Tauchen in der Topic-Statistik Namen auf, die gar nicht aus Home Assistant stammen, ist das die Ursache. (Seit 1.4 build 150 sortiert der Splitter solche Topics zusätzlich selbst aus.)
+4. **Diagnose-Schalter wieder abschalten:** `Topic-Statistik` und `Performance-Timing` kosten selbst Rechenzeit pro Nachricht und gehören nach der Messung aus.
 
 ## 8. FAQ
 

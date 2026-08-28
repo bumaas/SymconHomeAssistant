@@ -196,4 +196,35 @@ class HAMqttTopicFilter
         }
         return $topics;
     }
+
+    /**
+     * RegEx für SetReceiveDataFilter des klassischen Splitters: nur Datenpakete durchlassen, deren
+     * Topic unter dem eingestellten Base-Topic liegt. Abonniert der MQTT Client breit (z. B. '#'),
+     * reicht er sonst den gesamten Broker-Verkehr an den Splitter weiter — jede fremde Nachricht
+     * kostet dann eine PHP-Ausführung, ohne je zu einem Wert zu führen.
+     *
+     * Der Filter läuft als RegEx über das komplette Datenpaket-JSON. Zwei Fallstricke bestimmen die
+     * Form des Musters, deshalb wird nur das ERSTE Segment des Base-Topics geprüft:
+     *  - Der Slash steht im JSON je nach Encoding als '/' oder '\/' — das Muster hört davor auf und
+     *    matcht damit beide Schreibweisen.
+     *  - Ein Slash im Muster selbst wäre riskant, weil der Kernel das Muster mit einem eigenen
+     *    Delimiter anwendet.
+     * Bei mehrstufigem Base-Topic ('symcon/ha') filtert das etwas grober als möglich; das ist
+     * unkritisch, denn die eigentliche Zuordnung macht ohnehin der PHP-Code dahinter.
+     *
+     * Leeres Base-Topic => '.*' (nicht filtern); in dem Zustand meldet der Splitter ohnehin einen
+     * Konfigurationsfehler.
+     */
+    public static function receiveDataFilterPattern(string $baseTopic): string
+    {
+        $baseTopic = trim(trim($baseTopic), '/');
+        if ($baseTopic === '') {
+            return '.*';
+        }
+        $firstSegment = explode('/', $baseTopic)[0];
+        if ($firstSegment === '') {
+            return '.*';
+        }
+        return '.*"Topic":"' . preg_quote($firstSegment) . '.*';
+    }
 }

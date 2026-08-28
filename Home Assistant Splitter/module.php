@@ -182,13 +182,19 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
             return;
         }
-        $this->SetReceiveDataFilter('.*');
+        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
+
+        // Nur Topics unterhalb des Base-Topics annehmen: Ein breit abonnierender MQTT Client (z. B. '#')
+        // reicht sonst den gesamten Broker-Verkehr herein, und jede fremde Nachricht kostet eine
+        // PHP-Ausführung, ohne je zu einem Wert zu führen. Der Kernel sortiert das nun vorher aus.
+        $receiveFilter = HAMqttTopicFilter::receiveDataFilterPattern($baseTopic);
+        $this->SetReceiveDataFilter($receiveFilter);
+        $this->debugExpert('ApplyChanges', 'ReceiveDataFilter gesetzt', ['Filter' => $receiveFilter]);
 
         $this->applyTopicStatisticsConfiguration();
         $this->applyPerformanceStatisticsConfiguration();
         $this->updateLastMqttMessageLabel();
         $this->updateDiagnosticsLabels();
-        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
         if ($baseTopic === '') {
             $this->SetStatus(202);
             $this->debugExpert('Config', 'MQTTBaseTopic ist leer. MQTT Statestream Updates kommen dann nicht an.');

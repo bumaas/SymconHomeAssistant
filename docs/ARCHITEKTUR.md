@@ -233,7 +233,16 @@ Später, aber nicht Teil des MVP:
 
 Beobachtung:
 - Auch im klassischen `Home Assistant Splitter` kann hohe Last auftreten, wenn der Parent viel MQTT-Traffic sieht.
-- Der Splitter empfängt derzeit breit über `SetReceiveDataFilter('.*')` und reicht `RX`/`TX`-Nachrichten an Kinder weiter.
+- **Kernel-seitiger Empfangsfilter (ab 1.4 build 150):** Der Splitter empfing bis dahin über
+  `SetReceiveDataFilter('.*')` **jedes** Datenpaket des Parents — bei einem breit abonnierenden MQTT
+  Client (`#`) also den gesamten Broker-Verkehr, jede fremde Nachricht als eigene PHP-Ausführung.
+  Jetzt beschränkt `HAMqttTopicFilter::receiveDataFilterPattern()` den Filter auf Topics unterhalb des
+  `MQTTBaseTopic`; der Kernel sortiert Fremdverkehr aus, bevor PHP läuft. Das Muster prüft bewusst nur
+  das **erste Segment** des Base-Topics: Der Slash steht im Paket-JSON je nach Encoding als `/` oder
+  `\/`, und ein Slash im Muster selbst wäre riskant, weil der Kernel es mit eigenem Delimiter anwendet.
+  Der MQTT-Discovery-Splitter behält bewusst den weiten Filter — dort liegen die Runtime-Topics der
+  Geräte außerhalb des Discovery-Prefixes.
+- Der Splitter reicht `RX`/`TX`-Nachrichten an Kinder weiter.
 - Messungen (Performance-Schalter `EnablePerformanceLog`, Debug-Kanal `Performance`) zeigen: Die Eigenarbeit
   des Splitters ist gering (~1 ms); der Aufwand liegt in `SendDataToChildren` (synchrone Verarbeitung der
   Kind-Devices). HA `mqtt_statestream` verstärkt jede Zustandsänderung in mehrere Topics
