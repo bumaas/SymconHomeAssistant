@@ -270,7 +270,12 @@ Umgesetzt:
   (`eventDelta` groß) oder **im** Splitter (`total` groß) entsteht. Auch die **Topic-Statistik**
   (`EnableTopicStatistics`, beide Splitter) schreibt ihre Fenster-Kopfzeile samt Top-10-Geräten seit
   1.4 build 146 zusätzlich als eine Zeile ins Symcon-Log (Präfix `Topic-Statistik`) — so liefert eine
-  eingesandte Logdatei neben den Performance-Fenstern auch die Message-Last je Gerät.
+  eingesandte Logdatei neben den Performance-Fenstern auch die Message-Last je Gerät. Seit 1.4 build 149
+  zählt sie neben Messages auch **Payload-Bytes und die größte Einzel-Payload** je Entität/Gerät
+  (gemeinsamer Kern `libs/HATopicStatistics.php`, Debug-Fenster zusätzlich „Top-Entitäten nach Bytes",
+  Log-Zeile mit `Bytes-Top`). Anlass war ein Feldfall, in dem 20 % weniger Nachrichten die CPU-Last von
+  100 % auf 5 % senkten — die Nachrichtenzahl allein taugt nicht als Lastmaß, wenn wenige Topics große
+  Payloads (Attribut-JSON, Token, Listen) tragen.
 
 Gemessene Erkenntnis (Tastendruck-Latenz): Die verbleibenden, gelegentlichen Mehrsekunden-Verzögerungen
 entstehen nachweislich **vor** Symcon (Vergleich HA-Event-Zeitstempel im Payload vs. Empfangszeit im

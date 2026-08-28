@@ -52,6 +52,7 @@ require_once __DIR__ . '/Domains/HAFanDefinitions.php';
 require_once __DIR__ . '/Domains/HAHumidifierDefinitions.php';
 require_once __DIR__ . '/HADomainCatalog.php';
 require_once __DIR__ . '/HAMqttTopicFilter.php';
+require_once __DIR__ . '/HATopicStatistics.php';
 require_once __DIR__ . '/HASupportedFeatures.php';
 require_once __DIR__ . '/HADiagnostics.php';
 require_once __DIR__ . '/HAOutputBufferTrait.php';

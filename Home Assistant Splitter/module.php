@@ -290,7 +290,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             // Statistik VOR dem Bookkeeping-Drop zählen, damit die echte eingehende Last je Gerät sichtbar
             // wird (inkl. der Topics, die wir gleich verwerfen).
             if ($this->isTopicStatisticsEnabled()) {
-                $this->recordTopicStatistic($topic);
+                $this->recordTopicStatistic($topic, strlen((string)($data['Payload'] ?? '')));
             }
 
             // Universelle HA-Bookkeeping-Topics (Zeitstempel etc.) werden von keinem Device benötigt und
@@ -557,18 +557,16 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->SetTimerInterval(self::TIMER_TOPIC_STATS, $minutes * 60 * 1000);
     }
 
-    private function recordTopicStatistic(string $topic): void
+    private function recordTopicStatistic(string $topic, int $payloadBytes): void
     {
-        $key = $this->statisticsKeyForTopic($topic);
-        if ($key === '') {
+        if (HATopicStatistics::keyForTopic($topic) === '') {
             return;
         }
         // Fensterstart faul setzen, falls ApplyChanges ihn (noch) nicht gesetzt hat.
         if ($this->GetBuffer(self::BUFFER_TOPIC_STATS_START) === '') {
             $this->SetBuffer(self::BUFFER_TOPIC_STATS_START, (string)time());
         }
-        $counts = $this->loadTopicStatsCounts();
-        $counts[$key] = ($counts[$key] ?? 0) + 1;
+        $counts = HATopicStatistics::record($this->loadTopicStatsCounts(), $topic, $payloadBytes);
         $this->SetBuffer(self::BUFFER_TOPIC_STATS_COUNTS, json_encode($counts, JSON_THROW_ON_ERROR));
     }
 
@@ -603,28 +601,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function loadTopicStatsCounts(): array
     {
-        $raw = $this->GetBuffer(self::BUFFER_TOPIC_STATS_COUNTS);
-        if ($raw === '') {
-            return [];
-        }
-        try {
-            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
-        }
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    // Schlüssel = Topic ohne letztes Segment (Attribut-/State-Suffix) => eine Entität, alle ihre
-    // Sub-Topics zählen zusammen. Geräte-Gruppierung erfolgt beim Dump über den gemeinsamen Präfix.
-    private function statisticsKeyForTopic(string $topic): string
-    {
-        $topic = trim($topic, '/');
-        if ($topic === '') {
-            return '';
-        }
-        $pos = strrpos($topic, '/');
-        return $pos === false ? $topic : substr($topic, 0, $pos);
+        return HATopicStatistics::decodeCounts($this->GetBuffer(self::BUFFER_TOPIC_STATS_COUNTS));
     }
 
     /** @noinspection PhpUnused */
@@ -637,66 +614,31 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->SetBuffer(self::BUFFER_TOPIC_STATS_COUNTS, '');
         $this->SetBuffer(self::BUFFER_TOPIC_STATS_START, (string)$now);
 
-        $total = array_sum($counts);
-        if ($total === 0) {
+        $aggregate = HATopicStatistics::aggregate($counts);
+        if ($aggregate['total'] === 0) {
             $this->SendDebug('TopicStats', sprintf('Fenster %ds | total=0 (keine Messages)', $elapsed), 0);
             return;
         }
 
-        // Pro Gerät gruppieren: Objekt-ID (letztes Segment der Entity-Keys) über gemeinsamen Präfix
-        // clustern, damit z. B. alle marstek_*-Entitäten domainübergreifend in einer Zeile zusammenlaufen.
-        // (Clustern der vollen Keys würde am gemeinsamen "<base>/<domain>/" alles zusammenwerfen.)
-        $byObjectId = [];
-        foreach ($counts as $entityKey => $n) {
-            $pos = strrpos((string)$entityKey, '/');
-            $objectId = $pos === false ? (string)$entityKey : substr((string)$entityKey, $pos + 1);
-            $byObjectId[$objectId] = ($byObjectId[$objectId] ?? 0) + $n;
-        }
-
-        $objectIds = array_keys($byObjectId);
-        sort($objectIds, SORT_STRING);
-        $devices = [];
-        foreach (HADomainCatalog::clusterByCommonPrefix($objectIds, 3) as $cluster) {
-            $members = $cluster['members'];
-            $deviceKey = count($members) >= 2 ? $cluster['prefix'] . '*' : ($members[0] ?? '');
-            $sum = 0;
-            foreach ($members as $m) {
-                $sum += $byObjectId[$m] ?? 0;
-            }
-            $devices[$deviceKey] = ($devices[$deviceKey] ?? 0) + $sum;
-        }
-        arsort($devices);
-
-        $perMin = static fn(int $n): string => number_format($n / ($elapsed / 60.0), 1, '.', '');
-        $header = sprintf(
-            'Fenster %ds | total=%d (%s/min) | Entitäten=%d | Geräte=%d',
-            $elapsed,
-            $total,
-            $perMin($total),
-            count($counts),
-            count($devices)
-        );
-        $this->SendDebug('TopicStats', $header, 0);
-
+        $this->SendDebug('TopicStats', HATopicStatistics::formatHeader($aggregate, $elapsed), 0);
         $rank = 0;
-        foreach ($devices as $deviceKey => $sum) {
-            if (++$rank > 20) {
-                $this->SendDebug('TopicStats', sprintf('  ... (%d weitere Geräte)', count($devices) - 20), 0);
+        foreach ($aggregate['devices'] as $deviceKey => $entry) {
+            if (++$rank > HATopicStatistics::TOP_DEVICES_DEBUG) {
+                $this->SendDebug('TopicStats', sprintf('  ... (%d weitere Geräte)', count($aggregate['devices']) - HATopicStatistics::TOP_DEVICES_DEBUG), 0);
                 break;
             }
-            $this->SendDebug('TopicStats', sprintf('  %-50s %6d (%s/min)', $deviceKey, $sum, $perMin($sum)), 0);
+            $this->SendDebug('TopicStats', HATopicStatistics::formatDeviceRow((string)$deviceKey, $entry, $elapsed), 0);
+        }
+        // Größte Datenlieferanten je Entität: macht einzelne "fette" Topics (Attribut-JSON, Token, Listen)
+        // sichtbar, die in der reinen Nachrichtenzahl untergehen.
+        $this->SendDebug('TopicStats', 'Top-Entitäten nach Bytes:', 0);
+        foreach ($aggregate['topEntitiesByBytes'] as $entityKey => $entry) {
+            $this->SendDebug('TopicStats', HATopicStatistics::formatDeviceRow((string)$entityKey, $entry, $elapsed), 0);
         }
 
-        // Kopfzeile + Top-Geräte zusätzlich als eine kompakte Zeile ins persistente Symcon-Log
-        // (auswertbar ohne Debugfenster, z. B. aus einer eingesandten Logdatei) — analog Performance-Fenster.
-        $topParts = [];
-        foreach (array_slice($devices, 0, 10, true) as $deviceKey => $sum) {
-            $topParts[] = sprintf('%s %d (%s/min)', $deviceKey, $sum, $perMin($sum));
-        }
-        if (count($devices) > 10) {
-            $topParts[] = sprintf('… (%d weitere)', count($devices) - 10);
-        }
-        $this->LogMessage(sprintf('Topic-Statistik %s | Top: %s', $header, implode(', ', $topParts)), KL_NOTIFY);
+        // Kopfzeile + Top-Geräte + Bytes-Spitzenreiter zusätzlich als eine kompakte Zeile ins persistente
+        // Symcon-Log (auswertbar ohne Debugfenster, z. B. aus einer eingesandten Logdatei) — analog Performance-Fenster.
+        $this->LogMessage(HATopicStatistics::formatLogLine($aggregate, $elapsed), KL_NOTIFY);
     }
 
     // Schreibt das LastMQTTMessage-Attribut höchstens alle LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, damit die
