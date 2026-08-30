@@ -104,6 +104,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->registerParentStatusTracking();
         $this->SetReceiveDataFilter('^$');
 
         $this->RegisterPropertyString('MQTTBaseTopic', 'homeassistant');
@@ -135,6 +136,17 @@ class HomeAssistantSplitter extends IPSModuleStrict
     {
         if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
             $this->debugExpert('MessageSink', 'Kernel bereit. Aktualisiere...', [], true);
+            $this->ApplyChanges();
+            return;
+        }
+
+        // Statuswechsel des Parents werden VOR dem Runtime-Gate ausgewertet: Sie treffen
+        // während des Bootlaufs ein, und dann darf die Meldung nicht verlorengehen
+        // (Muster des HomeConnect-Moduls). Die Entprellung fängt flatternde Parents ab.
+        if ($Message === IM_CHANGESTATUS) {
+            if (!$this->isNewParentStatus((int) ($Data[0] ?? 0))) {
+                return;
+            }
             $this->ApplyChanges();
             return;
         }
@@ -182,6 +194,11 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
             return;
         }
+        // Hop-by-Hop-Propagation: Erst „nicht bereit" setzen, dann prüfen. Ohne diesen Zwischen-
+        // schritt bleibt der Status auf dem Startwert IS_ACTIVE stehen, wenn die Prüfung ebenfalls
+        // aktiv ergibt — es gäbe also gar keinen Wechsel und die Kind-Instanzen bekämen kein
+        // IM_CHANGESTATUS.
+        $this->SetStatus(201);
         $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
 
         // Nur Topics unterhalb des Base-Topics annehmen: Ein breit abonnierender MQTT Client (z. B. '#')

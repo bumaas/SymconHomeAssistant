@@ -56,6 +56,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->registerParentStatusTracking();
         $this->SetReceiveDataFilter('^$');
 
         $this->RegisterPropertyString('SourceMode', self::SOURCE_MODE_MQTT);
@@ -88,6 +89,18 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
+        // Statuswechsel des Parents werden VOR dem Runtime-Gate ausgewertet: Sie treffen
+        // während des Bootlaufs ein, und genau dann darf die Meldung nicht verlorengehen
+        // (Muster des HomeConnect-Moduls, das ohne Gate arbeitet). Die Entprellung fängt
+        // flatternde Parents ab, die mehrfach je Sekunde denselben Status melden.
+        if ($Message === IM_CHANGESTATUS) {
+            if (!$this->isNewParentStatus((int) ($Data[0] ?? 0))) {
+                return;
+            }
+            $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::DEFERRED_APPLY_DELAY_MS);
+            return;
+        }
+
         if (!$this->isModuleRuntimeReady()) {
             return;
         }
@@ -100,11 +113,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $this->startNewMqttSession();
         } elseif ($Message === FM_DISCONNECT) {
             $this->markMqttSessionInactive();
-        }
-
-        if ($Message === IM_CHANGESTATUS) {
-            $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::DEFERRED_APPLY_DELAY_MS);
-            return;
         }
 
         if ($Message === FM_CONNECT || $Message === FM_DISCONNECT) {
@@ -127,6 +135,11 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.', [], true);
             return;
         }
+        // Hop-by-Hop-Propagation: Erst „nicht bereit" setzen, dann prüfen. Ohne diesen Zwischen-
+        // schritt bleibt der Status auf dem Startwert IS_ACTIVE stehen, wenn die Prüfung ebenfalls
+        // aktiv ergibt — es gäbe also gar keinen Wechsel und die Kind-Instanzen bekämen kein
+        // IM_CHANGESTATUS. Genau daran hingen sie nach jedem Neustart auf „Parent inaktiv" fest.
+        $this->SetStatus(201);
         $this->SetReceiveDataFilter($this->isBundleMode() ? '^$' : '.*');
 
         if ($this->isBundleMode()) {

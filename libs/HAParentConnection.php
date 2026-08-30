@@ -101,6 +101,41 @@ trait HAParentConnectionTrait
         ];
     }
 
+    /**
+     * Registriert die Instanz auf Statuswechsel ihres direkten Parents. Gehört nach dem Muster
+     * des HomeConnect-Moduls in Create(): Alle Instanzen werden vor KR_READY konstruiert,
+     * dadurch entsteht kein Rennen zwischen Registrierung und dem Wechsel, den sie hören soll.
+     *
+     * ACHTUNG: Hier darf KEIN SetStatus() stehen — das verhindert die Instanzerzeugung
+     * (am 30.08.2026 auf dem nuc erprobt: alle Splitter fielen auf Status 105).
+     */
+    protected function registerParentStatusTracking(): void
+    {
+        try {
+            $parentId = (int) (IPS_GetInstance($this->InstanceID)['ConnectionID'] ?? 0);
+            if ($parentId > 0 && IPS_InstanceExists($parentId)) {
+                $this->RegisterMessage($parentId, IM_CHANGESTATUS);
+            }
+        } catch (Throwable) {
+            // Beim allerersten Anlegen existiert noch kein Parent; ApplyChanges holt es nach.
+        }
+    }
+
+    /**
+     * Entprellt Statusmeldungen des Parents: liefert nur bei einem echten Wechsel true.
+     * Muster aus dem HomeConnect-Modul — ein flatternder Parent feuert IM_CHANGESTATUS sonst
+     * mehrfach je Sekunde mit demselben Wert.
+     */
+    protected function isNewParentStatus(int $newStatus): bool
+    {
+        if ((int) $this->GetBuffer('HALastParentStatus') === $newStatus) {
+            return false;
+        }
+
+        $this->SetBuffer('HALastParentStatus', (string) $newStatus);
+        return true;
+    }
+
     private function syncParentStatusMessageRegistration(): void
     {
         $currentParentId = $this->getCurrentParentId();

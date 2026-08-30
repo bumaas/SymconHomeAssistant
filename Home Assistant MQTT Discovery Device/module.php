@@ -108,6 +108,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->registerParentStatusTracking();
         $this->RegisterTimer(self::TIMER_DEFERRED_APPLY, 0, 'IPS_ApplyChanges($_IPS["TARGET"]);');
 
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
@@ -128,6 +129,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
             $this->ApplyChanges();
+            return;
+        }
+
+        // Statuswechsel des Parents werden VOR dem Runtime-Gate ausgewertet: Sie treffen
+        // während des Bootlaufs ein, und dann darf die Meldung nicht verlorengehen
+        // (Muster des HomeConnect-Moduls). Die Entprellung fängt flatternde Parents ab.
+        if ($Message === IM_CHANGESTATUS) {
+            if (!$this->isNewParentStatus((int) ($Data[0] ?? 0))) {
+                return;
+            }
+            $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::DEFERRED_APPLY_DELAY_MS);
             return;
         }
 
