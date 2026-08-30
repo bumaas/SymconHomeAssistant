@@ -88,6 +88,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
+        $this->registerParentStatusTracking();
 
         $this->RegisterAttributeString('MQTTBaseTopic', '');
         $this->RegisterAttributeString('CurrentFilter', '');
@@ -126,6 +127,17 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         // Schleifenschutz die Weiterleitung nach ~120 Einträgen abbricht.
         if (($Message === IPS_KERNELMESSAGE) && (($Data[0] ?? null) === KR_READY)) {
             $this->debugExpert('MessageSink', 'Kernel bereit. Aktualisierung geplant...');
+            $this->scheduleDeferredApply();
+            return;
+        }
+
+        // Statuswechsel des Parents werden VOR dem Runtime-Gate ausgewertet: Sie treffen
+        // während des Bootlaufs ein, und dann darf die Meldung nicht verlorengehen
+        // (Muster des HomeConnect-Moduls). Die Entprellung fängt flatternde Parents ab.
+        if ($Message === IM_CHANGESTATUS) {
+            if (!$this->isNewParentStatus((int) ($Data[0] ?? 0))) {
+                return;
+            }
             $this->scheduleDeferredApply();
             return;
         }
