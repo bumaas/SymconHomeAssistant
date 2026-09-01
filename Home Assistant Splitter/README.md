@@ -32,7 +32,7 @@ Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet e
 - Home Assistant MQTT Integration aktiv.
 - MQTT Client oder MQTT Server Instanz als Parent. **Empfohlen: MQTT Client** — er erhält beim Verbinden den retained-Replay (sofortiger vollständiger Initial-State). MQTT Server funktioniert ebenfalls.
 - Bei MQTT Client: `ClientID` setzen und Subscription auf den Statestream-Baum konfigurieren, also `homeassistant/#` (bzw. `<base_topic>/#`). **Das Abonnement wird nicht in diesem Modul eingestellt**, sondern in der MQTT-Client-Instanz, mit der der Splitter verbunden ist: in der Splitter-Konfiguration oben auf **„Schnittstelle konfigurieren"** klicken und den Filter in der Liste `Subscriptions` eintragen (mehrere Einträge sind möglich). **Nicht `#` verwenden:** Der Splitter bekommt sonst den gesamten Broker-Verkehr, auch Topics fremder Geräte, die nichts mit Home Assistant zu tun haben. (Für die *MQTT-Discovery-Module* gilt das Gegenteil — dort liegen die State-Topics der Geräte außerhalb von `homeassistant/`, ein weites Abonnement ist dort richtig.)
-- Ports: MQTT i.d.R. `1883` (oder `8883` bei TLS), Home Assistant REST typischerweise `8123`.
+- Ports: MQTT i.d.R. `1883` (oder `8883` bei TLS), Home Assistant REST typischerweise `8123`. Neuinstallationen von Home Assistant OS laufen seit HA 2026.8 auf Port `80` — die URL kommt dann ohne Portangabe aus (z.B. `http://homeassistant.local`).
 
 ## 3. Installation
 
@@ -71,7 +71,7 @@ HA_CallService($splitterId, 'script', 'turn_on', [
 ## 5. Konfiguration
 
 - `MQTTBaseTopic`: Basis-Topic für den MQTT-Statestream.
-- `HAUrl`: Base URL `http(s)://<host>:<port>` (z.B. `http://homeassistant.local:8123`).
+- `HAUrl`: Base URL `http(s)://<host>[:<port>]` (z.B. `http://homeassistant.local:8123`; bei HA-OS-Neuinstallationen seit HA 2026.8 ohne Port: `http://homeassistant.local`).
 - `HAToken`: Long-Lived Access Token (Home Assistant Profil).
 - `RestAckTimeoutSec`: Timeout in Sekunden für REST-ACKs.
 - Optional: `EnableExpertDebug`, `DebugResponseFormat`.
