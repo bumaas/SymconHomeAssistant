@@ -25,7 +25,6 @@ trait HADomainAttributeMaintenanceTrait
         return $hasAttribute;
     }
 
-
     // Media-Player bündelt viele abgeleitete Attribute und zusätzliche Medienobjekte.
     protected function maintainMediaPlayerAttributeVariables(array $entity): void
     {

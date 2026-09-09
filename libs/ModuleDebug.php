@@ -1,4 +1,6 @@
-<?php /** @noinspection AutoloadingIssuesInspection */
+<?php
+
+/** @noinspection AutoloadingIssuesInspection */
 
 declare(strict_types=1);
 

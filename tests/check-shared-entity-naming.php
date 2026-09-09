@@ -82,7 +82,7 @@ function run(string $label, array $entities, array $expected, bool $multiStatus 
         }
         printf("  [%s] %-52s => '%s' (want '%s')\n", $flag, $id, $got, $want);
     }
-    echo ($ok ? "OK: " : "FAIL: ") . $label . "\n\n";
+    echo ($ok ? 'OK: ' : 'FAIL: ') . $label . "\n\n";
     return $ok;
 }
 

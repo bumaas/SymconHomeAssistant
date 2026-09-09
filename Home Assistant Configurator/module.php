@@ -1,4 +1,6 @@
-<?php /** @noinspection PhpUnused */
+<?php
+
+/** @noinspection PhpUnused */
 
 /** @noinspection AutoloadingIssuesInspection */
 
@@ -611,12 +613,12 @@ class HomeAssistantConfigurator extends IPSModuleStrict
             $attributes = json_encode($entity['attributes'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $this->debugExpert(
                 __FUNCTION__,
-                sprintf("Found: %s | %s | %s | Attr: %s", $entity['area'], $entity['device'], $entity['name'], $attributes)
+                sprintf('Found: %s | %s | %s | Attr: %s', $entity['area'], $entity['device'], $entity['name'], $attributes)
             );
             $this->debugExpert(
                 __FUNCTION__,
                 sprintf(
-                    "EntityID: %s | device_id: %s | device_name: %s",
+                    'EntityID: %s | device_id: %s | device_name: %s',
                     $entity['entity_id'],
                     $entity['device_id'],
                     $entity['device_name']

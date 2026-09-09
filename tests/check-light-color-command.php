@@ -14,8 +14,8 @@ $check = static function (string $label, $actual, $expected) use (&$fail): void 
     printf("[%s] %s\n", $ok ? 'OK ' : 'FAIL', $label);
     if (!$ok) {
         $fail++;
-        echo "     erwartet: " . var_export($expected, true) . "\n";
-        echo "     ist:      " . var_export($actual, true) . "\n";
+        echo '     erwartet: ' . var_export($expected, true) . "\n";
+        echo '     ist:      ' . var_export($actual, true) . "\n";
     }
 };
 

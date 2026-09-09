@@ -31,7 +31,6 @@ trait HADomainSpecialActionsTrait
         return null;
     }
 
-
     private function isLockOpenSupported(array $attributes): bool
     {
         return $this->supportsFeatureFlag($this->getSupportedFeatureFlags($attributes), HALockDefinitions::FEATURE_OPEN);

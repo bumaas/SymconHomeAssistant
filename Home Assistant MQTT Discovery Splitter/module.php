@@ -1,4 +1,6 @@
-<?php /** @noinspection PhpUnused */
+<?php
+
+/** @noinspection PhpUnused */
 
 /** @noinspection AutoloadingIssuesInspection */
 
@@ -1466,9 +1468,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $sent++;
         }
 
-            $this->debugExpert(__FUNCTION__, 'Bundle-Topics an Kinder erneut gesendet.', [
-                'Count' => $sent
-            ]);
+        $this->debugExpert(__FUNCTION__, 'Bundle-Topics an Kinder erneut gesendet.', [
+            'Count' => $sent
+        ]);
     }
 
     private function clearDiscoveryRuntimeCaches(): void

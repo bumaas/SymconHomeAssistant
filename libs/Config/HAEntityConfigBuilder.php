@@ -206,7 +206,6 @@ trait HAEntityConfigBuilderTrait
         };
     }
 
-
     private function isEmptyStableAttributeValue(mixed $value): bool
     {
         if ($value === null) {

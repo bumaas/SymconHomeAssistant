@@ -70,8 +70,8 @@ $check = static function (string $label, $actual, $expected) use (&$fail): void 
     printf("[%s] %s\n", $ok ? 'OK ' : 'FAIL', $label);
     if (!$ok) {
         $fail++;
-        echo "     erwartet: " . json_encode($expected) . "\n";
-        echo "     ist:      " . json_encode($actual) . "\n";
+        echo '     erwartet: ' . json_encode($expected) . "\n";
+        echo '     ist:      ' . json_encode($actual) . "\n";
     }
 };
 

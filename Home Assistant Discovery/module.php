@@ -1,4 +1,6 @@
-<?php /** @noinspection PhpUnused */
+<?php
+
+/** @noinspection PhpUnused */
 
 /** @noinspection AutoloadingIssuesInspection */
 
@@ -284,14 +286,14 @@ class HomeAssistantDiscovery extends IPSModuleStrict
             [
                 'moduleID'      => HAIds::MODULE_CONFIGURATOR,
                 'configuration' => new stdClass(),
-                'name'          => "Home Assistant Konfigurator"
+                'name'          => 'Home Assistant Konfigurator'
             ],
             [
                 'moduleID'      => HAIds::MODULE_SPLITTER,
                 'configuration' => [
                     'HAUrl' => $server['url']
                 ],
-                'name'          => "Home Assistant Splitter"
+                'name'          => 'Home Assistant Splitter'
             ],
             [
                 'moduleID'      => HAIds::MODULE_MQTT_CLIENT,
@@ -300,7 +302,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
                     'KeepAliveInterval' => 60,
                     'Subscriptions'     => json_encode([['Topic' => 'homeassistant/#', 'QoS' => 1]], JSON_THROW_ON_ERROR),
                 ],
-                'name'          => "MQTT Client Home Assistant"
+                'name'          => 'MQTT Client Home Assistant'
             ],
             [
                 'moduleID'      => HAIds::MODULE_CLIENTSOCKET,
@@ -309,7 +311,7 @@ class HomeAssistantDiscovery extends IPSModuleStrict
                     'Open' => true,
                     'Port' => 1883
                 ],
-                'name'          => "Client Socket Home Assistant"
+                'name'          => 'Client Socket Home Assistant'
             ]
         ];
     }

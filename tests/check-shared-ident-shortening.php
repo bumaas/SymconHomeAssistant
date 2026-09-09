@@ -86,9 +86,9 @@ echo "\n";
 // --- Case 2: existing idents are preserved (no migration of the installed base) ---
 $existing = [
     ['entity_id' => 'sensor.area_dev_abc_power', 'domain' => 'sensor', 'device_id' => 'D1',
-     'ident_prefix' => 'sensor_area_dev_abc_power', 'ident' => 'sensor_area_dev_abc_power'],
+        'ident_prefix' => 'sensor_area_dev_abc_power', 'ident' => 'sensor_area_dev_abc_power'],
     ['entity_id' => 'sensor.area_dev_abc_energy', 'domain' => 'sensor', 'device_id' => 'D1',
-     'ident_prefix' => 'sensor_area_dev_abc_energy', 'ident' => 'sensor_area_dev_abc_energy'],
+        'ident_prefix' => 'sensor_area_dev_abc_energy', 'ident' => 'sensor_area_dev_abc_energy'],
 ];
 $a = $h->assignments($existing);
 check($failures, 'existing ident kept', prefixOf($a, 'sensor.area_dev_abc_power'), 'sensor_area_dev_abc_power');

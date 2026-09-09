@@ -1,4 +1,6 @@
-<?php /** @noinspection PhpUnused */
+<?php
+
+/** @noinspection PhpUnused */
 
 /** @noinspection AutoloadingIssuesInspection */
 
@@ -115,7 +117,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->registerMediaRefreshTimer();
         $this->registerStateCacheFlushTimer();
     }
-
 
     /**
      * Reagiert auf Änderungen am Parent (Gateway).
@@ -630,7 +631,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         unset($panel);
     }
 
-
     // Ungecachter Neuaufbau der aktiven Entitäten; Aufruf ausschließlich über den
     // Cache-Wrapper getConfiguredEntities (HADeviceCore).
     private function buildConfiguredEntitiesUncached(array $configData): array
@@ -1118,9 +1118,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     private function cleanupManagedEntityObjects(array $entityIds, array $activeEntityIds, array $previousEntities): void
     {
         $entityIds = array_filter(
-                         $entityIds,
-                         static fn(mixed $entityId): bool => is_string($entityId) && trim($entityId) !== ''
-                     )
+            $entityIds,
+            static fn(mixed $entityId): bool => is_string($entityId) && trim($entityId) !== ''
+        )
                      |> array_unique(...)
                      |> array_values(...);
         if ($entityIds === [] && $activeEntityIds === []) {

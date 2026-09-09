@@ -1,4 +1,6 @@
-<?php /** @noinspection PhpUnused */
+<?php
+
+/** @noinspection PhpUnused */
 
 /** @noinspection AutoloadingIssuesInspection */
 
@@ -2375,7 +2377,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $ordered = $this->getOrderedLightAttributeNames();
         $index = array_search($attribute, $ordered, true);
-        return ($index === false ? 90 : ((int) $index + 1));
+        return $index === false ? 90 : ((int) $index + 1);
     }
 
     private function getEntityBasePosition(array $entity): int
