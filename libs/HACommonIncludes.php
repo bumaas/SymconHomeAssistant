@@ -15,6 +15,7 @@ require_once __DIR__ . '/HARestParentClient.php';
 require_once __DIR__ . '/HARestPayloadBuilder.php';
 require_once __DIR__ . '/HADiagnosticAggregation.php';
 require_once __DIR__ . '/HADiagnosticFormatting.php';
+require_once __DIR__ . '/HADiagnosticText.php';
 require_once __DIR__ . '/HADateTimeValue.php';
 require_once __DIR__ . '/Config/HAConfigDefaults.php';
 require_once __DIR__ . '/Config/HAEntityConfigLoader.php';

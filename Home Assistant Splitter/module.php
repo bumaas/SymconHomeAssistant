@@ -732,8 +732,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
     // Anzeige aktualisieren, false für die direkte Rückgabe an den Aufrufer.
     private function failRestDiagnostics(string $error, string $response = ''): false
     {
-        $this->WriteAttributeString('LastRestError', $error);
-        $this->WriteAttributeString('LastRestResponse', $response);
+        $this->WriteAttributeString('LastRestError', HADiagnosticText::sanitize($error));
+        $this->WriteAttributeString('LastRestResponse', HADiagnosticText::sanitize($response));
         $this->updateDiagnosticsLabels();
         return false;
     }
@@ -744,7 +744,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         if ($this->ReadAttributeString('LastRestError') !== '') {
             $this->WriteAttributeString('LastRestError', '');
         }
-        $this->WriteAttributeString('LastRestResponse', $response);
+        $this->WriteAttributeString('LastRestResponse', HADiagnosticText::sanitize($response));
         $this->updateDiagnosticsLabels();
         return true;
     }
@@ -1186,7 +1186,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
                 $message .= ' | ' . $this->truncateResponse($response);
             }
         }
-        $this->WriteAttributeString('LastRestError', $message);
+        $this->WriteAttributeString('LastRestError', HADiagnosticText::sanitize($message));
         if ($httpCode !== '') {
             $this->WriteAttributeString('LastRestResponse', $this->formatRestResponse((int)$httpCode, $response));
         } elseif ($error !== '') {
@@ -1229,16 +1229,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function truncateResponse(string $response, int $maxLength = 1000, bool $compactWhitespace = true): string
     {
-        if ($compactWhitespace) {
-            $response = preg_replace('/\s+/', ' ', $response) ?? $response;
-        }
-        $response = trim($response);
-
-        if (strlen($response) <= $maxLength) {
-            return $response;
-        }
-
-        return substr($response, 0, $maxLength) . '...';
+        return HADiagnosticText::truncate($response, $maxLength, $compactWhitespace);
     }
 
     private function formatRestResponse(int $httpCode, string $response): string
