@@ -1,6 +1,6 @@
 # SymconHomeAssistant — Projekt-Hinweise
 
-IP-Symcon-Bibliothek (8 Module, alle `IPSModuleStrict`) zur Anbindung von Home Assistant.
+Symcon-Bibliothek (8 Module, alle `IPSModuleStrict`) zur Anbindung von Home Assistant.
 Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 ## Modul-Familien
@@ -47,6 +47,9 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
 
 ## CI / Version
 
-- CI: `.github/workflows/check.yml` — `php -l`, JSON-Validität, Locale-Check.
-- Version/Build/Datum in `library.json`; Konvention (Build +1, Unix-Timestamp,
-  Commit-Subject `<version> build <NN>: <Beschreibung>`) siehe globale CLAUDE.md.
+- CI: `.github/workflows/check.yml` (PHP 8.5, Checkout mit Submodulen) — Code-Stil mit
+  php-cs-fixer gegen das Regelwerk im Submodul `.style` (`--dry-run`), `php -l` auf alle
+  `*.php`, JSON-Validität, Locale-Check und `tests/check_property_contracts.php` (jede von
+  `libs/Device/HADeviceCore.php` gelesene Property muss in Device- und Entity-Modul
+  registriert sein). Die Laufzeit-Checks `tests/check-*.php` laufen **nicht** in der CI.
+- Version/Build: siehe globale CLAUDE.md, Abschnitt „Symcon: Build-/Versionspflege in Modul-Repos".
