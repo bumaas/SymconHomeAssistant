@@ -9,6 +9,7 @@ tests/*
 !tests/check-*.php
 !tests/check_locale.php
 !tests/check_property_contracts.php
+!tests/readme-bekannt.json
 !tests/lint-php.ps1
 !tests/fixtures/
 tests/fixtures/*
