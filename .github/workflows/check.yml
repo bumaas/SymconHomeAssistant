@@ -32,3 +32,6 @@ jobs:
       - name: Laufzeit-Checks
         run: |
           for f in tests/check-*.php; do echo "== $f"; php "$f"; done
+
+      - name: Modultests
+        run: for t in tests/extract-mqtt-discovery-light-fixture.php; do echo "== $t"; php "$t" || exit 1; done
