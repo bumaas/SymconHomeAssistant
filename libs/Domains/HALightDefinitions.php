@@ -161,7 +161,7 @@ final class HALightDefinitions
                     $service = 'turn_off';
                 }
             }
-            return [$service, $data];
+            return [$service, self::normalizeColorTempServiceData($data)];
         }
 
         if (is_bool($value)) {
@@ -169,5 +169,49 @@ final class HALightDefinitions
         }
 
         return ['', []];
+    }
+
+    // HA kennt seit 2026.3 keine Mired mehr (#161777): light.turn_on weist color_temp und kelvin ab.
+    // Beide werden in color_temp_kelvin übersetzt; ein nicht umrechenbarer Wert bleibt stehen, damit HA ihn meldet.
+    public static function normalizeColorTempServiceData(array $data): array
+    {
+        if (array_key_exists('color_temp', $data)) {
+            $kelvin = self::convertMiredKelvin($data['color_temp']);
+            if ($kelvin !== null) {
+                unset($data['color_temp']);
+                $data['color_temp_kelvin'] ??= $kelvin;
+            }
+        }
+        if (array_key_exists('kelvin', $data) && is_numeric($data['kelvin'])) {
+            $data['color_temp_kelvin'] ??= (int) round((float) $data['kelvin']);
+            unset($data['kelvin']);
+        }
+        return $data;
+    }
+
+    // Seit HA 2026.3 fehlt color_temp im Zustand; eine vorhandene Mired-Variable folgt dann dem Kelvin-Wert.
+    public static function withDerivedMired(array $attributes): array
+    {
+        if (!array_key_exists('color_temp', $attributes) && array_key_exists('color_temp_kelvin', $attributes)) {
+            $attributes['color_temp'] = self::convertMiredKelvin($attributes['color_temp_kelvin']);
+        }
+        return $attributes;
+    }
+
+    // Die Mired-Variable wird nur angelegt, wenn HA selbst noch Mired meldet (bis 2026.2).
+    public static function reportsMired(array $attributes): bool
+    {
+        return array_key_exists('color_temp', $attributes)
+            || array_key_exists('min_mireds', $attributes)
+            || array_key_exists('max_mireds', $attributes);
+    }
+
+    // Mired und Kelvin rechnen sich in beide Richtungen über 1.000.000 / Wert um.
+    public static function convertMiredKelvin(mixed $value): ?int
+    {
+        if (!is_numeric($value) || (float) $value <= 0.0) {
+            return null;
+        }
+        return (int) round(1000000 / (float) $value);
     }
 }

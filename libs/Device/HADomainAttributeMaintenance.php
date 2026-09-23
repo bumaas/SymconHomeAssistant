@@ -595,6 +595,9 @@ trait HADomainAttributeMaintenanceTrait
             return false;
         }
 
+        if ($attribute === 'color_temp') {
+            return HALightDefinitions::reportsMired($attributes);
+        }
         if ($attribute === 'effect' && HASelectDefinitions::normalizeOptions($attributes['effect_list'] ?? null) !== []) {
             return true;
         }
@@ -673,7 +676,7 @@ trait HADomainAttributeMaintenanceTrait
     {
         $this->updateStandardAttributeValues(
             $entityId,
-            $attributes,
+            HALightDefinitions::withDerivedMired($attributes),
             HALightDefinitions::ATTRIBUTE_DEFINITIONS,
             function (string $attribute, mixed $value, array $meta): string|int|bool|float {
                 if ($attribute === 'rgb_color') {

@@ -385,6 +385,11 @@ trait HAAttributeHandlersTrait
 
         $this->applyAttributeVariableValue($entityId, $attribute, $value, $meta);
 
+        // Seit HA 2026.3 kommt kein color_temp-Topic mehr; eine vorhandene Mired-Variable folgt dem Kelvin-Wert.
+        if ($attribute === 'color_temp_kelvin') {
+            $this->updateLightAttributeValues($entityId, ['color_temp' => HALightDefinitions::convertMiredKelvin($value)]);
+        }
+
         return true;
     }
 
