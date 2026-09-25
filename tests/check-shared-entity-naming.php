@@ -18,6 +18,7 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 require_once dirname(__DIR__) . '/libs/HAEntityVariableNaming.php';
 require_once dirname(__DIR__) . '/libs/HAIdentNaming.php';
@@ -63,7 +64,7 @@ final class SharedEntityNamingHarness
     }
 }
 
-function run(string $label, array $entities, array $expected, bool $multiStatus = false): bool
+function run(string $label, array $entities, array $expected, bool $multiStatus = false): void
 {
     $h = new SharedEntityNamingHarness();
     $h->instanceName = 'Stehlampe Max M';
@@ -71,19 +72,14 @@ function run(string $label, array $entities, array $expected, bool $multiStatus 
 
     $withIdents = $h->process($entities);
 
-    $ok = true;
+    echo $label . "\n";
     foreach ($withIdents as $entity) {
         $id = (string)$entity['entity_id'];
         $got = $h->nameOf($entity);
         $want = $expected[$id] ?? '<unexpected>';
-        $flag = $got === $want ? 'OK ' : 'FAIL';
-        if ($got !== $want) {
-            $ok = false;
-        }
-        printf("  [%s] %-52s => '%s' (want '%s')\n", $flag, $id, $got, $want);
+        pruefe($got === $want, sprintf("%s => '%s'", $id, $want), sprintf("erhalten '%s'", $got));
     }
-    echo ($ok ? 'OK: ' : 'FAIL: ') . $label . "\n\n";
-    return $ok;
+    echo "\n";
 }
 
 $e = static fn(string $id, string $domain, string $name): array => [
@@ -94,10 +90,8 @@ $e = static fn(string $id, string $domain, string $name): array => [
     'attributes'  => [],
 ];
 
-$allOk = true;
-
 // Scenario 1: the bug report. Whole device carries _2 slugs, names are unique.
-$allOk = run('identical lamp with _2 slugs keeps clean names', [
+run('identical lamp with _2 slugs keeps clean names', [
     $e('light.kinderzimmer_stehlampe_max_m_2', 'light', 'Stehlampe Max M'),
     $e('update.kinderzimmer_stehlampe_max_m_2', 'update', 'Stehlampe Max M Firmware'),
     $e('button.kinderzimmer_stehlampe_max_m_2_identify', 'button', 'Stehlampe Max M Identifizieren'),
@@ -107,24 +101,24 @@ $allOk = run('identical lamp with _2 slugs keeps clean names', [
     'update.kinderzimmer_stehlampe_max_m_2'           => 'Firmware',
     'button.kinderzimmer_stehlampe_max_m_2_identify'  => 'Identifizieren',
     'number.kinderzimmer_stehlampe_max_m_2_on_level'  => 'Ein-Level',
-]) && $allOk;
+]);
 
 // Scenario 2: genuine in-instance collision still disambiguates.
 // Two sensors that really share the same display name; HA suffixes one with _2.
-$allOk = run('genuine duplicate name is still numbered', [
+run('genuine duplicate name is still numbered', [
     $e('sensor.stehlampe_max_m_temperature', 'sensor', 'Stehlampe Max M Temperature'),
     $e('sensor.stehlampe_max_m_temperature_2', 'sensor', 'Stehlampe Max M Temperature'),
 ], [
     'sensor.stehlampe_max_m_temperature'   => 'Temperature',
     'sensor.stehlampe_max_m_temperature_2' => 'Temperature 2',
-]) && $allOk;
+]);
 
 // Scenario 3: zigbee2mqtt light without an own name. The derived name is humanized
 // ("Buero beleuchtung test") while device_name keeps the "/" separators
 // ("Buero/Beleuchtung/Test"). Slug-equal to the device name => no own name => "Status".
 // The second light has a genuine own name and a cleanly-formatted device prefix, which must
 // still be stripped to "Nachtlicht" (and must NOT collapse to "Status").
-$allOk = run('zigbee2mqtt light: humanized name slug-equal to device name => Status', [
+run('zigbee2mqtt light: humanized name slug-equal to device name => Status', [
     [
         'entity_id'   => 'light.buero_beleuchtung_test',
         'domain'      => 'light',
@@ -142,6 +136,6 @@ $allOk = run('zigbee2mqtt light: humanized name slug-equal to device name => Sta
 ], [
     'light.buero_beleuchtung_test'            => 'Status',
     'light.buero_beleuchtung_test_nachtlicht' => 'Nachtlicht',
-]) && $allOk;
+]);
 
-exit($allOk ? 0 : 1);
+ergebnis();

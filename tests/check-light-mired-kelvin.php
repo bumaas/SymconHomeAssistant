@@ -9,19 +9,11 @@ declare(strict_types=1);
 // vorhandene Mired-Variable aus dem Kelvin-Wert weiter befüllt wird und dass die Mired-Variable
 // nur noch angelegt wird, wenn HA selbst Mired meldet.
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/Domains/HALightDefinitions.php';
 
-$fail = 0;
-$count = 0;
-$check = static function (string $label, $actual, $expected) use (&$fail, &$count): void {
-    $count++;
-    $ok = $actual === $expected;
-    printf("[%s] %s\n", $ok ? 'OK ' : 'FAIL', $label);
-    if (!$ok) {
-        $fail++;
-        echo '     erwartet: ' . var_export($expected, true) . "\n";
-        echo '     ist:      ' . var_export($actual, true) . "\n";
-    }
+$check = static function (string $label, $actual, $expected): void {
+    pruefe($actual === $expected, $label, 'erwartet: ' . var_export($expected, true) . ', ist: ' . var_export($actual, true));
 };
 $call = static function (string $method, ...$args) {
     if (!method_exists(HALightDefinitions::class, $method)) {
@@ -89,10 +81,4 @@ $check('ohne Kelvin kein Mired',
 $check('HA 2026.9 (Mitschnitt) meldet kein Mired', $call('reportsMired', $attributesHa2026_9), false);
 $check('HA 2026.2 meldet Mired', $call('reportsMired', $attributesHa2026_2), true);
 
-echo "\n";
-if ($fail === 0) {
-    printf("Alle %d Assertions grün.\n", $count);
-    exit(0);
-}
-printf("%d von %d Assertion(en) fehlgeschlagen.\n", $fail, $count);
-exit(1);
+ergebnis();

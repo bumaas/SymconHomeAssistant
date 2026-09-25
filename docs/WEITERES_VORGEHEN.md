@@ -291,7 +291,7 @@ Status:
 Bereits im Repo sichtbar:
 
 - `tests/check-mqtt-discovery-light-runtime.php` für fixture-nahe Light-Prüfungen
-- `tests/extract-mqtt-discovery-light-fixture.php` zum Ableiten kleinerer Light-Fixtures
+- `tools/extract-mqtt-discovery-light-fixture.php` zum Ableiten kleinerer Light-Fixtures
 - `tests/zigbee2mqtt_update_task.ps1` als lokales Hilfsskript für Fixture-/Update-Arbeit
 
 Weiter offen:

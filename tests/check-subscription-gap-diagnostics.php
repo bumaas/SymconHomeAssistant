@@ -24,6 +24,8 @@ declare(strict_types=1);
  *      Abo-Warnung, kein Alert, unsubscribed=0, subscription_covered=true
  */
 
+require_once __DIR__ . '/harness.php';
+
 error_reporting(E_ALL);
 
 // ---------------------------------------------------------------------------
@@ -322,17 +324,9 @@ require_once dirname(__DIR__) . '/Home Assistant MQTT Discovery Splitter/module.
 // ---------------------------------------------------------------------------
 // Check-Gerüst und Helfer
 // ---------------------------------------------------------------------------
-$failures = 0;
-
 function check(bool $condition, string $label, string $detail = ''): void
 {
-    global $failures;
-    if ($condition) {
-        fwrite(STDOUT, "OK   $label\n");
-        return;
-    }
-    $failures++;
-    fwrite(STDOUT, "FAIL $label" . ($detail !== '' ? " — $detail" : '') . "\n");
+    pruefe($condition, $label, $detail);
 }
 
 function receiveMqttMessage(HomeAssistantMQTTDiscoverySplitter $splitter, string $topic, string $payload): void
@@ -437,5 +431,4 @@ foreach (($bundle2['referenced_topics'] ?? []) as $entry) {
 }
 check($allCovered, 'Gegenprobe: alle referenzierten Topics als abonniert markiert');
 
-echo $failures === 0 ? "Alle Prüfungen bestanden.\n" : "$failures Prüfung(en) fehlgeschlagen.\n";
-exit($failures === 0 ? 0 : 1);
+ergebnis();

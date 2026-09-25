@@ -22,12 +22,13 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 require_once dirname(__DIR__) . '/libs/Device/HADomainStateHandlers.php';
 require_once dirname(__DIR__) . '/libs/Device/HAAttributeHandlers.php';
 require_once dirname(__DIR__) . '/libs/Device/HADeviceCore.php';
 
-function main(): int
+function main(): void
 {
     $harness = new EntityMqttTopicRuntimeHarness();
     $numberEntityId = 'input_number.test_zahl';
@@ -38,54 +39,31 @@ function main(): int
 
     $harness->feedMqttTopic('homeassistant/input_number/test_zahl/friendly_name', '"Test Zahl"');
     $storedAttribute = $harness->getStoredAttributeValue($numberEntityId, 'friendly_name');
-    if ($storedAttribute !== 'Test Zahl') {
-        fwrite(STDERR, 'Attribute topic failed: expected "Test Zahl", got ' . var_export($storedAttribute, true) . PHP_EOL);
-        return 1;
-    }
+    pruefe($storedAttribute === 'Test Zahl', 'input_number: Attribut-Topic friendly_name wird als "Test Zahl" gespeichert', 'erhalten: ' . var_export($storedAttribute, true));
 
     $harness->feedMqttTopic('homeassistant/input_number/test_zahl/state', '78.0');
     $appliedState = $harness->getAppliedState($numberEntityId);
-    if ($appliedState === null) {
-        fwrite(STDERR, "State topic failed: no parsed state was applied.\n");
-        return 1;
+    if (!pruefe($appliedState !== null, 'input_number: State-Topic führt zu einem angewendeten Zustand')) {
+        ergebnis();
     }
 
-    if (($appliedState['state'] ?? null) !== '78.0') {
-        fwrite(STDERR, 'State topic failed: expected state "78.0", got ' . var_export($appliedState['state'] ?? null, true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(($appliedState['state'] ?? null) === '78.0', 'input_number: Zustand ist "78.0"', 'erhalten: ' . var_export($appliedState['state'] ?? null, true));
 
-    if (($appliedState['context'] ?? null) !== 'MQTT State Topic') {
-        fwrite(STDERR, 'State topic failed: unexpected context ' . var_export($appliedState['context'] ?? null, true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(($appliedState['context'] ?? null) === 'MQTT State Topic', 'input_number: Kontext ist "MQTT State Topic"', 'erhalten: ' . var_export($appliedState['context'] ?? null, true));
 
     $harness->feedMqttTopic('homeassistant/input_text/test_text/state', 'abcdefgxy');
     $textState = $harness->getAppliedState($textEntityId);
-    if ($textState === null) {
-        fwrite(STDERR, "Input_text state topic failed: no state update recorded.\n");
-        return 1;
+    if (!pruefe($textState !== null, 'input_text: State-Topic führt zu einem angewendeten Zustand')) {
+        ergebnis();
     }
 
-    if (($textState['domain'] ?? null) !== HAInputTextDefinitions::DOMAIN) {
-        fwrite(STDERR, 'Input_text state topic failed: unexpected domain ' . var_export($textState['domain'] ?? null, true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(($textState['domain'] ?? null) === HAInputTextDefinitions::DOMAIN, 'input_text: Domain ist input_text', 'erhalten: ' . var_export($textState['domain'] ?? null, true));
 
-    if (($textState['state'] ?? null) !== 'abcdefgxy') {
-        fwrite(STDERR, 'Input_text state topic failed: expected state "abcdefgxy", got ' . var_export($textState['state'] ?? null, true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(($textState['state'] ?? null) === 'abcdefgxy', 'input_text: Zustand ist "abcdefgxy"', 'erhalten: ' . var_export($textState['state'] ?? null, true));
 
     $harness->feedMqttTopic('homeassistant/input_text/test_text/friendly_name', '"Test Text"');
     $textAttribute = $harness->getStoredAttributeValue($textEntityId, 'friendly_name');
-    if ($textAttribute !== 'Test Text') {
-        fwrite(STDERR, 'Input_text attribute topic failed: expected "Test Text", got ' . var_export($textAttribute, true) . PHP_EOL);
-        return 1;
-    }
-
-    fwrite(STDOUT, "OK: Entity MQTT state and attribute topics work for input_number and input_text.\n");
-    return 0;
+    pruefe($textAttribute === 'Test Text', 'input_text: Attribut-Topic friendly_name wird als "Test Text" gespeichert', 'erhalten: ' . var_export($textAttribute, true));
 }
 
 final class EntityMqttTopicRuntimeHarness implements HADeviceConstants
@@ -192,4 +170,5 @@ final class EntityMqttTopicRuntimeHarness implements HADeviceConstants
     }
 }
 
-exit(main());
+main();
+ergebnis();

@@ -28,6 +28,8 @@ declare(strict_types=1);
  *   7. Konfigurationsänderung (ApplyChanges) schlägt auf den nächsten Aufruf durch
  */
 
+require_once __DIR__ . '/harness.php';
+
 error_reporting(E_ALL);
 
 // ---------------------------------------------------------------------------
@@ -537,17 +539,9 @@ require_once dirname(__DIR__) . '/Home Assistant Device/module.php';
 // ---------------------------------------------------------------------------
 // Check-Gerüst
 // ---------------------------------------------------------------------------
-$failures = 0;
-
 function check(bool $condition, string $label, string $detail = ''): void
 {
-    global $failures;
-    if ($condition) {
-        fwrite(STDOUT, "OK   $label\n");
-        return;
-    }
-    $failures++;
-    fwrite(STDERR, 'FAIL ' . $label . ($detail !== '' ? " ($detail)" : '') . "\n");
+    pruefe($condition, $label, $detail);
 }
 
 function newExecution(): HomeAssistantDevice
@@ -657,9 +651,8 @@ function buildFixtureRows(): array
 }
 
 $bundleFile = tempnam(sys_get_temp_dir(), 'ha_cache_check_');
-if ($bundleFile === false) {
-    fwrite(STDERR, "FAIL Temp-Datei für das Bundle konnte nicht angelegt werden\n");
-    exit(1);
+if (!pruefe($bundleFile !== false, 'Temp-Datei für das Bundle angelegt')) {
+    ergebnis();
 }
 file_put_contents($bundleFile, json_encode(buildFixtureRows(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
@@ -809,10 +802,4 @@ check(
 
 @unlink($bundleFile);
 
-if ($failures > 0) {
-    fwrite(STDERR, "\n$failures Prüfung(en) fehlgeschlagen.\n");
-    exit(1);
-}
-
-fwrite(STDOUT, "\nAlle Prüfungen bestanden.\n");
-exit(0);
+ergebnis();

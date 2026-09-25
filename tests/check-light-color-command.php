@@ -5,18 +5,12 @@ declare(strict_types=1);
 // Verifies the MQTT color command payload for light xy_color/hs_color:
 // nested {"color":{...}} object, string/array/delimited input tolerance, null on bad input.
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/Domains/HALightDefinitions.php';
 require_once dirname(__DIR__) . '/libs/Discovery/HAMqttDiscoveryLightRuntime.php';
 
-$fail = 0;
-$check = static function (string $label, $actual, $expected) use (&$fail): void {
-    $ok = $actual === $expected;
-    printf("[%s] %s\n", $ok ? 'OK ' : 'FAIL', $label);
-    if (!$ok) {
-        $fail++;
-        echo '     erwartet: ' . var_export($expected, true) . "\n";
-        echo '     ist:      ' . var_export($actual, true) . "\n";
-    }
+$check = static function (string $label, $actual, $expected): void {
+    pruefe($actual === $expected, $label, 'erwartet: ' . var_export($expected, true) . ', ist: ' . var_export($actual, true));
 };
 
 $build = static fn(string $a, $v) => HAMqttDiscoveryLightRuntime::buildAttributeCommandPayload($a, $v);
@@ -31,10 +25,4 @@ $check('xy_color too few => null', $build('xy_color', '[0.46]'),  null);
 // unaffected scalar attributes still use the flat payload
 $check('brightness bleibt flach', $build('brightness', 128), '{"brightness":128}');
 
-echo "\n";
-if ($fail === 0) {
-    echo "Alle Assertions grün.\n";
-    exit(0);
-}
-printf("%d Assertion(en) fehlgeschlagen.\n", $fail);
-exit(1);
+ergebnis();

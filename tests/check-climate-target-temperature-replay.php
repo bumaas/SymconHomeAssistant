@@ -22,11 +22,12 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 require_once dirname(__DIR__) . '/libs/Device/HADomainValueMapping.php';
 require_once dirname(__DIR__) . '/libs/Device/HAEntityStore.php';
 
-function main(): int
+function main(): void
 {
     $harness = new ClimateReplayHarness();
     $entityId = 'climate.sr_klima';
@@ -37,10 +38,11 @@ function main(): int
     ];
 
     $converted = $harness->convertClimateState('cool', $attributes);
-    if ($converted !== 23.0) {
-        fwrite(STDERR, 'Climate domain mapping failed: expected 23.0, got ' . var_export($converted, true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(
+        $converted === 23.0,
+        'climate-Domänenabbildung liefert bei HVAC-Modus „cool“ die Solltemperatur 23.0',
+        'erhalten ' . var_export($converted, true)
+    );
 
     $harness->registerEntity($entityId, HAClimateDefinitions::DOMAIN);
     $harness->replayCachedMainValue(
@@ -50,13 +52,11 @@ function main(): int
     );
 
     $actual = $harness->getWrittenValue($entityId);
-    if ($actual !== 23.0) {
-        fwrite(STDERR, 'Climate replay failed: expected 23.0, got ' . var_export($actual, true) . PHP_EOL);
-        return 1;
-    }
-
-    echo "OK: climate replay keeps target temperature when raw state is textual HVAC mode.\n";
-    return 0;
+    pruefe(
+        $actual === 23.0,
+        'climate-Replay behält die Solltemperatur, wenn der Rohzustand ein textueller HVAC-Modus ist',
+        'erhalten ' . var_export($actual, true)
+    );
 }
 
 final class ClimateReplayHarness implements HADeviceConstants
@@ -133,4 +133,5 @@ final class ClimateReplayHarness implements HADeviceConstants
 
 }
 
-exit(main());
+main();
+ergebnis();

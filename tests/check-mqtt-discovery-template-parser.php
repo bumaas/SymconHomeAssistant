@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 
-exit(main());
+main();
+ergebnis();
 
-function main(): int
+function main(): void
 {
     $cases = [
         [
@@ -29,22 +31,20 @@ function main(): int
 
     foreach ($cases as $case) {
         $parsed = HAMqttDiscoveryTemplate::parseValueTemplate($case['template']);
-        if (!is_array($parsed)) {
-            fwrite(STDERR, "Template wurde nicht geparst: {$case['template']}\n");
-            return 1;
+        if (!pruefe(is_array($parsed), "Template wird geparst: {$case['template']}")) {
+            continue;
         }
 
-        if (($parsed['kind'] ?? null) !== 'json_path') {
-            fwrite(STDERR, "Unerwarteter Template-Typ für {$case['template']}\n");
-            return 1;
-        }
+        pruefe(
+            ($parsed['kind'] ?? null) === 'json_path',
+            "Template-Typ json_path für {$case['template']}",
+            'erhalten: ' . json_encode($parsed['kind'] ?? null)
+        );
 
-        if (($parsed['path'] ?? null) !== $case['expected']) {
-            fwrite(STDERR, "Unerwarteter Pfad für {$case['template']}: " . json_encode($parsed['path']) . "\n");
-            return 1;
-        }
+        pruefe(
+            ($parsed['path'] ?? null) === $case['expected'],
+            'Pfad ' . json_encode($case['expected']) . " für {$case['template']}",
+            'erhalten: ' . json_encode($parsed['path'] ?? null)
+        );
     }
-
-    fwrite(STDOUT, "OK\n");
-    return 0;
 }

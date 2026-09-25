@@ -23,6 +23,7 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/Device/HADeviceConstants.php';
 require_once dirname(__DIR__) . '/libs/Domains/HASelectDefinitions.php';
 require_once dirname(__DIR__) . '/libs/Domains/HAClimateDefinitions.php';
@@ -63,54 +64,36 @@ final class ClimateSwingHorizontalHarness
     }
 }
 
-function main(): int
+function main(): void
 {
     $harness = new ClimateSwingHorizontalHarness();
     $attributes = MELCLOUD_ATTRIBUTES;
 
     // Sanity: the dump's bitmask must actually carry SWING_HORIZONTAL_MODE (512).
-    if ((937 & 512) !== 512) {
-        fwrite(STDERR, 'Test fixture inconsistent: 937 does not contain bit 512.' . PHP_EOL);
-        return 1;
+    if (!pruefe((937 & 512) === 512, 'Fixture: supported_features 937 enthält Bit 512')) {
+        ergebnis();
     }
 
     // Vertical swing (bit 32) was always controllable -- guard against regressions.
-    if (!$harness->isWritable(HAClimateDefinitions::ATTRIBUTE_SWING_MODE, $attributes)) {
-        fwrite(STDERR, 'Vertical swing_mode unexpectedly reported as not writable.' . PHP_EOL);
-        return 1;
-    }
+    pruefe($harness->isWritable(HAClimateDefinitions::ATTRIBUTE_SWING_MODE, $attributes), 'swing_mode (vertikal) ist schreibbar');
 
     // The actual fix: horizontal swing must now be writable for this device.
-    if (!$harness->isWritable(HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE, $attributes)) {
-        fwrite(STDERR, 'swing_horizontal_mode is not writable despite supported_features bit 512.' . PHP_EOL);
-        return 1;
-    }
+    pruefe($harness->isWritable(HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE, $attributes), 'swing_horizontal_mode ist bei Bit 512 schreibbar');
 
-    if (!$harness->shouldCreate(HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE, $attributes)) {
-        fwrite(STDERR, 'swing_horizontal_mode variable would not be created.' . PHP_EOL);
-        return 1;
-    }
+    pruefe($harness->shouldCreate(HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE, $attributes), 'swing_horizontal_mode-Variable wird angelegt');
 
     // Counter-check: a device WITHOUT bit 512 must not expose horizontal control.
     $withoutHorizontal = $attributes;
     $withoutHorizontal['supported_features'] = 937 & ~512; // 425
     unset($withoutHorizontal['swing_horizontal_mode'], $withoutHorizontal['swing_horizontal_modes']);
-    if ($harness->isWritable(HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE, $withoutHorizontal)) {
-        fwrite(STDERR, 'swing_horizontal_mode reported writable although feature/options are absent.' . PHP_EOL);
-        return 1;
-    }
+    pruefe(!$harness->isWritable(HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE, $withoutHorizontal), 'ohne Bit 512 ist swing_horizontal_mode nicht schreibbar');
 
     // The set-payload must map to the correct HA service.
     [$service] = HAClimateDefinitions::buildRestServicePayload(
         [HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE => 'left']
     );
-    if ($service !== 'set_swing_horizontal_mode') {
-        fwrite(STDERR, 'Set payload did not map to set_swing_horizontal_mode (got: ' . $service . ').' . PHP_EOL);
-        return 1;
-    }
-
-    fwrite(STDOUT, "OK: swing_horizontal_mode is controllable for supported_features=937 (bit 512).\n");
-    return 0;
+    pruefe($service === 'set_swing_horizontal_mode', 'Set-Payload wird auf set_swing_horizontal_mode abgebildet', 'erhalten: ' . $service);
 }
 
-exit(main());
+main();
+ergebnis();

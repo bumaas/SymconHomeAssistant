@@ -10,12 +10,11 @@ declare(strict_types=1);
 // gekürzt und trennte dabei Mehrbyte-Zeichen (Umlaute, °, …) — der Kernel lehnt das halbe
 // Zeichen ab. Erwartung: Jede Ausgabe ist gültiges UTF-8, auch bei kaputten Eingangsdaten.
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HADiagnosticText.php';
 
-$fail = 0;
-$check = static function (bool $ok, string $label) use (&$fail): void {
-    echo ($ok ? 'OK   ' : 'FAIL ') . $label . "\n";
-    $fail += $ok ? 0 : 1;
+$check = static function (bool $ok, string $label): void {
+    pruefe($ok, $label);
 };
 $valid = static fn(string $s): bool => preg_match('//u', $s) === 1;
 
@@ -58,5 +57,4 @@ $check(HADiagnosticText::sanitize('Küche °C …') === 'Küche °C …', 'sanit
 // 6. Whitespace-Zusammenfassung zerstört keine Mehrbyte-Zeichen, deren Folgebyte 0x85/0xA0 ist.
 $check(HADiagnosticText::truncate("à  Å\t\tö") === 'à Å ö', 'Whitespace: à (C3 A0) und Å (C3 85) bleiben intakt');
 
-echo "\n" . ($fail === 0 ? 'ALL OK' : "FAILURES: $fail") . "\n";
-exit($fail === 0 ? 0 : 1);
+ergebnis();

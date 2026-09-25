@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/harness.php';
+
 $root = dirname(__DIR__);
 $corePath = $root . '/libs/Device/HADeviceCore.php';
 $modulePaths = [
@@ -10,8 +12,8 @@ $modulePaths = [
 ];
 
 $coreSource = file_get_contents($corePath);
-if ($coreSource === false) {
-    throw new RuntimeException('Cannot read ' . $corePath);
+if (!pruefe($coreSource !== false, 'HADeviceCore.php ist lesbar', $corePath)) {
+    ergebnis();
 }
 
 preg_match_all(
@@ -21,14 +23,14 @@ preg_match_all(
     PREG_SET_ORDER
 );
 
-if ($matches === []) {
-    throw new RuntimeException('No shared HADeviceCore property reads found.');
+if (!pruefe($matches !== [], 'HADeviceCore liest gemeinsame Properties (' . count($matches) . ' Lesestellen)')) {
+    ergebnis();
 }
 
 foreach ($modulePaths as $modulePath) {
     $moduleSource = file_get_contents($modulePath);
-    if ($moduleSource === false) {
-        throw new RuntimeException('Cannot read ' . $modulePath);
+    if (!pruefe($moduleSource !== false, basename(dirname($modulePath)) . '/module.php ist lesbar', $modulePath)) {
+        continue;
     }
 
     foreach ($matches as $match) {
@@ -39,15 +41,12 @@ foreach ($modulePaths as $modulePath) {
             preg_quote($type, '/'),
             preg_quote($constant, '/')
         );
-        if (preg_match($registrationPattern, $moduleSource) !== 1) {
-            throw new RuntimeException(sprintf(
-                '%s reads %s in HADeviceCore but does not register it as %s.',
-                basename(dirname($modulePath)),
-                $constant,
-                $type
-            ));
-        }
+        pruefe(
+            preg_match($registrationPattern, $moduleSource) === 1,
+            sprintf('%s registriert %s als %s', basename(dirname($modulePath)), $constant, $type),
+            'wird in HADeviceCore gelesen, aber nicht registriert'
+        );
     }
 }
 
-echo "Shared HADeviceCore property contracts are registered by all consumers.\n";
+ergebnis();

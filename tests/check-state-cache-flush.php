@@ -30,20 +30,13 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 require_once dirname(__DIR__) . '/libs/Device/HAEntityStore.php';
 
-$failures = 0;
-
 function check(bool $condition, string $label): void
 {
-    global $failures;
-    if ($condition) {
-        fwrite(STDOUT, "OK   $label\n");
-        return;
-    }
-    $failures++;
-    fwrite(STDERR, "FAIL $label\n");
+    pruefe($condition, $label);
 }
 
 final class StateCacheHarness implements HADeviceConstants
@@ -178,10 +171,4 @@ $t->buffers[StateCacheHarness::BUFFER_LAST_MQTT_TOUCH] = (string)(time() - State
 $t->touch();
 check($t->attributeWrites === 2 && $t->diagnosticsUpdates === 2, 'Nach Ablauf der Drossel wird wieder geschrieben');
 
-if ($failures > 0) {
-    fwrite(STDERR, "\n$failures Prüfung(en) fehlgeschlagen.\n");
-    exit(1);
-}
-
-fwrite(STDOUT, "\nALL OK\n");
-exit(0);
+ergebnis();

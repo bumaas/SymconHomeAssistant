@@ -17,6 +17,7 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HASharedPresentationTrait.php';
 
 final class SharedPresentationHarness
@@ -64,15 +65,8 @@ final class SharedPresentationHarness
     }
 }
 
-$fail = 0;
-$check = static function (string $label, $actual, $expected) use (&$fail): void {
-    $ok = $actual === $expected;
-    printf("[%s] %s\n", $ok ? 'OK ' : 'FAIL', $label);
-    if (!$ok) {
-        $fail++;
-        echo '     erwartet: ' . json_encode($expected) . "\n";
-        echo '     ist:      ' . json_encode($actual) . "\n";
-    }
+$check = static function (string $label, $actual, $expected): void {
+    pruefe($actual === $expected, $label, 'erwartet: ' . json_encode($expected) . ' / ist: ' . json_encode($actual));
 };
 
 $h = new SharedPresentationHarness();
@@ -170,10 +164,4 @@ $check('binary_sensor (kein Icon)', $h->binarySensor('An', 'Aus', ''), [
     ], JSON_THROW_ON_ERROR),
 ]);
 
-echo "\n";
-if ($fail === 0) {
-    echo "Alle Assertions grün.\n";
-    exit(0);
-}
-printf("%d Assertion(en) fehlgeschlagen.\n", $fail);
-exit(1);
+ergebnis();

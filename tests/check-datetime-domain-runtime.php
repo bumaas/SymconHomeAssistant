@@ -22,11 +22,12 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 require_once dirname(__DIR__) . '/libs/Device/HADomainValueMapping.php';
 require_once dirname(__DIR__) . '/libs/Device/HAPresentation.php';
 
-function main(): int
+function main(): void
 {
     $runtimeHarness = new DateTimeRuntimeHarness();
     $presentationHarness = new DateTimePresentationHarness();
@@ -34,10 +35,11 @@ function main(): int
     $dateTimeState = '2026-05-22 06:30:00';
     $expectedDateTime = (new DateTimeImmutable($dateTimeState))->getTimestamp();
     $actualDateTime = $runtimeHarness->convert(HADateTimeDefinitions::DOMAIN, $dateTimeState);
-    if ($actualDateTime !== $expectedDateTime) {
-        fwrite(STDERR, 'datetime conversion failed: expected ' . $expectedDateTime . ', got ' . var_export($actualDateTime, true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(
+        $actualDateTime === $expectedDateTime,
+        'datetime: Zustand wird in Unix-Zeit umgerechnet',
+        'erwartet ' . $expectedDateTime . ', erhalten ' . var_export($actualDateTime, true)
+    );
 
     $timeOnlyState = '06:30:00';
     $expectedTimeOnly = DateTimeImmutable::createFromFormat('!H:i:s', $timeOnlyState)->getTimestamp();
@@ -46,51 +48,53 @@ function main(): int
         $timeOnlyState,
         ['has_date' => false, 'has_time' => true]
     );
-    if ($actualTimeOnly !== $expectedTimeOnly) {
-        fwrite(STDERR, 'input_datetime time-only conversion failed: expected ' . $expectedTimeOnly . ', got ' . var_export($actualTimeOnly, true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(
+        $actualTimeOnly === $expectedTimeOnly,
+        'input_datetime (nur Uhrzeit): Zustand wird in Unix-Zeit umgerechnet',
+        'erwartet ' . $expectedTimeOnly . ', erhalten ' . var_export($actualTimeOnly, true)
+    );
 
     [$service, $data] = HADateTimeDefinitions::buildRestServicePayload($expectedDateTime);
     $expectedServiceValue = (new DateTimeImmutable('@' . $expectedDateTime))
         ->setTimezone(new DateTimeZone(date_default_timezone_get()))
         ->format('Y-m-d H:i:s');
-    if ($service !== 'set_value' || ($data['datetime'] ?? null) !== $expectedServiceValue) {
-        fwrite(STDERR, 'datetime REST payload failed: got ' . var_export([$service, $data], true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(
+        !($service !== 'set_value' || ($data['datetime'] ?? null) !== $expectedServiceValue),
+        'datetime: REST-Payload ist set_value mit lokaler Datumszeit',
+        'erhalten ' . var_export([$service, $data], true)
+    );
 
     [$inputService, $inputData] = HAInputDateTimeDefinitions::buildRestServicePayload(
         $timeOnlyState,
         ['has_date' => false, 'has_time' => true]
     );
-    if ($inputService !== 'set_datetime' || ($inputData['timestamp'] ?? null) !== $expectedTimeOnly) {
-        fwrite(STDERR, 'input_datetime REST payload failed: got ' . var_export([$inputService, $inputData], true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(
+        !($inputService !== 'set_datetime' || ($inputData['timestamp'] ?? null) !== $expectedTimeOnly),
+        'input_datetime: REST-Payload ist set_datetime mit Zeitstempel',
+        'erhalten ' . var_export([$inputService, $inputData], true)
+    );
 
     $dateTimePresentation = $presentationHarness->present(HADateTimeDefinitions::DOMAIN, [], VARIABLETYPE_INTEGER);
-    if (($dateTimePresentation['PRESENTATION'] ?? null) !== VARIABLE_PRESENTATION_DATE_TIME
-        || ($dateTimePresentation['DATE'] ?? null) !== 1
-        || ($dateTimePresentation['TIME'] ?? null) !== 2) {
-        fwrite(STDERR, 'datetime presentation failed: got ' . var_export($dateTimePresentation, true) . PHP_EOL);
-        return 1;
-    }
+    pruefe(
+        !(($dateTimePresentation['PRESENTATION'] ?? null) !== VARIABLE_PRESENTATION_DATE_TIME
+            || ($dateTimePresentation['DATE'] ?? null) !== 1
+            || ($dateTimePresentation['TIME'] ?? null) !== 2),
+        'datetime: Darstellung DateTime mit Datum und Uhrzeit',
+        'erhalten ' . var_export($dateTimePresentation, true)
+    );
 
     $timeOnlyPresentation = $presentationHarness->present(
         HAInputDateTimeDefinitions::DOMAIN,
         ['has_date' => false, 'has_time' => true],
         VARIABLETYPE_INTEGER
     );
-    if (($timeOnlyPresentation['PRESENTATION'] ?? null) !== VARIABLE_PRESENTATION_DATE_TIME
-        || ($timeOnlyPresentation['DATE'] ?? null) !== 0
-        || ($timeOnlyPresentation['TIME'] ?? null) !== 2) {
-        fwrite(STDERR, 'input_datetime presentation failed: got ' . var_export($timeOnlyPresentation, true) . PHP_EOL);
-        return 1;
-    }
-
-    fwrite(STDOUT, "OK: datetime and input_datetime use shared integer time handling.\n");
-    return 0;
+    pruefe(
+        !(($timeOnlyPresentation['PRESENTATION'] ?? null) !== VARIABLE_PRESENTATION_DATE_TIME
+            || ($timeOnlyPresentation['DATE'] ?? null) !== 0
+            || ($timeOnlyPresentation['TIME'] ?? null) !== 2),
+        'input_datetime (nur Uhrzeit): Darstellung DateTime ohne Datum, mit Uhrzeit',
+        'erhalten ' . var_export($timeOnlyPresentation, true)
+    );
 }
 
 final class DateTimeRuntimeHarness
@@ -141,4 +145,5 @@ final class DateTimePresentationHarness
     }
 }
 
-exit(main());
+main();
+ergebnis();

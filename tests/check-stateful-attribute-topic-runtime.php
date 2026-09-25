@@ -22,45 +22,32 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 require_once dirname(__DIR__) . '/libs/Device/HAAttributeHandlers.php';
 
-function main(): int
+function main(): void
 {
     $harness = new StatefulAttributeTopicHarness();
 
     try {
         $harness->handleCover('cover.wohnzimmer_rollo', HACoverDefinitions::ATTRIBUTE_POSITION_ALT, '0');
         $harness->handleValve('valve.heizung', HAValveDefinitions::ATTRIBUTE_POSITION_ALT, '25');
+        pruefe(true, 'Attribut-Topic-Handler für cover und valve laufen ohne TypeError');
     } catch (TypeError $e) {
-        fwrite(STDERR, 'Stateful attribute topic handler raised TypeError: ' . $e->getMessage() . PHP_EOL);
-        return 1;
+        pruefe(false, 'Attribut-Topic-Handler für cover und valve laufen ohne TypeError', $e->getMessage());
+        ergebnis();
     }
 
-    if ($harness->coverUpdates !== 1) {
-        fwrite(STDERR, 'Cover updater was not invoked exactly once.' . PHP_EOL);
-        return 1;
-    }
+    pruefe($harness->coverUpdates === 1, 'Cover-Updater wird genau einmal aufgerufen', 'Aufrufe: ' . $harness->coverUpdates);
 
-    if ($harness->valveUpdates !== 1) {
-        fwrite(STDERR, 'Valve updater was not invoked exactly once.' . PHP_EOL);
-        return 1;
-    }
+    pruefe($harness->valveUpdates === 1, 'Valve-Updater wird genau einmal aufgerufen', 'Aufrufe: ' . $harness->valveUpdates);
 
     $coverValue = $harness->entities['cover.wohnzimmer_rollo']['attributes'][HACoverDefinitions::ATTRIBUTE_POSITION_ALT] ?? null;
-    if ($coverValue !== 0.0) {
-        fwrite(STDERR, 'Cover attribute value was not stored as float 0.0.' . PHP_EOL);
-        return 1;
-    }
+    pruefe($coverValue === 0.0, 'Cover-Attributwert wird als float 0.0 gespeichert', 'erhalten: ' . var_export($coverValue, true));
 
     $valveValue = $harness->entities['valve.heizung']['attributes'][HAValveDefinitions::ATTRIBUTE_POSITION_ALT] ?? null;
-    if ($valveValue !== 25) {
-        fwrite(STDERR, 'Valve attribute value was not stored as parsed numeric payload.' . PHP_EOL);
-        return 1;
-    }
-
-    fwrite(STDOUT, "OK: stateful attribute topic updaters run without return-type mismatch.\n");
-    return 0;
+    pruefe($valveValue === 25, 'Valve-Attributwert wird als geparste Zahl 25 gespeichert', 'erhalten: ' . var_export($valveValue, true));
 }
 
 final class StatefulAttributeTopicHarness implements HADeviceConstants
@@ -156,4 +143,5 @@ final class StatefulAttributeTopicHarness implements HADeviceConstants
     }
 }
 
-exit(main());
+main();
+ergebnis();

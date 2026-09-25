@@ -39,21 +39,14 @@ if (!function_exists('IPS_SetMediaContent')) {
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 require_once dirname(__DIR__) . '/libs/Device/HAAttributeHandlers.php';
 require_once dirname(__DIR__) . '/libs/Device/HAMediaObjects.php';
 
-$failures = 0;
-
 function check(bool $condition, string $label): void
 {
-    global $failures;
-    if ($condition) {
-        fwrite(STDOUT, "OK   $label\n");
-        return;
-    }
-    $failures++;
-    fwrite(STDERR, "FAIL $label\n");
+    pruefe($condition, $label);
 }
 
 final class MediaRefreshHarness implements HADeviceConstants
@@ -262,10 +255,4 @@ check(($attrs->entities['camera.test']['attributes'] ?? []) === [], 'Kamera igno
 check(HADomainCatalog::isIgnorableBookkeepingTopic('homeassistant/camera/test/access_token'), 'access_token wird im Splitter als Bookkeeping verworfen');
 check(!HADomainCatalog::isIgnorableBookkeepingTopic('homeassistant/media_player/bad/entity_picture'), 'entity_picture bleibt für andere Domains erhalten');
 
-if ($failures > 0) {
-    fwrite(STDERR, "\n$failures Prüfung(en) fehlgeschlagen.\n");
-    exit(1);
-}
-
-fwrite(STDOUT, "\nALL OK\n");
-exit(0);
+ergebnis();

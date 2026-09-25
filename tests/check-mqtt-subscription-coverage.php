@@ -7,12 +7,11 @@ declare(strict_types=1);
 // abgedeckter Topics samt Abonnement-Vorschlägen sowie das Einsammeln der
 // Subscriptions-Liste aus einer MQTT-Client-Konfiguration.
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HAMqttTopicFilter.php';
 
-$fail = 0;
-$check = static function (bool $ok, string $label) use (&$fail): void {
-    echo ($ok ? 'OK   ' : 'FAIL ') . $label . "\n";
-    $fail += $ok ? 0 : 1;
+$check = static function (bool $ok, string $label): void {
+    pruefe($ok, $label);
 };
 
 // matchesFilter: Grundfälle
@@ -97,5 +96,4 @@ $check(HAMqttTopicFilter::receiveDataFilterPattern('') === '.*', 'Filter: leeres
 $check(HAMqttTopicFilter::receiveDataFilterPattern('  ') === '.*', 'Filter: nur Leerzeichen filtert nicht');
 $check(HAMqttTopicFilter::receiveDataFilterPattern('/') === '.*', 'Filter: nur Slash filtert nicht');
 
-echo $fail === 0 ? "Alle Prüfungen bestanden.\n" : "$fail Prüfung(en) fehlgeschlagen.\n";
-exit($fail === 0 ? 0 : 1);
+ergebnis();

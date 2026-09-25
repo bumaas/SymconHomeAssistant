@@ -9,6 +9,7 @@ declare(strict_types=1);
 // Verifiziert Kollaps, Trennung mehrerer Namensfamilien, Matching inkl. escaped Slashes, Reject fremder
 // Geräte und den Fallback bei heterogenen Namen.
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HADomainCatalog.php';
 
 const MIN_PREFIX = 3;
@@ -85,10 +86,8 @@ function rxMatch(array $parts, string $glue, string $topic): bool
     return preg_match('~' . $filter . '~', '{"DataID":"x","Topic":"' . $topic . '"}') === 1;
 }
 
-$fail = 0;
-$check = static function (bool $ok, string $label) use (&$fail): void {
-    echo ($ok ? 'OK   ' : 'FAIL ') . $label . "\n";
-    $fail += $ok ? 0 : 1;
+$check = static function (bool $ok, string $label): void {
+    pruefe($ok, $label);
 };
 
 // ===== Legacy: zwei Namensfamilien in sensor + update-Single + event-Cluster =====
@@ -142,5 +141,4 @@ $het = ['homeassistant/sensor/foo', 'homeassistant/sensor/bar'];
 $check(count(legacyParts($het)) === 2, 'Heterogen Legacy: 2 Einzel-Parts');
 $check(count(discoveryParts(['a/foo', 'a/bar'])) === 2, 'Heterogen Discovery: 2 Einzel-Parts');
 
-echo "\n" . ($fail === 0 ? 'ALL OK' : "FAILURES: $fail") . "\n";
-exit($fail === 0 ? 0 : 1);
+ergebnis();

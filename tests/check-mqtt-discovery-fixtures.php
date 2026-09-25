@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 
 const SUPPORTED_COMPONENTS = [
@@ -20,36 +21,35 @@ const SUPPORTED_COMPONENTS = [
     'device_automation'
 ];
 
-exit(main($argv));
+main($argv);
+ergebnis();
 
-function main(array $argv): int
+function main(array $argv): void
 {
     $fixturePaths = array_slice($argv, 1);
     if ($fixturePaths === []) {
         $fixturePaths = findDefaultFixtures();
     }
 
-    if ($fixturePaths === []) {
-        fwrite(STDERR, "Keine Fixture-Dateien gefunden.\n");
-        fwrite(STDERR, "Aufruf: php tests/check-mqtt-discovery-fixtures.php <bundle1.json> [bundle2.json ...]\n");
-        return 1;
+    if (!pruefe(
+        $fixturePaths !== [],
+        'Discovery-Fixtures gefunden (' . count($fixturePaths) . ')',
+        'Aufruf: php tests/check-mqtt-discovery-fixtures.php <bundle1.json> [bundle2.json ...]'
+    )) {
+        ergebnis();
     }
 
-    $failed = false;
     foreach ($fixturePaths as $fixturePath) {
+        $label = 'Fixture ' . basename($fixturePath) . ' wird fehlerfrei geparst und gruppiert';
         try {
             $report = analyzeFixture($fixturePath);
             printReport($report);
-            if ($report['errors'] !== []) {
-                $failed = true;
-            }
+            pruefe($report['errors'] === [], $label, implode(' | ', $report['errors']));
         } catch (Throwable $e) {
-            $failed = true;
-            fwrite(STDERR, "Fixture-Fehler [$fixturePath]: {$e->getMessage()}\n");
+            pruefe(false, $label, "Fixture-Fehler [$fixturePath]: {$e->getMessage()}");
         }
+        echo "\n";
     }
-
-    return $failed ? 1 : 0;
 }
 
 function findDefaultFixtures(): array
@@ -365,8 +365,6 @@ function printReport(array $report): void
     foreach ($report['errors'] as $error) {
         echo 'ERROR: ' . $error . "\n";
     }
-
-    echo "\n";
 }
 
 function extractTopicComponent(string $topic, string $discoveryPrefix): ?string

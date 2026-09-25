@@ -34,6 +34,7 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 require_once dirname(__DIR__) . '/libs/Device/HAStandardAttributeMaintenance.php';
 require_once dirname(__DIR__) . '/libs/Device/HAAttributeActionMapping.php';
@@ -120,20 +121,31 @@ function assertWritableEnum(string $label, array $presentation): ?string
     return null;
 }
 
-function main(): int
+function pruefeReadonlyEnum(string $label, array $presentation): void
+{
+    $error = assertReadonlyEnum($label, $presentation);
+    pruefe($error === null, $label . ' -> Wertanzeige mit passendem Optionsschema', (string)$error);
+}
+
+function pruefeWritableEnum(string $label, array $presentation): void
+{
+    $error = assertWritableEnum($label, $presentation);
+    pruefe($error === null, $label . ' -> Aufzählung mit passendem Optionsschema', (string)$error);
+}
+
+function main(): void
 {
     $harness = new ReadonlyEnumPresentationHarness();
-    $errors = [];
 
     // --- climate (MELCloud bundle) ---
     $climate = loadClimateAttributes();
-    $errors[] = assertReadonlyEnum('climate hvac_action', $harness->presentClimate(HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION, $climate));
+    pruefeReadonlyEnum('climate hvac_action', $harness->presentClimate(HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION, $climate));
     foreach ([
         HAClimateDefinitions::ATTRIBUTE_HVAC_MODE,
         HAClimateDefinitions::ATTRIBUTE_SWING_MODE,
         HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE
     ] as $attribute) {
-        $errors[] = assertWritableEnum('climate ' . $attribute, $harness->presentClimate($attribute, $climate));
+        pruefeWritableEnum('climate ' . $attribute, $harness->presentClimate($attribute, $climate));
     }
 
     // --- fan: direction (writable, feature 4) vs current_direction (read-only) ---
@@ -143,25 +155,17 @@ function main(): int
         'direction' => 'forward',
         'current_direction' => 'forward'
     ];
-    $errors[] = assertWritableEnum('fan direction', $harness->presentFan('direction', $fan));
-    $errors[] = assertReadonlyEnum('fan current_direction', $harness->presentFan('current_direction', $fan));
+    pruefeWritableEnum('fan direction', $harness->presentFan('direction', $fan));
+    pruefeReadonlyEnum('fan current_direction', $harness->presentFan('current_direction', $fan));
 
     // --- counter-check: climate mode WITHOUT supported feature -> not writable -> Wertanzeige ---
     $noFeature = $climate;
     $noFeature['supported_features'] = 0;
-    $errors[] = assertReadonlyEnum(
+    pruefeReadonlyEnum(
         'climate swing_horizontal_mode ohne Feature-Bit',
         $harness->presentClimate(HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE, $noFeature)
     );
-
-    $errors = array_values(array_filter($errors));
-    if ($errors !== []) {
-        fwrite(STDERR, implode(PHP_EOL, $errors) . PHP_EOL);
-        return 1;
-    }
-
-    fwrite(STDOUT, "OK: read-only Enums -> Wertanzeige, beschreibbare Enums -> Aufzählung (climate, fan).\n");
-    return 0;
 }
 
-exit(main());
+main();
+ergebnis();

@@ -29,6 +29,8 @@ jobs:
         run: php tests/check_locale.php
       - name: Property-Verträge
         run: php tests/check_property_contracts.php
+      - name: Darstellungen
+        run: php tests/check_presentations.php
       - name: Laufzeit-Checks
         run: |
           for f in tests/check-*.php; do echo "== $f"; php "$f"; done

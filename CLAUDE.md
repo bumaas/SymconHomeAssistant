@@ -43,7 +43,16 @@ Definitionsklasse je HA-Domäne), `Device/` (Laufzeitlogik der Device-Module), `
 Alle Check-Skripte (`tests/check*.php`) sind versioniert; Fixtures nur nach
 Einzelprüfung auf private Gerätedaten (Freischaltung per `.gitignore`-Ausnahme,
 Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
-(eigenständige Skripte mit IPS-Stubs, kein PHPUnit).
+(eigenständige Skripte mit eigenen IPS-Attrappen, kein PHPUnit).
+
+- Jeder Laufzeit-Check bindet `tests/harness.php` ein: Warnings/Notices werden zu Fehlern,
+  `pruefe()` zählt jede Prüfung, `ergebnis()` schreibt die Schlusszeile
+  „N Prüfungen, M Fehler" (Exit 0/1) — das Format liest `rotgruen.php` für den
+  Rot/Grün-Nachweis. Neue Tests genauso aufbauen.
+- Hilfsskripte, die keine Tests sind (z. B. Fixture-Extraktion), gehören nach `tools/`
+  (nicht versioniert), nicht nach `tests/`.
+- Offen: Umstellung auf den offiziellen Kernel-Stub und Ersatz von Logik-Kopien durch
+  Modulaufrufe — beim nächsten Anfassen des jeweiligen Tests, nicht als Sammelaktion.
 
 ## CI / Version
 
@@ -51,5 +60,7 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
   php-cs-fixer gegen das Regelwerk im Submodul `.style` (`--dry-run`), `php -l` auf alle
   `*.php`, JSON-Validität, Locale-Check und `tests/check_property_contracts.php` (jede von
   `libs/Device/HADeviceCore.php` gelesene Property muss in Device- und Entity-Modul
-  registriert sein). Die Laufzeit-Checks `tests/check-*.php` laufen **nicht** in der CI.
+  registriert sein), `tests/check_presentations.php` (nur gültige Darstellungsparameter) und
+  alle Laufzeit-Checks `tests/check-*.php` (Glob, neue Tests laufen automatisch mit;
+  dazu gehört auch die Doku-Sperrklinke `tests/check-readme.php`).
 - Version/Build: siehe globale CLAUDE.md, Abschnitt „Symcon: Build-/Versionspflege in Modul-Repos".

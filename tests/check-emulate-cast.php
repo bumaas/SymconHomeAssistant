@@ -12,6 +12,7 @@ foreach (['VARIABLETYPE_BOOLEAN' => 0, 'VARIABLETYPE_INTEGER' => 1, 'VARIABLETYP
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/Domains/HALightDefinitions.php';
 require_once dirname(__DIR__) . '/libs/Discovery/HAMqttDiscoveryLightRuntime.php';
 
@@ -27,14 +28,8 @@ function castToVariableType(mixed $value, int $type): bool|int|float|string|null
     };
 }
 
-$fail = 0;
-$check = static function (string $label, $actual, $expected) use (&$fail): void {
-    $ok = $actual === $expected;
-    printf("[%s] %s\n", $ok ? 'OK ' : 'FAIL', $label);
-    if (!$ok) {
-        $fail++;
-        echo '     erwartet: ' . var_export($expected, true) . '  ist: ' . var_export($actual, true) . "\n";
-    }
+$check = static function (string $label, $actual, $expected): void {
+    pruefe($actual === $expected, $label, 'erwartet: ' . var_export($expected, true) . ', ist: ' . var_export($actual, true));
 };
 
 $check('bool from true',      castToVariableType(true, VARIABLETYPE_BOOLEAN), true);
@@ -47,10 +42,4 @@ $check('float from "21.5"',   castToVariableType('21.5', VARIABLETYPE_FLOAT), 21
 $check('string from xy',      castToVariableType('[0.46,0.41]', VARIABLETYPE_STRING), '[0.46,0.41]');
 $check('string from array=>null', castToVariableType([1, 2], VARIABLETYPE_STRING), null);
 
-echo "\n";
-if ($fail === 0) {
-    echo "Alle Assertions grün.\n";
-    exit(0);
-}
-printf("%d Assertion(en) fehlgeschlagen.\n", $fail);
-exit(1);
+ergebnis();

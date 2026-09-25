@@ -22,11 +22,12 @@ foreach ([
     }
 }
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HACommonIncludes.php';
 require_once dirname(__DIR__) . '/libs/Device/HADomainValueMapping.php';
 require_once dirname(__DIR__) . '/libs/Device/HAEntityStore.php';
 
-function main(): int
+function main(): void
 {
     $harness = new TimestampReplayHarness();
     $entityId = 'sensor.waschmaschine_fertigstellungszeit';
@@ -37,13 +38,11 @@ function main(): int
 
     $expected = (new DateTimeImmutable($rawState))->getTimestamp();
     $actual = $harness->getWrittenValue($entityId);
-    if ($actual !== $expected) {
-        fwrite(STDERR, 'Timestamp replay failed: expected ' . $expected . ', got ' . var_export($actual, true) . PHP_EOL);
-        return 1;
-    }
-
-    echo "OK: cached timestamp state is replayed with the resolved device_class.\n";
-    return 0;
+    pruefe(
+        $actual === $expected,
+        'zwischengespeicherter Timestamp-Zustand wird mit aufgelöster device_class als Unix-Zeit geschrieben',
+        'erwartet ' . $expected . ', erhalten ' . var_export($actual, true)
+    );
 }
 
 final class TimestampReplayHarness implements HADeviceConstants
@@ -114,4 +113,5 @@ final class TimestampReplayHarness implements HADeviceConstants
     }
 }
 
-exit(main());
+main();
+ergebnis();

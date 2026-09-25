@@ -7,13 +7,12 @@ declare(strict_types=1);
 // Messages, Payload-Bytes und größter Einzel-Payload, Geräte-Gruppierung über den gemeinsamen Präfix
 // (HADomainCatalog::clusterByCommonPrefix) mit korrekten Summen sowie Upgrade alter Integer-Buffer.
 
+require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HADomainCatalog.php';
 require_once dirname(__DIR__) . '/libs/HATopicStatistics.php';
 
-$fail = 0;
-$check = static function (bool $ok, string $label) use (&$fail): void {
-    echo ($ok ? 'OK   ' : 'FAIL ') . $label . "\n";
-    $fail += $ok ? 0 : 1;
+$check = static function (bool $ok, string $label): void {
+    pruefe($ok, $label);
 };
 
 // Schlüssel-Extraktion: alle Sub-Topics einer Entität -> derselbe Schlüssel
@@ -92,5 +91,4 @@ $check(str_contains($log, 'Bytes-Top: evcc_home_power 58.6 KB (max 4.9 KB)'), 'L
 $empty = HATopicStatistics::aggregate([]);
 $check($empty['total'] === 0 && $empty['devices'] === [] && $empty['topEntitiesByBytes'] === [], 'leeres Fenster');
 
-echo "\n" . ($fail === 0 ? 'ALL OK' : "FAILURES: $fail") . "\n";
-exit($fail === 0 ? 0 : 1);
+ergebnis();

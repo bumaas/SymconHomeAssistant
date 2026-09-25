@@ -1,6 +1,7 @@
 CHANGELOG.md
 libs/icon-meta-data.js
 .junie/
+tools/
 docs/MQTT_DISCOVERY_A3_TESTPLAN.md
 docs/WEITERES_VORGEHEN.md
 # tests/: alle Checks sind versioniert; Fixtures nur nach Einzelprüfung
@@ -9,6 +10,8 @@ tests/*
 !tests/check-*.php
 !tests/check_locale.php
 !tests/check_property_contracts.php
+!tests/check_presentations.php
+!tests/harness.php
 !tests/readme-bekannt.json
 !tests/lint-php.ps1
 !tests/fixtures/
