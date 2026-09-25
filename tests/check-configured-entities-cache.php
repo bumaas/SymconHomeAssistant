@@ -322,14 +322,15 @@ class IPSModuleStrict
     }
 
     // --- Variablen ---
-    public function MaintainVariable(string $Ident, string $Name, int $Type, mixed $Presentation, int $Position, bool $Keep): void
+    // Signatur wie IPSModuleStrict (protected, array|string, int) - das Modul überschreibt sie.
+    protected function MaintainVariable(string $Ident, string $Name, int $Type, array|string $ProfileOrPresentation, int $Position, bool $Keep): bool
     {
         $existingId = IpsStubKernel::variableIdByIdent($this->InstanceID, $Ident);
         if (!$Keep) {
             if ($existingId !== null) {
                 IpsStubKernel::deleteObject($existingId);
             }
-            return;
+            return true;
         }
 
         if ($existingId !== null) {
@@ -338,12 +339,14 @@ class IPSModuleStrict
                 IpsStubCounters::bump('VariableTypeChanged');
                 IpsStubKernel::deleteObject($existingId);
                 IpsStubKernel::createVariable($this->InstanceID, $Ident, $Name, $Type);
+                return true;
             }
             // Wie Symcon: bestehende Variablen werden nicht umbenannt.
-            return;
+            return true;
         }
 
         IpsStubKernel::createVariable($this->InstanceID, $Ident, $Name, $Type);
+        return true;
     }
 
     public function GetIDForIdent(string $Ident)

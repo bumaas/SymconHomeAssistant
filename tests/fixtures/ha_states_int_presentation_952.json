@@ -1,0 +1,138 @@
+{
+    "quelle": "Home Assistant 2026.x, GET /api/states am 25.09.2026 (nuc-Anlage, Instanzen Backofen #52399, Bad #40441, Wintergarten #24294)",
+    "bereinigt": "entfernt: source_list (Personen-/Playlistnamen), entity_picture (Proxy-Token), media_content_id; sonst unverändert (gilt auch für verlauf)",
+    "anlass": "Kernel 9.1-952 lehnt float MIN/MAX bei int-Variablen ab (community.symcon.de/t/144258/519)",
+    "states": [
+        {
+            "entity_id": "media_player.wintergarten",
+            "state": "idle",
+            "attributes": {
+                "group_members": [
+                    "media_player.wintergarten"
+                ],
+                "volume_level": 0.2,
+                "is_volume_muted": false,
+                "media_content_type": "music",
+                "shuffle": false,
+                "repeat": "off",
+                "device_class": "speaker",
+                "friendly_name": "Wintergarten",
+                "supported_features": 8321599
+            }
+        },
+        {
+            "entity_id": "media_player.bad",
+            "state": "paused",
+            "attributes": {
+                "group_members": [
+                    "media_player.bad"
+                ],
+                "volume_level": 0.28,
+                "is_volume_muted": false,
+                "media_content_type": "music",
+                "media_title": "WDR 2 Ostwestfalen-Lippe",
+                "media_channel": "WDR 2 Ostwestfalen-Lippe",
+                "shuffle": false,
+                "repeat": "off",
+                "queue_position": 1,
+                "queue_size": 1,
+                "device_class": "speaker",
+                "friendly_name": "Bad",
+                "supported_features": 8321599
+            }
+        },
+        {
+            "entity_id": "number.backofen_dauer",
+            "state": "unavailable",
+            "attributes": {
+                "min": 0,
+                "max": 100,
+                "step": 1,
+                "mode": "auto",
+                "friendly_name": "Backofen Dauer"
+            }
+        },
+        {
+            "entity_id": "number.backofen_start_in_relativ",
+            "state": "unavailable",
+            "attributes": {
+                "min": 0,
+                "max": 100,
+                "step": 1,
+                "mode": "auto",
+                "friendly_name": "Backofen Start in relativ"
+            }
+        },
+        {
+            "entity_id": "number.backofen_solltemperatur",
+            "state": "unavailable",
+            "attributes": {
+                "min": 0,
+                "max": 100,
+                "step": 1,
+                "mode": "auto",
+                "device_class": "temperature",
+                "friendly_name": "Backofen Solltemperatur"
+            }
+        },
+        {
+            "entity_id": "sensor.backofen_programm_fortschritt",
+            "state": "unavailable",
+            "attributes": {
+                "unit_of_measurement": "%",
+                "friendly_name": "Backofen Programm-Fortschritt"
+            }
+        },
+        {
+            "entity_id": "number.backofen_wecker",
+            "state": "unavailable",
+            "attributes": {
+                "restored": true,
+                "min": 0,
+                "max": 100,
+                "step": 1,
+                "mode": "auto",
+                "device_class": "duration",
+                "friendly_name": "Backofen Wecker",
+                "supported_features": 0
+            }
+        },
+        {
+            "entity_id": "sensor.backofen_aktuelle_garraumtemperatur",
+            "state": "unavailable",
+            "attributes": {
+                "restored": true,
+                "state_class": "measurement",
+                "device_class": "temperature",
+                "friendly_name": "Backofen Aktuelle Garraumtemperatur",
+                "supported_features": 0
+            }
+        }
+    ],
+    "verlauf": {
+        "quelle": "GET /api/history/period, media_player.bad während einer Durchsage (media_duration als int)",
+        "eintrag": {
+            "entity_id": "media_player.bad",
+            "state": "playing",
+            "attributes": {
+                "group_members": [
+                    "media_player.schlafzimmer",
+                    "media_player.bad",
+                    "media_player.wintergarten"
+                ],
+                "volume_level": 0.2,
+                "is_volume_muted": false,
+                "media_content_type": "music",
+                "media_duration": 2,
+                "shuffle": false,
+                "repeat": "off",
+                "queue_position": 1,
+                "queue_size": 1,
+                "device_class": "speaker",
+                "friendly_name": "Bad"
+            },
+            "last_changed": "2026-09-16T05:29:36.561307+00:00",
+            "last_updated": "2026-09-16T05:29:36.561307+00:00"
+        }
+    }
+}

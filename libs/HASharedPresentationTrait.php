@@ -11,11 +11,38 @@ declare(strict_types=1);
  * Werte stammen 1:1 aus dem REST-Pfad, damit dessen Ausgabe unverändert bleibt.
  *
  * Reine Array-Bauer ohne IPS-/Translate-Abhängigkeit. Captions (binary_sensor) werden bereits
- * übersetzt übergeben. Die verwendeten VARIABLE_PRESENTATION_*-Konstanten stellt IP-Symcon zur
+ * übersetzt übergeben. Die verwendeten VARIABLE_PRESENTATION_*-Konstanten stellt Symcon zur
  * Laufzeit bereit.
+ *
+ * Einzige Ausnahme ist MaintainVariable(): Die Überschreibung passt jede Darstellung an den
+ * Variablentyp an, bevor sie an den Kernel geht - alle Variablen beider Pfade laufen hier durch.
  */
 trait HASharedPresentationTrait
 {
+    /**
+     * Symcon 9.1-952 lehnt bei Integer-Variablen eine Darstellung ab, deren MIN oder MAX kein int
+     * ist ("Parameter MAX has wrong type"), und speichert sie dann gar nicht. Die Bauer liefern die
+     * Grenzen oft als float (HA meldet min/max auch als float), deshalb hier zentral angleichen.
+     * STEP_SIZE darf float bleiben; Float-Variablen nehmen int und float.
+     */
+    protected function MaintainVariable(string $Ident, string $Name, int $Type, array|string $ProfileOrPresentation, int $Position, bool $Keep): bool
+    {
+        return parent::MaintainVariable($Ident, $Name, $Type, self::fitPresentationToVariableType($ProfileOrPresentation, $Type), $Position, $Keep);
+    }
+
+    private static function fitPresentationToVariableType(array|string $presentation, int $type): array|string
+    {
+        if (!is_array($presentation) || $type !== VARIABLETYPE_INTEGER) {
+            return $presentation;
+        }
+        foreach (['MIN', 'MAX'] as $parameter) {
+            if (isset($presentation[$parameter]) && is_float($presentation[$parameter])) {
+                $presentation[$parameter] = (int)round($presentation[$parameter]);
+            }
+        }
+        return $presentation;
+    }
+
     private function sharedFilterPresentation(array $presentation): array
     {
         return array_filter($presentation, static fn($value): bool => $value !== null);
