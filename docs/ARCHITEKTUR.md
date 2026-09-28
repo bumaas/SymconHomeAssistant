@@ -261,6 +261,11 @@ Umgesetzt:
   `writeResolvedConfig()` und `ApplyChanges`). Zuvor wurde die ResolvedConfig (150–250 KB) pro
   MQTT-Message 3–4× gelesen, dekodiert und mit ~3 Kernel-Aufrufen je Entität benannt — bei ~300
   Entitäten >1 s pro Message. Regressionswächter: `tests/check-configured-entities-cache.php`.
+  Seit Build 165 ist der Buffer zeilenweise aufgebaut (Kopfzeile mit Signatur und Namenszählern, dann je
+  Entität `"<entity_id>"` TAB `<Zeile>`). `getConfiguredEntityById()` schneidet daraus nur die eine
+  benötigte Zeile, statt die ganze Liste zu dekodieren; die Signaturprüfung gegen die ResolvedConfig
+  bleibt unverändert. Anlass: Auf einem Raspberry Pi kostete die Volldekodierung bei ~300 Entitäten
+  42 ms je Message (Messung beim Anwender, 28.09.2026).
 - **Empfangsfilter-Kollaps:** Beide Geräte-Pfade fassen verwandte Topics über ihren gemeinsamen Präfix zu
   wenigen Regex-Mustern zusammen (geteilter Kern `HADomainCatalog::clusterByCommonPrefix`), statt jedes
   Topic einzeln zu listen → weniger Filter-Auswertung pro Nachricht je Kind-Instanz.

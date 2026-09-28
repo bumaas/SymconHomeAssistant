@@ -577,8 +577,10 @@ function readPrivateProperty(object $object, string $property): mixed
  */
 function runMessage(string $topic, string $payload): array
 {
+    global $lastMessageDevice;
     $before = IpsStubCounters::snapshot();
     $device = newExecution();
+    $lastMessageDevice = $device;
     $device->ReceiveData(json_encode([
         'DataID'  => '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}',
         'Topic'   => $topic,
@@ -703,6 +705,12 @@ $hotMessages = [
 
 foreach ($hotMessages as [$topic, $payload, $label]) {
     $diff = runMessage($topic, $payload);
+    // 8a: Eine State-Message braucht eine Konfigurationszeile, nicht die ganze Liste.
+    // Das Dekodieren des kompletten Caches kostete auf einem Raspberry Pi 42 ms je Message.
+    check(
+        readPrivateProperty($lastMessageDevice, 'configuredEntitiesMemo') === null,
+        "Zeilenzugriff [$label]: Hotpath dekodiert nicht die komplette Entitäten-Konfiguration"
+    );
     $resolvedReads = $diff['ReadAttr:ResolvedConfig'] ?? 0;
     $kernelCalls = kernelCallCount($diff);
     check($resolvedReads <= 1, "Hotpath [$label]: höchstens 1 ResolvedConfig-Read pro Message", "waren $resolvedReads");
@@ -785,6 +793,50 @@ $identsNow = array_keys(IpsStubKernel::$identMap[CHECK_DEVICE_INSTANCE_ID] ?? []
 $missingIdents = array_diff($identSnapshot, $identsNow);
 check($missingIdents === [], 'Ident-Stabilität: keine der ursprünglichen Variablen verschwunden', implode(', ', array_slice($missingIdents, 0, 5)));
 check((IpsStubCounters::$counters['VariableTypeChanged'] ?? 0) === 0, 'Ident-Stabilität: keine Variable wegen Typwechsel neu angelegt');
+
+// ---------------------------------------------------------------------------
+// 8b: Zeilenzugriff liefert dasselbe wie die volle Liste und bleibt selbstheilend
+// ---------------------------------------------------------------------------
+$fullDevice = newExecution();
+$fullRows = callPrivate($fullDevice, 'getConfiguredEntities', 'check-row-full');
+$fullCounts = readPrivateProperty($fullDevice, 'sharedEntityBaseNameCounts');
+$rowMismatches = [];
+foreach ($fullRows as $fullRow) {
+    $entityId = (string)($fullRow['entity_id'] ?? '');
+    $rowDevice = newExecution();
+    $row = callPrivate($rowDevice, 'getConfiguredEntityById', $entityId);
+    if (json_encode($row, JSON_THROW_ON_ERROR) !== json_encode($fullRow, JSON_THROW_ON_ERROR)) {
+        $rowMismatches[] = $entityId;
+    }
+}
+check($rowMismatches === [], 'Zeilenzugriff: jede Zeile identisch mit der vollen Liste', implode(', ', array_slice($rowMismatches, 0, 5)));
+
+$countsDevice = newExecution();
+callPrivate($countsDevice, 'getConfiguredEntityById', 'sensor.testgeraet_wp_doppelname');
+check(
+    readPrivateProperty($countsDevice, 'sharedEntityBaseNameCounts') === $fullCounts,
+    'Zeilenzugriff: Dedup-Namenszähler werden mit restauriert'
+);
+check(
+    callPrivate(newExecution(), 'getConfiguredEntityById', 'sensor.gibt_es_nicht') === null,
+    'Zeilenzugriff: unbekannte Entität liefert null'
+);
+
+// Selbstheilung: ResolvedConfig ändert sich am Choke-Point vorbei -> der Zeilenzugriff
+// darf keine veraltete Zeile aus dem Cache liefern.
+$attributesBackup = IPSModuleStrict::$attributes[CHECK_DEVICE_INSTANCE_ID]['ResolvedConfig'];
+$tampered = json_decode($attributesBackup, true);
+$tampered = array_values(array_filter($tampered, static fn(array $row): bool => ($row['entity_id'] ?? '') !== 'sensor.testgeraet_wp_neu'));
+IPSModuleStrict::$attributes[CHECK_DEVICE_INSTANCE_ID]['ResolvedConfig'] = json_encode($tampered, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+check(
+    callPrivate(newExecution(), 'getConfiguredEntityById', 'sensor.testgeraet_wp_neu') === null,
+    'Zeilenzugriff: nach Änderung der ResolvedConfig keine veraltete Zeile aus dem Cache'
+);
+IPSModuleStrict::$attributes[CHECK_DEVICE_INSTANCE_ID]['ResolvedConfig'] = $attributesBackup;
+check(
+    is_array(callPrivate(newExecution(), 'getConfiguredEntityById', 'sensor.testgeraet_wp_neu')),
+    'Zeilenzugriff: nach Rückkehr der alten ResolvedConfig ist die Entität wieder da'
+);
 
 // ---------------------------------------------------------------------------
 // 5b: P7 — Unavailable-JSON wird beim StateCacheFlush korrekt befüllt

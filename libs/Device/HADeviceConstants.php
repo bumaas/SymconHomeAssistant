@@ -58,7 +58,7 @@ interface HADeviceConstants
     // (Begründung: HADeviceCore, getConfiguredEntities). Der Build-Marker in der
     // Signatur entwertet Alt-Blobs nach einem Modul-Update automatisch.
     public const string BUFFER_CONFIGURED_ENTITIES_CACHE = 'ConfiguredEntitiesCache';
-    public const string CONFIGURED_ENTITIES_CACHE_MARKER = 'b147';
+    public const string CONFIGURED_ENTITIES_CACHE_MARKER = 'b165';
     public const int CONFIGURED_ENTITIES_CACHE_MAX_BYTES = 1048576;
     public const string BUFFER_CONFIGURED_CACHE_WARN_TS = 'ConfiguredEntitiesCacheWarnEpoch';
     public const int CONFIGURED_ENTITIES_CACHE_WARN_THROTTLE_SEC = 3600;

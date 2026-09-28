@@ -303,6 +303,10 @@ trait HADeviceCoreTrait
     private ?array $configuredEntitiesMemo = null;
     /** @var array<string, array>|null entity_id => Konfigurationszeile */
     private ?array $configuredEntitiesById = null;
+    /** @var array<string, array|null> Einzelzeilen aus dem Zeilenzugriff dieser Ausführung */
+    private array $configuredEntityRowMemo = [];
+    private ?string $resolvedConfigRawMemo = null;
+    private ?string $configuredEntitiesSignatureMemo = null;
 
     protected function getConfiguredEntities(string $context): array
     {
@@ -311,25 +315,18 @@ trait HADeviceCoreTrait
         }
 
         $startedAt = microtime(true);
-        $raw = $this->readResolvedConfigRaw($context);
-        $signature = $this->buildConfiguredEntitiesSignature($raw);
+        $raw = $this->resolvedConfigRawMemo ?? $this->readResolvedConfigRaw($context);
+        $signature = $this->configuredEntitiesSignatureMemo ?? $this->buildConfiguredEntitiesSignature($raw);
 
         $blob = $this->GetBuffer(self::BUFFER_CONFIGURED_ENTITIES_CACHE);
-        if ($blob !== '') {
-            $decoded = json_decode($blob, true);
-            if (is_array($decoded)
-                && ($decoded['sig'] ?? null) === $signature
-                && is_array($decoded['entities'] ?? null)
-                && is_array($decoded['baseNameCounts'] ?? null)) {
-                // Dedup-Namenszähler zwingend mitrestaurieren — ohne sie würden
-                // die Unterscheidungs-Suffixe fehlen und MaintainVariable
-                // gleichnamige Variablen umbenennen.
-                if (property_exists($this, 'sharedEntityBaseNameCounts')) {
-                    $this->sharedEntityBaseNameCounts = $decoded['baseNameCounts'];
-                }
-                $this->logConfigResolvePerformance($startedAt, true, count($decoded['entities']), strlen($blob));
-                return $this->rememberConfiguredEntities($decoded['entities']);
-            }
+        $decoded = $this->decodeConfiguredEntitiesBlob($blob, $signature);
+        if ($decoded !== null) {
+            // Dedup-Namenszähler zwingend mitrestaurieren — ohne sie würden
+            // die Unterscheidungs-Suffixe fehlen und MaintainVariable
+            // gleichnamige Variablen umbenennen.
+            $this->restoreConfiguredEntitiesBaseNameCounts($decoded['baseNameCounts']);
+            $this->logConfigResolvePerformance($startedAt, true, count($decoded['entities']), strlen($blob));
+            return $this->rememberConfiguredEntities($decoded['entities']);
         }
 
         $configData = $this->decodeJsonArray($raw, $context) ?? [];
@@ -339,16 +336,133 @@ trait HADeviceCoreTrait
         return $this->rememberConfiguredEntities($entities);
     }
 
-    // O(1)-Zugriff auf eine Konfigurationszeile (statt linearem Scan pro Aufruf).
+    // O(1)-Zugriff auf eine Konfigurationszeile. Eine State-Message braucht nur ihre eigene
+    // Zeile: Sie wird direkt aus dem Cache-Blob geschnitten, statt die ganze Liste zu
+    // dekodieren (bei ~300 Entitäten auf einem Raspberry Pi 42 ms je Message).
     protected function getConfiguredEntityById(string $entityId): ?array
     {
         if ($entityId === '') {
             return null;
         }
-        if ($this->configuredEntitiesById === null) {
-            $this->getConfiguredEntities(__FUNCTION__);
+        if ($this->configuredEntitiesById !== null) {
+            return $this->configuredEntitiesById[$entityId] ?? null;
         }
+        if (array_key_exists($entityId, $this->configuredEntityRowMemo)) {
+            return $this->configuredEntityRowMemo[$entityId];
+        }
+
+        $lookup = $this->readConfiguredEntityRowFromCache($entityId);
+        if ($lookup !== null) {
+            return $this->configuredEntityRowMemo[$entityId] = $lookup['row'];
+        }
+
+        // Kein gültiger Cache: voller Weg, der den Cache auch neu schreibt.
+        $this->getConfiguredEntities(__FUNCTION__);
         return $this->configuredEntitiesById[$entityId] ?? null;
+    }
+
+    /**
+     * Zeilenzugriff auf den Cache-Blob. Liefert null, wenn der Blob fehlt oder nicht zur
+     * aktuellen Signatur passt (dann gilt der volle Weg), sonst ['row' => Zeile|null].
+     *
+     * @return array{row: array|null}|null
+     */
+    private function readConfiguredEntityRowFromCache(string $entityId): ?array
+    {
+        $startedAt = microtime(true);
+        $this->resolvedConfigRawMemo ??= $this->readResolvedConfigRaw(__FUNCTION__);
+        $this->configuredEntitiesSignatureMemo ??= $this->buildConfiguredEntitiesSignature($this->resolvedConfigRawMemo);
+
+        $blob = $this->GetBuffer(self::BUFFER_CONFIGURED_ENTITIES_CACHE);
+        $header = $this->decodeConfiguredEntitiesBlobHeader($blob, $this->configuredEntitiesSignatureMemo);
+        if ($header === null) {
+            return null;
+        }
+
+        $row = null;
+        // Letztes Vorkommen, damit bei doppelter entity_id dieselbe Zeile gewinnt wie im Index.
+        $start = strrpos($blob, "\n" . $this->encodeConfiguredEntityKey($entityId) . "\t");
+        if ($start !== false) {
+            $start = strpos($blob, "\t", $start) + 1;
+            $end = strpos($blob, "\n", $start);
+            $decoded = json_decode($end === false ? substr($blob, $start) : substr($blob, $start, $end - $start), true);
+            if (!is_array($decoded)) {
+                return null;
+            }
+            $row = $decoded;
+        }
+
+        $this->restoreConfiguredEntitiesBaseNameCounts($header['baseNameCounts']);
+        $this->logConfigResolvePerformance($startedAt, true, 1, strlen($blob));
+        return ['row' => $row];
+    }
+
+    // Blob-Format (zeilenweise, damit der Zeilenzugriff ohne Volldekodierung auskommt):
+    //   Zeile 1:  {"sig":…,"baseNameCounts":{…}}
+    //   je Entität: "<entity_id als JSON-String>" TAB <Zeile als JSON>
+    // JSON kodiert Zeilenumbrüche und Tabs immer als Escape, beide Trenner sind also eindeutig.
+    private function encodeConfiguredEntitiesBlob(array $entities, string $signature, array $counts): string
+    {
+        $lines = [json_encode(['sig' => $signature, 'baseNameCounts' => $counts], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+        foreach ($entities as $row) {
+            $entityId = is_array($row) ? (string)($row['entity_id'] ?? '') : '';
+            $lines[] = $this->encodeConfiguredEntityKey($entityId) . "\t"
+                . json_encode($row, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+        return implode("\n", $lines);
+    }
+
+    private function encodeConfiguredEntityKey(string $entityId): string
+    {
+        return json_encode($entityId, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    /** @return array{baseNameCounts: array}|null */
+    private function decodeConfiguredEntitiesBlobHeader(string $blob, string $signature): ?array
+    {
+        if ($blob === '') {
+            return null;
+        }
+        $end = strpos($blob, "\n");
+        $header = json_decode($end === false ? $blob : substr($blob, 0, $end), true);
+        if (!is_array($header)
+            || ($header['sig'] ?? null) !== $signature
+            || !is_array($header['baseNameCounts'] ?? null)) {
+            return null;
+        }
+        return ['baseNameCounts' => $header['baseNameCounts']];
+    }
+
+    /** @return array{entities: array, baseNameCounts: array}|null */
+    private function decodeConfiguredEntitiesBlob(string $blob, string $signature): ?array
+    {
+        $header = $this->decodeConfiguredEntitiesBlobHeader($blob, $signature);
+        if ($header === null) {
+            return null;
+        }
+
+        $entities = [];
+        $lines = explode("\n", $blob);
+        array_shift($lines);
+        foreach ($lines as $line) {
+            $tab = strpos($line, "\t");
+            if ($tab === false) {
+                return null;
+            }
+            $row = json_decode(substr($line, $tab + 1), true);
+            if ($row === null && substr($line, $tab + 1) !== 'null') {
+                return null;
+            }
+            $entities[] = $row;
+        }
+        return ['entities' => $entities, 'baseNameCounts' => $header['baseNameCounts']];
+    }
+
+    private function restoreConfiguredEntitiesBaseNameCounts(array $counts): void
+    {
+        if (property_exists($this, 'sharedEntityBaseNameCounts')) {
+            $this->sharedEntityBaseNameCounts = $counts;
+        }
     }
 
     // Choke-Point für ALLE Schreibstellen der ResolvedConfig: Attribut schreiben
@@ -363,6 +477,9 @@ trait HADeviceCoreTrait
     {
         $this->configuredEntitiesMemo = null;
         $this->configuredEntitiesById = null;
+        $this->configuredEntityRowMemo = [];
+        $this->resolvedConfigRawMemo = null;
+        $this->configuredEntitiesSignatureMemo = null;
         $this->SetBuffer(self::BUFFER_CONFIGURED_ENTITIES_CACHE, '');
     }
 
@@ -413,11 +530,7 @@ trait HADeviceCoreTrait
     {
         $counts = property_exists($this, 'sharedEntityBaseNameCounts') ? $this->sharedEntityBaseNameCounts : [];
         try {
-            $blob = json_encode([
-                'sig'            => $signature,
-                'entities'       => $entities,
-                'baseNameCounts' => $counts,
-            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $blob = $this->encodeConfiguredEntitiesBlob($entities, $signature, $counts);
         } catch (JsonException) {
             $this->SetBuffer(self::BUFFER_CONFIGURED_ENTITIES_CACHE, '');
             return 0;
