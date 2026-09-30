@@ -116,6 +116,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->registerDeferredApplyTimer();
         $this->registerMediaRefreshTimer();
         $this->registerStateCacheFlushTimer();
+        $this->registerReachabilityTimer();
     }
 
     /**
@@ -170,6 +171,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->flushEntityStateCache();
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
+        $this->maintainReachableVariable();
+        $this->evaluateReachability();
 
         $isBundleMode = $this->isBundleMode();
 
@@ -251,6 +254,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $filterTopics = $this->processEntities($configData, $baseTopic);
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
+        $this->maintainReachableVariable();
+        $this->evaluateReachability();
         $this->updateDiagnosticsLabels();
 
         // 4. Empfangsfilter setzen.
@@ -378,6 +383,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         if ($this->handleStateCacheFlushAction($Ident)) {
+            return;
+        }
+
+        if ($this->handleReachabilityAction($Ident)) {
             return;
         }
 
@@ -865,6 +874,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->updateReceiveFilter([]);
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
+        $this->maintainReachableVariable();
+        $this->evaluateReachability();
     }
 
     private function buildResolvedConfigFormValues(array $config): array

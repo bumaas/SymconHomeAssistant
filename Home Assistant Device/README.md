@@ -28,6 +28,7 @@ Stellt ein einzelnes Gerät aus einer bestehenden Home-Assistant-Installation in
 - Sendet Steuerbefehle an `*/set`-Topics oder, falls vorgesehen, per REST über den Splitter.
 - Pflegt Präsentationen, Optionen, Schreibbarkeit und Zusatzvariablen je Domain.
 - Erzeugt bei Bedarf Medienobjekte für Kamera-, Image- und Media-Player-Vorschauen.
+- Zeigt in der Variable `Erreichbar`, ob das Gerät in Home Assistant noch erreichbar ist.
 - Kann optional eine Expertenvariable mit allen aktuell `unknown`/`unavailable` Entitäten bereitstellen.
 
 ## 2. Voraussetzungen
@@ -67,7 +68,7 @@ Stellt ein einzelnes Gerät aus einer bestehenden Home-Assistant-Installation in
   Aktiviert zusätzliche Debug-Ausgaben.
 - `ShowUnavailableEntitiesJson`
   Blendet optional die Expertenvariable `Unavailable entities JSON` ein. Diese dient nur der Diagnose und enthält ausschließlich Entitäten, deren aktueller Zustand `unknown` oder `unavailable` ist.
-  Beispiel: `[{"entity_id":"light.test","state":"unavailable"}]`
+  Beispiel: `{"light.test":{"entity_id":12345,"state":"unavailable","available":false}}` (Schlüssel ist die Entity-ID, `entity_id` im Eintrag die Symcon-Objekt-ID der Variable)
 - `OutputBufferSize`
   Erhöht bei Bedarf den Ausgabepuffer für Bilddownloads über den Splitter.
 
@@ -122,8 +123,9 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
   - Kamera-Stream
   - Image-Vorschau
   - Media-Player-Cover
+- Jede Instanz hat die Statusvariable `Erreichbar` (Ident `reachable`). Sie steht auf **nicht erreichbar**, wenn **alle** Entitäten des Geräts in Home Assistant `unavailable` sind — und das **länger als 10 Minuten**. Die Entprellung überbrückt den Neustart von Home Assistant, bei dem Geräte einzelner Integrationen einige Minuten komplett `unavailable` melden. Eine einzige gültige Meldung macht das Gerät sofort wieder erreichbar. `unknown` gilt nicht als Ausfall. Die Werte der übrigen Variablen bleiben bei einem Ausfall auf dem letzten bekannten Stand; ob sie aktuell sind, sagt nur `Erreichbar`.
 - Optional kann die Expertenvariable `Unavailable entities JSON` erzeugt werden. Sie dient als kompakte Diagnoseübersicht für problematische Entitäten und enthält nur Einträge mit `unknown` oder `unavailable`.
-  Beispiel: `[{"entity_id":"light.test","state":"unavailable"}]`
+  Beispiel: `{"light.test":{"entity_id":12345,"state":"unavailable","available":false}}` (Schlüssel ist die Entity-ID, `entity_id` im Eintrag die Symcon-Objekt-ID der Variable)
 
 ## 8. Domain-spezifisches Verhalten
 

@@ -1,0 +1,155 @@
+{
+    "quelle": "HA-Recorder, /api/history/period (minimal_response), abgerufen 2026-09-30 17:40",
+    "beschreibung": "Backofen (Home Connect): seit 06.06.2026 getrennt, alle 22 Entitäten durchgehend unavailable",
+    "device_id": "a083ad543724da40970332e674ebd813",
+    "fenster": [
+        "2026-09-29T00:55:00+00:00",
+        "2026-09-29T01:30:00+00:00"
+    ],
+    "entities": [
+        "binary_sensor.backofen_fernstart",
+        "binary_sensor.backofen_fernsteuerung",
+        "binary_sensor.backofen_innenbeleuchtung_aktiv",
+        "binary_sensor.backofen_konnektivitat",
+        "binary_sensor.backofen_lokale_steuerung",
+        "button.backofen_programm_fortsetzen",
+        "button.backofen_programm_pausieren",
+        "button.backofen_programm_stoppen",
+        "number.backofen_dauer",
+        "number.backofen_solltemperatur",
+        "number.backofen_start_in_relativ",
+        "number.backofen_wecker",
+        "select.backofen_aktives_programm",
+        "select.backofen_ausgewahltes_programm",
+        "sensor.backofen_aktuelle_garraumtemperatur",
+        "sensor.backofen_betriebszustand",
+        "sensor.backofen_programm_endzeit",
+        "sensor.backofen_programm_fortschritt",
+        "sensor.backofen_tur",
+        "switch.backofen_einschalter",
+        "switch.backofen_kindersicherung",
+        "switch.backofen_schnelles_vorheizen"
+    ],
+    "ereignisse": [
+        {
+            "ts": 1790643300,
+            "entity_id": "binary_sensor.backofen_fernstart",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "binary_sensor.backofen_fernsteuerung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "binary_sensor.backofen_innenbeleuchtung_aktiv",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "binary_sensor.backofen_konnektivitat",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "binary_sensor.backofen_lokale_steuerung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "button.backofen_programm_fortsetzen",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "button.backofen_programm_pausieren",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "button.backofen_programm_stoppen",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "number.backofen_dauer",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "number.backofen_solltemperatur",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "number.backofen_start_in_relativ",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "number.backofen_wecker",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "select.backofen_aktives_programm",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "select.backofen_ausgewahltes_programm",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "sensor.backofen_aktuelle_garraumtemperatur",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "sensor.backofen_betriebszustand",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "sensor.backofen_programm_endzeit",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "sensor.backofen_programm_fortschritt",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "sensor.backofen_tur",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "switch.backofen_einschalter",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "switch.backofen_kindersicherung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "switch.backofen_schnelles_vorheizen",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643968,
+            "entity_id": "binary_sensor.backofen_konnektivitat",
+            "state": "off"
+        },
+        {
+            "ts": 1790643968,
+            "entity_id": "binary_sensor.backofen_konnektivitat",
+            "state": "unavailable"
+        }
+    ]
+}

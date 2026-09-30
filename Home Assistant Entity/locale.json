@@ -55,6 +55,8 @@
       "Normal": "Normal",
       "Connected": "Verbunden",
       "Disconnected": "Getrennt",
+      "Reachable": "Erreichbar",
+      "Not reachable": "Nicht erreichbar",
       "Closed": "Geschlossen",
       "Gas Detected": "Gas erkannt",
       "No Gas": "Kein Gas",

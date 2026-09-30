@@ -22,6 +22,7 @@ tests/fixtures/*
 !tests/fixtures/ha_states_int_presentation_952.json
 !tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json
 !tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_stale_v2.json
+!tests/fixtures/reachability/
 
 # Claude Code (persönliche Dateien)
 CLAUDE.local.md

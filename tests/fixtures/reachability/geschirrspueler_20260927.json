@@ -1,0 +1,667 @@
+{
+    "quelle": "HA-Recorder, /api/history/period (minimal_response), abgerufen 2026-09-30 17:40",
+    "beschreibung": "Geschirrspüler (Home Connect): beim HA-Neustart 27.09. 15 von 16 lebenden Entitäten kurz unavailable, eine bleibt gültig",
+    "device_id": "cd226cdda5ac8cd66c9b85c9b591fde5",
+    "fenster": [
+        "2026-09-27T00:55:00+00:00",
+        "2026-09-27T01:50:00+00:00"
+    ],
+    "entities": [
+        "binary_sensor.geschirrspuler_fernstart",
+        "binary_sensor.geschirrspuler_fernsteuerung",
+        "binary_sensor.geschirrspuler_innenbeleuchtung_aktiv",
+        "binary_sensor.geschirrspuler_konnektivitat",
+        "button.geschirrspuler_programm_stoppen",
+        "number.geschirrspuler_start_in_relativ",
+        "select.geschirrspuler_aktives_programm",
+        "select.geschirrspuler_ausgewahltes_programm",
+        "sensor.geschirrspuler_betriebszustand",
+        "sensor.geschirrspuler_programm_endzeit",
+        "sensor.geschirrspuler_programm_fortschritt",
+        "sensor.geschirrspuler_tur",
+        "switch.geschirrspuler_brillanz_trocknung",
+        "switch.geschirrspuler_einschalter",
+        "switch.geschirrspuler_halbe_beladung",
+        "switch.geschirrspuler_hygiene",
+        "switch.geschirrspuler_intensivzone",
+        "switch.geschirrspuler_stille_auf_abruf",
+        "switch.geschirrspuler_vario_speed"
+    ],
+    "ereignisse": [
+        {
+            "ts": 1790470500,
+            "entity_id": "binary_sensor.geschirrspuler_fernstart",
+            "state": "on"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "binary_sensor.geschirrspuler_fernsteuerung",
+            "state": "on"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "binary_sensor.geschirrspuler_innenbeleuchtung_aktiv",
+            "state": "on"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "binary_sensor.geschirrspuler_konnektivitat",
+            "state": "on"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "button.geschirrspuler_programm_stoppen",
+            "state": "2026-03-04T10:02:40.571945+00:00"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "number.geschirrspuler_start_in_relativ",
+            "state": "0"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "select.geschirrspuler_aktives_programm",
+            "state": "unknown"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "select.geschirrspuler_ausgewahltes_programm",
+            "state": "dishcare_dishwasher_program_auto_2"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "sensor.geschirrspuler_betriebszustand",
+            "state": "ready"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "sensor.geschirrspuler_programm_endzeit",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "sensor.geschirrspuler_programm_fortschritt",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "sensor.geschirrspuler_tur",
+            "state": "closed"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "switch.geschirrspuler_brillanz_trocknung",
+            "state": "off"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "switch.geschirrspuler_einschalter",
+            "state": "off"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "switch.geschirrspuler_halbe_beladung",
+            "state": "off"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "switch.geschirrspuler_hygiene",
+            "state": "off"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "switch.geschirrspuler_intensivzone",
+            "state": "off"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "switch.geschirrspuler_stille_auf_abruf",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790470500,
+            "entity_id": "switch.geschirrspuler_vario_speed",
+            "state": "off"
+        },
+        {
+            "ts": 1790470952,
+            "entity_id": "number.geschirrspuler_start_in_relativ",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790470952,
+            "entity_id": "switch.geschirrspuler_brillanz_trocknung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790470952,
+            "entity_id": "switch.geschirrspuler_halbe_beladung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790470952,
+            "entity_id": "switch.geschirrspuler_hygiene",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790470952,
+            "entity_id": "switch.geschirrspuler_intensivzone",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790470952,
+            "entity_id": "switch.geschirrspuler_vario_speed",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790470953,
+            "entity_id": "number.geschirrspuler_start_in_relativ",
+            "state": "0"
+        },
+        {
+            "ts": 1790470953,
+            "entity_id": "switch.geschirrspuler_brillanz_trocknung",
+            "state": "off"
+        },
+        {
+            "ts": 1790470953,
+            "entity_id": "switch.geschirrspuler_halbe_beladung",
+            "state": "off"
+        },
+        {
+            "ts": 1790470953,
+            "entity_id": "switch.geschirrspuler_hygiene",
+            "state": "off"
+        },
+        {
+            "ts": 1790470953,
+            "entity_id": "switch.geschirrspuler_intensivzone",
+            "state": "off"
+        },
+        {
+            "ts": 1790470953,
+            "entity_id": "switch.geschirrspuler_vario_speed",
+            "state": "off"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "binary_sensor.geschirrspuler_fernstart",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "binary_sensor.geschirrspuler_fernsteuerung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "binary_sensor.geschirrspuler_innenbeleuchtung_aktiv",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "binary_sensor.geschirrspuler_konnektivitat",
+            "state": "off"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "button.geschirrspuler_programm_stoppen",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "number.geschirrspuler_start_in_relativ",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "select.geschirrspuler_aktives_programm",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "select.geschirrspuler_ausgewahltes_programm",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "sensor.geschirrspuler_betriebszustand",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "sensor.geschirrspuler_tur",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "switch.geschirrspuler_brillanz_trocknung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "switch.geschirrspuler_einschalter",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "switch.geschirrspuler_halbe_beladung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "switch.geschirrspuler_hygiene",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "switch.geschirrspuler_intensivzone",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472610,
+            "entity_id": "switch.geschirrspuler_vario_speed",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "binary_sensor.geschirrspuler_fernstart",
+            "state": "on"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "binary_sensor.geschirrspuler_fernsteuerung",
+            "state": "on"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "binary_sensor.geschirrspuler_innenbeleuchtung_aktiv",
+            "state": "on"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "binary_sensor.geschirrspuler_konnektivitat",
+            "state": "on"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "button.geschirrspuler_programm_stoppen",
+            "state": "2026-03-04T10:02:40.571945+00:00"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "number.geschirrspuler_start_in_relativ",
+            "state": "0"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "select.geschirrspuler_aktives_programm",
+            "state": "unknown"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "select.geschirrspuler_ausgewahltes_programm",
+            "state": "dishcare_dishwasher_program_auto_2"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "sensor.geschirrspuler_betriebszustand",
+            "state": "ready"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "sensor.geschirrspuler_tur",
+            "state": "closed"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "switch.geschirrspuler_brillanz_trocknung",
+            "state": "off"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "switch.geschirrspuler_einschalter",
+            "state": "off"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "switch.geschirrspuler_halbe_beladung",
+            "state": "off"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "switch.geschirrspuler_hygiene",
+            "state": "off"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "switch.geschirrspuler_intensivzone",
+            "state": "off"
+        },
+        {
+            "ts": 1790472611,
+            "entity_id": "switch.geschirrspuler_vario_speed",
+            "state": "off"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "binary_sensor.geschirrspuler_fernstart",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "binary_sensor.geschirrspuler_fernsteuerung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "binary_sensor.geschirrspuler_innenbeleuchtung_aktiv",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "binary_sensor.geschirrspuler_konnektivitat",
+            "state": "off"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "button.geschirrspuler_programm_stoppen",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "number.geschirrspuler_start_in_relativ",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "select.geschirrspuler_aktives_programm",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "select.geschirrspuler_ausgewahltes_programm",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "sensor.geschirrspuler_betriebszustand",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "sensor.geschirrspuler_tur",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "switch.geschirrspuler_brillanz_trocknung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "switch.geschirrspuler_einschalter",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "switch.geschirrspuler_halbe_beladung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "switch.geschirrspuler_hygiene",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "switch.geschirrspuler_intensivzone",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473087,
+            "entity_id": "switch.geschirrspuler_vario_speed",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "binary_sensor.geschirrspuler_fernstart",
+            "state": "on"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "binary_sensor.geschirrspuler_fernsteuerung",
+            "state": "on"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "binary_sensor.geschirrspuler_innenbeleuchtung_aktiv",
+            "state": "on"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "binary_sensor.geschirrspuler_konnektivitat",
+            "state": "on"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "button.geschirrspuler_programm_stoppen",
+            "state": "2026-03-04T10:02:40.571945+00:00"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "number.geschirrspuler_start_in_relativ",
+            "state": "0"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "select.geschirrspuler_aktives_programm",
+            "state": "unknown"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "select.geschirrspuler_ausgewahltes_programm",
+            "state": "dishcare_dishwasher_program_auto_2"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "sensor.geschirrspuler_betriebszustand",
+            "state": "ready"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "sensor.geschirrspuler_tur",
+            "state": "closed"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "switch.geschirrspuler_brillanz_trocknung",
+            "state": "off"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "switch.geschirrspuler_einschalter",
+            "state": "off"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "switch.geschirrspuler_halbe_beladung",
+            "state": "off"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "switch.geschirrspuler_hygiene",
+            "state": "off"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "switch.geschirrspuler_intensivzone",
+            "state": "off"
+        },
+        {
+            "ts": 1790473090,
+            "entity_id": "switch.geschirrspuler_vario_speed",
+            "state": "off"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "binary_sensor.geschirrspuler_fernstart",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "binary_sensor.geschirrspuler_fernsteuerung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "binary_sensor.geschirrspuler_innenbeleuchtung_aktiv",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "binary_sensor.geschirrspuler_konnektivitat",
+            "state": "off"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "button.geschirrspuler_programm_stoppen",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "number.geschirrspuler_start_in_relativ",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "select.geschirrspuler_aktives_programm",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "select.geschirrspuler_ausgewahltes_programm",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "sensor.geschirrspuler_betriebszustand",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "sensor.geschirrspuler_tur",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "switch.geschirrspuler_brillanz_trocknung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "switch.geschirrspuler_einschalter",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "switch.geschirrspuler_halbe_beladung",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "switch.geschirrspuler_hygiene",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "switch.geschirrspuler_intensivzone",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473477,
+            "entity_id": "switch.geschirrspuler_vario_speed",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "binary_sensor.geschirrspuler_fernstart",
+            "state": "on"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "binary_sensor.geschirrspuler_fernsteuerung",
+            "state": "on"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "binary_sensor.geschirrspuler_innenbeleuchtung_aktiv",
+            "state": "on"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "binary_sensor.geschirrspuler_konnektivitat",
+            "state": "on"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "button.geschirrspuler_programm_stoppen",
+            "state": "2026-03-04T10:02:40.571945+00:00"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "number.geschirrspuler_start_in_relativ",
+            "state": "0"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "select.geschirrspuler_aktives_programm",
+            "state": "unknown"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "select.geschirrspuler_ausgewahltes_programm",
+            "state": "dishcare_dishwasher_program_auto_2"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "sensor.geschirrspuler_betriebszustand",
+            "state": "ready"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "sensor.geschirrspuler_tur",
+            "state": "closed"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "switch.geschirrspuler_brillanz_trocknung",
+            "state": "off"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "switch.geschirrspuler_einschalter",
+            "state": "off"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "switch.geschirrspuler_halbe_beladung",
+            "state": "off"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "switch.geschirrspuler_hygiene",
+            "state": "off"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "switch.geschirrspuler_intensivzone",
+            "state": "off"
+        },
+        {
+            "ts": 1790473480,
+            "entity_id": "switch.geschirrspuler_vario_speed",
+            "state": "off"
+        }
+    ]
+}

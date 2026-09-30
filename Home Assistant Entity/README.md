@@ -60,6 +60,7 @@ Keine öffentlichen Funktionen.
 - Es wird die Hauptvariable für die Entität angelegt.
 - Je nach Domain kommen Zusatzvariablen hinzu, zum Beispiel `Power`, `Aktion`, `Lüfterstufe`, `Playback` oder `Event Type`.
 - Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`.
+- Die Statusvariable `Erreichbar` (Ident `reachable`) steht auf **nicht erreichbar**, wenn die Entität in Home Assistant länger als 10 Minuten `unavailable` ist; Einzelheiten siehe `Home Assistant Device`.
 - Details zu den Domains siehe `Home Assistant Device`.
 
 ## 7. Domain-spezifisches Verhalten

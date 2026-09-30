@@ -95,6 +95,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->registerDeferredApplyTimer();
         $this->registerMediaRefreshTimer();
         $this->registerStateCacheFlushTimer();
+        $this->registerReachabilityTimer();
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -145,6 +146,8 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->flushEntityStateCache();
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
+        $this->maintainReachableVariable();
+        $this->evaluateReachability();
 
         $parentState = $this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]);
         if ($parentState !== 'active') {
@@ -222,6 +225,8 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $filterTopics = $this->processEntities($resolvedConfig, $baseTopic);
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
+        $this->maintainReachableVariable();
+        $this->evaluateReachability();
         $this->updateDiagnosticsLabels();
         $this->updateReceiveFilter($filterTopics);
 

@@ -205,6 +205,125 @@ trait HAEntityStoreTrait
             $this->SetBuffer(self::BUFFER_UNAVAILABLE_JSON_DIRTY, '');
             $this->updateUnavailableEntitiesJsonVariable();
         }
+
+        if ($this->GetBuffer(self::BUFFER_REACHABILITY_DIRTY) === '1') {
+            $this->SetBuffer(self::BUFFER_REACHABILITY_DIRTY, '');
+            $this->evaluateReachability();
+        }
+    }
+
+    protected function registerReachabilityTimer(): void
+    {
+        $this->RegisterTimer(
+            self::TIMER_REACHABILITY,
+            0,
+            'IPS_RequestAction($_IPS["TARGET"], "' . self::ACTION_REACHABILITY_CHECK . '", "");'
+        );
+    }
+
+    protected function handleReachabilityAction(string $ident): bool
+    {
+        if ($ident !== self::ACTION_REACHABILITY_CHECK) {
+            return false;
+        }
+        $this->evaluateReachability();
+        return true;
+    }
+
+    // Überschreibbar für Tests.
+    protected function reachabilityNow(): int
+    {
+        return time();
+    }
+
+    private function maintainReachableVariable(): void
+    {
+        $this->MaintainVariable(
+            self::REACHABLE_IDENT,
+            $this->Translate('Reachable'),
+            VARIABLETYPE_BOOLEAN,
+            $this->buildSharedBinarySensorPresentation($this->Translate('Reachable'), $this->Translate('Not reachable'), 'wifi'),
+            9999,
+            true
+        );
+    }
+
+    // Heißer Pfad: nur dann zur gebündelten Auswertung vormerken, wenn sich an der Erreichbarkeit
+    // etwas ändern kann — eine unavailable-Meldung, oder eine gültige Meldung, solange das Gerät
+    // nicht als erreichbar gilt ('0'). Im Normalbetrieb bleibt es bei einem Buffer-Lesezugriff.
+    private function markReachabilityDirty(string $rawState): void
+    {
+        $unavailable = strtolower(trim($rawState)) === 'unavailable';
+        if (!$unavailable && $this->GetBuffer(self::BUFFER_REACHABILITY_SINCE) === '0') {
+            return;
+        }
+        if ($this->GetBuffer(self::BUFFER_REACHABILITY_DIRTY) !== '1') {
+            $this->SetBuffer(self::BUFFER_REACHABILITY_DIRTY, '1');
+        }
+        if ($this->GetTimerInterval(self::TIMER_STATE_CACHE_FLUSH) <= 0) {
+            $this->SetTimerInterval(self::TIMER_STATE_CACHE_FLUSH, self::STATE_CACHE_FLUSH_DELAY_MS);
+        }
+    }
+
+    // Nicht erreichbar = mindestens eine Entität hat einen Cache-Eintrag, und alle Entitäten mit
+    // Cache-Eintrag melden „unavailable" — seit mindestens REACHABILITY_DELAY_S. „unknown" ist kein
+    // Ausfall (HA kennt das Gerät, nur den Wert nicht).
+    protected function evaluateReachability(): void
+    {
+        if (@$this->GetIDForIdent(self::REACHABLE_IDENT) === false) {
+            return;
+        }
+
+        $cache = $this->readEntityStateCache();
+        $seen = 0;
+        $allUnavailable = true;
+        foreach ($this->getConfiguredEntities(__FUNCTION__) as $entity) {
+            $entityId = (string)($entity['entity_id'] ?? '');
+            if ($entityId === '' || ($entity['create_var'] ?? true) === false) {
+                continue;
+            }
+            $entry = $this->getEntityStateCacheEntry($entityId, $cache);
+            $raw = $entry['raw_state'] ?? $entry[self::KEY_STATE] ?? null;
+            if (!is_string($raw) || trim($raw) === '') {
+                continue;
+            }
+            $seen++;
+            if (strtolower(trim($raw)) !== 'unavailable') {
+                $allUnavailable = false;
+                break;
+            }
+        }
+
+        $now = $this->reachabilityNow();
+        if ($seen === 0 || !$allUnavailable) {
+            $this->SetBuffer(self::BUFFER_REACHABILITY_SINCE, '0');
+            $this->SetTimerInterval(self::TIMER_REACHABILITY, 0);
+            $this->setReachableValue(true);
+            return;
+        }
+
+        $since = (int)$this->GetBuffer(self::BUFFER_REACHABILITY_SINCE);
+        if ($since <= 0) {
+            $since = $now;
+            $this->SetBuffer(self::BUFFER_REACHABILITY_SINCE, (string)$since);
+        }
+
+        $remaining = $since + self::REACHABILITY_DELAY_S - $now;
+        if ($remaining > 0) {
+            $this->SetTimerInterval(self::TIMER_REACHABILITY, $remaining * 1000);
+            $this->setReachableValue(true);
+            return;
+        }
+
+        $this->SetTimerInterval(self::TIMER_REACHABILITY, 0);
+        $this->setReachableValue(false);
+    }
+
+    private function setReachableValue(bool $reachable): void
+    {
+        if ($this->GetValue(self::REACHABLE_IDENT) !== $reachable) {
+            $this->SetValue(self::REACHABLE_IDENT, $reachable);
+        }
     }
 
     // Schreibt das LastMQTTMessage-Attribut und aktualisiert die Diagnose-Labels höchstens alle
@@ -411,6 +530,8 @@ trait HAEntityStoreTrait
         if (!is_string($rawState) || trim($rawState) === '') {
             return;
         }
+
+        $this->markReachabilityDirty($rawState);
 
         if (!$this->shouldShowUnavailableEntitiesJson()) {
             return;

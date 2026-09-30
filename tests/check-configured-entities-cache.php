@@ -683,6 +683,8 @@ check((IPSModuleStrict::$status[CHECK_DEVICE_INSTANCE_ID] ?? 0) === IS_ACTIVE, '
 $variableCount = count(IpsStubKernel::$identMap[CHECK_DEVICE_INSTANCE_ID] ?? []);
 check($variableCount > CHECK_ENTITY_COUNT, 'Setup: Variablen wurden angelegt', "nur $variableCount Variablen");
 check(IpsStubKernel::variableIdByIdent(CHECK_DEVICE_INSTANCE_ID, 'unavailable_entities_json') !== null, 'Setup: Unavailable-JSON-Variable existiert');
+check(IpsStubKernel::variableIdByIdent(CHECK_DEVICE_INSTANCE_ID, HADeviceConstants::REACHABLE_IDENT) !== null, 'Setup: Erreichbarkeitsvariable existiert');
+check(IpsStubKernel::variableValueByIdent(CHECK_DEVICE_INSTANCE_ID, HADeviceConstants::REACHABLE_IDENT) === true, 'Setup: Gerät gilt nach ApplyChanges als erreichbar');
 
 // Ident-Snapshot für den Stabilitätsvergleich am Ende
 $identSnapshot = array_keys(IpsStubKernel::$identMap[CHECK_DEVICE_INSTANCE_ID] ?? []);

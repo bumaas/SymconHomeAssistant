@@ -129,3 +129,14 @@ Hinweis zum Bundle-Schema:
 - Ältere Version-`1`-Fixtures bleiben für Parser- und Gruppierungsprüfungen weiterhin gültig; der lokale Checker versteht beide Versionen.
 
 Neue Bundles sollten nach Producer benannt und nur mit den Metadaten eingecheckt werden, die für reproduzierbare Analyse und Debugging nötig sind.
+
+## Erreichbarkeit (`reachability/`)
+
+Echte Verläufe aus dem HA-Recorder (`/api/history/period`, `minimal_response`), je Datei alle
+Entitäten eines Geräts mit `ts`, `entity_id`, `state`. Enthalten keine Adressen oder
+Zugangsdaten, nur HA-Geräte-IDs und Entitätsnamen. Extraktion: `tools/fixture_reachability.php`.
+
+- `luftentfeuchter_20260930.json` — seit 13.08.2026 ohne WLAN, am 30.09. 14:07:49 UTC zurück
+- `wandthermostat_20260929.json` — HA-Neustart, alle Entitäten 143–161 s `unavailable`
+- `geschirrspueler_20260927.json` — HA-Neustart, 15 von 16 Entitäten kurz `unavailable`
+- `backofen_20260929.json` — seit 06.06.2026 getrennt, alle 22 Entitäten durchgehend `unavailable`

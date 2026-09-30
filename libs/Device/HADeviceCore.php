@@ -745,6 +745,10 @@ trait HADeviceCoreTrait
             return;
         }
 
+        if ($this->handleReachabilityAction((string)$Ident)) {
+            return;
+        }
+
         if ($this->handleDirectDomainActions($Ident, $Value)) {
             return;
         }

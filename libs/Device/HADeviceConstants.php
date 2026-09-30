@@ -58,7 +58,7 @@ interface HADeviceConstants
     // (Begründung: HADeviceCore, getConfiguredEntities). Der Build-Marker in der
     // Signatur entwertet Alt-Blobs nach einem Modul-Update automatisch.
     public const string BUFFER_CONFIGURED_ENTITIES_CACHE = 'ConfiguredEntitiesCache';
-    public const string CONFIGURED_ENTITIES_CACHE_MARKER = 'b165';
+    public const string CONFIGURED_ENTITIES_CACHE_MARKER = 'b166';
     public const int CONFIGURED_ENTITIES_CACHE_MAX_BYTES = 1048576;
     public const string BUFFER_CONFIGURED_CACHE_WARN_TS = 'ConfiguredEntitiesCacheWarnEpoch';
     public const int CONFIGURED_ENTITIES_CACHE_WARN_THROTTLE_SEC = 3600;
@@ -66,6 +66,17 @@ interface HADeviceConstants
     // P7: Die Unavailable-Entities-JSON-Variable wird nicht mehr pro Message,
     // sondern gebündelt über den StateCacheFlush-Timer aktualisiert.
     public const string BUFFER_UNAVAILABLE_JSON_DIRTY = 'UnavailableJsonDirty';
+
+    // Erreichbarkeit: Das Gerät gilt als nicht erreichbar, wenn alle Entitäten mit Cache-Eintrag
+    // länger als REACHABILITY_DELAY_S „unavailable" melden. Die Entprellung überbrückt den
+    // HA-Neustart (gemessen 30.09.2026: Geräte bis 218 s komplett unavailable). Der Buffer hält
+    // '0' = erreichbar, sonst den Unix-Zeitpunkt, seit dem alle Entitäten unavailable sind.
+    public const string REACHABLE_IDENT = 'reachable';
+    public const string TIMER_REACHABILITY = 'ReachabilityTimer';
+    public const string ACTION_REACHABILITY_CHECK = 'ReachabilityCheck';
+    public const string BUFFER_REACHABILITY_SINCE = 'ReachabilitySince';
+    public const string BUFFER_REACHABILITY_DIRTY = 'ReachabilityDirty';
+    public const int REACHABILITY_DELAY_S = 600;
 
     public const string PROP_DEVICE_AREA = 'DeviceArea';
     public const string PROP_DEVICE_NAME = 'DeviceName';

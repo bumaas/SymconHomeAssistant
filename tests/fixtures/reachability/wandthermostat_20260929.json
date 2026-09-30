@@ -1,0 +1,103 @@
+{
+    "quelle": "HA-Recorder, /api/history/period (minimal_response), abgerufen 2026-09-30 17:40",
+    "beschreibung": "Gast.Heizung.Wandthermostat (HA-Homematic-Integration): beim nächtlichen HA-Neustart 29.09. alle Entitäten 143-161 s unavailable",
+    "device_id": "014ec16a438cff65d63ab00297c5314b",
+    "fenster": [
+        "2026-09-29T00:55:00+00:00",
+        "2026-09-29T01:20:00+00:00"
+    ],
+    "entities": [
+        "binary_sensor.gast_heizung_wandthermostat_batterie",
+        "climate.gast_heizung_wandthermostat",
+        "sensor.gast_heizung_wandthermostat_luftfeuchtigkeit",
+        "sensor.gast_heizung_wandthermostat_rssi_device",
+        "sensor.gast_heizung_wandthermostat_temperatur"
+    ],
+    "ereignisse": [
+        {
+            "ts": 1790643300,
+            "entity_id": "binary_sensor.gast_heizung_wandthermostat_batterie",
+            "state": "off"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "climate.gast_heizung_wandthermostat",
+            "state": "heat"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "sensor.gast_heizung_wandthermostat_luftfeuchtigkeit",
+            "state": "58"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "sensor.gast_heizung_wandthermostat_rssi_device",
+            "state": "unknown"
+        },
+        {
+            "ts": 1790643300,
+            "entity_id": "sensor.gast_heizung_wandthermostat_temperatur",
+            "state": "22.6"
+        },
+        {
+            "ts": 1790643855,
+            "entity_id": "binary_sensor.gast_heizung_wandthermostat_batterie",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643855,
+            "entity_id": "climate.gast_heizung_wandthermostat",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643855,
+            "entity_id": "sensor.gast_heizung_wandthermostat_luftfeuchtigkeit",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643855,
+            "entity_id": "sensor.gast_heizung_wandthermostat_rssi_device",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643855,
+            "entity_id": "sensor.gast_heizung_wandthermostat_temperatur",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790643998,
+            "entity_id": "climate.gast_heizung_wandthermostat",
+            "state": "heat"
+        },
+        {
+            "ts": 1790644004,
+            "entity_id": "binary_sensor.gast_heizung_wandthermostat_batterie",
+            "state": "off"
+        },
+        {
+            "ts": 1790644012,
+            "entity_id": "sensor.gast_heizung_wandthermostat_rssi_device",
+            "state": "unknown"
+        },
+        {
+            "ts": 1790644014,
+            "entity_id": "sensor.gast_heizung_wandthermostat_luftfeuchtigkeit",
+            "state": "58"
+        },
+        {
+            "ts": 1790644016,
+            "entity_id": "sensor.gast_heizung_wandthermostat_temperatur",
+            "state": "22.6"
+        },
+        {
+            "ts": 1790644100,
+            "entity_id": "climate.gast_heizung_wandthermostat",
+            "state": "heat"
+        },
+        {
+            "ts": 1790644100,
+            "entity_id": "climate.gast_heizung_wandthermostat",
+            "state": "heat"
+        }
+    ]
+}

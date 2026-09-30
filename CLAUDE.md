@@ -23,6 +23,26 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   MQTT nur, wenn ein echter Command-Pfad existiert. `*/set`-Topics behandelt der Splitter
   selbst per REST.
 
+## Erreichbarkeit (Device/Entity, seit 1.5)
+
+- `unavailable`/`unknown` werden nie in die Wertvariablen geschrieben — die behalten den
+  letzten echten Wert. Ob ein Gerät noch liefert, zeigt allein die Bool-Variable `reachable`
+  (`HAEntityStoreTrait::evaluateReachability`): false, wenn **alle** Entitäten mit
+  State-Cache-Eintrag `raw_state = unavailable` tragen, seit mindestens
+  `REACHABILITY_DELAY_S` (600 s). Kein Instanzstatus, kein Ausnahmeschalter (bewusst,
+  Abstimmung 30.09.2026).
+- Die 600 s sind gemessen, nicht geschätzt: Beim nächtlichen HA-Neustart gehen Geräte der
+  HA-Homematic- und der Sonos-Integration bis 218 s komplett auf `unavailable`.
+- Heißer Pfad: `markReachabilityDirty()` liest nur den Buffer `ReachabilitySince`
+  (`'0'` = erreichbar); ausgewertet wird gebündelt im StateCacheFlush bzw. per
+  `ReachabilityTimer`. Der Beginn des Ausfalls liegt nur im Buffer — ein Kernel-Neustart
+  startet die Entprellung neu (gewollt).
+- Bekannte Lücke: Mit `EmulateStatus` überschreibt ein optimistischer Schreibvorgang
+  (`applyOptimisticEntityValue`) den `raw_state` einer toten Entität; das Gerät gilt dann bis
+  zur nächsten echten `unavailable`-Meldung als erreichbar.
+- Test: `tests/check-reachability.php` mit echten HA-Recorder-Verläufen unter
+  `tests/fixtures/reachability/` (Extraktion: `tools/fixture_reachability.php`, nicht versioniert).
+
 ## libs/
 
 Gemeinsame Traits/Klassen; `libs/HACommonIncludes.php` bindet alles ein und wird von allen

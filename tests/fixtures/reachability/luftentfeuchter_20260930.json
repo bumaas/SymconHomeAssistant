@@ -1,0 +1,318 @@
+{
+    "quelle": "HA-Recorder, /api/history/period (minimal_response), abgerufen 2026-09-30 17:40",
+    "beschreibung": "Keller-Luftentfeuchter: seit 13.08.2026 ohne WLAN, alle Entitäten unavailable; 30.09. 14:07:49 UTC nach Stromlos-Machen zurück",
+    "device_id": "b1d46980849f6cc73f70a08781766549",
+    "fenster": [
+        "2026-09-30T13:30:00+00:00",
+        "2026-09-30T14:30:00+00:00"
+    ],
+    "entities": [
+        "binary_sensor.luftentfeuchter_tank_full",
+        "fan.luftentfeuchter_fan",
+        "humidifier.luftentfeuchter",
+        "sensor.luftentfeuchter_humidity",
+        "sensor.luftentfeuchter_temperature"
+    ],
+    "ereignisse": [
+        {
+            "ts": 1790775000,
+            "entity_id": "binary_sensor.luftentfeuchter_tank_full",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790775000,
+            "entity_id": "fan.luftentfeuchter_fan",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790775000,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790775000,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790775000,
+            "entity_id": "sensor.luftentfeuchter_temperature",
+            "state": "unavailable"
+        },
+        {
+            "ts": 1790777269,
+            "entity_id": "binary_sensor.luftentfeuchter_tank_full",
+            "state": "off"
+        },
+        {
+            "ts": 1790777269,
+            "entity_id": "fan.luftentfeuchter_fan",
+            "state": "off"
+        },
+        {
+            "ts": 1790777269,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777269,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "45"
+        },
+        {
+            "ts": 1790777269,
+            "entity_id": "sensor.luftentfeuchter_temperature",
+            "state": "25.0"
+        },
+        {
+            "ts": 1790777329,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777329,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "51"
+        },
+        {
+            "ts": 1790777390,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777390,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "52"
+        },
+        {
+            "ts": 1790777390,
+            "entity_id": "sensor.luftentfeuchter_temperature",
+            "state": "24.0"
+        },
+        {
+            "ts": 1790777450,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777450,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "54"
+        },
+        {
+            "ts": 1790777511,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777511,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "46"
+        },
+        {
+            "ts": 1790777571,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777571,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "43"
+        },
+        {
+            "ts": 1790777632,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777632,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "42"
+        },
+        {
+            "ts": 1790777632,
+            "entity_id": "sensor.luftentfeuchter_temperature",
+            "state": "25.0"
+        },
+        {
+            "ts": 1790777692,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777692,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "48"
+        },
+        {
+            "ts": 1790777753,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777753,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "51"
+        },
+        {
+            "ts": 1790777812,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777812,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "53"
+        },
+        {
+            "ts": 1790777812,
+            "entity_id": "sensor.luftentfeuchter_temperature",
+            "state": "24.0"
+        },
+        {
+            "ts": 1790777873,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777873,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "54"
+        },
+        {
+            "ts": 1790777932,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777932,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "45"
+        },
+        {
+            "ts": 1790777993,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790777993,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "43"
+        },
+        {
+            "ts": 1790777993,
+            "entity_id": "sensor.luftentfeuchter_temperature",
+            "state": "25.0"
+        },
+        {
+            "ts": 1790778054,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778054,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "42"
+        },
+        {
+            "ts": 1790778115,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778115,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "48"
+        },
+        {
+            "ts": 1790778175,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778175,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "51"
+        },
+        {
+            "ts": 1790778236,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778236,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "53"
+        },
+        {
+            "ts": 1790778236,
+            "entity_id": "sensor.luftentfeuchter_temperature",
+            "state": "24.0"
+        },
+        {
+            "ts": 1790778295,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778295,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "55"
+        },
+        {
+            "ts": 1790778356,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778356,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "45"
+        },
+        {
+            "ts": 1790778416,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778416,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "43"
+        },
+        {
+            "ts": 1790778416,
+            "entity_id": "sensor.luftentfeuchter_temperature",
+            "state": "25.0"
+        },
+        {
+            "ts": 1790778477,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778477,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "42"
+        },
+        {
+            "ts": 1790778537,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778537,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "48"
+        },
+        {
+            "ts": 1790778598,
+            "entity_id": "humidifier.luftentfeuchter",
+            "state": "on"
+        },
+        {
+            "ts": 1790778598,
+            "entity_id": "sensor.luftentfeuchter_humidity",
+            "state": "52"
+        }
+    ]
+}
