@@ -61,6 +61,7 @@ Keine öffentlichen Funktionen.
 - Je nach Domain kommen Zusatzvariablen hinzu, zum Beispiel `Power`, `Aktion`, `Lüfterstufe`, `Playback` oder `Event Type`.
 - Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`.
 - Die Statusvariable `Erreichbar` (Ident `reachable`) steht auf **nicht erreichbar**, wenn die Entität in Home Assistant länger als 10 Minuten `unavailable` ist; Einzelheiten siehe `Home Assistant Device`.
+- Ein Wert, den die Entität nicht annimmt (z. B. eine Option außerhalb von `options` oder eine Zahl außerhalb von `min`/`max`), wird nicht gesendet; `RequestAction()` meldet einen Fehler mit dem Wert und den erlaubten Optionen bzw. dem erlaubten Bereich. Maßgeblich sind die zuletzt von Home Assistant gemeldeten Attribute. Ein leerer Text ist bei `input_text` ein gültiger Wert. Die Aktion der Hauptvariable wird bei jedem `ApplyChanges()` abgeglichen.
 - Details zu den Domains siehe `Home Assistant Device`.
 
 ## 7. Domain-spezifisches Verhalten

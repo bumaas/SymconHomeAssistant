@@ -140,3 +140,14 @@ Zugangsdaten, nur HA-Geräte-IDs und Entitätsnamen. Extraktion: `tools/fixture_
 - `wandthermostat_20260929.json` — HA-Neustart, alle Entitäten 143–161 s `unavailable`
 - `geschirrspueler_20260927.json` — HA-Neustart, 15 von 16 Entitäten kurz `unavailable`
 - `backofen_20260929.json` — seit 06.06.2026 getrennt, alle 22 Entitäten durchgehend `unavailable`
+
+## Test-Entitäten (`ha_states_test_entities.json`)
+
+Echte Zustände aus `/api/states` (01.10.2026, ohne `context`) für `input_select.test_auswahl`
+(Optionen A, B, C), `input_number.test_zahl` (0–100, Schritt 1, cm) und `input_text.test_text`
+(Länge 0–100, kein Muster). Grundlage von `check-action-contract.php`. Reine HA-Helfer, keine
+privaten Daten.
+
+Die Attribut-Meldungen in `check-action-contract.php` (`…/options`, `…/step`, `…/max`) sind
+keine Mitschnitte: Sie folgen dem Format von `mqtt_statestream` (je Attribut ein Topic,
+Wert JSON-kodiert), wurden aber nicht vom Broker abgegriffen.

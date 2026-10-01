@@ -116,6 +116,9 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
 - Pro Entität wird in der Regel eine Hauptvariable angelegt.
 - Je nach Domain kommen Zusatzvariablen hinzu, zum Beispiel `Power`, `Aktion`, `Lüfterstufe`, `Playback` oder `Event Type`.
 - Trigger-Variablen werden nach dem Auslösen wieder auf ihren Grundwert zurückgesetzt.
+- Schaltbare Hauptvariablen bekommen ihre Aktion beim Anlegen; bei jedem `ApplyChanges()` wird sie abgeglichen. Eine Variable, die ihre Aktion verloren hat, ist danach wieder schaltbar.
+- Ein Wert, den die Entität nicht annimmt, wird nicht gesendet: eine Option, die nicht in `options` steht, ein nicht numerischer Wert für `number` oder eine Zahl außerhalb von `min`/`max`. `RequestAction()` meldet dann einen Fehler mit dem Wert und den erlaubten Optionen bzw. dem erlaubten Bereich, z. B. `Ungültiger Wert "D" für "select_status" (erlaubt: A, B, C)` oder `Ungültiger Wert "500" für "number_zahl" (erlaubt: 0 – 100)`. Maßgeblich sind die zuletzt von Home Assistant gemeldeten Attribute – ändert sich dort die Optionsliste oder der Bereich, gilt das ohne erneutes `ApplyChanges()`.
+- Ein leerer Text ist bei `input_text` ein gültiger Wert und leert den Text in Home Assistant.
 - Einheiten und Suffixe werden aus `unit_of_measurement`, `native_unit_of_measurement`, `display_unit`, `unit` und `device_class` abgeleitet.
 - Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`.
 - Für `camera`, `image` und `media_player` können zusätzlich Medienobjekte entstehen:

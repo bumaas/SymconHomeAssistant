@@ -230,6 +230,14 @@ trait HAEntityStoreTrait
         return true;
     }
 
+    // Bestandsinstanzen kennen den Timer erst nach ihrem nächsten Create(): Beim Neuladen des Moduls
+    // (Update 1.4 → 1.5) läuft ApplyChanges schon mit diesem Code, während der Kernel noch die alte
+    // Instanz hält — ohne @ meldet er dann je Instanz „Timer ReachabilityTimer does not exist".
+    private function setReachabilityTimerInterval(int $milliseconds): void
+    {
+        @$this->SetTimerInterval(self::TIMER_REACHABILITY, $milliseconds);
+    }
+
     // Überschreibbar für Tests.
     protected function reachabilityNow(): int
     {
@@ -297,7 +305,7 @@ trait HAEntityStoreTrait
         $now = $this->reachabilityNow();
         if ($seen === 0 || !$allUnavailable) {
             $this->SetBuffer(self::BUFFER_REACHABILITY_SINCE, '0');
-            $this->SetTimerInterval(self::TIMER_REACHABILITY, 0);
+            $this->setReachabilityTimerInterval(0);
             $this->setReachableValue(true);
             return;
         }
@@ -310,12 +318,12 @@ trait HAEntityStoreTrait
 
         $remaining = $since + self::REACHABILITY_DELAY_S - $now;
         if ($remaining > 0) {
-            $this->SetTimerInterval(self::TIMER_REACHABILITY, $remaining * 1000);
+            $this->setReachabilityTimerInterval($remaining * 1000);
             $this->setReachableValue(true);
             return;
         }
 
-        $this->SetTimerInterval(self::TIMER_REACHABILITY, 0);
+        $this->setReachabilityTimerInterval(0);
         $this->setReachableValue(false);
     }
 
@@ -428,6 +436,11 @@ trait HAEntityStoreTrait
         $name = $this->getEntityVariableName($domain, $entity);
 
         $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
+        // Bei einem Typwechsel (z. B. number: step 1 → 0.5) legt der Kernel die Variable unter neuer
+        // ID an - ohne Aktion. Sie zählt dann als neu, auch im heißen Pfad.
+        if ($exists && $this->GetIDForIdent($ident) !== $existingId) {
+            $exists = false;
+        }
         if ($wasLegacy) {
             IPS_SetName($this->GetIDForIdent($ident), $name);
         }
@@ -436,7 +449,10 @@ trait HAEntityStoreTrait
             $this->initializeVariableDescriptorValue($ident, $descriptor, $exists);
         }
 
-        if (!$exists || $wasLegacy || $this->shouldApplyDomainActionStateOnExisting($domain)) {
+        // Der volle Pfad (ApplyChanges) gleicht die Aktion auch bei bestehenden Variablen ab: Eine
+        // Variable, die ihre Aktion verloren hat, bliebe sonst dauerhaft nicht schaltbar. Der heiße
+        // Pfad (Zustandsmeldung) fasst sie weiterhin nur bei Domains mit wechselnder Schreibbarkeit an.
+        if (!$exists || $wasLegacy || $initializeDescriptorValue || $this->shouldApplyDomainActionStateOnExisting($domain)) {
             $this->applyDomainActionState($domain, $ident, $entity);
         }
         // Die Domain-Extra-Maintenance iteriert alle Attribut-Definitionen der Domain und ist damit

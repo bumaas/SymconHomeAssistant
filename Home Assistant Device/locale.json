@@ -84,6 +84,8 @@
       "Disconnected": "Getrennt",
       "Reachable": "Erreichbar",
       "Not reachable": "Nicht erreichbar",
+      "Invalid value \"%s\" for \"%s\"": "Ungültiger Wert \"%s\" für \"%s\"",
+      "Invalid value \"%s\" for \"%s\" (allowed: %s)": "Ungültiger Wert \"%s\" für \"%s\" (erlaubt: %s)",
       "Closed": "Geschlossen",
       "Gas Detected": "Gas erkannt",
       "No Gas": "Kein Gas",

@@ -1,0 +1,50 @@
+[
+    {
+        "entity_id": "input_select.test_auswahl",
+        "state": "A",
+        "attributes": {
+            "options": [
+                "A",
+                "B",
+                "C"
+            ],
+            "editable": true,
+            "friendly_name": "Test Auswahl"
+        },
+        "last_changed": "2026-09-29T01:05:22.003772+00:00",
+        "last_reported": "2026-09-29T01:05:22.003772+00:00",
+        "last_updated": "2026-09-29T01:05:22.003772+00:00"
+    },
+    {
+        "entity_id": "input_number.test_zahl",
+        "state": "55.0",
+        "attributes": {
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "mode": "slider",
+            "initial": null,
+            "editable": true,
+            "unit_of_measurement": "cm",
+            "friendly_name": "Test Zahl"
+        },
+        "last_changed": "2026-09-29T01:05:22.008972+00:00",
+        "last_reported": "2026-09-29T01:05:22.008972+00:00",
+        "last_updated": "2026-09-29T01:05:22.008972+00:00"
+    },
+    {
+        "entity_id": "input_text.test_text",
+        "state": "abcdefgxyz",
+        "attributes": {
+            "mode": "text",
+            "min": 0,
+            "max": 100,
+            "pattern": null,
+            "editable": true,
+            "friendly_name": "Test Text"
+        },
+        "last_changed": "2026-09-29T01:05:24.319149+00:00",
+        "last_reported": "2026-09-29T01:05:24.319149+00:00",
+        "last_updated": "2026-09-29T01:05:24.319149+00:00"
+    }
+]

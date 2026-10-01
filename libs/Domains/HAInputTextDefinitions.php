@@ -9,6 +9,6 @@ final class HAInputTextDefinitions
 
     public static function buildRestServicePayload(mixed $value): array
     {
-        return HARestPayloadBuilder::buildSimpleValuePayload($value, 'set_value', 'value');
+        return HARestPayloadBuilder::buildSimpleValuePayload($value, 'set_value', 'value', 'text');
     }
 }

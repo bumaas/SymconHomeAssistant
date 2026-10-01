@@ -42,6 +42,42 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   zur nächsten echten `unavailable`-Meldung als erreichbar.
 - Test: `tests/check-reachability.php` mit echten HA-Recorder-Verläufen unter
   `tests/fixtures/reachability/` (Extraktion: `tools/fixture_reachability.php`, nicht versioniert).
+- Der `ReachabilityTimer` wird nur über `setReachabilityTimerInterval()` gestellt (mit `@`):
+  Beim Neuladen des Moduls läuft `DeferredApply → ApplyChanges` noch in den alten Instanzen,
+  aber schon mit dem neuen Code — ein in `Create()` neu registrierter Timer existiert dort nicht
+  (30.09.2026 am nuc: 27 von 39 Instanzen „Timer ReachabilityTimer does not exist").
+  **Gilt für jeden künftig neuen Timer:** Code, der ihn außerhalb von `Create()` stellt, muss
+  die Bestandsinstanz im Reload-Fenster aushalten.
+
+## Schalten (Device/Entity)
+
+- Zwei Schaltpfade für die Hauptvariable mit gleicher Logik: `HADeviceCoreTrait::
+  handleMainEntityRequestAction` (Entity) und `HomeAssistantDevice::executeMainEntityAction`
+  (Device, eigene `RequestAction`). Änderungen an beiden nachziehen.
+- Ein ungültiger Wert (`formatPayloadForMqtt` liefert `null`) wird über
+  `rejectInvalidActionValue()` als `E_USER_WARNING` gemeldet — der Aufrufer von
+  `RequestAction()` bekommt damit einen Fehler statt `true`. Eine Ausnahme ergäbe im Kernel
+  „Fatal error: Uncaught …" samt Stacktrace, deshalb die Warnung. Weiterhin still (nur
+  Debug) enden: unbekannter Ident, nicht schreibbare Entität, fehlgeschlagener REST-Aufruf.
+- Ungültig sind: Option außerhalb von `options`, nicht numerischer Wert oder Zahl außerhalb von
+  `min`/`max` bei `number`, leerer Wert bei allen Domains außer `input_text` (dort heißt leer
+  „Text leeren"; deshalb `null` und nicht `''` als Kennzeichen). Nicht geprüft werden
+  Textlänge und `pattern` bei `input_text` sowie Datumswerte.
+- Geprüft wird gegen `resolveMainEntityActionAttributes()`: Konfiguration (Stand des letzten
+  `ApplyChanges`), überlagert vom State-Cache (Stand der letzten MQTT-Meldung). Ohne das galt
+  eine in HA erweiterte Optionsliste bis zum nächsten `ApplyChanges` als ungültig.
+- Die Aktion der Hauptvariable wird im vollen Pfad (`maintainEntityVariable`, also bei
+  `ApplyChanges`) immer abgeglichen, im heißen Pfad nur für `select` — und für jede Variable,
+  die `MaintainVariable` wegen eines Typwechsels neu angelegt hat (ID-Vergleich in
+  `syncEntityPresentation`). Vorher wurde sie nur beim Anlegen gesetzt; am nuc standen deshalb
+  38 Slider-Variablen ohne Aktion da (01.10.2026).
+- Offen: Der Attribut-Pfad (`tryHandleAttributeFromTopic`) legt die Laufzeit-Entität ohne die
+  konfigurierten Attribute an. Fehlen sie auch im State-Cache (ApplyChanges ohne REST-Antwort),
+  rechnet der Typ einer `number` mit unvollständigen Attributen: Beim Einspielen der retained
+  Attribut-Topics wird die Variable dann zweimal neu angelegt (Integer → Float → Integer, neue
+  ID). Am Stub nachgestellt 01.10.2026, an einer Anlage nicht belegt.
+- Test: `tests/check-action-contract.php` am echten Device- und Entity-Modul über den
+  Kernel-Stub (`tests/device-harness.php`).
 
 ## libs/
 
@@ -63,22 +99,31 @@ Definitionsklasse je HA-Domäne), `Device/` (Laufzeitlogik der Device-Module), `
 Alle Check-Skripte (`tests/check*.php`) sind versioniert; Fixtures nur nach
 Einzelprüfung auf private Gerätedaten (Freischaltung per `.gitignore`-Ausnahme,
 Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
-(eigenständige Skripte mit eigenen IPS-Attrappen, kein PHPUnit).
+(eigenständige Skripte, kein PHPUnit).
 
 - Jeder Laufzeit-Check bindet `tests/harness.php` ein: Warnings/Notices werden zu Fehlern,
   `pruefe()` zählt jede Prüfung, `ergebnis()` schreibt die Schlusszeile
   „N Prüfungen, M Fehler" (Exit 0/1) — das Format liest `rotgruen.php` für den
   Rot/Grün-Nachweis. Neue Tests genauso aufbauen.
+- Neue Tests an Device oder Entity laufen über `tests/device-harness.php`: das echte Modul am
+  offiziellen Kernel-Stub (`symcon/SymconStubs`, Submodul `tests/stubs`, gepinnt auf `bf2950f`).
+  `neuesGeraet()`/`neueEntitaet()` legen Instanzen an, `neueAusfuehrung()` liefert ein frisches
+  Modul-Objekt mit dem Kernel-Zustand des alten (der Stub hält Properties, Attribute, Buffer und
+  Timer im Objekt, Symcon im Kernel), `KernelZaehler` zählt Kernel-Aufrufe, `HaSendungen`
+  zeichnet REST- und MQTT-Sendungen auf. Das globale `IPS_GetObject()` des Stubs lässt sich
+  nicht mitzählen. Umgestellt: `check-action-contract`, `check-configured-entities-cache`,
+  `check-reachability`.
 - Hilfsskripte, die keine Tests sind (z. B. Fixture-Extraktion), gehören nach `tools/`
   (nicht versioniert), nicht nach `tests/`.
-- Offen: Umstellung auf den offiziellen Kernel-Stub und Ersatz von Logik-Kopien durch
-  Modulaufrufe — beim nächsten Anfassen des jeweiligen Tests, nicht als Sammelaktion.
+- Offen: Die übrigen Laufzeit-Checks tragen noch eigene Attrappen. Umstellung auf den
+  Kernel-Stub und Ersatz von Logik-Kopien durch Modulaufrufe beim nächsten Anfassen des
+  jeweiligen Tests, nicht als Sammelaktion.
 
 ## CI / Version
 
 - CI: `.github/workflows/check.yml` (PHP 8.5, Checkout mit Submodulen) — Code-Stil mit
   php-cs-fixer gegen das Regelwerk im Submodul `.style` (`--dry-run`), `php -l` auf alle
-  `*.php`, JSON-Validität, Locale-Check und `tests/check_property_contracts.php` (jede von
+  `*.php`, JSON-Validität (beides ohne `tests/stubs`), Locale-Check und `tests/check_property_contracts.php` (jede von
   `libs/Device/HADeviceCore.php` gelesene Property muss in Device- und Entity-Modul
   registriert sein), `tests/check_presentations.php` (nur gültige Darstellungsparameter) und
   alle Laufzeit-Checks `tests/check-*.php` (Glob, neue Tests laufen automatisch mit;

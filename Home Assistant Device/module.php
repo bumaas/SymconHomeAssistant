@@ -434,22 +434,24 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         if ($domain === null && str_contains($entityId, '.')) {
             [$domain] = explode('.', $entityId, 2);
         }
+        $attributes = $this->resolveMainEntityActionAttributes($entityId, $entity);
         $this->debugExpert('RequestAction', 'Entity aufgelöst', ['EntityID' => $entityId, 'Domain' => $domain]);
 
-        if (!$this->isEntityWritable($domain ?? '', $entity['attributes'] ?? [])) {
+        if (!$this->isEntityWritable($domain ?? '', $attributes)) {
             $this->debugExpert('RequestAction', 'Variable ist nicht schreibbar', ['EntityID' => $entityId], true);
             return;
         }
 
         // Payload in das erwartete MQTT-Format bringen.
-        $mqttPayload = $this->formatPayloadForMqtt($domain ?? '', $Value, $entity['attributes'] ?? []);
-        if ($mqttPayload === '') {
-            $this->debugExpert('RequestAction', 'Payload leer', ['Domain' => $domain, 'Value' => $Value], true);
+        $mqttPayload = $this->formatPayloadForMqtt($domain ?? '', $Value, $attributes);
+        if ($mqttPayload === null) {
+            $this->debugExpert('RequestAction', 'Wert ungültig', ['Domain' => $domain, 'Value' => $Value], true);
+            $this->rejectInvalidActionValue($Ident, (string)($domain ?? ''), $Value, $attributes);
             return;
         }
         $this->debugExpert('RequestAction', 'Payload formatiert', ['Payload' => $mqttPayload]);
 
-        if ($this->trySendMainEntityValueViaRest($entityId, (string)($domain ?? ''), $mqttPayload, $Ident, $entity['attributes'] ?? [])) {
+        if ($this->trySendMainEntityValueViaRest($entityId, (string)($domain ?? ''), $mqttPayload, $Ident, $attributes)) {
             return;
         }
 

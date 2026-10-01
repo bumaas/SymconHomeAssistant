@@ -11,8 +11,9 @@ declare(strict_types=1);
  *   liest tools/rotgruen.php.
  * - Eine nicht gefangene Ausnahme zählt als Fehler und endet ebenfalls mit der Schlusszeile.
  *
- * Die Tests verwenden noch eigene Attrappen statt des offiziellen Kernel-Stubs; die Umstellung
- * erfolgt beim nächsten Anfassen des jeweiligen Tests.
+ * Tests am Device- oder Entity-Modul laufen über tests/device-harness.php am offiziellen
+ * Kernel-Stub. Die übrigen Tests verwenden noch eigene Attrappen; die Umstellung erfolgt beim
+ * nächsten Anfassen des jeweiligen Tests.
  */
 
 set_error_handler(static function (int $nr, string $text, string $datei, int $zeile): bool {

@@ -37,6 +37,8 @@ final class HARestPayloadBuilder
     {
         return match ($type) {
             'string' => self::normalizeString($value),
+            // Wie 'string', aber der leere Text ist ein gültiger Wert (input_text leeren).
+            'text' => is_string($value) ? trim($value) : self::normalizeString($value),
             'int' => is_numeric($value) ? (int)$value : null,
             'float' => is_numeric($value) ? (float)$value : null,
             'bool' => is_bool($value) ? $value : null,

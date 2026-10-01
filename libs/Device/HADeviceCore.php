@@ -859,7 +859,7 @@ trait HADeviceCoreTrait
 
         $entityId = (string) $entity['entity_id'];
         $domain = $this->resolveEntityActionDomain($entityId, $entity);
-        $attributes = is_array($entity['attributes'] ?? null) ? $entity['attributes'] : [];
+        $attributes = $this->resolveMainEntityActionAttributes($entityId, $entity);
         $this->debugExpert(__FUNCTION__, 'Entity aufgelöst', ['EntityID' => $entityId, 'Domain' => $domain]);
 
         if (!$this->isEntityWritable($domain, $attributes)) {
@@ -868,8 +868,9 @@ trait HADeviceCoreTrait
         }
 
         $mqttPayload = $this->formatPayloadForMqtt($domain, $value, $attributes);
-        if ($mqttPayload === '') {
-            $this->debugExpert(__FUNCTION__, 'Payload leer', ['Domain' => $domain, 'Value' => $value], true);
+        if ($mqttPayload === null) {
+            $this->debugExpert(__FUNCTION__, 'Wert ungültig', ['Domain' => $domain, 'Value' => $value], true);
+            $this->rejectInvalidActionValue($ident, $domain, $value, $attributes);
             return true;
         }
 
@@ -889,6 +890,38 @@ trait HADeviceCoreTrait
             $this->applyOptimisticEntityValue($entityId, $ident, $domain, $mqttPayload, $attributes);
         }
         return true;
+    }
+
+    // Geprüft und gemeldet wird gegen die aktuellen Attribute: Die Konfiguration trägt den Stand des
+    // letzten ApplyChanges, der State-Cache den der letzten MQTT-Meldung (options, min, max).
+    private function resolveMainEntityActionAttributes(string $entityId, array $entity): array
+    {
+        $attributes = is_array($entity['attributes'] ?? null) ? $entity['attributes'] : [];
+        $cachedAttributes = $this->getCachedEntityAttributes($entityId);
+        return $cachedAttributes === [] ? $attributes : array_merge($attributes, $cachedAttributes);
+    }
+
+    // Ein ungültiger Wert darf nicht still verpuffen: Ohne Fehler liefert RequestAction() dem
+    // Aufrufer true, obwohl nichts gesendet wurde.
+    private function rejectInvalidActionValue(string $ident, string $domain, mixed $value, array $attributes): void
+    {
+        $shownValue = match (true) {
+            is_bool($value) => $value ? 'true' : 'false',
+            is_scalar($value) => (string)$value,
+            default => gettype($value),
+        };
+        $allowed = match ($this->normalizeDomainAlias($domain)) {
+            HASelectDefinitions::DOMAIN => implode(', ', HASelectDefinitions::normalizeOptions($attributes['options'] ?? null)),
+            HANumberDefinitions::DOMAIN => $this->describeNumberRange($attributes),
+            default => '',
+        };
+
+        trigger_error(
+            $allowed === ''
+                ? sprintf($this->Translate('Invalid value "%s" for "%s"'), $shownValue, $ident)
+                : sprintf($this->Translate('Invalid value "%s" for "%s" (allowed: %s)'), $shownValue, $ident, $allowed),
+            E_USER_WARNING
+        );
     }
 
     private function handleAttributeRequestAction(string $ident, mixed $value): bool
@@ -1529,10 +1562,11 @@ trait HADeviceCoreTrait
         return $baseTopic . '/' . $domain . '/' . $name . '/set';
     }
 
-    protected function formatPayloadForMqtt(string $domain, mixed $value, array $attributes = []): string
+    // null = der Wert ist für die Entität ungültig und wird nicht gesendet.
+    protected function formatPayloadForMqtt(string $domain, mixed $value, array $attributes = []): ?string
     {
         $domain = $this->normalizeDomainAlias($domain);
-        return match ($domain) {
+        $payload = match ($domain) {
             HALightDefinitions::DOMAIN, HAFanDefinitions::DOMAIN, HAHumidifierDefinitions::DOMAIN => $value ? 'ON' : 'OFF',
             HASwitchDefinitions::DOMAIN => $value ? HASwitchDefinitions::STATE_ON : HASwitchDefinitions::STATE_OFF,
             HACoverDefinitions::DOMAIN => HACoverDefinitions::normalizeCommand($value),
@@ -1543,25 +1577,61 @@ trait HADeviceCoreTrait
             HAButtonDefinitions::DOMAIN => 'press',
             default => (string)$value,
         };
+
+        // Nur ein Text darf leer sein (Text leeren); überall sonst gibt es keinen leeren Wert.
+        if ($payload === '' && $domain !== HAInputTextDefinitions::DOMAIN) {
+            return null;
+        }
+        return $payload;
     }
 
-    protected function formatNumberPayload(mixed $value, array $attributes): string
+    protected function formatNumberPayload(mixed $value, array $attributes): ?string
     {
         if (!is_numeric($value)) {
             $normalized = trim((string)$value);
             if ($normalized === '' || !is_numeric(str_replace(',', '.', $normalized))) {
                 $this->debugExpert('Number', 'Ungültiger Wert', ['Value' => $value], true);
-                return '';
+                return null;
             }
             $value = str_replace(',', '.', $normalized);
         }
 
-        return $this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER
-            ? (string)(int)$value
-            : (string)(float)$value;
+        $number = $this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER ? (int)$value : (float)$value;
+        // HA lehnt einen Wert außerhalb von min/max ab; der REST-Aufruf scheitert dann ohne Rückmeldung.
+        [$min, $max] = $this->getNumberRange($attributes);
+        if (($min !== null && $number < $min) || ($max !== null && $number > $max)) {
+            $this->debugExpert('Number', 'Wert außerhalb des Bereichs', ['Value' => $number, 'Min' => $min, 'Max' => $max], true);
+            return null;
+        }
+
+        return (string)$number;
     }
 
-    protected function formatSelectPayload(mixed $value, array $attributes): string
+    /** @return array{0: ?float, 1: ?float} */
+    private function getNumberRange(array $attributes): array
+    {
+        return [
+            $this->extractNumericAttribute($attributes, ['min', 'native_min_value']),
+            $this->extractNumericAttribute($attributes, ['max', 'native_max_value']),
+        ];
+    }
+
+    private function describeNumberRange(array $attributes): string
+    {
+        [$min, $max] = array_map(
+            fn(?float $limit): ?string => $limit === null ? null : (string)($this->isWholeNumber($limit) ? (int)$limit : $limit),
+            $this->getNumberRange($attributes)
+        );
+
+        return match (true) {
+            $min !== null && $max !== null => $min . ' – ' . $max,
+            $min !== null => '≥ ' . $min,
+            $max !== null => '≤ ' . $max,
+            default => '',
+        };
+    }
+
+    protected function formatSelectPayload(mixed $value, array $attributes): ?string
     {
         $options = $attributes['options'] ?? null;
         $normalized = HASelectDefinitions::normalizeSelection($value, $options);
@@ -1579,7 +1649,7 @@ trait HADeviceCoreTrait
             true
         );
 
-        return '';
+        return null;
     }
 
     protected function isClimateTargetWritable(mixed $attributes): bool

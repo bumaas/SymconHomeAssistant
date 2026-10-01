@@ -12,6 +12,8 @@ tests/*
 !tests/check_property_contracts.php
 !tests/check_presentations.php
 !tests/harness.php
+!tests/device-harness.php
+!tests/stubs
 !tests/readme-bekannt.json
 !tests/lint-php.ps1
 !tests/fixtures/
@@ -20,6 +22,7 @@ tests/fixtures/*
 !tests/fixtures/ha_device_config_bundle_mitsubishi_electric_air_to_air_heat_pump_via_melcloud_home_b_ro.json
 !tests/fixtures/ha_mqtt_discovery_bundle_ebusd.json
 !tests/fixtures/ha_states_int_presentation_952.json
+!tests/fixtures/ha_states_test_entities.json
 !tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json
 !tests/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_stale_v2.json
 !tests/fixtures/reachability/
