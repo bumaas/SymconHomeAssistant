@@ -1335,21 +1335,36 @@ trait HADeviceCoreTrait
         $this->syncEntityPresentation($entity, true);
     }
 
+    // Laufzeit-Entität einer Ausführung: die Zeile aus der Konfiguration (Name, Attribute). Ohne sie
+    // rechnete der Attribut-Pfad mit Objekt-ID und einem einzelnen Attribut — eine neu angelegte
+    // Variable hieß „test_zahl", und retained Attribut-Topics legten eine number zweimal neu an
+    // (Integer → Float → Integer; Gegencheck nuc 01.10.2026). false = Entität nicht konfiguriert.
+    protected function rehydrateRuntimeEntity(string $entityId): bool
+    {
+        if (isset($this->entities[$entityId])) {
+            return true;
+        }
+        $configuredEntity = $this->findConfiguredEntityById($entityId);
+        if (!is_array($configuredEntity)) {
+            return false;
+        }
+
+        $configuredEntity['entity_id'] ??= $entityId;
+        $this->entities[$entityId] = $configuredEntity;
+        $this->rebuildSharedEntityIdentIndexes();
+        return true;
+    }
+
     protected function applyParsedEntityState(string $entityId, array $payload, string $context = 'MQTT Update'): void
     {
         $state = (string)($payload[self::KEY_STATE] ?? '');
         $attributes = $payload[self::KEY_ATTRIBUTES] ?? [];
 
         if (!isset($this->entities[$entityId])) {
-            $configuredEntity = $this->findConfiguredEntityById($entityId);
-            if (!is_array($configuredEntity)) {
+            if (!$this->rehydrateRuntimeEntity($entityId)) {
                 $this->debugRuntimeIssue(__FUNCTION__, 'Entity nicht konfiguriert', ['EntityID' => $entityId, 'Context' => $context]);
                 return;
             }
-
-            $configuredEntity['entity_id'] ??= $entityId;
-            $this->entities[$entityId] = $configuredEntity;
-            $this->rebuildSharedEntityIdentIndexes();
             $this->debugExpert(__FUNCTION__, 'Entity aus Konfiguration rehydriert', ['EntityID' => $entityId, 'Context' => $context]);
         }
 

@@ -78,10 +78,11 @@ trait HAEntityStoreTrait
         return null;
     }
 
-    // Runtime-Entities erhalten bei Bedarf nur Minimalmetadaten.
+    // Runtime-Entities ohne Konfigurationszeile erhalten nur Minimalmetadaten
+    // (siehe HADeviceCoreTrait::rehydrateRuntimeEntity).
     private function ensureStoredEntity(string $entityId): void
     {
-        if (isset($this->entities[$entityId])) {
+        if ($this->rehydrateRuntimeEntity($entityId)) {
             return;
         }
 

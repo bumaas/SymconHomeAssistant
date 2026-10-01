@@ -211,6 +211,7 @@ HaSendungen::$restAntwort = true;
 [$geraet, $bundleFile] = testGeraet($zustaende);
 $numberIdent = ident($geraet, 'input_number.test_zahl');
 $zahlId = $geraet->variablenId($numberIdent);
+$zahlName = IPS_GetName((int)$zahlId);
 pruefe($geraet->wert($numberIdent) === 55 && $geraet->hatAktion($numberIdent), 'Typwechsel, Ausgangslage: Integer-Variable mit Wert 55 und Aktion');
 
 // HA meldet eine neue Schrittweite: statestream veröffentlicht das Attribut als eigenes Topic.
@@ -222,6 +223,14 @@ pruefe(
 );
 pruefe($geraet->hatAktion($numberIdent), 'Typwechsel: die neu angelegte Variable hat wieder eine Aktion');
 pruefe($geraet->wert($numberIdent) === 55.0, 'Typwechsel: die neu angelegte Variable trägt den letzten Wert', var_export($geraet->wert($numberIdent), true));
+// Gegencheck am nuc 01.10.2026: Die im heißen Pfad neu angelegte Variable hieß „test_zahl" — der
+// Attribut-Pfad legte die Laufzeit-Entität mit der Objekt-ID als Namen an, statt die Zeile aus der
+// Konfiguration zu nehmen. MaintainVariable benennt eine bestehende Variable nie um; der Name bleibt.
+pruefe(
+    IPS_GetName((int)$neueZahlId) === $zahlName,
+    'Typwechsel: die neu angelegte Variable heißt wie zuvor („' . $zahlName . '")',
+    IPS_GetName((int)$neueZahlId)
+);
 @unlink($bundleFile);
 
 // ---- Teil 7 (Befund 2): geprüft wird gegen die aktuellen Optionen, nicht gegen den Stand von ApplyChanges ----
@@ -380,5 +389,29 @@ pruefe(($arbeit['GetIDForIdent'] ?? 0) <= 3, 'Heißer Pfad: eine Attributmeldung
 pruefe(!isset($arbeit['VariableTypeChanged']) && !isset($arbeit['VariableCreated']), 'Heißer Pfad: die Variable bleibt dieselbe');
 pruefe($geraet->hatAktion($numberIdent), 'Heißer Pfad: die Aktion bleibt bestehen');
 @unlink($bundleFile);
+
+// ---- Teil 11: retained Attribut-Topics ohne REST-Antwort legen die Variable nicht neu an ----
+// Bisher offen (CLAUDE.md, Schalten): Lief ApplyChanges ohne REST-Antwort, kennt der State-Cache
+// keine Attribute. Der Attribut-Pfad rechnete den Typ einer number dann mit dem einen eingehenden
+// Attribut — beim Einspielen der retained Topics wurde die Variable zweimal neu angelegt
+// (Integer → Float → Integer, neue ID, Archiv und Verknüpfungen hängen an der alten).
+
+$datei = (string)tempnam(sys_get_temp_dir(), 'ha_action_check_');
+file_put_contents($datei, json_encode(bundleZeilen($zustaende), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+$geraet = neuesGeraet(['SourceMode' => 'bundle', 'BundlePath' => $datei, 'DeviceName' => 'Testgerät', 'DeviceID' => 'devid_test_entities']);
+$numberIdent = ident($geraet, 'input_number.test_zahl');
+$zahlId = $geraet->variablenId($numberIdent);
+$zahlName = IPS_GetName((int)$zahlId);
+pruefe(IPS_GetVariable((int)$zahlId)['VariableType'] === VARIABLETYPE_INTEGER, 'Ohne REST, Ausgangslage: Zahl-Variable als Integer aus der Konfiguration');
+
+$vorher = KernelZaehler::stand();
+foreach ($zahl['attributes'] as $attribut => $wert) {
+    melde($geraet, 'input_number/test_zahl/' . $attribut, json_encode($wert, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+}
+$arbeit = KernelZaehler::seit($vorher);
+pruefe(!isset($arbeit['VariableTypeChanged']), 'Ohne REST: die retained Attribut-Topics legen die Zahl-Variable nicht neu an', json_encode($arbeit));
+pruefe($geraet->variablenId($numberIdent) === $zahlId, 'Ohne REST: die Zahl-Variable behält ihre ID');
+pruefe(IPS_GetName((int)$geraet->variablenId($numberIdent)) === $zahlName, 'Ohne REST: die Zahl-Variable behält ihren Namen');
+@unlink($datei);
 
 ergebnis();

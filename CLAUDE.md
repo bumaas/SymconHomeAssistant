@@ -140,11 +140,14 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Stub selbst immer true). Die Altnamen-Prüfung (`IPS_GetObject`) läuft nur noch im vollen Pfad.
   `tests/check-action-contract.php` Teil 10 hält die Kosten einer Attributmeldung fest
   (höchstens 3 `GetIDForIdent`).
-- Offen: Der Attribut-Pfad (`tryHandleAttributeFromTopic`) legt die Laufzeit-Entität ohne die
-  konfigurierten Attribute an. Fehlen sie auch im State-Cache (ApplyChanges ohne REST-Antwort),
-  rechnet der Typ einer `number` mit unvollständigen Attributen: Beim Einspielen der retained
-  Attribut-Topics wird die Variable dann zweimal neu angelegt (Integer → Float → Integer, neue
-  ID). Am Stub nachgestellt 01.10.2026, an einer Anlage nicht belegt.
+- Die Laufzeit-Entität einer Ausführung kommt in jedem Pfad aus der Konfiguration
+  (`rehydrateRuntimeEntity()`: Zustand, Attribut-Topic, `ensureStoredEntity`); Minimalmetadaten
+  nur für nicht konfigurierte Entitäten. Bis build 180 legte der Attribut-Pfad sie mit der
+  Objekt-ID als Namen und ohne Attribute an: Eine bei einem Typwechsel neu angelegte Variable
+  hieß `test_zahl` statt „Test Zahl" (Gegencheck nuc 01.10.2026), und ohne REST-Antwort legten
+  die retained Attribut-Topics eine `number` zweimal neu an (Integer → Float → Integer).
+  `MaintainVariable` benennt eine **bestehende** Variable nie um — ein falscher Name beim
+  Anlegen bleibt also stehen, bis der Anwender ihn ändert.
 - Test: `tests/check-action-contract.php` am echten Device- und Entity-Modul über den
   Kernel-Stub (`tests/device-harness.php`).
 

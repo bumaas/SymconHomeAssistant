@@ -35,7 +35,7 @@ trait HAAttributeHandlersTrait
             $this->debugRuntimeIssue('AttributeTopic', 'Fremde Entity ignoriert', ['EntityID' => $entityId, 'Domain' => $domain]);
             return false;
         }
-        if (!isset($this->entities[$entityId])) {
+        if (!$this->rehydrateRuntimeEntity($entityId)) {
             $this->entities[$entityId] = [
                 'entity_id' => $entityId,
                 'domain'    => $currentDomain,
