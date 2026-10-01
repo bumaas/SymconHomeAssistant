@@ -272,20 +272,28 @@ trait HADeviceCoreTrait
 
     protected function readResolvedConfig(string $context): array
     {
-        $this->ensureResolvedConfigAttributeRegistered($context);
-        $configData = $this->decodeJsonArray($this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG), $context);
+        $configData = $this->decodeJsonArray($this->readResolvedConfigRaw($context), $context);
         return $configData ?? [];
     }
 
-    protected function ensureResolvedConfigAttributeRegistered(string $context): void
+    // Reload-Fenster: Beim Neuladen der Bibliothek kann eine Meldung oder ein Timer die Instanz
+    // treffen, während ihr Create() noch läuft — das Attribut ist dann (noch) nicht registriert.
+    // Hier nichts registrieren und nichts schreiben: Das folgende Create() scheiterte sonst an
+    // „Attribute ResolvedConfig is already registered" (Status 105), und die Konfiguration wäre
+    // mit [] überschrieben (nuc 01.10.2026, #36479). Create() und ApplyChanges folgen ohnehin.
+    protected function isResolvedConfigAttributeRegistered(string $context): bool
     {
-        if (@$this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG) !== false) {
-            return;
+        if ($this->readResolvedConfigAttribute() !== false) {
+            return true;
         }
+        $this->debugExpert($context, 'ResolvedConfig noch nicht registriert (Reload-Fenster), übersprungen');
+        return false;
+    }
 
-        $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-        $this->writeResolvedConfig('[]');
-        $this->debugExpert($context, 'ResolvedConfig in Bestandsinstanz initialisiert');
+    // Liest das Attribut ResolvedConfig; false = nicht registriert (Kernel warnt und liefert false).
+    protected function readResolvedConfigAttribute(): string|false
+    {
+        return @$this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG);
     }
 
     // ------------------------------------------------------------------
@@ -486,14 +494,13 @@ trait HADeviceCoreTrait
     private function readResolvedConfigRaw(string $context): string
     {
         // Existenzprüfung und Lesen in EINEM Attribut-Zugriff (Hotpath: 1 Read pro Ausführung).
-        $raw = @$this->ReadAttributeString(self::ATTR_RESOLVED_CONFIG);
+        $raw = $this->readResolvedConfigAttribute();
         if ($raw === false) {
-            $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
-            $this->writeResolvedConfig('[]');
-            $this->debugExpert($context, 'ResolvedConfig in Bestandsinstanz initialisiert');
+            // Reload-Fenster, siehe isResolvedConfigAttributeRegistered().
+            $this->debugExpert($context, 'ResolvedConfig noch nicht registriert (Reload-Fenster), leer gelesen');
             return '[]';
         }
-        return is_string($raw) ? $raw : '[]';
+        return $raw;
     }
 
     private function buildConfiguredEntitiesSignature(string $raw): string

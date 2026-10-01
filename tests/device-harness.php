@@ -90,6 +90,13 @@ trait ModulRahmenTrait
     /** false = Bestandsinstanz im Reload-Fenster: Create() hat den ReachabilityTimer noch nicht registriert. */
     public bool $erreichbarkeitsTimerRegistriert = true;
 
+    /**
+     * false = Reload-Fenster mitten in Create(): Das Attribut ResolvedConfig ist noch nicht registriert
+     * (Kernel liefert false). Registriert das Modul es in diesem Zustand selbst, scheitert das
+     * anschließende Create() an „already registered" — gezählt als RegisterAttr:ResolvedConfig.
+     */
+    public bool $resolvedConfigRegistriert = true;
+
     /** @var array<string, true> je Instanz-ID die gesetzten Buffer (der Stub listet sie nicht zuverlässig) */
     private static array $pufferNamen = [];
 
@@ -242,6 +249,21 @@ trait ModulRahmenTrait
         return parent::WriteAttributeString($Name, $Value);
     }
 
+    protected function readResolvedConfigAttribute(): string|false
+    {
+        return $this->resolvedConfigRegistriert ? parent::readResolvedConfigAttribute() : false;
+    }
+
+    protected function RegisterAttributeString(string $Name, string $DefaultValue): bool
+    {
+        if ($Name === 'ResolvedConfig' && !$this->resolvedConfigRegistriert) {
+            // Im Stub existiert das Attribut schon; am nuc wäre es jetzt doppelt registriert.
+            KernelZaehler::zaehle('RegisterAttr:' . $Name);
+            return true;
+        }
+        return parent::RegisterAttributeString($Name, $DefaultValue);
+    }
+
     protected function SetBuffer(string $Name, string $Data): bool
     {
         self::$pufferNamen[$this->InstanceID][$Name] = true;
@@ -372,6 +394,7 @@ function neueAusfuehrung(DeviceHarness|EntityHarness $alt): DeviceHarness|Entity
 
     $neu = new ($alt::class)($alt->id());
     $neu->erreichbarkeitsTimerRegistriert = $alt->erreichbarkeitsTimerRegistriert;
+    $neu->resolvedConfigRegistriert = $alt->resolvedConfigRegistriert;
     $kern->setValue($neu, $zustand);
     $zustand->setGetTimeCallback(Closure::bind(fn(): int => $this->getTime(), $neu, IPSModuleStrict::class));
 

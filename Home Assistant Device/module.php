@@ -158,7 +158,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
-        $this->ensureResolvedConfigAttributeRegistered(__FUNCTION__);
+        if (!$this->isResolvedConfigAttributeRegistered(__FUNCTION__)) {
+            return;
+        }
         // Property-Änderungen (z. B. DeviceName) fließen ins Naming ein — Cache verwerfen.
         $this->invalidateConfiguredEntitiesCache();
         $this->syncParentStatusMessageRegistration();

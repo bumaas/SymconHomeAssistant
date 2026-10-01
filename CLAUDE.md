@@ -54,6 +54,21 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   **Gilt für jeden künftig neuen Timer:** Code, der ihn außerhalb von `Create()` stellt, muss
   die Bestandsinstanz im Reload-Fenster aushalten.
 
+## Reload-Fenster (Neuladen der Bibliothek, Modul-Update)
+
+- Beim Neuladen treffen Meldungen und Timer Instanzen, deren `Create()` gerade läuft:
+  Properties und Attribute sind dann nicht registriert, `ReadAttributeString` liefert false
+  (Rust-Edition, nuc 01.10.2026 15:37–15:41: `trim(false)`, `sprintf(false, …)` als Fatals).
+- **Außerhalb von `Create()` nie `Register*` aufrufen.** Bis build 168 registrierte der heiße
+  Pfad ResolvedConfig selbst, wenn das Lesen false lieferte („Bestandsinstanz ohne Attribut",
+  seit build 139 überflüssig, weil jeder Kernel-Start `Create()` ruft) und schrieb `[]` hinein —
+  das folgende `Create()` scheiterte an „already registered", Instanz #36479 blieb auf 105.
+  Jetzt: `readResolvedConfigRaw()` liest im Fenster leer, `ApplyChanges` bricht über
+  `isResolvedConfigAttributeRegistered()` ab; `Create()` und `ApplyChanges` folgen ohnehin.
+- Test: `tests/check-reload-window.php`; der Harness stellt das Fenster mit
+  `$resolvedConfigRegistriert = false` nach (Naht `readResolvedConfigAttribute()`, weil der
+  Stub `ReadAttributeString` als `: string` deklariert und kein false liefern kann).
+
 ## Schalten (Device/Entity)
 
 - Zwei Schaltpfade für die Hauptvariable mit gleicher Logik: `HADeviceCoreTrait::
@@ -117,7 +132,7 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
   Timer im Objekt, Symcon im Kernel), `KernelZaehler` zählt Kernel-Aufrufe, `HaSendungen`
   zeichnet REST- und MQTT-Sendungen auf. Das globale `IPS_GetObject()` des Stubs lässt sich
   nicht mitzählen. Umgestellt: `check-action-contract`, `check-configured-entities-cache`,
-  `check-reachability`.
+  `check-reachability`, `check-reload-window`.
 - Hilfsskripte, die keine Tests sind (z. B. Fixture-Extraktion), gehören nach `tools/`
   (nicht versioniert), nicht nach `tests/`.
 - Offen: Die übrigen Laufzeit-Checks tragen noch eigene Attrappen. Umstellung auf den
