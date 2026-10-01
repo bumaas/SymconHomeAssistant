@@ -138,4 +138,15 @@ run('zigbee2mqtt light: humanized name slug-equal to device name => Status', [
     'light.buero_beleuchtung_test_nachtlicht' => 'Nachtlicht',
 ]);
 
+// Scenario 4: Entity-Instanz, die wie ihre Entität heißt (MCP-Blindtest 01.10.2026: „Test Zahl").
+// Ohne Domänen- und Geräteklassen-Ersatz war die Entity-ID der Name („input_number.test_zahl");
+// der eigene Name der Entität ist der bessere letzte Ausweg.
+run('entity named like its instance keeps its name instead of the entity_id', [
+    $e('input_number.stehlampe_max_m', 'input_number', 'Stehlampe Max M'),
+    $e('sensor.stehlampe_max_m', 'sensor', 'Stehlampe Max M'),
+], [
+    'input_number.stehlampe_max_m' => 'Stehlampe Max M',
+    'sensor.stehlampe_max_m'       => 'Stehlampe Max M',
+]);
+
 ergebnis();

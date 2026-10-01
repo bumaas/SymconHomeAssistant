@@ -99,6 +99,13 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Test: `tests/check-action-contract.php` am echten Device- und Entity-Modul über den
   Kernel-Stub (`tests/device-harness.php`).
 
+## Variablennamen
+
+- Hauptvariablen benennt `HAEntityVariableNamingTrait` (Device, Entity, MQTT Discovery), Regeln in
+  `docs/ARCHITEKTUR.md`. Letzter Ausweg vor der `entity_id` ist der ungekürzte eigene Name
+  (build 171; Anlass: MCP-Blindtest, Hauptvariable hieß `input_number.test_zahl`).
+  Test: `tests/check-shared-entity-naming.php`.
+
 ## libs/
 
 Gemeinsame Traits/Klassen; `libs/HACommonIncludes.php` bindet alles ein und wird von allen

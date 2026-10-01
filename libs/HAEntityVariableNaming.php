@@ -122,7 +122,10 @@ trait HAEntityVariableNamingTrait
             }
         }
 
-        return $this->getSharedEntityId($entity);
+        // Der Name galt nur als Präfix des Instanz- oder Gerätenamens als leer (z. B. Entity-Instanz
+        // „Test Zahl" für input_number.test_zahl) — er ist trotzdem besser als die Entity-ID.
+        $ownName = trim((string)($entity['name'] ?? ''));
+        return $ownName !== '' ? $ownName : $this->getSharedEntityId($entity);
     }
 
     private function getSharedDeviceClassFallbackName(array $entity): ?string
