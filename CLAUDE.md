@@ -63,11 +63,19 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Pfad ResolvedConfig selbst, wenn das Lesen false lieferte („Bestandsinstanz ohne Attribut",
   seit build 139 überflüssig, weil jeder Kernel-Start `Create()` ruft) und schrieb `[]` hinein —
   das folgende `Create()` scheiterte an „already registered", Instanz #36479 blieb auf 105.
-  Jetzt: `readResolvedConfigRaw()` liest im Fenster leer, `ApplyChanges` bricht über
-  `isResolvedConfigAttributeRegistered()` ab; `Create()` und `ApplyChanges` folgen ohnehin.
+- **Jeder Einstiegspunkt prüft zuerst `isInstanceCreated()`** (seit build 172): `ReceiveData`,
+  `RequestAction` (also auch alle Timer), `UpdateMediaPlayerProgress`, `SyncStates`,
+  `ApplyChanges`. Im Fenster tun sie nichts — kein Lesen, kein Schreiben, kein Auswerten.
+  Bis build 171 war nur ResolvedConfig geschützt: `EntityStateCache`, `LastMQTTMessage` und
+  `MQTTBaseTopic` liefen weiter ungeschützt, und die Erreichbarkeitsprüfung las eine leere
+  Konfiguration als „keine Entität gesehen" — ein totes Gerät sprang auf erreichbar.
+- Merkmal ist ResolvedConfig, **deshalb registriert `Create()` es als Letztes** (nach Properties
+  und Timern): Ist es da, ist alles da. Neue Registrierungen gehören davor. Der gelesene Inhalt
+  bleibt im Memo, die Prüfung kostet im heißen Pfad keinen zusätzlichen Kernel-Aufruf.
 - Test: `tests/check-reload-window.php`; der Harness stellt das Fenster mit
-  `$resolvedConfigRegistriert = false` nach (Naht `readResolvedConfigAttribute()`, weil der
-  Stub `ReadAttributeString` als `: string` deklariert und kein false liefern kann).
+  `$attributeRegistriert = false` nach: Jeder Attributzugriff warnt, ResolvedConfig liefert über
+  die Naht `readResolvedConfigAttribute()` false (der Stub deklariert `ReadAttributeString` als
+  `: string`). Properties simuliert er im Fenster nicht.
 
 ## Schalten (Device/Entity)
 

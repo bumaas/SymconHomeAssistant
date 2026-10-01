@@ -91,11 +91,14 @@ trait ModulRahmenTrait
     public bool $erreichbarkeitsTimerRegistriert = true;
 
     /**
-     * false = Reload-Fenster mitten in Create(): Das Attribut ResolvedConfig ist noch nicht registriert
-     * (Kernel liefert false). Registriert das Modul es in diesem Zustand selbst, scheitert das
-     * anschließende Create() an „already registered" — gezählt als RegisterAttr:ResolvedConfig.
+     * false = Reload-Fenster vor bzw. mitten in Create(): Die Attribute sind noch nicht registriert.
+     * Der Kernel warnt dann bei jedem Lesen und Schreiben und liefert false (nuc 01.10.2026:
+     * trim(false), sprintf(false, …)). Der Rahmen warnt genauso; ResolvedConfig liefert über die Naht
+     * readResolvedConfigAttribute() false, weil der Stub ReadAttributeString als `: string` deklariert.
+     * Registriert das Modul in diesem Zustand selbst ein Attribut, scheitert das anschließende Create()
+     * an „already registered" — gezählt als RegisterAttr:<Name>.
      */
-    public bool $resolvedConfigRegistriert = true;
+    public bool $attributeRegistriert = true;
 
     /** @var array<string, true> je Instanz-ID die gesetzten Buffer (der Stub listet sie nicht zuverlässig) */
     private static array $pufferNamen = [];
@@ -240,23 +243,32 @@ trait ModulRahmenTrait
     protected function ReadAttributeString(string $Name): string
     {
         KernelZaehler::zaehle('ReadAttr:' . $Name);
+        if (!$this->attributeRegistriert) {
+            // Wortlaut der Kernel-Warnung nicht belegt; der Kernel liefert danach false.
+            trigger_error('Attribute ' . $Name . ' is not registered', E_USER_WARNING);
+            return '';
+        }
         return parent::ReadAttributeString($Name);
     }
 
     protected function WriteAttributeString(string $Name, string $Value): bool
     {
         KernelZaehler::zaehle('WriteAttr:' . $Name);
+        if (!$this->attributeRegistriert) {
+            trigger_error('Attribute ' . $Name . ' is not registered', E_USER_WARNING);
+            return false;
+        }
         return parent::WriteAttributeString($Name, $Value);
     }
 
     protected function readResolvedConfigAttribute(): string|false
     {
-        return $this->resolvedConfigRegistriert ? parent::readResolvedConfigAttribute() : false;
+        return $this->attributeRegistriert ? parent::readResolvedConfigAttribute() : false;
     }
 
     protected function RegisterAttributeString(string $Name, string $DefaultValue): bool
     {
-        if ($Name === 'ResolvedConfig' && !$this->resolvedConfigRegistriert) {
+        if (!$this->attributeRegistriert) {
             // Im Stub existiert das Attribut schon; am nuc wäre es jetzt doppelt registriert.
             KernelZaehler::zaehle('RegisterAttr:' . $Name);
             return true;
@@ -394,7 +406,7 @@ function neueAusfuehrung(DeviceHarness|EntityHarness $alt): DeviceHarness|Entity
 
     $neu = new ($alt::class)($alt->id());
     $neu->erreichbarkeitsTimerRegistriert = $alt->erreichbarkeitsTimerRegistriert;
-    $neu->resolvedConfigRegistriert = $alt->resolvedConfigRegistriert;
+    $neu->attributeRegistriert = $alt->attributeRegistriert;
     $kern->setValue($neu, $zustand);
     $zustand->setGetTimeCallback(Closure::bind(fn(): int => $this->getTime(), $neu, IPSModuleStrict::class));
 

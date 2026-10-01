@@ -30,7 +30,7 @@ trait HADeviceCoreTrait
 
     public function UpdateMediaPlayerProgress(): void
     {
-        if (method_exists($this, 'isModuleRuntimeReady') && !$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated(__FUNCTION__)) {
             return;
         }
         $cache = $this->readEntityStateCache();
@@ -277,16 +277,24 @@ trait HADeviceCoreTrait
     }
 
     // Reload-Fenster: Beim Neuladen der Bibliothek kann eine Meldung oder ein Timer die Instanz
-    // treffen, während ihr Create() noch läuft — das Attribut ist dann (noch) nicht registriert.
-    // Hier nichts registrieren und nichts schreiben: Das folgende Create() scheiterte sonst an
-    // „Attribute ResolvedConfig is already registered" (Status 105), und die Konfiguration wäre
-    // mit [] überschrieben (nuc 01.10.2026, #36479). Create() und ApplyChanges folgen ohnehin.
-    protected function isResolvedConfigAttributeRegistered(string $context): bool
+    // treffen, während ihr Create() noch läuft — Attribute und Properties sind dann (noch) nicht
+    // registriert, jeder Zugriff warnt und liefert false (nuc 01.10.2026: trim(false),
+    // sprintf(false, …)). Deshalb prüft jeder Einstiegspunkt (ReceiveData, RequestAction, Timer,
+    // ApplyChanges) zuerst hier und tut im Fenster gar nichts: nichts registrieren (das folgende
+    // Create() scheiterte an „already registered", Status 105, #36479), nichts schreiben, nichts
+    // auswerten (eine leer gelesene Konfiguration machte ein totes Gerät „erreichbar").
+    // Create() und ApplyChanges folgen ohnehin.
+    //
+    // Merkmal ist ResolvedConfig, weil Create() es als Letztes registriert: Ist es da, ist alles da.
+    // Der Inhalt bleibt im Memo — der Aufrufer braucht ihn ohnehin, ein zweiter Lesezugriff entfällt.
+    protected function isInstanceCreated(string $context): bool
     {
-        if ($this->readResolvedConfigAttribute() !== false) {
+        $raw = $this->readResolvedConfigAttribute();
+        if ($raw !== false) {
+            $this->resolvedConfigRawMemo ??= $raw;
             return true;
         }
-        $this->debugExpert($context, 'ResolvedConfig noch nicht registriert (Reload-Fenster), übersprungen');
+        $this->debugExpert($context, 'Instanz noch nicht angelegt (Reload-Fenster), übersprungen');
         return false;
     }
 
@@ -496,7 +504,7 @@ trait HADeviceCoreTrait
         // Existenzprüfung und Lesen in EINEM Attribut-Zugriff (Hotpath: 1 Read pro Ausführung).
         $raw = $this->readResolvedConfigAttribute();
         if ($raw === false) {
-            // Reload-Fenster, siehe isResolvedConfigAttributeRegistered().
+            // Reload-Fenster, siehe isInstanceCreated().
             $this->debugExpert($context, 'ResolvedConfig noch nicht registriert (Reload-Fenster), leer gelesen');
             return '[]';
         }
@@ -613,7 +621,7 @@ trait HADeviceCoreTrait
 
     public function ReceiveData($JSONString): string
     {
-        if (method_exists($this, 'isModuleRuntimeReady') && !$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated(__FUNCTION__)) {
             return '';
         }
         $this->debugExpert(__FUNCTION__, 'MQTT Payload empfangen', ['Payload' => $JSONString]);
@@ -735,7 +743,7 @@ trait HADeviceCoreTrait
 
     public function RequestAction($Ident, $Value): void
     {
-        if (method_exists($this, 'isModuleRuntimeReady') && !$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated(__FUNCTION__)) {
             return;
         }
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
@@ -1744,6 +1752,9 @@ trait HADeviceCoreTrait
     }
     public function SyncStates(): void
     {
+        if (!$this->isInstanceCreated(__FUNCTION__)) {
+            return;
+        }
         $this->debugExpert(__FUNCTION__, 'Synchronisierung angefordert');
         $configData = $this->getConfiguredEntities(__FUNCTION__);
         if ($configData === []) {

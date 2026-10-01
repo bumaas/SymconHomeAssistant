@@ -13,8 +13,14 @@ declare(strict_types=1);
  * scheiterte an „Attribute ResolvedConfig is already registered", die evcc-Instanz #36479 blieb auf
  * Status 105, ihre Konfiguration war überschrieben.
  *
- * Erwartet: Im Fenster wird nichts registriert und nichts geschrieben; nach dem Create() läuft die
- * Instanz mit ihrer alten Konfiguration weiter.
+ * Im Fenster ist kein einziges Attribut registriert, nicht nur ResolvedConfig: Am nuc endeten
+ * dieselben Minuten auch mit trim(false) und sprintf(false, …) aus anderen Attributen
+ * (EntityStateCache, LastMQTTMessage, MQTTBaseTopic). Und eine leer gelesene Konfiguration ist
+ * keine Auskunft über das Gerät: Die Erreichbarkeitsprüfung hielt ein totes Gerät dann für
+ * erreichbar (seen = 0) und brachte den 10-Minuten-Sprung von build 168 zurück.
+ *
+ * Erwartet: Im Fenster wird nichts registriert, nichts geschrieben und kein Attribut gelesen; nach
+ * dem Create() läuft die Instanz mit ihrer alten Konfiguration weiter.
  */
 
 require_once __DIR__ . '/device-harness.php';
@@ -60,7 +66,12 @@ function imFenster(DeviceHarness|EntityHarness $instanz, callable $schritt): arr
 
 function unberuehrt(array $arbeit): bool
 {
-    return ($arbeit['RegisterAttr:' . ATTR] ?? 0) === 0 && ($arbeit['WriteAttr:' . ATTR] ?? 0) === 0;
+    foreach ($arbeit as $schluessel => $anzahl) {
+        if (str_starts_with($schluessel, 'RegisterAttr:') || str_starts_with($schluessel, 'WriteAttr:')) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // ---- Teil 1: Device — MQTT-Meldung im Reload-Fenster ----
@@ -74,22 +85,31 @@ $g = neuesGeraet([
 $konfiguration = $g->attribut(ATTR);
 pruefe(str_contains($konfiguration, 'sensor.abgewaehlt'), 'Setup: ResolvedConfig enthält auch die abgewählte Entität');
 
-$g->resolvedConfigRegistriert = false;
+$g->attributeRegistriert = false;
 [$arbeit, $abbruch] = imFenster($g, static fn($m) => $m->ReceiveData(mqttMeldung('statestream/sensor/temperatur/state', '21.5')));
 pruefe($abbruch === null, 'Device, Meldung im Fenster: kein Fehler', (string)$abbruch);
-pruefe(unberuehrt($arbeit), 'Device, Meldung im Fenster: ResolvedConfig weder registriert noch geschrieben', json_encode($arbeit));
+pruefe(unberuehrt($arbeit), 'Device, Meldung im Fenster: kein Attribut registriert oder geschrieben', json_encode($arbeit));
+
+// Nach einem Kernel-Neustart ist der State-Cache-Buffer leer — gelesen würde das Attribut.
+$g->pufferVerwerfen();
+[$arbeit, $abbruch] = imFenster($g, static fn($m) => $m->ReceiveData(mqttMeldung('statestream/sensor/temperatur/state', '21.5')));
+pruefe($abbruch === null, 'Device, Meldung im Fenster bei leerem Buffer: kein Fehler', (string)$abbruch);
+pruefe(unberuehrt($arbeit), 'Device, Meldung im Fenster bei leerem Buffer: kein Attribut registriert oder geschrieben', json_encode($arbeit));
+
+[$arbeit, $abbruch] = imFenster($g, static fn($m) => $m->UpdateMediaPlayerProgress());
+pruefe($abbruch === null, 'Device, Media-Timer im Fenster: kein Fehler', (string)$abbruch);
 pruefe($g->attribut(ATTR) === $konfiguration, 'Device, Meldung im Fenster: Konfiguration unverändert');
 
 // ---- Teil 2: Device — ApplyChanges im Reload-Fenster (DeferredApply, KR_READY) ----
 
 [$arbeit, $abbruch] = imFenster($g, static fn($m) => $m->ApplyChanges());
 pruefe($abbruch === null, 'Device, ApplyChanges im Fenster: kein Fehler', (string)$abbruch);
-pruefe(unberuehrt($arbeit), 'Device, ApplyChanges im Fenster: ResolvedConfig weder registriert noch geschrieben', json_encode($arbeit));
+pruefe(unberuehrt($arbeit), 'Device, ApplyChanges im Fenster: kein Attribut registriert oder geschrieben', json_encode($arbeit));
 pruefe($g->attribut(ATTR) === $konfiguration, 'Device, ApplyChanges im Fenster: Konfiguration unverändert');
 
 // ---- Teil 3: Nach dem Create() läuft das Device mit seiner Konfiguration weiter ----
 
-$g->resolvedConfigRegistriert = true;
+$g->attributeRegistriert = true;
 neueAusfuehrung($g)->ApplyChanges();
 neueAusfuehrung($g)->ReceiveData(mqttMeldung('statestream/sensor/temperatur/state', '22.5'));
 neueAusfuehrung($g)->RequestAction(HADeviceConstants::ACTION_STATE_CACHE_FLUSH, '');
@@ -103,15 +123,59 @@ $e = neueEntitaet(['EntityID' => 'sensor.temperatur']);
 $e->attributSetzen(ATTR, json_encode([$zeile('sensor.temperatur', true)], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 $konfiguration = $e->attribut(ATTR);
 
-$e->resolvedConfigRegistriert = false;
+$e->attributeRegistriert = false;
+$e->pufferVerwerfen();
 [$arbeit, $abbruch] = imFenster($e, static fn($m) => $m->ReceiveData(mqttMeldung('statestream/sensor/temperatur/state', '21.5')));
 pruefe($abbruch === null, 'Entity, Meldung im Fenster: kein Fehler', (string)$abbruch);
-pruefe(unberuehrt($arbeit), 'Entity, Meldung im Fenster: ResolvedConfig weder registriert noch geschrieben', json_encode($arbeit));
+pruefe(unberuehrt($arbeit), 'Entity, Meldung im Fenster: kein Attribut registriert oder geschrieben', json_encode($arbeit));
 
 [$arbeit, $abbruch] = imFenster($e, static fn($m) => $m->ApplyChanges());
 pruefe($abbruch === null, 'Entity, ApplyChanges im Fenster: kein Fehler', (string)$abbruch);
-pruefe(unberuehrt($arbeit), 'Entity, ApplyChanges im Fenster: ResolvedConfig weder registriert noch geschrieben', json_encode($arbeit));
+pruefe(unberuehrt($arbeit), 'Entity, ApplyChanges im Fenster: kein Attribut registriert oder geschrieben', json_encode($arbeit));
+
+[$arbeit, $abbruch] = imFenster($e, static fn($m) => $m->RequestAction(HADeviceConstants::ACTION_STATE_CACHE_FLUSH, ''));
+pruefe($abbruch === null, 'Entity, Flush-Timer im Fenster: kein Fehler', (string)$abbruch);
+pruefe(unberuehrt($arbeit), 'Entity, Flush-Timer im Fenster: kein Attribut registriert oder geschrieben', json_encode($arbeit));
 pruefe($e->attribut(ATTR) === $konfiguration, 'Entity im Fenster: Konfiguration unverändert');
+
+// ---- Teil 5: Totes Gerät — Erreichbarkeits- und Flush-Timer im Fenster ----
+// Ein Gerät, das schon als nicht erreichbar gilt, darf im Fenster nicht auf „erreichbar" springen:
+// Die leer gelesene Konfiguration hieße sonst „keine Entität gesehen" = erreichbar, und das folgende
+// ApplyChanges begänne die 600-s-Entprellung von vorn (ein Ereignis auf der Variable meldete
+// Erholung und zehn Minuten später erneut den Ausfall).
+
+$tot = neuesGeraet([
+    'SourceMode' => 'bundle',
+    'BundlePath' => $bundle,
+    'DeviceName' => 'Testgerät',
+    'DeviceID'   => 'devid_reload',
+]);
+DeviceHarness::$jetzt = 1000;
+neueAusfuehrung($tot)->ReceiveData(mqttMeldung('statestream/sensor/temperatur/state', 'unavailable'));
+neueAusfuehrung($tot)->RequestAction(HADeviceConstants::ACTION_STATE_CACHE_FLUSH, '');
+DeviceHarness::$jetzt = 1000 + HADeviceConstants::REACHABILITY_DELAY_S;
+neueAusfuehrung($tot)->RequestAction(HADeviceConstants::ACTION_REACHABILITY_CHECK, '');
+$reachable = HADeviceConstants::REACHABLE_IDENT;
+pruefe($tot->wert($reachable) === false, 'Setup: totes Gerät gilt als nicht erreichbar');
+
+$tot->attributeRegistriert = false;
+DeviceHarness::$jetzt = 5000;
+foreach ([HADeviceConstants::ACTION_REACHABILITY_CHECK => 'Erreichbarkeits-Timer', HADeviceConstants::ACTION_STATE_CACHE_FLUSH => 'Flush-Timer'] as $aktion => $text) {
+    [$arbeit, $abbruch] = imFenster($tot, static function ($m) use ($aktion): void {
+        if ($aktion === HADeviceConstants::ACTION_STATE_CACHE_FLUSH) {
+            $m->rufe('markReachabilityDirty', 'unavailable');
+        }
+        $m->RequestAction($aktion, '');
+    });
+    pruefe($abbruch === null, 'Totes Gerät, ' . $text . ' im Fenster: kein Fehler', (string)$abbruch);
+    pruefe($tot->wert($reachable) === false, 'Totes Gerät, ' . $text . ' im Fenster: bleibt nicht erreichbar');
+    pruefe(($arbeit['SetValue:' . $reachable] ?? 0) === 0, 'Totes Gerät, ' . $text . ' im Fenster: reachable nicht geschrieben', json_encode($arbeit));
+}
+
+$tot->attributeRegistriert = true;
+neueAusfuehrung($tot)->ApplyChanges();
+pruefe($tot->wert($reachable) === false, 'Totes Gerät nach Create(): bleibt nicht erreichbar');
+pruefe($tot->timer(HADeviceConstants::TIMER_REACHABILITY) === 0, 'Totes Gerät nach Create(): keine neue Entprellung');
 
 @unlink($bundle);
 

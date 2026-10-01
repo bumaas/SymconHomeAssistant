@@ -121,6 +121,16 @@ final class EntityMqttTopicRuntimeHarness implements HADeviceConstants
     {
     }
 
+    protected function isModuleRuntimeReady(): bool
+    {
+        return true;
+    }
+
+    protected function readResolvedConfigAttribute(): string|false
+    {
+        return '[]';
+    }
+
     protected function touchLastMqttMessage(): void
     {
     }

@@ -97,7 +97,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->RegisterAttributeString('LastMQTTMessage', '');
         $this->RegisterAttributeString('LastRESTFetch', '');
         $this->RegisterAttributeString('EntityStateCache', '{}');
-        $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
 
         // Eigenschaften
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
@@ -117,6 +116,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->registerMediaRefreshTimer();
         $this->registerStateCacheFlushTimer();
         $this->registerReachabilityTimer();
+
+        // Zuletzt: Merkmal „Create() durchgelaufen" für das Reload-Fenster, siehe isInstanceCreated().
+        $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
     }
 
     /**
@@ -158,11 +160,12 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
-        if (!$this->isResolvedConfigAttributeRegistered(__FUNCTION__)) {
+        // Property-Änderungen (z. B. DeviceName) fließen ins Naming ein — Cache verwerfen. Vor der
+        // Prüfung, damit deren Lesezugriff im Memo bleibt.
+        $this->invalidateConfiguredEntitiesCache();
+        if (!$this->isInstanceCreated(__FUNCTION__)) {
             return;
         }
-        // Property-Änderungen (z. B. DeviceName) fließen ins Naming ein — Cache verwerfen.
-        $this->invalidateConfiguredEntitiesCache();
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
             $this->debugExpert('ApplyChanges', 'Kernel noch nicht bereit. Initialisierung wird bis KR_READY verschoben.');
@@ -282,7 +285,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     public function ReceiveData(string $JSONString): string
     {
-        if (!$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated(__FUNCTION__)) {
             return '';
         }
         $data = $this->decodeJsonArray($JSONString, 'ReceiveData');
@@ -371,7 +374,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
      */
     public function RequestAction(string $Ident, $Value): void
     {
-        if (!$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated(__FUNCTION__)) {
             return;
         }
         $this->debugExpert(__FUNCTION__, 'Input', ['Ident' => $Ident, 'Value' => $Value], true);
