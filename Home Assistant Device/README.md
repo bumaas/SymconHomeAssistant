@@ -121,7 +121,8 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
 - Ein leerer Text ist bei `input_text` ein gültiger Wert und leert den Text in Home Assistant. Der Text geht unverändert an Home Assistant, auch mit Leerzeichen am Anfang oder Ende.
 - Eine Zahl wird gegen `min`/`max` geprüft, bevor sie für eine Ganzzahl-Variable abgeschnitten wird: 100,9 ist bei `max` 100 ungültig.
 - Einheiten und Suffixe werden aus `unit_of_measurement`, `native_unit_of_measurement`, `display_unit`, `unit` und `device_class` abgeleitet.
-- Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`.
+- Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`. Ein Name, der nur den Geräte- bzw. Instanznamen wiederholt, wird gekürzt (Licht „Stehlampe“ im Gerät „Stehlampe“ heißt „Status“). Bleibt danach nichts übrig, heißt die Variable wie die Entität in Home Assistant; nur wenn zwei Entitäten des Geräts so auf denselben Namen kämen, steht dort die Entity-ID.
+- Der Name wird nur beim Anlegen vergeben. Eine bestehende Variable benennt das Modul nie um — auch nicht nach einem Update. Eigene Namen bleiben so erhalten; ältere Versionen haben in Einzelfällen technische Namen wie `wintergarten_bass` oder `input_number.test_zahl` vergeben, die nach dem Update von Hand zu ändern sind.
 - Für `camera`, `image` und `media_player` können zusätzlich Medienobjekte entstehen:
   - Kamera-Vorschau
   - Kamera-Stream

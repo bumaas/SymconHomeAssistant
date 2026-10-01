@@ -60,7 +60,8 @@ Keine öffentlichen Funktionen.
 
 - Es wird die Hauptvariable für die Entität angelegt.
 - Je nach Domain kommen Zusatzvariablen hinzu, zum Beispiel `Power`, `Aktion`, `Lüfterstufe`, `Playback` oder `Event Type`.
-- Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`.
+- Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`. Heißt die Instanz wie die Entität, bekommt die Hauptvariable trotzdem den Namen der Entität (nicht die Entity-ID).
+- Der Name wird nur beim Anlegen vergeben; eine bestehende Variable benennt das Modul nie um, auch nicht nach einem Update. Ältere Versionen haben in Einzelfällen technische Namen wie `input_number.test_zahl` vergeben, die nach dem Update von Hand zu ändern sind.
 - Die Statusvariable `Erreichbar` (Ident `reachable`) steht auf **nicht erreichbar**, wenn die Entität in Home Assistant länger als 10 Minuten `unavailable` ist; Einzelheiten siehe `Home Assistant Device`.
 - Ein Wert, den die Entität nicht annimmt (z. B. eine Option außerhalb von `options` oder eine Zahl außerhalb von `min`/`max`), wird nicht gesendet; `RequestAction()` meldet einen Fehler mit dem Wert und den erlaubten Optionen bzw. dem erlaubten Bereich. Maßgeblich sind die zuletzt von Home Assistant gemeldeten Attribute. Ein leerer Text ist bei `input_text` ein gültiger Wert; der Text geht unverändert an Home Assistant, auch mit Leerzeichen am Anfang oder Ende. Eine Zahl wird vor dem Abschneiden auf eine Ganzzahl geprüft (100,9 ist bei `max` 100 ungültig). Die Aktion der Hauptvariable wird bei jedem `ApplyChanges()` abgeglichen.
 - Details zu den Domains siehe `Home Assistant Device`.
