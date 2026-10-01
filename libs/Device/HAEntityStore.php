@@ -246,6 +246,7 @@ trait HAEntityStoreTrait
 
     private function maintainReachableVariable(): void
     {
+        $isNew = @$this->GetIDForIdent(self::REACHABLE_IDENT) === false;
         $this->MaintainVariable(
             self::REACHABLE_IDENT,
             $this->Translate('Reachable'),
@@ -254,6 +255,12 @@ trait HAEntityStoreTrait
             9999,
             true
         );
+        // Eine neue Variable kennt keinen Ausfall: Mit dem Standardwert false gälte das Gerät schon als
+        // nicht erreichbar, und evaluateReachability übersprünge die Entprellung (Instanz während des
+        // HA-Neustarts angelegt, Update auf 1.5).
+        if ($isNew) {
+            $this->SetValue(self::REACHABLE_IDENT, true);
+        }
     }
 
     // Heißer Pfad: nur dann zur gebündelten Auswertung vormerken, wenn sich an der Erreichbarkeit

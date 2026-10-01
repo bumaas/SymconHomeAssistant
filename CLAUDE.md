@@ -42,6 +42,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Vorher sprang jedes tote Gerät nach Neuladen/Kernel-Neustart für 600 s auf „erreichbar"
   (Blindtest 01.10.2026 am nuc: Backofen, WLED, MYGGSPRAY) — ein Ereignis auf der Variable
   meldete so bei jedem Start Erholung und zehn Minuten später Ausfall.
+- Deshalb setzt `maintainReachableVariable()` eine **neu angelegte** Variable auf true (build 175):
+  Mit dem Standardwert false gälte sie als „schon nicht erreichbar", und eine Instanz, die während
+  des HA-Neustarts angelegt oder auf 1.5 gehoben wird, übersprünge die Entprellung.
 - Bekannte Lücke: Mit `EmulateStatus` überschreibt ein optimistischer Schreibvorgang
   (`applyOptimisticEntityValue`) den `raw_state` einer toten Entität; das Gerät gilt dann bis
   zur nächsten echten `unavailable`-Meldung als erreichbar.

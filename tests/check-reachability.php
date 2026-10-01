@@ -294,6 +294,30 @@ melde($g, 'sensor.b', '21.5');
 cacheFlush($g);
 pruefe($g->wert(REACHABLE) === true, 'Ausfall: erste gültige Meldung nach dem Neustart macht sofort erreichbar');
 
+// ---- Teil 11: eine neu angelegte Variable kennt keinen Ausfall ----
+// Code-Review build 168: Die Variable entsteht mit dem Standardwert false. Für „gilt schon als nicht
+// erreichbar, nichts abzuwarten" (Teil 10) hieß das: Eine Instanz, die während des nächtlichen
+// HA-Neustarts angelegt oder auf 1.5 gehoben wird, stand sofort auf „nicht erreichbar" — ohne
+// Entprellung, bis zur nächsten gültigen Meldung.
+
+$g = geraetMit(['sensor.a', 'sensor.b']);
+DeviceHarness::$jetzt = 1000;
+melde($g, 'sensor.a', 'unavailable');
+melde($g, 'sensor.b', 'unavailable');
+cacheFlush($g);
+// Stand vor dem Update auf 1.5: keine Variable, nach dem Neuladen leere Buffer.
+IPS_DeleteVariable((int)$g->variablenId(REACHABLE));
+$g->pufferVerwerfen();
+
+DeviceHarness::$jetzt = 2000;
+neueAusfuehrung($g)->ApplyChanges();
+pruefe($g->wert(REACHABLE) === true, 'Neue Variable: gilt zunächst als erreichbar', var_export($g->wert(REACHABLE), true));
+pruefe($g->timer(TIMER) > 0, 'Neue Variable: die Entprellung läuft');
+
+DeviceHarness::$jetzt = 2000 + $delay;
+timerLaeuftAb($g);
+pruefe($g->wert(REACHABLE) === false, 'Neue Variable: nach der Entprellzeit nicht erreichbar');
+
 foreach ($bundleDateien as $datei) {
     @unlink($datei);
 }
