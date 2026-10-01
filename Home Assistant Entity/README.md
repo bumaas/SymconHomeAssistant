@@ -32,6 +32,7 @@ Stellt genau eine Entität aus einer bestehenden Home-Assistant-Installation in 
 - Parent: Home Assistant Splitter.
 - Bestehende Home-Assistant-Installation als Quelle der Entität.
 - `EntityID` wird vom Configurator gesetzt oder manuell gepflegt.
+- Per Skript angelegt (`IPS_CreateInstance`) steht die Instanz auf Status 201, bis sie mit `IPS_ConnectInstance` an den Splitter gehängt ist; danach genügt `EntityID` und `IPS_ApplyChanges`.
 - Home Assistant `mqtt_statestream` ist aktiv.
 
 ## 3. Installation

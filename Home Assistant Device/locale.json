@@ -392,7 +392,8 @@
       "Media Player (media_player)": "Medienplayer (media_player)",
       "Lawn Mower (lawn_mower)": "Mähroboter (lawn_mower)",
       "Off": "Aus",
-      "On": "An"
+      "On": "An",
+      "Variable 'Reachable': off when all entities have reported 'unavailable' in Home Assistant for more than 10 minutes (bridges Home Assistant restarts); a single valid state turns it on again immediately.": "Variable „Erreichbar“: aus, wenn alle Entitäten in Home Assistant länger als 10 Minuten „unavailable“ melden (überbrückt Neustarts von Home Assistant); eine einzige gültige Meldung schaltet sie sofort wieder ein."
     }
   }
 }

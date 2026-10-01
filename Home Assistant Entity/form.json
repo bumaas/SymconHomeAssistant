@@ -9,6 +9,10 @@
           "type": "ValidationTextBox",
           "name": "EntityID",
           "caption": "Entity ID"
+        },
+        {
+          "type": "Label",
+          "caption": "Home Assistant entity ID, e.g. sensor.living_room_temperature. It is the only setting of the instance; name, domain, device and area are read from Home Assistant. The instance needs a Home Assistant Splitter as parent."
         }
       ]
     },
@@ -131,6 +135,10 @@
           "type": "Label",
           "name": "DiagEntityCount",
           "caption": "Entities (active): 0"
+        },
+        {
+          "type": "Label",
+          "caption": "Variable 'Reachable': off when all entities have reported 'unavailable' in Home Assistant for more than 10 minutes (bridges Home Assistant restarts); a single valid state turns it on again immediately."
         }
       ]
     },
@@ -147,7 +155,7 @@
     {
       "code": 201,
       "icon": "error",
-      "caption": "No compatible or active parent connected"
+      "caption": "No active Home Assistant Splitter connected as parent"
     },
     {
       "code": 202,

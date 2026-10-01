@@ -135,7 +135,10 @@
       "No compatible or active parent connected": "Kein kompatibler oder aktiver Parent verbunden",
       "Entity not found": "Entit\u00e4t nicht gefunden",
       "Entity invalid": "Entit\u00e4t ung\u00fcltig",
-      "never": "nie"
+      "never": "nie",
+      "Home Assistant entity ID, e.g. sensor.living_room_temperature. It is the only setting of the instance; name, domain, device and area are read from Home Assistant. The instance needs a Home Assistant Splitter as parent.": "Entitäts-ID aus Home Assistant, z. B. sensor.wohnzimmer_temperatur. Sie ist die einzige Einstellung der Instanz; Name, Domäne, Gerät und Bereich kommen aus Home Assistant. Die Instanz braucht einen Home Assistant Splitter als übergeordnete Instanz.",
+      "No active Home Assistant Splitter connected as parent": "Kein aktiver Home Assistant Splitter als übergeordnete Instanz verbunden",
+      "Variable 'Reachable': off when all entities have reported 'unavailable' in Home Assistant for more than 10 minutes (bridges Home Assistant restarts); a single valid state turns it on again immediately.": "Variable „Erreichbar“: aus, wenn alle Entitäten in Home Assistant länger als 10 Minuten „unavailable“ melden (überbrückt Neustarts von Home Assistant); eine einzige gültige Meldung schaltet sie sofort wieder ein."
     }
   }
 }
