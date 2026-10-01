@@ -440,22 +440,24 @@ trait HAEntityStoreTrait
 
         $ident = $this->getSharedEntityMainIdent($entityId);
         $type = $this->getVariableType($domain, $entity['attributes'] ?? []);
-        $existingId = @$this->GetIDForIdent($ident);
-        $exists = $existingId !== false;
-        $wasLegacy = $exists && str_ends_with(
-            trim((string)(IPS_GetObject((int)$existingId)['ObjectName'] ?? '')),
-            $this->getLegacyNameSuffix()
-        );
+        // Altnamen wandern nur im vollen Pfad (ApplyChanges läuft nach jedem Update ohnehin); der
+        // heiße Pfad spart sich dafür GetIDForIdent und IPS_GetObject je Attributmeldung.
+        $wasLegacy = false;
+        if ($initializeDescriptorValue) {
+            $existingId = @$this->GetIDForIdent($ident);
+            $wasLegacy = $existingId !== false && str_ends_with(
+                trim((string)(IPS_GetObject((int)$existingId)['ObjectName'] ?? '')),
+                $this->getLegacyNameSuffix()
+            );
+        }
         $presentation = $this->getEntityPresentation($domain, $entity, $type);
         $position = $this->getEntityMainVariablePosition($entity, $domain);
         $name = $this->getEntityVariableName($domain, $entity);
 
-        $this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
-        // Bei einem Typwechsel (z. B. number: step 1 → 0.5) legt der Kernel die Variable unter neuer
-        // ID an - ohne Aktion. Sie zählt dann als neu, auch im heißen Pfad.
-        if ($exists && $this->GetIDForIdent($ident) !== $existingId) {
-            $exists = false;
-        }
+        // IPSModuleStrict: true = die Variable wurde erstellt — neu, oder bei einem Typwechsel
+        // (z. B. number: step 1 → 0.5) unter neuer ID ohne Aktion. Beides zählt als neu, auch im
+        // heißen Pfad; ein Vorher/Nachher-Vergleich der ID kostete je Meldung einen Kernel-Aufruf.
+        $exists = !$this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
         if ($wasLegacy) {
             IPS_SetName($this->GetIDForIdent($ident), $name);
         }
@@ -467,6 +469,9 @@ trait HAEntityStoreTrait
         // Der volle Pfad (ApplyChanges) gleicht die Aktion auch bei bestehenden Variablen ab: Eine
         // Variable, die ihre Aktion verloren hat, bliebe sonst dauerhaft nicht schaltbar. Der heiße
         // Pfad (Zustandsmeldung) fasst sie weiterhin nur bei Domains mit wechselnder Schreibbarkeit an.
+        // Kosten: ein Enable/DisableAction je schreibbarer Hauptvariable und ApplyChanges. Vorher
+        // nachzusehen, ob die Aktion fehlt (IPS_GetVariable), kostete ebenso einen Aufruf und zöge
+        // eine geänderte Schreibbarkeit nicht nach (Code-Review build 167, Befund 7: bewusst so).
         if (!$exists || $wasLegacy || $initializeDescriptorValue || $this->shouldApplyDomainActionStateOnExisting($domain)) {
             $this->applyDomainActionState($domain, $ident, $entity);
         }

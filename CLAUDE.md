@@ -105,6 +105,13 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   die `MaintainVariable` wegen eines Typwechsels neu angelegt hat (ID-Vergleich in
   `syncEntityPresentation`). Vorher wurde sie nur beim Anlegen gesetzt; am nuc standen deshalb
   38 Slider-Variablen ohne Aktion da (01.10.2026).
+- Ob `MaintainVariable` die Variable (neu) erstellt hat, sagt ihr Rückgabewert (`IPSModuleStrict`,
+  laut Doku „ob die Variable erstellt wurde"; seit build 176 statt Vorher/Nachher-ID-Vergleich).
+  Dass ein Typwechsel als „erstellt" zählt, sagt die Doku nicht ausdrücklich — im Stub ist es so,
+  an einer Anlage noch nicht belegt. Der Harness liefert den Wert wie dokumentiert (der Stub
+  selbst immer true). Die Altnamen-Prüfung (`IPS_GetObject`) läuft nur noch im vollen Pfad.
+  `tests/check-action-contract.php` Teil 10 hält die Kosten einer Attributmeldung fest
+  (höchstens 3 `GetIDForIdent`).
 - Offen: Der Attribut-Pfad (`tryHandleAttributeFromTopic`) legt die Laufzeit-Entität ohne die
   konfigurierten Attribute an. Fehlen sie auch im State-Cache (ApplyChanges ohne REST-Antwort),
   rechnet der Typ einer `number` mit unvollständigen Attributen: Beim Einspielen der retained

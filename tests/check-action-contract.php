@@ -365,4 +365,20 @@ pruefe(
     (string)$meldung
 );
 
+// ---- Teil 10: Kosten des heißen Pfads (Code-Review build 167, Befund 8) ----
+// Die Typwechsel-Erkennung aus Teil 6 kostete je Attributmeldung ein zusätzliches GetIDForIdent;
+// davor lasen GetIDForIdent und IPS_GetObject (Altnamen-Prüfung) die Variable schon einmal. Bei
+// Attributfluten (1.250–2.800 Meldungen/min, Supportfall) ist jeder Kernel-Aufruf ~0,9 ms Wegzeit.
+// Gemessen am Stand build 175: 5 GetIDForIdent je Attributmeldung.
+
+[$geraet, $bundleFile] = testGeraet($zustaende);
+$numberIdent = ident($geraet, 'input_number.test_zahl');
+$vorher = KernelZaehler::stand();
+melde($geraet, 'input_number/test_zahl/unit_of_measurement', '"mm"');
+$arbeit = KernelZaehler::seit($vorher);
+pruefe(($arbeit['GetIDForIdent'] ?? 0) <= 3, 'Heißer Pfad: eine Attributmeldung ohne Typwechsel kostet höchstens 3 GetIDForIdent', json_encode($arbeit));
+pruefe(!isset($arbeit['VariableTypeChanged']) && !isset($arbeit['VariableCreated']), 'Heißer Pfad: die Variable bleibt dieselbe');
+pruefe($geraet->hatAktion($numberIdent), 'Heißer Pfad: die Aktion bleibt bestehen');
+@unlink($bundleFile);
+
 ergebnis();

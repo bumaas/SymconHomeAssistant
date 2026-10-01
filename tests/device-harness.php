@@ -317,10 +317,14 @@ trait ModulRahmenTrait
         $vorher = $this->variablenId($Ident);
         $ergebnis = parent::MaintainVariable($Ident, $Name, $Type, $ProfileOrPresentation, $Position, $Keep);
         $nachher = $this->variablenId($Ident);
-        if ($nachher !== null && $nachher !== $vorher) {
+        $erstellt = $nachher !== null && $nachher !== $vorher;
+        if ($erstellt) {
             KernelZaehler::zaehle($vorher === null ? 'VariableCreated' : 'VariableTypeChanged');
         }
-        return $ergebnis;
+        // Der Stub liefert immer true; IPSModuleStrict liefert laut Doku (SDK PHP, Modul), „ob die
+        // Variable erstellt wurde". Ein Typwechsel legt sie unter neuer ID an (im Stub belegt; die
+        // Doku nennt den Fall nicht ausdrücklich).
+        return $ergebnis && $erstellt;
     }
 
     protected function SetTimerInterval(string $Ident, int $Milliseconds): bool
