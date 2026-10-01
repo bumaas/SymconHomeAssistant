@@ -218,6 +218,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        $this->baseTopicMemo = null; // eine neue Konfiguration kann ein anderes Base-Topic tragen
         if (!$this->isInstanceCreated()) {
             return;
         }

@@ -61,7 +61,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->registerParentStatusTracking();
         $this->SetReceiveDataFilter('^$');
 
-        $this->RegisterPropertyString('SourceMode', self::SOURCE_MODE_MQTT);
         $this->RegisterPropertyString('MQTTDiscoveryPrefix', 'homeassistant');
         $this->RegisterPropertyString('BundlePath', '');
         $this->RegisterPropertyBoolean('BundleCurrentSessionOnly', false);
@@ -82,6 +81,31 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
         $this->RegisterAttributeString(self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP, '{}');
         $this->RegisterAttributeString(self::ATTRIBUTE_BUNDLE_STATE, '{}');
+
+        // Zuletzt: Merkmal „Create() durchgelaufen" für das Reload-Fenster, siehe isInstanceCreated().
+        $this->RegisterPropertyString('SourceMode', self::SOURCE_MODE_MQTT);
+    }
+
+    // Reload-Fenster: Beim Neuladen der Bibliothek kann eine Meldung, ein Befehl oder ein Timer die
+    // Instanz treffen, während ihr Create() noch läuft — Properties, Attribute und Timer sind dann
+    // nicht registriert, jeder Zugriff warnt und liefert false (Home Assistant Splitter, nuc
+    // 01.10.2026: trim(false)). Jeder Einstiegspunkt prüft deshalb zuerst hier und tut im Fenster
+    // nichts; Create() und ApplyChanges folgen ohnehin. Merkmal ist SourceMode, weil Create() es als
+    // Letztes registriert; jede Meldung liest es ohnehin (isBundleMode), die Prüfung kostet also
+    // keinen Kernel-Aufruf. ApplyChanges verwirft das Memo vorher (ActivateBundleMode ändert die
+    // Property und ruft IPS_ApplyChanges).
+    private string|false|null $sourceModeMemo = null;
+
+    private function isInstanceCreated(): bool
+    {
+        $this->sourceModeMemo ??= $this->readSourceModeProperty();
+        return $this->sourceModeMemo !== false;
+    }
+
+    // Naht für Tests: Der Stub deklariert ReadPropertyString als `: string` und liefert kein false.
+    protected function readSourceModeProperty(): string|false
+    {
+        return @$this->ReadPropertyString('SourceMode');
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -103,7 +127,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
-        if (!$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated()) {
             return;
         }
 
@@ -124,6 +148,11 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     public function ApplyChanges(): void
     {
+        $this->sourceModeMemo = null;
+        if (!$this->isInstanceCreated()) {
+            parent::ApplyChanges();
+            return;
+        }
         $startedAt = microtime(true);
         $this->logPerformanceMarker(__FUNCTION__, 'start', [
             'SourceMode' => $this->getSourceMode()
@@ -256,6 +285,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function RefreshDiscoveryDiagnostics(): void
     {
+        if (!$this->isInstanceCreated()) {
+            return;
+        }
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
         if ($this->isBundleMode()) {
             $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
@@ -816,7 +848,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     public function ForwardData(string $JSONString): string
     {
-        if (!$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated()) {
             return '';
         }
 
@@ -856,7 +888,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
-        if (!$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated()) {
             return '';
         }
 
@@ -1015,7 +1047,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function getSourceMode(): string
     {
-        $mode = strtolower(trim($this->ReadPropertyString('SourceMode')));
+        $mode = strtolower(trim($this->isInstanceCreated() ? (string)$this->sourceModeMemo : ''));
         return $mode === self::SOURCE_MODE_BUNDLE ? self::SOURCE_MODE_BUNDLE : self::SOURCE_MODE_MQTT;
     }
 
@@ -2099,6 +2131,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function DumpTopicStatistics(): void
     {
+        if (!$this->isInstanceCreated()) {
+            return;
+        }
         $now = time();
         $startedAt = (int)$this->GetBuffer(self::BUFFER_TOPIC_STATS_START);
         $elapsed = $startedAt > 0 ? max(1, $now - $startedAt) : 0;

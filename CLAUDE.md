@@ -80,13 +80,24 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   (`getBaseTopicProperty()`), jede Meldung liest ihn ohnehin. Bookkeeping-Topics kehren vor der
   Prüfung zurück und lesen bis dahin nur mit `@`. Anlass: Reload am nuc 01.10.2026 17:39:42,
   `trim(false)` in `recordSeenDomain`.
+- **MQTT Discovery** (seit build 179) nach demselben Muster: Splitter mit Merkmal Property
+  `SourceMode` (jede Meldung liest es über `isBundleMode`), Device mit Merkmal Attribut
+  `TopicProcessingIndex` (jede Meldung liest es in `getRuntimeProcessingContext`). Beide werden in
+  `Create()` als Letztes registriert. **Jedes Merkmal-Memo verwirft `ApplyChanges` vorher**
+  (`ActivateBundleMode` ändert `SourceMode` und ruft `IPS_ApplyChanges`), das Device zusätzlich
+  `writeTopicProcessingIndex()`.
+- **Regel für neue Module/Registrierungen:** Das Merkmal bleibt die letzte Registrierung in
+  `Create()`; ein neuer Einstiegspunkt (öffentliche Funktion, Timer-Ziel, `MessageSink`-Zweig)
+  prüft zuerst `isInstanceCreated()`.
 - Offen: Entladephase. Läuft beim Entladen noch eine Ausführung im alten Objekt, verschwindet das
   Instanz-Interface mittendrin (`Translate()` → false, nuc 17:39:40, Device #54477 in
   `maintainUnavailableEntitiesJsonVariable`). Die Eingangsprüfung greift dort nicht.
 - Test: `tests/check-reload-window.php`; der Harness stellt das Fenster mit
   `$attributeRegistriert = false` nach: Jeder Attributzugriff warnt, ResolvedConfig liefert über
   die Naht `readResolvedConfigAttribute()` false (der Stub deklariert `ReadAttributeString` als
-  `: string`). Properties simuliert er im Fenster nicht.
+  `: string`). Properties simuliert er bei Device/Entity im Fenster nicht. Splitter und MQTT
+  Discovery laufen über `FensterRahmenTrait` (Properties, Attribute und Timer warnen im Fenster;
+  das Merkmal liefert über die Naht des Moduls false), angelegt mit `neueFensterInstanz()`.
 
 ## Schalten (Device/Entity)
 

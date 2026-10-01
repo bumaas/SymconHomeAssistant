@@ -181,8 +181,8 @@ pruefe($tot->timer(HADeviceConstants::TIMER_REACHABILITY) === 0, 'Totes Gerät n
 // Reload 167 → 177 am nuc, 01.10.2026 17:39:42: „Property MQTTBaseTopic not found" und
 // trim(false) in recordSeenDomain (Splitter #37202). Der Splitter hatte keinen Schutz.
 
-/** Führt $schritt am Splitter in einer neuen Ausführung aus; liefert den Fehlertext oder null. */
-function splitterImFenster(SplitterHarness $s, callable $schritt): ?string
+/** Führt $schritt in einer neuen Ausführung aus; liefert den Fehlertext oder null. */
+function splitterImFenster(SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness $s, callable $schritt): ?string
 {
     try {
         $schritt(neueAusfuehrung($s));
@@ -198,7 +198,7 @@ $splitterMeldung = static fn(string $topic, string $payload): string => json_enc
     'Payload' => bin2hex($payload),
 ], JSON_THROW_ON_ERROR);
 
-$s = neuerSplitter();
+$s = neueFensterInstanz(SplitterHarness::class);
 $s->attributeRegistriert = false;
 $wege = [
     'Zustandsmeldung'      => static fn($m) => $m->ReceiveData($splitterMeldung('homeassistant/sensor/temperatur/state', '21.5')),
@@ -224,6 +224,55 @@ pruefe(
     'Splitter nach Create(): die Domäne der Meldung wird erfasst',
     $s->puffer('SeenDomains')
 );
+
+// ---- Teil 7 und 8: MQTT Discovery Splitter und Device ----
+// Beim Reload am nuc ohne Meldung davongekommen (2 Splitter, 14 Devices); der Code hatte aber
+// denselben ungeschützten Einstieg. Der Discovery-Splitter bekommt den ganzen Broker-Verkehr
+// (~13 Meldungen/s) und ist damit am ehesten im Fenster getroffen.
+
+$discoveryMeldung = static fn(string $dataId, string $topic, string $payload): string => json_encode([
+    'DataID'  => $dataId,
+    'Topic'   => $topic,
+    'Payload' => bin2hex($payload),
+], JSON_THROW_ON_ERROR);
+
+$ds = neueFensterInstanz(DiscoverySplitterHarness::class);
+$ds->attributeRegistriert = false;
+$wege = [
+    'Zustandsmeldung'      => static fn($m) => $m->ReceiveData($discoveryMeldung(HAIds::DATA_MQTT_RX, 'zigbee2mqtt/flur', '{"state":"ON"}')),
+    'Discovery-Config'     => static fn($m) => $m->ReceiveData($discoveryMeldung(HAIds::DATA_MQTT_RX, 'homeassistant/light/flur/light/config', '{"name":"Flur","state_topic":"zigbee2mqtt/flur"}')),
+    'Bookkeeping-Meldung'  => static fn($m) => $m->ReceiveData($discoveryMeldung(HAIds::DATA_MQTT_RX, 'homeassistant/sensor/x/last_changed', '"2026-10-01T17:39:42+00:00"')),
+    'Befehl eines Kindes'  => static fn($m) => $m->ForwardData($discoveryMeldung(HAIds::DATA_MQTT_DISCOVERY_DEVICE_TO_SPLITTER, 'zigbee2mqtt/flur/set', '{"state":"OFF"}')),
+    'ApplyChanges'         => static fn($m) => $m->ApplyChanges(),
+    'KR_READY'             => static fn($m) => $m->MessageSink(0, 0, IPS_KERNELMESSAGE, [KR_READY]),
+    'FM_CONNECT'           => static fn($m) => $m->MessageSink(0, 0, FM_CONNECT, [0]),
+    'Timer Diagnose'       => static fn($m) => $m->RefreshDiscoveryDiagnostics(),
+    'Timer Topic-Statistik' => static fn($m) => $m->DumpTopicStatistics(),
+];
+foreach ($wege as $weg => $schritt) {
+    $abbruch = splitterImFenster($ds, $schritt);
+    pruefe($abbruch === null, 'Discovery-Splitter, ' . $weg . ' im Fenster: kein Fehler', (string)$abbruch);
+}
+$ds->attributeRegistriert = true;
+$abbruch = splitterImFenster($ds, static fn($m) => $m->ReceiveData($discoveryMeldung(HAIds::DATA_MQTT_RX, 'zigbee2mqtt/flur', '{"state":"ON"}')));
+pruefe($abbruch === null, 'Discovery-Splitter nach Create(): Meldung wird ohne Fehler verarbeitet', (string)$abbruch);
+
+$dd = neueFensterInstanz(DiscoveryDeviceHarness::class);
+$dd->attributeRegistriert = false;
+$wege = [
+    'Meldung'        => static fn($m) => $m->ReceiveData($discoveryMeldung(HAIds::DATA_MQTT_DISCOVERY_SPLITTER_TO_DEVICE, 'zigbee2mqtt/flur', '{"state":"ON"}')),
+    'Schaltbefehl'   => static fn($m) => $m->RequestAction('light_flur', true),
+    'ApplyChanges'   => static fn($m) => $m->ApplyChanges(),
+    'KR_READY'       => static fn($m) => $m->MessageSink(0, 0, IPS_KERNELMESSAGE, [KR_READY]),
+    'FM_CONNECT'     => static fn($m) => $m->MessageSink(0, 0, FM_CONNECT, [0]),
+];
+foreach ($wege as $weg => $schritt) {
+    $abbruch = splitterImFenster($dd, $schritt);
+    pruefe($abbruch === null, 'Discovery-Device, ' . $weg . ' im Fenster: kein Fehler', (string)$abbruch);
+}
+$dd->attributeRegistriert = true;
+$abbruch = splitterImFenster($dd, static fn($m) => $m->ReceiveData($discoveryMeldung(HAIds::DATA_MQTT_DISCOVERY_SPLITTER_TO_DEVICE, 'zigbee2mqtt/flur', '{"state":"ON"}')));
+pruefe($abbruch === null, 'Discovery-Device nach Create(): Meldung wird ohne Fehler verarbeitet', (string)$abbruch);
 
 @unlink($bundle);
 

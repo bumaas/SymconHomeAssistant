@@ -124,7 +124,29 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterAttributeString(self::ATTR_AVAILABILITY_STATE, '{}');
         $this->RegisterAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION, '{}');
         $this->RegisterAttributeString(self::ATTR_STATE_WARNINGS, '{}');
+        // Zuletzt: Merkmal „Create() durchgelaufen" für das Reload-Fenster, siehe isInstanceCreated().
         $this->RegisterAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX, '{}');
+    }
+
+    // Reload-Fenster: Beim Neuladen der Bibliothek kann eine Meldung, ein Schaltbefehl oder ein Timer
+    // die Instanz treffen, während ihr Create() noch läuft — Properties, Attribute und Timer sind
+    // dann nicht registriert, jeder Zugriff warnt und liefert false (Home Assistant Splitter, nuc
+    // 01.10.2026: trim(false)). Jeder Einstiegspunkt prüft deshalb zuerst hier und tut im Fenster
+    // nichts; Create() und ApplyChanges folgen ohnehin. Merkmal ist TopicProcessingIndex, weil
+    // Create() es als Letztes registriert; jede Meldung liest es ohnehin
+    // (getRuntimeProcessingContext), die Prüfung kostet also keinen Kernel-Aufruf.
+    private string|false|null $topicIndexMemo = null;
+
+    private function isInstanceCreated(): bool
+    {
+        $this->topicIndexMemo ??= $this->readTopicProcessingIndexAttribute();
+        return $this->topicIndexMemo !== false;
+    }
+
+    // Naht für Tests: Der Stub deklariert ReadAttributeString als `: string` und liefert kein false.
+    protected function readTopicProcessingIndexAttribute(): string|false
+    {
+        return @$this->ReadAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX);
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -145,7 +167,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        if (!$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated()) {
             return;
         }
 
@@ -161,6 +183,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function ApplyChanges(): void
     {
+        $this->topicIndexMemo = null;
+        if (!$this->isInstanceCreated()) {
+            parent::ApplyChanges();
+            return;
+        }
         $startedAt = microtime(true);
         $this->logPerformanceMarker(__FUNCTION__, 'start', [
             'DeviceID' => $this->getConfiguredDeviceId()
@@ -264,7 +291,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function ReceiveData(string $JSONString): string
     {
-        if (!$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated()) {
             return '';
         }
         try {
@@ -318,7 +345,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function RequestAction($Ident, $Value): void
     {
-        if (!$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated()) {
             return;
         }
         $entities = $this->getConfiguredEntities();
@@ -493,7 +520,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function getRuntimeProcessingContext(): array
     {
         $definitionRaw = $this->ReadAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION);
-        $indexRaw = $this->ReadAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX);
+        $indexRaw = is_string($this->topicIndexMemo) ? $this->topicIndexMemo : $this->ReadAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX);
         $signature = strlen($definitionRaw) . ':' . crc32($definitionRaw) . '|' . strlen($indexRaw) . ':' . crc32($indexRaw);
 
         if (is_array($this->runtimeProcessingContextCache) && ($this->runtimeProcessingContextCache['signature'] ?? null) === $signature) {
@@ -2865,6 +2892,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function writeTopicProcessingIndex(array $index): void
     {
         $this->writeJsonAttribute(self::ATTR_TOPIC_PROCESSING_INDEX, $index);
+        $this->topicIndexMemo = null; // gelesen wird ab jetzt der neue Stand
     }
 
     private function updateReceiveFilter(array $topics): void

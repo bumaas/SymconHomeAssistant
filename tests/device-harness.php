@@ -24,6 +24,8 @@ require_once __DIR__ . '/stubs/autoload.php';
 require_once dirname(__DIR__) . '/Home Assistant Device/module.php';
 require_once dirname(__DIR__) . '/Home Assistant Entity/module.php';
 require_once dirname(__DIR__) . '/Home Assistant Splitter/module.php';
+require_once dirname(__DIR__) . '/Home Assistant MQTT Discovery Splitter/module.php';
+require_once dirname(__DIR__) . '/Home Assistant MQTT Discovery Device/module.php';
 
 // ---------------------------------------------------------------------------
 // Zähl-Registry: Arbeit statt Zeit messen
@@ -357,16 +359,14 @@ final class EntityHarness extends HomeAssistantEntity
 }
 
 /**
- * Splitter am Kernel-Stub, bisher nur für das Reload-Fenster. Im Fenster (attributeRegistriert =
- * false) warnt jeder Property-, Attribut- und Timer-Zugriff wie der Kernel (nuc 01.10.2026 17:39:42:
- * „Property MQTTBaseTopic not found" → trim(false)) und liefert den Leerwert seines Typs; das
- * Merkmal MQTTBaseTopic liefert über die Naht readBaseTopicProperty() false.
+ * Reload-Fenster für Module ohne eigenen Rahmen (Splitter, MQTT Discovery). Im Fenster
+ * (attributeRegistriert = false) warnt jeder Property-, Attribut- und Timer-Zugriff wie der Kernel
+ * (nuc 01.10.2026 17:39:42: „Property MQTTBaseTopic not found" → trim(false)) und liefert den
+ * Leerwert seines Typs. Das Merkmal des Moduls liefert über seine Naht false — der Stub deklariert
+ * die Lesefunktionen mit festem Rückgabetyp und kann kein false liefern.
  */
-final class SplitterHarness extends HomeAssistantSplitter
+trait FensterRahmenTrait
 {
-    public const string MODULE_ID = HAIds::MODULE_SPLITTER;
-    public const string MODULE_NAME = 'Home Assistant Splitter';
-
     public bool $attributeRegistriert = true;
 
     public function id(): int
@@ -391,11 +391,6 @@ final class SplitterHarness extends HomeAssistantSplitter
         }
         trigger_error($was . ' not found', E_USER_WARNING);
         return true;
-    }
-
-    protected function readBaseTopicProperty(): string|false
-    {
-        return $this->attributeRegistriert ? parent::readBaseTopicProperty() : false;
     }
 
     protected function ReadPropertyString(string $Name): string
@@ -439,15 +434,63 @@ final class SplitterHarness extends HomeAssistantSplitter
     }
 }
 
-/** Legt einen Splitter im Kernel-Stub an (ohne Parent: ApplyChanges endet bei Status 201). */
-function neuerSplitter(): SplitterHarness
+final class SplitterHarness extends HomeAssistantSplitter
+{
+    use FensterRahmenTrait;
+
+    public const string MODULE_ID = HAIds::MODULE_SPLITTER;
+    public const string MODULE_NAME = 'Home Assistant Splitter';
+    public const int MODULE_TYPE = MODULETYPE_SPLITTER;
+
+    protected function readBaseTopicProperty(): string|false
+    {
+        return $this->attributeRegistriert ? parent::readBaseTopicProperty() : false;
+    }
+}
+
+final class DiscoverySplitterHarness extends HomeAssistantMQTTDiscoverySplitter
+{
+    use FensterRahmenTrait;
+
+    public const string MODULE_ID = HAIds::MODULE_MQTT_DISCOVERY_SPLITTER;
+    public const string MODULE_NAME = 'Home Assistant MQTT Discovery Splitter';
+    public const int MODULE_TYPE = MODULETYPE_SPLITTER;
+
+    protected function readSourceModeProperty(): string|false
+    {
+        return $this->attributeRegistriert ? parent::readSourceModeProperty() : false;
+    }
+}
+
+final class DiscoveryDeviceHarness extends HomeAssistantMQTTDiscoveryDevice
+{
+    use FensterRahmenTrait;
+
+    public const string MODULE_ID = HAIds::MODULE_MQTT_DISCOVERY_DEVICE;
+    public const string MODULE_NAME = 'Home Assistant MQTT Discovery Device';
+    public const int MODULE_TYPE = MODULETYPE_DEVICE;
+
+    protected function readTopicProcessingIndexAttribute(): string|false
+    {
+        return $this->attributeRegistriert ? parent::readTopicProcessingIndexAttribute() : false;
+    }
+}
+
+/**
+ * Legt eine Instanz eines Moduls ohne eigenen Rahmen im Kernel-Stub an (ohne Parent).
+ *
+ * @template T of SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness
+ * @param class-string<T> $klasse
+ * @return T
+ */
+function neueFensterInstanz(string $klasse): SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness
 {
     $id = IPS\ObjectManager::registerObject(OBJECTTYPE_INSTANCE);
     IPS\InstanceManager::createInstance($id, [
-        'ModuleID'   => SplitterHarness::MODULE_ID,
-        'ModuleName' => SplitterHarness::MODULE_NAME,
-        'ModuleType' => MODULETYPE_SPLITTER,
-        'Class'      => SplitterHarness::class,
+        'ModuleID'   => $klasse::MODULE_ID,
+        'ModuleName' => $klasse::MODULE_NAME,
+        'ModuleType' => $klasse::MODULE_TYPE,
+        'Class'      => $klasse,
     ]);
     return IPS\InstanceManager::getInstanceInterface($id);
 }
@@ -496,17 +539,17 @@ function neueEntitaet(array $properties, array $attribute = ['MQTTBaseTopic' => 
  * Attribute, Buffer, Timer) bleibt. Greift dafür auf zwei private Felder des Stubs zu
  * (IPSModuleStrict::$module, IPS\InstanceManager::$interfaces) - bei einem neuen Stub-Pin prüfen.
  *
- * @template T of DeviceHarness|EntityHarness|SplitterHarness
+ * @template T of IPSModuleStrict
  * @param T $alt
  * @return T
  */
-function neueAusfuehrung(DeviceHarness|EntityHarness|SplitterHarness $alt): DeviceHarness|EntityHarness|SplitterHarness
+function neueAusfuehrung(IPSModuleStrict $alt): IPSModuleStrict
 {
     $kern = new ReflectionProperty(IPSModuleStrict::class, 'module');
     $zustand = $kern->getValue($alt);
 
     $neu = new ($alt::class)($alt->id());
-    if (!$alt instanceof SplitterHarness) {
+    if (property_exists($alt, 'erreichbarkeitsTimerRegistriert')) {
         $neu->erreichbarkeitsTimerRegistriert = $alt->erreichbarkeitsTimerRegistriert;
     }
     $neu->attributeRegistriert = $alt->attributeRegistriert;
