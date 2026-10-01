@@ -89,7 +89,10 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Debug) enden: unbekannter Ident, nicht schreibbare Entität, fehlgeschlagener REST-Aufruf.
 - Ungültig sind: Option außerhalb von `options`, nicht numerischer Wert oder Zahl außerhalb von
   `min`/`max` bei `number`, leerer Wert bei allen Domains außer `input_text` (dort heißt leer
-  „Text leeren"; deshalb `null` und nicht `''` als Kennzeichen). Nicht geprüft werden
+  „Text leeren"; deshalb `null` und nicht `''` als Kennzeichen). Ein Text geht auf REST- und
+  MQTT-Weg unverändert hinaus (bis build 173 kürzte der REST-Weg: „   " leerte den Text).
+  Der Zahlenbereich wird am ungekürzten Wert geprüft, erst danach wird für eine Ganzzahl
+  abgeschnitten (bis build 173 ging 100.9 bei max 100 als 100 durch). Nicht geprüft werden
   Textlänge und `pattern` bei `input_text` sowie Datumswerte.
 - Geprüft wird gegen `resolveMainEntityActionAttributes()`: Konfiguration (Stand des letzten
   `ApplyChanges`), überlagert vom State-Cache (Stand der letzten MQTT-Meldung). Ohne das galt

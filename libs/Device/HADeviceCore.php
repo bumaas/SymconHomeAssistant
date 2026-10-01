@@ -1611,15 +1611,16 @@ trait HADeviceCoreTrait
             $value = str_replace(',', '.', $normalized);
         }
 
-        $number = $this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER ? (int)$value : (float)$value;
         // HA lehnt einen Wert außerhalb von min/max ab; der REST-Aufruf scheitert dann ohne Rückmeldung.
+        // Geprüft wird der Wert vor dem Abschneiden auf eine Ganzzahl — sonst ginge 100.9 als 100 durch.
+        $requested = (float)$value;
         [$min, $max] = $this->getNumberRange($attributes);
-        if (($min !== null && $number < $min) || ($max !== null && $number > $max)) {
-            $this->debugExpert('Number', 'Wert außerhalb des Bereichs', ['Value' => $number, 'Min' => $min, 'Max' => $max], true);
+        if (($min !== null && $requested < $min) || ($max !== null && $requested > $max)) {
+            $this->debugExpert('Number', 'Wert außerhalb des Bereichs', ['Value' => $requested, 'Min' => $min, 'Max' => $max], true);
             return null;
         }
 
-        return (string)$number;
+        return (string)($this->inferNumberVariableType($attributes) === VARIABLETYPE_INTEGER ? (int)$value : $requested);
     }
 
     /** @return array{0: ?float, 1: ?float} */

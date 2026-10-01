@@ -284,6 +284,19 @@ pruefe(
     json_encode($sendungen)
 );
 
+// Code-Review build 167: Der REST-Weg kürzte den Text — „   " leerte ihn in HA, „ abc " kam als
+// „abc" an. Der MQTT-Weg sendet ihn seit jeher unverändert; beide Wege gleich.
+foreach (['   ', ' abc '] as $textWert) {
+    $meldung = requestActionFehler($geraet, $textIdent, $textWert);
+    $sendungen = HaSendungen::abholen();
+    pruefe(
+        $meldung === null
+        && $sendungen === [['rest', 'input_text', 'set_value', ['entity_id' => 'input_text.test_text', 'value' => $textWert]]],
+        'Text: „' . $textWert . '" geht unverändert an HA',
+        (string)$meldung . json_encode($sendungen)
+    );
+}
+
 $meldung = requestActionFehler($geraet, $numberIdent, false);
 pruefe(
     $meldung !== null && str_contains($meldung, '"false"'),
@@ -317,6 +330,11 @@ pruefe(
     (string)$meldung
 );
 pruefe(requestActionFehler($geraet, $numberIdent, -1) !== null, 'Zahl: -1 liegt unter min 0 und wird als Fehler gemeldet');
+// Code-Review build 167: Bei einer Ganzzahl lief der Vergleich erst nach dem Abschneiden — 100.9
+// ging als 100 durch, -0.5 als 0.
+pruefe(requestActionFehler($geraet, $numberIdent, 100.9) !== null, 'Zahl (Ganzzahl): 100.9 liegt über max 100 und wird als Fehler gemeldet');
+pruefe(requestActionFehler($geraet, $numberIdent, -0.5) !== null, 'Zahl (Ganzzahl): -0.5 liegt unter min 0 und wird als Fehler gemeldet');
+pruefe(requestActionFehler($geraet, $numberIdent, '100,5') !== null, 'Zahl (Ganzzahl): „100,5" liegt über max 100 und wird als Fehler gemeldet');
 pruefe(HaSendungen::abholen() === [], 'Zahl: abgewiesene Werte werden nicht gesendet');
 
 pruefe(requestActionFehler($geraet, $numberIdent, 0) === null, 'Zahl: die Untergrenze 0 ist gültig');
