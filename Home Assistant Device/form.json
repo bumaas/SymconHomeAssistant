@@ -243,10 +243,6 @@
           "type": "Label",
           "name": "DiagEntityCount",
           "caption": "Entities (active): 0"
-        },
-        {
-          "type": "Label",
-          "caption": "Variable 'Reachable': off when all entities have reported 'unavailable' in Home Assistant for more than 10 minutes (bridges Home Assistant restarts); a single valid state turns it on again immediately."
         }
       ]
     },
