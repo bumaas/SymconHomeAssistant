@@ -274,6 +274,36 @@ $dd->attributeRegistriert = true;
 $abbruch = splitterImFenster($dd, static fn($m) => $m->ReceiveData($discoveryMeldung(HAIds::DATA_MQTT_DISCOVERY_SPLITTER_TO_DEVICE, 'zigbee2mqtt/flur', '{"state":"ON"}')));
 pruefe($abbruch === null, 'Discovery-Device nach Create(): Meldung wird ohne Fehler verarbeitet', (string)$abbruch);
 
+// ---- Teil 9: Entladephase — der Parent wird abgebaut ----
+// Mitschnitt am nuc, Reload 01.10.2026 18:06:27: Der Splitter ging auf 105 (IS_NOTCREATED), jedes
+// der 40 Kinder plante daraufhin ein DeferredApply, fuhr ApplyChanges (Status 201) und wurde erst
+// danach entladen. Wen das Entladen mitten in ApplyChanges traf, endete mit einem Fatal
+// (Translate() → false; 17:39 #54477, 18:02 #49151, 18:06 #54477). Ein Parent auf 105 ist unser
+// eigener Splitter im Reload — das Kind wird im selben Reload neu angelegt, ApplyChanges folgt.
+// Hinweis: Der Stub führt IS_NOTCREATED als 201, laut Befehlsreferenz (IPS_GetInstance) ist es 105.
+
+$deferredGeplant = static fn(IPSModuleStrict $m): bool => $m->timer(HADeviceConstants::TIMER_DEFERRED_APPLY) > 0;
+$parentMeldet = static function (IPSModuleStrict $m, int $status): void {
+    neueAusfuehrung($m)->MessageSink(0, 0, IM_CHANGESTATUS, [$status]);
+};
+
+$kinder = [
+    'Device' => neuesGeraet(['SourceMode' => 'bundle', 'BundlePath' => $bundle, 'DeviceName' => 'Testgerät', 'DeviceID' => 'devid_reload']),
+    'Entity' => neueEntitaet(['EntityID' => 'sensor.temperatur']),
+];
+foreach ($kinder as $art => $kind) {
+    $parentMeldet($kind, IS_NOTCREATED);
+    pruefe(!$deferredGeplant($kind), $art . ': Parent wird abgebaut (IS_NOTCREATED) — kein ApplyChanges eingeplant');
+    $parentMeldet($kind, IS_INACTIVE);
+    pruefe($deferredGeplant($kind), $art . ': Gegenprobe Parent inaktiv — ApplyChanges eingeplant');
+}
+
+$dd = neueFensterInstanz(DiscoveryDeviceHarness::class);
+$parentMeldet($dd, IS_NOTCREATED);
+pruefe($dd->timer('DeferredApply') === 0, 'Discovery-Device: Parent wird abgebaut (IS_NOTCREATED) — kein ApplyChanges eingeplant');
+$parentMeldet($dd, IS_INACTIVE);
+pruefe($dd->timer('DeferredApply') > 0, 'Discovery-Device: Gegenprobe Parent inaktiv — ApplyChanges eingeplant');
+
 @unlink($bundle);
 
 ergebnis();

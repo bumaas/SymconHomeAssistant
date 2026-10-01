@@ -114,7 +114,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         // während des Bootlaufs ein, und dann darf die Meldung nicht verlorengehen
         // (Muster des HomeConnect-Moduls). Die Entprellung fängt flatternde Parents ab.
         if ($Message === IM_CHANGESTATUS) {
-            if (!$this->isNewParentStatus((int) ($Data[0] ?? 0))) {
+            if (!$this->isRelevantParentStatusChange((int) ($Data[0] ?? 0))) {
                 return;
             }
             $this->scheduleDeferredApply();

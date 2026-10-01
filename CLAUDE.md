@@ -89,9 +89,16 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - **Regel für neue Module/Registrierungen:** Das Merkmal bleibt die letzte Registrierung in
   `Create()`; ein neuer Einstiegspunkt (öffentliche Funktion, Timer-Ziel, `MessageSink`-Zweig)
   prüft zuerst `isInstanceCreated()`.
-- Offen: Entladephase. Läuft beim Entladen noch eine Ausführung im alten Objekt, verschwindet das
-  Instanz-Interface mittendrin (`Translate()` → false, nuc 17:39:40, Device #54477 in
-  `maintainUnavailableEntitiesJsonVariable`). Die Eingangsprüfung greift dort nicht.
+- **Entladephase** (seit build 180): Beim Reload geht unser Splitter auf **105 (`IS_NOTCREATED`)**,
+  bevor seine Kinder entladen werden (Mitschnitt nuc 01.10.2026 18:06:27). Bis build 179 plante
+  jedes Kind daraufhin ein `DeferredApply` und fuhr `ApplyChanges` (Status 201), wen das
+  Entladen mittendrin traf, endete mit einem Fatal (`Translate()` → false; bei drei Reloads
+  dreimal). Jetzt ignorieren Device, Entity und MQTT Discovery Device den Parent-Status 105
+  (`isRelevantParentStatusChange()`); die Splitter nicht, ihr Parent ist der MQTT Client des Kerns.
+- **Stub-Fehler:** `tests/stubs` (SymconStubs `bf2950f`) definiert `IS_NOTCREATED` als **201** —
+  Befehlsreferenz (`IPS_GetInstance`) und beide Anlagen sagen 105. In Tests fällt es damit auf
+  unseren Status 201 („Parent nicht aktiv"): Ein Test, der einem Kind den Parent-Status 201
+  meldet, sähe das Kind fälschlich nicht reagieren.
 - Test: `tests/check-reload-window.php`; der Harness stellt das Fenster mit
   `$attributeRegistriert = false` nach: Jeder Attributzugriff warnt, ResolvedConfig liefert über
   die Naht `readResolvedConfigAttribute()` false (der Stub deklariert `ReadAttributeString` als

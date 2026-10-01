@@ -136,6 +136,20 @@ trait HAParentConnectionTrait
         return true;
     }
 
+    /**
+     * Für Kinder unserer eigenen Splitter (Device, Entity, MQTT Discovery Device): Lohnt der
+     * Statuswechsel des Parents ein ApplyChanges? Nicht, wenn der Parent abgebaut wird
+     * (IS_NOTCREATED = 105 laut Befehlsreferenz, IPS_GetInstance; der Stub führt 201): Das ist
+     * unser Splitter beim Neuladen der Bibliothek, das Kind wird im selben Zug neu angelegt.
+     * Mitschnitt am nuc 01.10.2026 18:06:27 — jedes der 40 Kinder fuhr sonst beim Entladen noch
+     * ApplyChanges, und wen das Entladen mittendrin traf, endete mit einem Fatal
+     * (Translate() → false). Der Status wird trotzdem gemerkt, damit die Rückkehr als Wechsel zählt.
+     */
+    protected function isRelevantParentStatusChange(int $newStatus): bool
+    {
+        return $this->isNewParentStatus($newStatus) && $newStatus !== IS_NOTCREATED;
+    }
+
     private function syncParentStatusMessageRegistration(): void
     {
         $currentParentId = $this->getCurrentParentId();

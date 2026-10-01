@@ -379,6 +379,11 @@ trait FensterRahmenTrait
         return parent::GetBuffer($name);
     }
 
+    public function timer(string $ident): int
+    {
+        return parent::GetTimerInterval($ident);
+    }
+
     protected function getTime(): int
     {
         return 0;
