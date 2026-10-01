@@ -316,6 +316,14 @@ trait HAEntityStoreTrait
             $this->SetBuffer(self::BUFFER_REACHABILITY_SINCE, (string)$since);
         }
 
+        // Die Entprellung gilt nur für den Weg erreichbar → nicht erreichbar. Gilt das Gerät schon
+        // als nicht erreichbar, gibt es nichts abzuwarten — sonst sprang es nach jedem Neuladen
+        // und Kernel-Neustart (Buffer leer) für REACHABILITY_DELAY_S auf „erreichbar".
+        if ($this->GetValue(self::REACHABLE_IDENT) === false) {
+            $this->setReachabilityTimerInterval(0);
+            return;
+        }
+
         $remaining = $since + self::REACHABILITY_DELAY_S - $now;
         if ($remaining > 0) {
             $this->setReachabilityTimerInterval($remaining * 1000);

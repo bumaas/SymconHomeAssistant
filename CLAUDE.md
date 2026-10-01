@@ -37,6 +37,11 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   (`'0'` = erreichbar); ausgewertet wird gebündelt im StateCacheFlush bzw. per
   `ReachabilityTimer`. Der Beginn des Ausfalls liegt nur im Buffer — ein Kernel-Neustart
   startet die Entprellung neu (gewollt).
+- Die Entprellung gilt nur für den Weg erreichbar → nicht erreichbar. Steht `reachable` schon
+  auf false, bleibt es dabei, bis eine gültige Meldung kommt — auch wenn der Buffer leer ist.
+  Vorher sprang jedes tote Gerät nach Neuladen/Kernel-Neustart für 600 s auf „erreichbar"
+  (Blindtest 01.10.2026 am nuc: Backofen, WLED, MYGGSPRAY) — ein Ereignis auf der Variable
+  meldete so bei jedem Start Erholung und zehn Minuten später Ausfall.
 - Bekannte Lücke: Mit `EmulateStatus` überschreibt ein optimistischer Schreibvorgang
   (`applyOptimisticEntityValue`) den `raw_state` einer toten Entität; das Gerät gilt dann bis
   zur nächsten echten `unavailable`-Meldung als erreichbar.

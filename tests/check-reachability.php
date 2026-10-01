@@ -250,6 +250,50 @@ DeviceHarness::$jetzt = 100 + $delay;
 neueAusfuehrung($g)->rufe('evaluateReachability');
 pruefe($g->wert(REACHABLE) === false, 'Nach dem neuen Create(): der gemerkte Ausfall kippt die Variable');
 
+// ---- Teil 10: Ein bekannter Ausfall bleibt über ApplyChanges und Kernel-Neustart bestehen ----
+// Blindtest 01.10.2026 am nuc: Backofen, WLED, MYGGSPRAY — seit Monaten weg — sprangen nach dem
+// Neuladen für 10 Minuten auf „erreichbar". Die Entprellung gilt nur für den Weg erreichbar → nicht
+// erreichbar; ein Gerät, das schon als nicht erreichbar gilt, hat nichts abzuwarten.
+
+$g = geraetMit(['sensor.a', 'sensor.b']);
+DeviceHarness::$jetzt = 1000;
+melde($g, 'sensor.a', 'unavailable');
+melde($g, 'sensor.b', 'unavailable');
+cacheFlush($g);
+DeviceHarness::$jetzt = 1000 + $delay;
+timerLaeuftAb($g);
+pruefe($g->wert(REACHABLE) === false, 'Ausfall: nach der Entprellzeit nicht erreichbar');
+
+$schreibvorgaenge = [];
+DeviceHarness::$jetzt = 5000;
+$vorher = KernelZaehler::stand();
+neueAusfuehrung($g)->ApplyChanges();
+$schreibvorgaenge[] = KernelZaehler::seit($vorher)['SetValue:' . REACHABLE] ?? 0;
+pruefe($g->wert(REACHABLE) === false, 'Ausfall: bleibt nach ApplyChanges nicht erreichbar');
+
+$g->pufferVerwerfen();
+DeviceHarness::$jetzt = 6000;
+$vorher = KernelZaehler::stand();
+neueAusfuehrung($g)->ApplyChanges();
+$schreibvorgaenge[] = KernelZaehler::seit($vorher)['SetValue:' . REACHABLE] ?? 0;
+pruefe($g->wert(REACHABLE) === false, 'Ausfall: bleibt nach Kernel-Neustart nicht erreichbar');
+pruefe($g->timer(TIMER) === 0, 'Ausfall: nach Kernel-Neustart kein Timer, es gibt nichts abzuwarten');
+
+DeviceHarness::$jetzt = 6100;
+melde($g, 'sensor.a', 'unavailable');
+cacheFlush($g);
+$vorher = KernelZaehler::stand();
+DeviceHarness::$jetzt = 6000 + $delay;
+timerLaeuftAb($g);
+$schreibvorgaenge[] = KernelZaehler::seit($vorher)['SetValue:' . REACHABLE] ?? 0;
+pruefe($g->wert(REACHABLE) === false, 'Ausfall: weitere unavailable-Meldungen ändern nichts');
+pruefe(array_sum($schreibvorgaenge) === 0, 'Ausfall: reachable wird kein einziges Mal neu geschrieben (kein Ereignis für Anwender)', json_encode($schreibvorgaenge));
+
+DeviceHarness::$jetzt = 7000;
+melde($g, 'sensor.b', '21.5');
+cacheFlush($g);
+pruefe($g->wert(REACHABLE) === true, 'Ausfall: erste gültige Meldung nach dem Neustart macht sofort erreichbar');
+
 foreach ($bundleDateien as $datei) {
     @unlink($datei);
 }
