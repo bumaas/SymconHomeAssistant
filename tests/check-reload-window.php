@@ -177,6 +177,54 @@ neueAusfuehrung($tot)->ApplyChanges();
 pruefe($tot->wert($reachable) === false, 'Totes Gerät nach Create(): bleibt nicht erreichbar');
 pruefe($tot->timer(HADeviceConstants::TIMER_REACHABILITY) === 0, 'Totes Gerät nach Create(): keine neue Entprellung');
 
+// ---- Teil 6: Splitter — Meldungen, Befehle und Timer im Fenster ----
+// Reload 167 → 177 am nuc, 01.10.2026 17:39:42: „Property MQTTBaseTopic not found" und
+// trim(false) in recordSeenDomain (Splitter #37202). Der Splitter hatte keinen Schutz.
+
+/** Führt $schritt am Splitter in einer neuen Ausführung aus; liefert den Fehlertext oder null. */
+function splitterImFenster(SplitterHarness $s, callable $schritt): ?string
+{
+    try {
+        $schritt(neueAusfuehrung($s));
+    } catch (Throwable $e) {
+        return $e::class . ': ' . $e->getMessage();
+    }
+    return null;
+}
+
+$splitterMeldung = static fn(string $topic, string $payload): string => json_encode([
+    'DataID'  => HAIds::DATA_MQTT_RX,
+    'Topic'   => $topic,
+    'Payload' => bin2hex($payload),
+], JSON_THROW_ON_ERROR);
+
+$s = neuerSplitter();
+$s->attributeRegistriert = false;
+$wege = [
+    'Zustandsmeldung'      => static fn($m) => $m->ReceiveData($splitterMeldung('homeassistant/sensor/temperatur/state', '21.5')),
+    'Bookkeeping-Meldung'  => static fn($m) => $m->ReceiveData($splitterMeldung('homeassistant/sensor/temperatur/last_changed', '"2026-10-01T17:39:42+00:00"')),
+    'Befehl eines Kindes'  => static fn($m) => $m->ForwardData(json_encode(['DataID' => HAIds::DATA_DEVICE_TO_SPLITTER, 'PacketType' => 3, 'Topic' => 'homeassistant/light/flur/set', 'Payload' => bin2hex('ON')], JSON_THROW_ON_ERROR)),
+    'ApplyChanges'         => static fn($m) => $m->ApplyChanges(),
+    'KR_READY'             => static fn($m) => $m->MessageSink(0, 0, IPS_KERNELMESSAGE, [KR_READY]),
+    'Timer RestAck'        => static fn($m) => $m->CheckRestAcks(),
+    'Timer Topic-Statistik' => static fn($m) => $m->DumpTopicStatistics(),
+    'Timer Performance'    => static fn($m) => $m->DumpPerformanceStatistics(),
+    'Timer Diagnose'       => static fn($m) => $m->RefreshDiagnostics(),
+];
+foreach ($wege as $weg => $schritt) {
+    $abbruch = splitterImFenster($s, $schritt);
+    pruefe($abbruch === null, 'Splitter, ' . $weg . ' im Fenster: kein Fehler', (string)$abbruch);
+}
+
+$s->attributeRegistriert = true;
+$abbruch = splitterImFenster($s, static fn($m) => $m->ReceiveData($splitterMeldung('homeassistant/sensor/temperatur/state', '22.5')));
+pruefe($abbruch === null, 'Splitter nach Create(): Meldung wird ohne Fehler verarbeitet', (string)$abbruch);
+pruefe(
+    str_contains($s->puffer('SeenDomains'), 'sensor'),
+    'Splitter nach Create(): die Domäne der Meldung wird erfasst',
+    $s->puffer('SeenDomains')
+);
+
 @unlink($bundle);
 
 ergebnis();

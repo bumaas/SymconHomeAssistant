@@ -75,6 +75,14 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Merkmal ist ResolvedConfig, **deshalb registriert `Create()` es als Letztes** (nach Properties
   und Timern): Ist es da, ist alles da. Neue Registrierungen gehören davor. Der gelesene Inhalt
   bleibt im Memo, die Prüfung kostet im heißen Pfad keinen zusätzlichen Kernel-Aufruf.
+- **Splitter** (seit build 178) genauso über eigenes `isInstanceCreated()`: Merkmal ist die
+  Property `MQTTBaseTopic`, die `Create()` als Letztes registriert; der Wert bleibt im Memo
+  (`getBaseTopicProperty()`), jede Meldung liest ihn ohnehin. Bookkeeping-Topics kehren vor der
+  Prüfung zurück und lesen bis dahin nur mit `@`. Anlass: Reload am nuc 01.10.2026 17:39:42,
+  `trim(false)` in `recordSeenDomain`.
+- Offen: Entladephase. Läuft beim Entladen noch eine Ausführung im alten Objekt, verschwindet das
+  Instanz-Interface mittendrin (`Translate()` → false, nuc 17:39:40, Device #54477 in
+  `maintainUnavailableEntitiesJsonVariable`). Die Eingangsprüfung greift dort nicht.
 - Test: `tests/check-reload-window.php`; der Harness stellt das Fenster mit
   `$attributeRegistriert = false` nach: Jeder Attributzugriff warnt, ResolvedConfig liefert über
   die Naht `readResolvedConfigAttribute()` false (der Stub deklariert `ReadAttributeString` als
@@ -107,9 +115,11 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   38 Slider-Variablen ohne Aktion da (01.10.2026).
 - Ob `MaintainVariable` die Variable (neu) erstellt hat, sagt ihr Rückgabewert (`IPSModuleStrict`,
   laut Doku „ob die Variable erstellt wurde"; seit build 176 statt Vorher/Nachher-ID-Vergleich).
-  Dass ein Typwechsel als „erstellt" zählt, sagt die Doku nicht ausdrücklich — im Stub ist es so,
-  an einer Anlage noch nicht belegt. Der Harness liefert den Wert wie dokumentiert (der Stub
-  selbst immer true). Die Altnamen-Prüfung (`IPS_GetObject`) läuft nur noch im vollen Pfad.
+  Dass ein Typwechsel als „erstellt" zählt, sagt die Doku nicht ausdrücklich; **am nuc belegt**
+  (01.10.2026, 9.1 Rust, Entity #46169 „Test Zahl"): Schrittweite in HA 1 → 0,5 → 1 legte die
+  Variable zweimal unter neuer ID an (#56984 → #31609 → #41500), beide Male mit Aktion, Schalten
+  über die neue Variable lief bis HA durch. Der Harness liefert den Wert wie dokumentiert (der
+  Stub selbst immer true). Die Altnamen-Prüfung (`IPS_GetObject`) läuft nur noch im vollen Pfad.
   `tests/check-action-contract.php` Teil 10 hält die Kosten einer Attributmeldung fest
   (höchstens 3 `GetIDForIdent`).
 - Offen: Der Attribut-Pfad (`tryHandleAttributeFromTopic`) legt die Laufzeit-Entität ohne die

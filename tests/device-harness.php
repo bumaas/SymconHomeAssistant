@@ -23,6 +23,7 @@ require_once __DIR__ . '/harness.php';
 require_once __DIR__ . '/stubs/autoload.php';
 require_once dirname(__DIR__) . '/Home Assistant Device/module.php';
 require_once dirname(__DIR__) . '/Home Assistant Entity/module.php';
+require_once dirname(__DIR__) . '/Home Assistant Splitter/module.php';
 
 // ---------------------------------------------------------------------------
 // Zähl-Registry: Arbeit statt Zeit messen
@@ -356,6 +357,102 @@ final class EntityHarness extends HomeAssistantEntity
 }
 
 /**
+ * Splitter am Kernel-Stub, bisher nur für das Reload-Fenster. Im Fenster (attributeRegistriert =
+ * false) warnt jeder Property-, Attribut- und Timer-Zugriff wie der Kernel (nuc 01.10.2026 17:39:42:
+ * „Property MQTTBaseTopic not found" → trim(false)) und liefert den Leerwert seines Typs; das
+ * Merkmal MQTTBaseTopic liefert über die Naht readBaseTopicProperty() false.
+ */
+final class SplitterHarness extends HomeAssistantSplitter
+{
+    public const string MODULE_ID = HAIds::MODULE_SPLITTER;
+    public const string MODULE_NAME = 'Home Assistant Splitter';
+
+    public bool $attributeRegistriert = true;
+
+    public function id(): int
+    {
+        return $this->InstanceID;
+    }
+
+    public function puffer(string $name): string
+    {
+        return parent::GetBuffer($name);
+    }
+
+    protected function getTime(): int
+    {
+        return 0;
+    }
+
+    private function imFenster(string $was): bool
+    {
+        if ($this->attributeRegistriert) {
+            return false;
+        }
+        trigger_error($was . ' not found', E_USER_WARNING);
+        return true;
+    }
+
+    protected function readBaseTopicProperty(): string|false
+    {
+        return $this->attributeRegistriert ? parent::readBaseTopicProperty() : false;
+    }
+
+    protected function ReadPropertyString(string $Name): string
+    {
+        return $this->imFenster('Property ' . $Name) ? '' : parent::ReadPropertyString($Name);
+    }
+
+    protected function ReadPropertyBoolean(string $Name): bool
+    {
+        return $this->imFenster('Property ' . $Name) ? false : parent::ReadPropertyBoolean($Name);
+    }
+
+    protected function ReadPropertyInteger(string $Name): int
+    {
+        return $this->imFenster('Property ' . $Name) ? 0 : parent::ReadPropertyInteger($Name);
+    }
+
+    protected function ReadAttributeString(string $Name): string
+    {
+        return $this->imFenster('Attribute ' . $Name) ? '' : parent::ReadAttributeString($Name);
+    }
+
+    protected function ReadAttributeBoolean(string $Name): bool
+    {
+        return $this->imFenster('Attribute ' . $Name) ? false : parent::ReadAttributeBoolean($Name);
+    }
+
+    protected function WriteAttributeString(string $Name, string $Value): bool
+    {
+        return $this->imFenster('Attribute ' . $Name) ? false : parent::WriteAttributeString($Name, $Value);
+    }
+
+    protected function WriteAttributeBoolean(string $Name, bool $Value): bool
+    {
+        return $this->imFenster('Attribute ' . $Name) ? false : parent::WriteAttributeBoolean($Name, $Value);
+    }
+
+    protected function SetTimerInterval(string $Ident, int $Milliseconds): bool
+    {
+        return $this->imFenster('Timer ' . $Ident) ? false : parent::SetTimerInterval($Ident, $Milliseconds);
+    }
+}
+
+/** Legt einen Splitter im Kernel-Stub an (ohne Parent: ApplyChanges endet bei Status 201). */
+function neuerSplitter(): SplitterHarness
+{
+    $id = IPS\ObjectManager::registerObject(OBJECTTYPE_INSTANCE);
+    IPS\InstanceManager::createInstance($id, [
+        'ModuleID'   => SplitterHarness::MODULE_ID,
+        'ModuleName' => SplitterHarness::MODULE_NAME,
+        'ModuleType' => MODULETYPE_SPLITTER,
+        'Class'      => SplitterHarness::class,
+    ]);
+    return IPS\InstanceManager::getInstanceInterface($id);
+}
+
+/**
  * Legt eine Instanz im Kernel-Stub an (Create + ApplyChanges laufen in createInstance), setzt
  * Attribute und Properties und wendet sie an - wie Anlegen und Speichern in der Konsole.
  *
@@ -399,17 +496,19 @@ function neueEntitaet(array $properties, array $attribute = ['MQTTBaseTopic' => 
  * Attribute, Buffer, Timer) bleibt. Greift dafür auf zwei private Felder des Stubs zu
  * (IPSModuleStrict::$module, IPS\InstanceManager::$interfaces) - bei einem neuen Stub-Pin prüfen.
  *
- * @template T of DeviceHarness|EntityHarness
+ * @template T of DeviceHarness|EntityHarness|SplitterHarness
  * @param T $alt
  * @return T
  */
-function neueAusfuehrung(DeviceHarness|EntityHarness $alt): DeviceHarness|EntityHarness
+function neueAusfuehrung(DeviceHarness|EntityHarness|SplitterHarness $alt): DeviceHarness|EntityHarness|SplitterHarness
 {
     $kern = new ReflectionProperty(IPSModuleStrict::class, 'module');
     $zustand = $kern->getValue($alt);
 
     $neu = new ($alt::class)($alt->id());
-    $neu->erreichbarkeitsTimerRegistriert = $alt->erreichbarkeitsTimerRegistriert;
+    if (!$alt instanceof SplitterHarness) {
+        $neu->erreichbarkeitsTimerRegistriert = $alt->erreichbarkeitsTimerRegistriert;
+    }
     $neu->attributeRegistriert = $alt->attributeRegistriert;
     $kern->setValue($neu, $zustand);
     $zustand->setGetTimeCallback(Closure::bind(fn(): int => $this->getTime(), $neu, IPSModuleStrict::class));

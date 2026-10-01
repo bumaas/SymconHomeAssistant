@@ -109,7 +109,6 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->registerParentStatusTracking();
         $this->SetReceiveDataFilter('^$');
 
-        $this->RegisterPropertyString('MQTTBaseTopic', 'homeassistant');
         $this->RegisterPropertyString('HAUrl', 'http://homeassistant.local:8123');
         $this->RegisterPropertyString('HAToken', '');
         $this->RegisterPropertyInteger('RestAckTimeoutSec', 5);
@@ -132,6 +131,35 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $this->RegisterTimer(self::TIMER_TOPIC_STATS, 0, 'HA_DumpTopicStatistics($_IPS["TARGET"]);');
         $this->RegisterTimer(self::TIMER_PERF_STATS, 0, 'HA_DumpPerformanceStatistics($_IPS["TARGET"]);');
         $this->RegisterTimer(self::TIMER_DIAGNOSTICS_REFRESH, 0, 'HA_RefreshDiagnostics($_IPS["TARGET"]);');
+
+        // Zuletzt: Merkmal „Create() durchgelaufen" für das Reload-Fenster, siehe isInstanceCreated().
+        $this->RegisterPropertyString('MQTTBaseTopic', 'homeassistant');
+    }
+
+    // Reload-Fenster: Beim Neuladen der Bibliothek kann eine Meldung, ein Befehl oder ein Timer die
+    // Instanz treffen, während ihr Create() noch läuft — Properties, Attribute und Timer sind dann
+    // nicht registriert, jeder Zugriff warnt und liefert false (nuc 01.10.2026 17:39:42:
+    // „Property MQTTBaseTopic not found", trim(false) in recordSeenDomain). Jeder Einstiegspunkt
+    // prüft deshalb zuerst hier und tut im Fenster nichts; Create() und ApplyChanges folgen ohnehin.
+    // Merkmal ist MQTTBaseTopic, weil Create() es als Letztes registriert. Der Wert bleibt im Memo:
+    // Eine Meldung liest ihn ohnehin, die Prüfung kostet im heißen Pfad keinen Kernel-Aufruf.
+    private string|false|null $baseTopicMemo = null;
+
+    private function isInstanceCreated(): bool
+    {
+        $this->baseTopicMemo ??= $this->readBaseTopicProperty();
+        return $this->baseTopicMemo !== false;
+    }
+
+    // Naht für Tests: Der Stub deklariert ReadPropertyString als `: string` und liefert kein false.
+    protected function readBaseTopicProperty(): string|false
+    {
+        return @$this->ReadPropertyString('MQTTBaseTopic');
+    }
+
+    private function getBaseTopicProperty(): string
+    {
+        return $this->isInstanceCreated() ? (string)$this->baseTopicMemo : '';
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -190,6 +218,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        if (!$this->isInstanceCreated()) {
+            return;
+        }
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
@@ -201,7 +232,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         // aktiv ergibt — es gäbe also gar keinen Wechsel und die Kind-Instanzen bekämen kein
         // IM_CHANGESTATUS.
         $this->SetStatus(201);
-        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
+        $baseTopic = trim($this->getBaseTopicProperty());
 
         // Nur Topics unterhalb des Base-Topics annehmen: Ein breit abonnierender MQTT Client (z. B. '#')
         // reicht sonst den gesamten Broker-Verkehr herein, und jede fremde Nachricht kostet eine
@@ -245,7 +276,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     public function ForwardData(string $JSONString): string
     {
-        if (!$this->isModuleRuntimeReady()) {
+        if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated()) {
             return '';
         }
         try {
@@ -305,7 +336,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return '';
         }
         $dataId = $data['DataID'] ?? '';
-        if ($this->ReadPropertyBoolean('EnableExpertDebug')) {
+        // Bis zum Bookkeeping-Abzweig nur Lesezugriffe mit @ (Reload-Fenster): Diese Meldungen
+        // kehren vor der Prüfung zurück und sollen dafür keinen Kernel-Aufruf mehr kosten.
+        if ($this->isExpertDebugEnabled()) {
             $topic = (string)($data['Topic'] ?? '');
             $this->debugExpert('MQTT', 'ReceiveData | DataID=' . $dataId . ' | Topic=' . $topic);
         }
@@ -322,6 +355,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
             // dort ohnehin verworfen. Sie hier vor dem Broadcast abzuweisen erspart die teure synchrone
             // Weiterleitung an alle Kinder (jede Weiterleitung kostet messbar, das Ergebnis ist null).
             if (HADomainCatalog::isIgnorableBookkeepingTopic($topic)) {
+                return '';
+            }
+            if (!$this->isInstanceCreated()) {
                 return '';
             }
 
@@ -355,6 +391,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return '';
         }
 
+        if (!$this->isInstanceCreated()) {
+            return '';
+        }
         $this->SendDataToChildren($JSONString);
         return '';
     }
@@ -362,6 +401,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function CallService(string $domain, string $service, array $data): bool
     {
+        if (!$this->isInstanceCreated()) {
+            return false;
+        }
         $domain = trim($domain);
         $service = trim($service);
         if ($domain === '' || $service === '') {
@@ -486,7 +528,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         }
 
         $t = trim($topic, '/');
-        $base = trim($this->ReadPropertyString('MQTTBaseTopic'), '/');
+        $base = trim($this->getBaseTopicProperty(), '/');
         if ($base !== '') {
             if (!str_starts_with($t, $base . '/')) {
                 return;
@@ -521,6 +563,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function DumpPerformanceStatistics(): void
     {
+        if (!$this->isInstanceCreated()) {
+            return;
+        }
         $now = time();
         $startedAt = (int)$this->GetBuffer(self::BUFFER_PERF_STATS_START);
         $elapsed = $startedAt > 0 ? max(1, $now - $startedAt) : 0;
@@ -604,7 +649,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         if ($t === '') {
             return;
         }
-        $base = trim($this->ReadPropertyString('MQTTBaseTopic'), '/');
+        $base = trim($this->getBaseTopicProperty(), '/');
         if ($base !== '') {
             if (!str_starts_with($t, $base . '/')) {
                 return;
@@ -632,6 +677,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function DumpTopicStatistics(): void
     {
+        if (!$this->isInstanceCreated()) {
+            return;
+        }
         $now = time();
         $startedAt = (int)$this->GetBuffer(self::BUFFER_TOPIC_STATS_START);
         $elapsed = $startedAt > 0 ? max(1, $now - $startedAt) : 0;
@@ -694,6 +742,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function RefreshDiagnostics(): void
     {
+        if (!$this->isInstanceCreated()) {
+            return;
+        }
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
         if (!$this->ReadAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY)) {
             return;
@@ -1269,6 +1320,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
      */
     public function RunSelfTest(): string
     {
+        if (!$this->isInstanceCreated()) {
+            return '';
+        }
         $lines = [];
         $errors = 0;
         $warnings = 0;
@@ -1292,7 +1346,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
         // hasCompatibleParentModule(MQTT Client) wird von mehreren Checks benötigt -> einmal ermitteln.
         $hasMqttClientParent = $this->hasCompatibleParentModule(HAIds::MODULE_MQTT_CLIENT);
-        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
+        $baseTopic = trim($this->getBaseTopicProperty());
 
         $results = array_merge(
             $this->selfTestMqttParent(),
@@ -1646,6 +1700,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
     /** @noinspection PhpUnused */
     public function CheckRestAcks(): void
     {
+        if (!$this->isInstanceCreated()) {
+            return;
+        }
         $timeoutSec = $this->ReadPropertyInteger('RestAckTimeoutSec');
         if ($timeoutSec <= 0) {
             $this->SetTimerInterval(self::TIMER_RESTACK, 0);
@@ -1729,7 +1786,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function extractEntityIdFromTopic(string $topic): string
     {
-        $baseTopic = trim($this->ReadPropertyString('MQTTBaseTopic'));
+        $baseTopic = trim($this->getBaseTopicProperty());
         if ($baseTopic === '' || $topic === '') {
             return '';
         }
@@ -1781,7 +1838,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             'parentStatus'     => (int)($parent['ParentStatus'] ?? 0),
             'parentName'       => (string)($parent['ParentName'] ?? ''),
             'lastMqtt'         => $this->attributeOrFallback('LastMQTTMessage', $this->Translate('never')),
-            'baseTopic'        => trim($this->ReadPropertyString('MQTTBaseTopic')),
+            'baseTopic'        => trim($this->getBaseTopicProperty()),
             'lastRestError'    => $this->attributeOrFallback('LastRestError', $this->Translate('none')),
             'lastRestResponse' => $this->attributeOrFallback('LastRestResponse', $this->Translate('none')),
             'lastRestTimeout'  => $this->attributeOrFallback('LastRestTimeout', $this->Translate('none'))
