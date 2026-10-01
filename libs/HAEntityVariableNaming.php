@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 trait HAEntityVariableNamingTrait
 {
+    // Zählschlüssel für den eigenen Namen als letzten Ausweg; das NUL-Zeichen kommt in keinem
+    // Anzeigenamen vor, die Schlüssel können also nicht mit einem Basisnamen zusammenfallen.
+    private const string SHARED_OWN_NAME_COUNT_PREFIX = "\0own:";
+
     // base name (without dedup suffix) => number of entities in this instance sharing it
     private array $sharedEntityBaseNameCounts = [];
 
@@ -123,9 +127,35 @@ trait HAEntityVariableNamingTrait
         }
 
         // Der Name galt nur als Präfix des Instanz- oder Gerätenamens als leer (z. B. Entity-Instanz
-        // „Test Zahl" für input_number.test_zahl) — er ist trotzdem besser als die Entity-ID.
+        // „Test Zahl" für input_number.test_zahl) — er ist trotzdem besser als die Entity-ID. Fallen
+        // mehrere Entitäten der Instanz auf denselben Namen zurück, unterscheidet er nichts mehr;
+        // dann bleibt es bei der eindeutigen Entity-ID.
+        $ownName = $this->getSharedOwnNameFallback($entity);
+        if ($ownName !== null
+            && ($this->sharedEntityBaseNameCounts[$ownName] ?? 0)
+            + ($this->sharedEntityBaseNameCounts[self::SHARED_OWN_NAME_COUNT_PREFIX . $ownName] ?? 0) < 2) {
+            return $ownName;
+        }
+        return $this->getSharedEntityId($entity);
+    }
+
+    // Eigener Name einer Entität, deren Name nur aus dem Instanz- oder Gerätenamen besteht — sofern
+    // sie bis zum letzten Ausweg von getSharedDefaultEntityVariableName kommt (kein Domänen- und kein
+    // Geräteklassen-Ersatz). null = trifft nicht zu.
+    private function getSharedOwnNameFallback(array $entity): ?string
+    {
         $ownName = trim((string)($entity['name'] ?? ''));
-        return $ownName !== '' ? $ownName : $this->getSharedEntityId($entity);
+        if ($ownName === '' || $this->getSharedEntityBaseName($entity) !== '') {
+            return null;
+        }
+        $domain = HADomainCatalog::normalizeDomainAlias((string)($entity['domain'] ?? $entity['component'] ?? ''));
+        if ($this->getSharedDomainEntityVariableName($domain, $entity, false) !== null) {
+            return null;
+        }
+        if (HADomainCatalog::supportsDeviceClassNameFallback($domain) && $this->getSharedDeviceClassFallbackName($entity) !== null) {
+            return null;
+        }
+        return $ownName;
     }
 
     private function getSharedDeviceClassFallbackName(array $entity): ?string
@@ -261,6 +291,11 @@ trait HAEntityVariableNamingTrait
             }
             $baseName = $this->getSharedEntityBaseName($entity);
             if ($baseName === '') {
+                $ownName = $this->getSharedOwnNameFallback($entity);
+                if ($ownName !== null) {
+                    $key = self::SHARED_OWN_NAME_COUNT_PREFIX . $ownName;
+                    $counts[$key] = ($counts[$key] ?? 0) + 1;
+                }
                 continue;
             }
             $counts[$baseName] = ($counts[$baseName] ?? 0) + 1;

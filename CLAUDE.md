@@ -111,7 +111,10 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 - Hauptvariablen benennt `HAEntityVariableNamingTrait` (Device, Entity, MQTT Discovery), Regeln in
   `docs/ARCHITEKTUR.md`. Letzter Ausweg vor der `entity_id` ist der ungekürzte eigene Name
-  (build 171; Anlass: MCP-Blindtest, Hauptvariable hieß `input_number.test_zahl`).
+  (build 171; Anlass: MCP-Blindtest, Hauptvariable hieß `input_number.test_zahl`) — aber nur,
+  wenn ihn keine zweite Entität der Instanz ebenso als Ausweg nimmt (build 173, sonst gleichnamige
+  Variablen). Neue Zählschlüssel in `sharedEntityBaseNameCounts` verlangen einen neuen
+  `CONFIGURED_ENTITIES_CACHE_MARKER`, weil der Konfigurations-Cache die Zähler mitspeichert.
   Test: `tests/check-shared-entity-naming.php`.
 
 ## libs/

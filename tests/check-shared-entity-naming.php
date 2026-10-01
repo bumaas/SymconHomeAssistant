@@ -143,10 +143,28 @@ run('zigbee2mqtt light: humanized name slug-equal to device name => Status', [
 // der eigene Name der Entität ist der bessere letzte Ausweg.
 run('entity named like its instance keeps its name instead of the entity_id', [
     $e('input_number.stehlampe_max_m', 'input_number', 'Stehlampe Max M'),
-    $e('sensor.stehlampe_max_m', 'sensor', 'Stehlampe Max M'),
 ], [
     'input_number.stehlampe_max_m' => 'Stehlampe Max M',
-    'sensor.stehlampe_max_m'       => 'Stehlampe Max M',
+]);
+
+// Scenario 5: Fallen zwei Entitäten derselben Instanz auf denselben eigenen Namen zurück, ist er
+// kein Unterscheidungsmerkmal mehr (Code-Review build 171: beide hießen „Stehlampe Max M") —
+// dann bleibt es bei der eindeutigen Entity-ID.
+run('two entities falling back to the same own name keep their entity_ids', [
+    $e('input_number.stehlampe_max_m', 'input_number', 'Stehlampe Max M'),
+    $e('sensor.stehlampe_max_m', 'sensor', 'Stehlampe Max M'),
+], [
+    'input_number.stehlampe_max_m' => 'input_number.stehlampe_max_m',
+    'sensor.stehlampe_max_m'       => 'sensor.stehlampe_max_m',
+]);
+
+// Scenario 6: Eine Entität, die auf „Status" ausweicht, belegt den eigenen Namen nicht.
+run('a status fallback does not count as a collision', [
+    $e('light.stehlampe_max_m', 'light', 'Stehlampe Max M'),
+    $e('input_number.stehlampe_max_m', 'input_number', 'Stehlampe Max M'),
+], [
+    'light.stehlampe_max_m'        => 'Status',
+    'input_number.stehlampe_max_m' => 'Stehlampe Max M',
 ]);
 
 ergebnis();
