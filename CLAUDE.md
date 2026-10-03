@@ -207,6 +207,10 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Kachel-Visualisierung erkennt eine Instanz nur daran als Mediaplayer (Doku „Objekt-Darstellung",
   geprüft 03.10.2026; so seit build 29). Lautstärke, Stumm und Fortschritt gehen über Darstellungen
   mit `USAGE_TYPE`.
+- Die Lautstärke (0…1, Anzeige 0…100 per `ConversionFactor`) hängt im Anzeigeintervall „ %" an
+  (build 192): sonst lautete der formatierte Wert — den MCP zeigt — nur „60". Die Kachel zeigt das
+  „%" trotzdem nur einmal (am nuc mit eigener Darstellung an Sonos erprobt). Test:
+  `tests/check-volume-suffix.php`.
 
 ## Buttons und Diagnose (build 189, MCP-Punkt H5)
 

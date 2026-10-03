@@ -147,8 +147,10 @@ final class HAMediaPlayerDefinitions
                 'ConversionFactor' => 0.01,
                 'PrefixActive' => false,
                 'PrefixValue' => '',
-                'SuffixActive' => false,
-                'SuffixValue' => '',
+                // „ %" für den formatierten Wert (MCP, Listen); die Kachel zeigt es trotzdem nur einmal
+                // (am nuc erprobt 03.10.2026).
+                'SuffixActive' => true,
+                'SuffixValue' => ' %',
                 'DigitsActive' => false,
                 'DigitsValue' => 0,
                 'IconActive' => false,

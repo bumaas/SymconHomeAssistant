@@ -174,7 +174,7 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
 - `humidifier`
   Hauptvariable Ein/Aus; Attribute `target_humidity`, `current_humidity`, `mode` und `action`.
 - `media_player`
-  Read-only-Status, zusätzliche Attribute gemäß `supported_features`, zusätzliche `Playback`- und `Power`-Variable, Cover-Medienobjekt.
+  Read-only-Status, zusätzliche Attribute gemäß `supported_features`, zusätzliche `Playback`- und `Power`-Variable, Cover-Medienobjekt. Die Variablen sind so angelegt, dass die Kachel-Visualisierung eine Mediaplayer-Kachel baut (Wiedergabe, Titel und Interpret tragen dafür die Systemprofile `~PlaybackPreviousNext`, `~Song`, `~Artist`). Die Lautstärke zeigt Prozent (seit 1.5 build 192 auch im Wert selbst, z. B. „60 %").
 - `camera`
   Status-Hauptvariable, Kamera-Vorschau (Standbild über `…/api/camera_proxy/<entity_id>`),
   Stream-Medienobjekt und zusätzliche `Power`-Variable bei `FEATURE_ON_OFF`.
