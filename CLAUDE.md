@@ -175,7 +175,8 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 ## Veraltete Variablen (Device)
 
 - Was das Modul nicht mehr versorgt, wird nicht gelöscht, sondern „(veraltet)": Zusatz am Namen,
-  Aktion weg (`markVariableAsLegacy`). Entscheidend ist allein der Ident, nie der Name — vom
+  Aktion weg (`markVariableAsLegacy`). **Löschen ist Sache des Anwenders** — kein Löschknopf, keine
+  Automatik (Abstimmung Burkhard 03.10.2026; Archivdaten und Verweise gehören dem Anwender). Entscheidend ist allein der Ident, nie der Name — vom
   Anwender geänderte Namen behalten ihren Text.
 - `cleanupManagedEntityObjects()` (Device `module.php`) läuft bei jedem `ApplyChanges` und ordnet
   jede Variable per Longest-Prefix dem Präfix einer Entität zu: aktiv → bleibt, nur altes/inaktives
