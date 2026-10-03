@@ -199,6 +199,9 @@ final class HAMediaPlayerDefinitions
             'type' => VARIABLETYPE_STRING,
             'writable' => false
         ],
+        // ~Artist und ~Song sind Absicht, keine Altlast: Die Kachel-Visualisierung erkennt eine Instanz
+        // nur über diese Systemprofile als Mediaplayer (Doku „Objekt-Darstellung", Media Player);
+        // eine Darstellung als Ersatz gibt es nicht (geprüft 03.10.2026).
         'media_artist' => [
             'caption' => 'Artist',
             'type' => VARIABLETYPE_STRING,

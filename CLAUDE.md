@@ -200,6 +200,14 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `removed_entities_ccu3_20261003.json`). Das Entity-Modul hat einen eigenen Pfad
   (`cleanupRenamedSharedEntityObjects`), am nuc ohne Doppelgänger.
 
+## Mediaplayer-Kachel: Profile sind Absicht
+
+- „Wiedergabe" (`~PlaybackPreviousNext`), „Titel" (`~Song`) und „Interpret" (`~Artist`) tragen
+  Systemprofile über `VARIABLE_PRESENTATION_LEGACY`. Nicht auf Darstellungen umstellen: Die
+  Kachel-Visualisierung erkennt eine Instanz nur daran als Mediaplayer (Doku „Objekt-Darstellung",
+  geprüft 03.10.2026; so seit build 29). Lautstärke, Stumm und Fortschritt gehen über Darstellungen
+  mit `USAGE_TYPE`.
+
 ## Buttons und Diagnose (build 189, MCP-Punkt H5)
 
 - Ein Button meldet als Zustand den Zeitpunkt des letzten Drückens. Den Druck zeigt die

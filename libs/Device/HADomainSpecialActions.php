@@ -857,6 +857,8 @@ trait HADomainSpecialActionsTrait
         $exists = @$this->GetIDForIdent($ident) !== false;
         $position = $this->getMediaPlayerOrderPosition($this->getEntityPosition($context['entityId']), 'action');
 
+        // Profil statt Darstellung ist Absicht: Ohne ein ~Playback…-Profil auf „Wiedergabe" (Integer,
+        // mit Aktion) baut die Kachel-Visualisierung keine Mediaplayer-Kachel (Doku „Objekt-Darstellung").
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_LEGACY,
             'PROFILE'      => '~PlaybackPreviousNext'
