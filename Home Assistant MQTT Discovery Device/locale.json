@@ -185,7 +185,13 @@
       "Button": "Taster",
       "Text": "Text",
       "Light": "Licht",
-      "Event": "Ereignis"
+      "Event": "Ereignis",
+      "Announced again via MQTT Discovery": "Wieder per MQTT Discovery angekündigt",
+      "Not announced: the device has not been announced via MQTT Discovery for at least %d minutes. Check the device or delete the instance.": "Nicht angekündigt: Das Gerät wird seit mindestens %d Minuten nicht per MQTT Discovery angekündigt. Gerät prüfen oder Instanz löschen.",
+      "Reachable": "Erreichbar",
+      "Not reachable": "Nicht erreichbar",
+      "Reachable again": "Wieder erreichbar",
+      "Not reachable: all entities report offline via MQTT (availability). Check the device or its bridge.": "Nicht erreichbar: Alle Entitäten melden per MQTT „offline\" (availability). Gerät oder Bridge prüfen."
     }
   }
 }

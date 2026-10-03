@@ -393,6 +393,11 @@ trait FensterRahmenTrait
         parent::WriteAttributeString($name, $wert);
     }
 
+    public function status(): int
+    {
+        return IPS_GetInstance($this->InstanceID)['InstanceStatus'];
+    }
+
     /** Ruft eine private Methode des Moduls auf. */
     public function rufe(string $methode, mixed ...$argumente): mixed
     {
@@ -503,6 +508,26 @@ final class DiscoveryDeviceHarness extends HomeAssistantMQTTDiscoveryDevice
     protected function readTopicProcessingIndexAttribute(): string|false
     {
         return $this->attributeRegistriert ? parent::readTopicProcessingIndexAttribute() : false;
+    }
+
+    /** Antwort des Discovery-Splitters auf GetDiscoveryConfigs (null = Stub fragen). */
+    public static ?array $splitterAntwort = null;
+
+    /** Parent gilt als aktiv, ohne einen Splitter mit Broker aufzubauen. */
+    public static bool $parentAktiv = false;
+
+    protected function SendDataToParent(string $Data): string
+    {
+        $anfrage = json_decode($Data, true);
+        if (self::$splitterAntwort !== null && ($anfrage['DiscoveryAction'] ?? '') === 'GetDiscoveryConfigs') {
+            return json_encode(self::$splitterAntwort, JSON_THROW_ON_ERROR);
+        }
+        return parent::SendDataToParent($Data);
+    }
+
+    protected function HasActiveParent(): bool
+    {
+        return self::$parentAktiv || parent::HasActiveParent();
     }
 }
 

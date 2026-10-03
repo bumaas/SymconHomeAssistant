@@ -238,6 +238,35 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Test: `tests/check-diagnostic-labels.php`; der Testrahmen schneidet dafür `UpdateFormField` mit
   (`DeviceHarness::$formularFelder`).
 
+## MQTT Discovery: nicht mehr angekündigte Geräte (build 194)
+
+- Kennt der Splitter das Gerät nicht, fällt `resolveRuntimeDeviceDefinition()` auf die gespeicherte
+  Definition zurück — das ist für Neustarts gewollt, hatte aber kein Ende: Ein verschwundenes Gerät blieb
+  dauerhaft auf 102.
+- Jetzt kennzeichnet `markNotAnnounced()` den Rückfall samt `SessionStartedAt` aus der Splitter-Antwort
+  (`buildDiscoveryResponse`); `evaluateAnnouncementStatus()` setzt 202 + eine Warnung, wenn die Sitzung
+  seit `NOT_ANNOUNCED_GRACE_S` (600 s) läuft, sonst 102 mit Nachprüfung nach Ablauf. Nachgeprüft wird
+  über den Timer `DeferredApply` (ruft `IPS_ApplyChanges`) — eine neue Ankündigung löst sonst kein
+  `ApplyChanges` aus. Die Kennzeichen werden nicht mit der Definition gespeichert.
+- Test: `tests/check-discovery-not-announced.php`; `DiscoveryDeviceHarness` gibt dafür die
+  Splitter-Antwort (`$splitterAntwort`) und einen aktiven Parent (`$parentAktiv`) vor.
+
+## MQTT Discovery: Erreichbar (build 195)
+
+- Discovery-Geräte mit availability-Topic bekommen `reachable` (`maintainReachableVariable`,
+  `evaluateReachability`): nicht erreichbar, wenn alle Entitäten mit bekanntem Stand offline melden,
+  unbekannt zählt nicht; Wechsel als `KL_WARNING`/`KL_MESSAGE`; keine Entprellung (die Bridge hat ihre
+  eigene Frist); Status bleibt 102. Ausgewertet in `ApplyChanges` (nach den gecachten Payloads) und in
+  `ReceiveData`, wenn `diagnostics_changed`.
+- **Bundle-Modus des Splitters:** Er spielt eine Momentaufnahme ab (am nuc: Anwender-Bundle zum Testen).
+  Werte, Verfügbarkeit und „nicht angekündigt" zeigen dann den Stand des Bundles, nicht die Gegenwart.
+  Befunde an Geräten unter einem Bundle-Splitter sind keine Befunde über die Anlage — vorher den Modus
+  prüfen (`HAMD_RunSelfTest`: „Quelle: Bundle"). Fixtures daraus sind Anwenderdaten: neutralisieren.
+- **`cleanupObsoleteVariables()` kennt nur Entitäts-Idents** — jede Variable, die nicht
+  `maintainEntityVariables` pflegt, muss dort ausdrücklich als aktiv übergeben werden, sonst wird sie
+  beim nächsten `ApplyChanges` „(veraltet)" (so bei `reachable` im Test gefunden).
+- Test: `tests/check-discovery-reachability.php` (Fixture `discovery_availability_20261003.json`).
+
 ## Variablennamen
 
 - Hauptvariablen benennt `HAEntityVariableNamingTrait` (Device, Entity, MQTT Discovery), Regeln in

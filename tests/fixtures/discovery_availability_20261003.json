@@ -1,0 +1,240 @@
+{
+    "quelle": "Anwender-Bundle (Discovery-Splitter im Bundle-Modus, 03.10.2026), neutralisiert: Raumpfade, eigener Basis-Topic und Zigbee-Adressen durch Platzhalter ersetzt (Raum/Heizkoerper, Raum/Nachbar, zigbee2mqtt, 0x…a1/0x…b2). Struktur, Gerätetyp (Bosch Radiator thermostat II), Entitäten, availability-Angaben (zwei Topics, Modus all) und das Payload-Format sind unverändert.",
+    "discovery_configs": [
+        {
+            "topic": "homeassistant/binary_sensor/0x00000000000000a1/automatic_valve_adapt/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"default_entity_id\":\"binary_sensor.raum/heizkoerper_automatic_valve_adapt\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"diagnostic\",\"name\":\"Automatic valve adaptation requested\",\"object_id\":\"raum/heizkoerper_automatic_valve_adapt\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"payload_off\":false,\"payload_on\":true,\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_automatic_valve_adapt_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"automatic_valve_adapt\\\"] }}\"}",
+            "received_at": 1778733749,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/0x00000000000000a1/battery_low/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"default_entity_id\":\"binary_sensor.raum/heizkoerper_battery_low\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"device_class\":\"battery\",\"entity_category\":\"diagnostic\",\"object_id\":\"raum/heizkoerper_battery_low\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"payload_off\":false,\"payload_on\":true,\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_battery_low_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"battery_low\\\"] }}\"}",
+            "received_at": 1778733765,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/button/0x00000000000000a1/valve_adapt_process/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/valve_adapt_process\",\"default_entity_id\":\"button.raum/heizkoerper_valve_adapt_process\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"config\",\"name\":\"Trigger adaptation process\",\"object_id\":\"raum/heizkoerper_valve_adapt_process\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"payload_press\":\"adapt\",\"unique_id\":\"0x00000000000000a1_valve_adapt_process_zigbee2mqtt\"}",
+            "received_at": 1778733754,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/climate/0x00000000000000a1/climate/config",
+            "payload": "{\"action_template\":\"{% set values = {None:None,'idle':'idle','heat':'heating','cool':'cooling','fan_only':'fan'} %}{{ values[value_json[\\\"running_state\\\"]] }}\",\"action_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"current_temperature_template\":\"{{ value_json[\\\"local_temperature\\\"] }}\",\"current_temperature_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"default_entity_id\":\"climate.raum/heizkoerper\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"max_temp\":\"30\",\"min_temp\":\"5\",\"mode_command_template\":\"{% set values = { 'auto':'schedule','heat':'manual','off':'pause'} %}{\\\"operating_mode\\\": \\\"{{ values[value] if value in values.keys() else 'pause' }}\\\"}\",\"mode_command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set\",\"mode_state_template\":\"{% set values = {'schedule':'auto','manual':'heat','pause':'off'} %}{% set value = value_json.operating_mode %}{{ values[value] if value in values.keys() else 'off' }}\",\"mode_state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"modes\":[\"off\",\"heat\",\"auto\"],\"name\":null,\"object_id\":\"raum/heizkoerper\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"temp_step\":0.5,\"temperature_command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/occupied_heating_setpoint\",\"temperature_state_template\":\"{{ value_json[\\\"occupied_heating_setpoint\\\"] }}\",\"temperature_state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"temperature_unit\":\"C\",\"unique_id\":\"0x00000000000000a1_climate_zigbee2mqtt\"}",
+            "received_at": 1778733764,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/0x00000000000000a1/display_brightness/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/display_brightness\",\"default_entity_id\":\"number.raum/heizkoerper_display_brightness\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"config\",\"max\":100,\"min\":0,\"name\":\"Display brightness\",\"object_id\":\"raum/heizkoerper_display_brightness\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"step\":10,\"unique_id\":\"0x00000000000000a1_display_brightness_zigbee2mqtt\",\"unit_of_measurement\":\"%\",\"value_template\":\"{{ value_json[\\\"display_brightness\\\"] }}\"}",
+            "received_at": 1778733749,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/0x00000000000000a1/display_switch_on_duration/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/display_switch_on_duration\",\"default_entity_id\":\"number.raum/heizkoerper_display_switch_on_duration\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"config\",\"max\":30,\"min\":5,\"name\":\"Display switch-on duration\",\"object_id\":\"raum/heizkoerper_display_switch_on_duration\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_display_switch_on_duration_zigbee2mqtt\",\"unit_of_measurement\":\"s\",\"value_template\":\"{{ value_json[\\\"display_switch_on_duration\\\"] }}\"}",
+            "received_at": 1778733749,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/0x00000000000000a1/local_temperature_calibration/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/local_temperature_calibration\",\"default_entity_id\":\"number.raum/heizkoerper_local_temperature_calibration\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"device_class\":\"temperature_delta\",\"entity_category\":\"config\",\"max\":5,\"min\":-5,\"object_id\":\"raum/heizkoerper_local_temperature_calibration\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"step\":0.1,\"unique_id\":\"0x00000000000000a1_local_temperature_calibration_zigbee2mqtt\",\"unit_of_measurement\":\"°C\",\"value_template\":\"{{ value_json[\\\"local_temperature_calibration\\\"] }}\"}",
+            "received_at": 1778733749,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/0x00000000000000a1/pi_heating_demand/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/pi_heating_demand\",\"default_entity_id\":\"number.raum/heizkoerper_pi_heating_demand\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"icon\":\"mdi:radiator\",\"max\":100,\"min\":0,\"name\":\"PI heating demand\",\"object_id\":\"raum/heizkoerper_pi_heating_demand\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_pi_heating_demand_zigbee2mqtt\",\"unit_of_measurement\":\"%\",\"value_template\":\"{{ value_json[\\\"pi_heating_demand\\\"] }}\"}",
+            "received_at": 1778733749,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/0x00000000000000a1/remote_temperature/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/remote_temperature\",\"default_entity_id\":\"number.raum/heizkoerper_remote_temperature\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"config\",\"max\":35,\"min\":0,\"name\":\"Remote temperature\",\"object_id\":\"raum/heizkoerper_remote_temperature\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"step\":0.2,\"unique_id\":\"0x00000000000000a1_remote_temperature_zigbee2mqtt\",\"unit_of_measurement\":\"°C\",\"value_template\":\"{{ value_json[\\\"remote_temperature\\\"] }}\"}",
+            "received_at": 1778733761,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/0x00000000000000a1/display_orientation/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/display_orientation\",\"default_entity_id\":\"select.raum/heizkoerper_display_orientation\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"config\",\"name\":\"Display orientation\",\"object_id\":\"raum/heizkoerper_display_orientation\",\"options\":[\"standard_arrangement\",\"rotated_by_180_degrees\"],\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_display_orientation_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"display_orientation\\\"] }}\"}",
+            "received_at": 1778733748,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/0x00000000000000a1/displayed_temperature/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/displayed_temperature\",\"default_entity_id\":\"select.raum/heizkoerper_displayed_temperature\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"config\",\"name\":\"Displayed temperature\",\"object_id\":\"raum/heizkoerper_displayed_temperature\",\"options\":[\"set_temperature\",\"measured_temperature\"],\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_displayed_temperature_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"displayed_temperature\\\"] }}\"}",
+            "received_at": 1778733748,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/0x00000000000000a1/operating_mode/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/operating_mode\",\"default_entity_id\":\"select.raum/heizkoerper_operating_mode\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"config\",\"name\":\"Operating mode\",\"object_id\":\"raum/heizkoerper_operating_mode\",\"options\":[\"schedule\",\"manual\",\"pause\"],\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_operating_mode_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"operating_mode\\\"] }}\"}",
+            "received_at": 1778733748,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/0x00000000000000a1/battery/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"default_entity_id\":\"sensor.raum/heizkoerper_battery\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"device_class\":\"battery\",\"enabled_by_default\":true,\"entity_category\":\"diagnostic\",\"object_id\":\"raum/heizkoerper_battery\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_class\":\"measurement\",\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_battery_zigbee2mqtt\",\"unit_of_measurement\":\"%\",\"value_template\":\"{{ value_json[\\\"battery\\\"] }}\"}",
+            "received_at": 1778733758,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/0x00000000000000a1/error_state/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"default_entity_id\":\"sensor.raum/heizkoerper_error_state\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"diagnostic\",\"name\":\"Error state\",\"object_id\":\"raum/heizkoerper_error_state\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_error_state_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"error_state\\\"] | default('',True) | string | truncate(254, True, '', 0) }}\"}",
+            "received_at": 1778733758,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/0x00000000000000a1/last_seen/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"default_entity_id\":\"sensor.raum/heizkoerper_last_seen\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"enabled_by_default\":false,\"entity_category\":\"diagnostic\",\"icon\":\"mdi:clock\",\"name\":\"Last seen\",\"object_id\":\"raum/heizkoerper_last_seen\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_last_seen_zigbee2mqtt\",\"value_template\":\"{{ value_json.last_seen }}\"}",
+            "received_at": 1778733758,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/0x00000000000000a1/linkquality/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"default_entity_id\":\"sensor.raum/heizkoerper_linkquality\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"enabled_by_default\":false,\"entity_category\":\"diagnostic\",\"icon\":\"mdi:signal\",\"name\":\"Linkquality\",\"object_id\":\"raum/heizkoerper_linkquality\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_class\":\"measurement\",\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_linkquality_zigbee2mqtt\",\"unit_of_measurement\":\"lqi\",\"value_template\":\"{{ value_json[\\\"linkquality\\\"] }}\"}",
+            "received_at": 1778733758,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/0x00000000000000a1/local_temperature/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"default_entity_id\":\"sensor.raum/heizkoerper_local_temperature\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"device_class\":\"temperature\",\"object_id\":\"raum/heizkoerper_local_temperature\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_class\":\"measurement\",\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_local_temperature_zigbee2mqtt\",\"unit_of_measurement\":\"°C\",\"value_template\":\"{{ value_json[\\\"local_temperature\\\"] }}\"}",
+            "received_at": 1778733758,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/0x00000000000000a1/setpoint_change_source/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"default_entity_id\":\"sensor.raum/heizkoerper_setpoint_change_source\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"diagnostic\",\"name\":\"Setpoint change source\",\"object_id\":\"raum/heizkoerper_setpoint_change_source\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_setpoint_change_source_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"setpoint_change_source\\\"] }}\"}",
+            "received_at": 1778733761,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/0x00000000000000a1/valve_adapt_status/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"default_entity_id\":\"sensor.raum/heizkoerper_valve_adapt_status\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"diagnostic\",\"name\":\"Valve adaptation status\",\"object_id\":\"raum/heizkoerper_valve_adapt_status\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_valve_adapt_status_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"valve_adapt_status\\\"] }}\"}",
+            "received_at": 1778733758,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/0x00000000000000a1/switch_boost_heating/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/boost_heating\",\"default_entity_id\":\"switch.raum/heizkoerper_boost_heating\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"name\":\"Activate boost heating\",\"object_id\":\"raum/heizkoerper_boost_heating\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"payload_off\":\"OFF\",\"payload_on\":\"ON\",\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_switch_boost_heating_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"boost_heating\\\"] }}\"}",
+            "received_at": 1778733758,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/0x00000000000000a1/switch_child_lock/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/child_lock\",\"default_entity_id\":\"switch.raum/heizkoerper_child_lock\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"entity_category\":\"config\",\"icon\":\"mdi:account-lock\",\"name\":\"Child lock\",\"object_id\":\"raum/heizkoerper_child_lock\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"payload_off\":\"UNLOCK\",\"payload_on\":\"LOCK\",\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_switch_child_lock_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"child_lock\\\"] }}\"}",
+            "received_at": 1778733766,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/0x00000000000000a1/switch_window_detection/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/Raum/Heizkoerper/set/window_detection\",\"default_entity_id\":\"switch.raum/heizkoerper_window_detection\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"icon\":\"mdi:window-open-variant\",\"name\":\"Window detection\",\"object_id\":\"raum/heizkoerper_window_detection\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"payload_off\":\"OFF\",\"payload_on\":\"ON\",\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_switch_window_detection_zigbee2mqtt\",\"value_template\":\"{{ value_json[\\\"window_detection\\\"] }}\"}",
+            "received_at": 1778733768,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/update/0x00000000000000a1/update/config",
+            "payload": "{\"availability\":[{\"topic\":\"zigbee2mqtt/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"zigbee2mqtt/Raum/Heizkoerper/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"zigbee2mqtt/bridge/request/device/ota_update/update\",\"default_entity_id\":\"update.raum/heizkoerper\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Bosch\",\"model\":\"Radiator thermostat II\",\"model_id\":\"BTH-RA\",\"name\":\"Raum/Heizkoerper\",\"sw_version\":\"3.08.01\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b2\"},\"device_class\":\"firmware\",\"entity_category\":\"config\",\"entity_picture\":\"https://github.com/Koenkk/zigbee2mqtt/raw/master/images/logo.png\",\"name\":null,\"object_id\":\"raum/heizkoerper\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"payload_install\":\"{\\\"id\\\": \\\"0x00000000000000a1\\\"}\",\"state_topic\":\"zigbee2mqtt/Raum/Heizkoerper\",\"unique_id\":\"0x00000000000000a1_update_zigbee2mqtt\",\"value_template\":\"{\\\"latest_version\\\":\\\"{{ value_json['update']['latest_version'] }}\\\",\\\"installed_version\\\":\\\"{{ value_json['update']['installed_version'] }}\\\",\\\"update_percentage\\\":{{ value_json['update'].get('progress', 'null') }},\\\"in_progress\\\":{{ (value_json['update']['state'] == 'updating')|lower }}}\"}",
+            "received_at": 1778733765,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        }
+    ],
+    "payloads": {
+        "zigbee2mqtt/Raum/Heizkoerper/availability": "{\"state\":\"offline\"}",
+        "zigbee2mqtt/Raum/Nachbar/availability": "{\"state\":\"online\"}",
+        "zigbee2mqtt/bridge/state": "{\"state\":\"online\"}"
+    }
+}

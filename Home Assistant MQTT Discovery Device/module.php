@@ -38,6 +38,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const int STATUS_DEVICE_ID_MISSING = 204;
     private const string TIMER_DEFERRED_APPLY = 'DeferredApply';
     private const int DEFERRED_APPLY_DELAY_MS = 750;
+    // So lange muss die MQTT-Sitzung des Splitters laufen, bevor ein fehlendes Gerät als „nicht mehr
+    // angekündigt" gilt; zugleich der Abstand der Nachprüfungen (Abstimmung Burkhard 03.10.2026).
+    private const int NOT_ANNOUNCED_GRACE_S = 600;
+    private const string REACHABLE_IDENT = 'reachable';
 
     private const string ATTR_LAST_MQTT_MESSAGE = 'LastMQTTMessage';
     private const string ATTR_AVAILABILITY_STATE = 'AvailabilityState';
@@ -270,15 +274,18 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $cachedTopics = $this->loadCachedTopicPayloads($entities);
         $warningMap = $this->synchronizeStateWarnings($entities, $cachedTopics);
         $activeIdents = $this->maintainEntityVariables($entities, $cachedTopics);
-        $this->cleanupObsoleteVariables($activeIdents);
+        // „reachable" pflegt nicht maintainEntityVariables, sondern maintainReachableVariable — nicht veraltet.
+        $this->cleanupObsoleteVariables(array_merge($activeIdents, [self::REACHABLE_IDENT]));
 
         $topics = $this->collectRelevantTopics($entities);
         $this->writeTopicProcessingIndex($this->buildTopicProcessingIndex($entities));
         $this->updateReceiveFilter($topics);
         $this->applyCachedTopicPayloads($entities, $cachedTopics);
+        $this->maintainReachableVariable($entities);
+        $this->evaluateReachability($entities);
 
         $this->SetSummary($this->ReadPropertyString(self::PROP_DEVICE_ID));
-        $this->SetStatus(IS_ACTIVE);
+        $this->SetStatus($this->evaluateAnnouncementStatus($deviceDefinition));
         $this->updateDiagnosticsLabels($entities, $topics, $warningMap);
         $this->updateInstanceSummary($entities);
         $this->logPerformanceSample(__FUNCTION__, $startedAt, [
@@ -334,6 +341,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         if ($result['diagnostics_changed']) {
             $stepStartedAt = microtime(true);
+            $this->evaluateReachability($entities);
             $this->updateDiagnosticsLabels($entities, $topicIndex['topics']);
             $this->updateInstanceSummary($entities);
             $this->logPerformanceSample('ReceiveData.updateDiagnostics', $stepStartedAt);
@@ -600,7 +608,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'Result' => 'fallback_no_records',
                 'DeviceID' => $deviceId
             ], true);
-            return $fallback;
+            return $this->markNotAnnounced($fallback, $response);
         }
 
         $this->ensureHelpers();
@@ -635,7 +643,58 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'DeviceID' => $deviceId,
             'RecordCount' => count($records)
         ], true);
+        return $this->markNotAnnounced($fallback, $response);
+    }
+
+    // Der Splitter antwortet, kennt das Gerät aber nicht: Die gespeicherte Definition trägt weiter
+    // (Variablen, Empfangsfilter), gilt aber als nicht angekündigt. Ob das schon etwas heißt, hängt
+    // daran, wie lange die MQTT-Sitzung des Splitters läuft (evaluateAnnouncementStatus).
+    private function markNotAnnounced(array $fallback, array $response): array
+    {
+        $fallback['announced'] = false;
+        $fallback['session_started_at'] = max(0, (int)($response['SessionStartedAt'] ?? 0));
         return $fallback;
+    }
+
+    /**
+     * Status eines Geräts mit Entitäten. Fehlt es in den Ankündigungen, obwohl die MQTT-Sitzung des
+     * Splitters seit NOT_ANNOUNCED_GRACE_S läuft, ist es nicht mehr angekündigt: Status 202, einmal eine
+     * Warnung im Log, Nachprüfung im selben Abstand (eine neue Ankündigung löst sonst kein ApplyChanges
+     * aus). Ohne das bliebe ein verschwundenes Gerät dauerhaft auf 102. Innerhalb der Frist (Neustart von
+     * Broker oder Splitter) bleibt es bei 102 mit einer Nachprüfung nach Ablauf; ohne bekannten
+     * Sitzungsbeginn wird nicht geurteilt.
+     */
+    private function evaluateAnnouncementStatus(array $deviceDefinition): int
+    {
+        $previous = $this->GetStatus();
+        if (($deviceDefinition['announced'] ?? true) !== false) {
+            if ($previous === self::STATUS_DISCOVERY_CACHE_MISSING) {
+                $this->LogMessage($this->Translate('Announced again via MQTT Discovery'), KL_MESSAGE);
+            }
+            return IS_ACTIVE;
+        }
+
+        $sessionStartedAt = (int)($deviceDefinition['session_started_at'] ?? 0);
+        if ($sessionStartedAt <= 0) {
+            return IS_ACTIVE;
+        }
+        $sessionAge = time() - $sessionStartedAt;
+        if ($sessionAge < self::NOT_ANNOUNCED_GRACE_S) {
+            $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, (self::NOT_ANNOUNCED_GRACE_S - $sessionAge) * 1000);
+            return IS_ACTIVE;
+        }
+
+        $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::NOT_ANNOUNCED_GRACE_S * 1000);
+        if ($previous !== self::STATUS_DISCOVERY_CACHE_MISSING) {
+            $this->LogMessage(
+                sprintf(
+                    $this->Translate('Not announced: the device has not been announced via MQTT Discovery for at least %d minutes. Check the device or delete the instance.'),
+                    intdiv(self::NOT_ANNOUNCED_GRACE_S, 60)
+                ),
+                KL_WARNING
+            );
+        }
+        return self::STATUS_DISCOVERY_CACHE_MISSING;
     }
 
     private function buildOfflineDeviceDefinition(): array
@@ -658,6 +717,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function storeResolvedDeviceDefinition(array $deviceDefinition): void
     {
+        unset($deviceDefinition['announced'], $deviceDefinition['session_started_at']);
         $this->writeJsonAttribute(self::ATTR_RESOLVED_DEVICE_DEFINITION, $deviceDefinition);
     }
 
@@ -4889,6 +4949,75 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'any' => in_array(true, $values, true),
             default => $latestValue
         };
+    }
+
+    // „Erreichbar" für Discovery-Geräte (MCP-Regeln 3/11, Abstimmung Burkhard 03.10.2026): Gespeist aus
+    // den availability-Meldungen, die das Gerät bzw. seine Bridge selbst schickt. Bis dahin standen sie
+    // nur in der Zusammenfassung; am nuc waren so vier Geräte komplett offline, ohne dass es jemand
+    // erfuhr. Nur für Geräte mit availability-Topic; Instanzstatus bleibt 102 wie bei Device/Entity.
+    private function maintainReachableVariable(array $entities): void
+    {
+        $hasAvailability = array_any(
+            $entities,
+            static fn(array $entity): bool => ($entity['create_var'] ?? true) && ($entity['availability']['entries'] ?? []) !== []
+        );
+        if (!$hasAvailability) {
+            return;
+        }
+        $isNew = @$this->GetIDForIdent(self::REACHABLE_IDENT) === false;
+        $caption = $this->Translate('Reachable');
+        $this->MaintainVariable(
+            self::REACHABLE_IDENT,
+            $caption,
+            VARIABLETYPE_BOOLEAN,
+            $this->buildSharedBinarySensorPresentation($caption, $this->Translate('Not reachable'), 'wifi'),
+            9999,
+            true
+        );
+        // Eine neue Variable kennt keinen Ausfall; die Auswertung danach setzt den echten Stand.
+        if ($isNew) {
+            $this->SetValue(self::REACHABLE_IDENT, true);
+        }
+    }
+
+    // Nicht erreichbar, wenn alle Entitäten mit bekanntem Stand offline melden; „unbekannt" ist kein
+    // Ausfall. Keine eigene Entprellung: Die Bridge urteilt schon mit ihrer eigenen Frist.
+    private function evaluateReachability(array $entities): void
+    {
+        if (@$this->GetIDForIdent(self::REACHABLE_IDENT) === false) {
+            return;
+        }
+        $state = $this->readAvailabilityState();
+        $known = 0;
+        $online = false;
+        foreach ($entities as $entity) {
+            if (!($entity['create_var'] ?? true) || ($entity['availability']['entries'] ?? []) === []) {
+                continue;
+            }
+            $available = $this->computeEntityAvailability($entity, $state[$entity['entity_key']] ?? null);
+            if ($available === null) {
+                continue;
+            }
+            $known++;
+            if ($available) {
+                $online = true;
+                break;
+            }
+        }
+        $this->setReachableValue($known === 0 || $online);
+    }
+
+    private function setReachableValue(bool $reachable): void
+    {
+        if ($this->GetValue(self::REACHABLE_IDENT) === $reachable) {
+            return;
+        }
+        $this->SetValue(self::REACHABLE_IDENT, $reachable);
+        if ($reachable) {
+            $this->LogMessage($this->Translate('Reachable again'), KL_MESSAGE);
+            return;
+        }
+        $this->LogMessage($this->Translate('Not reachable: all entities report offline via MQTT (availability). Check the device or its bridge.'), KL_WARNING);
     }
 
     private function pruneAvailabilityState(array $entities): void

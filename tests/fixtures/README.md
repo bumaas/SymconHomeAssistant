@@ -199,3 +199,13 @@ Geräte-ID Platzhalter) — (85 Entitäten, zwei Klima-Entitäten, zwei Ortungen
 als Ja/Nein- und als Textsensor), Luftentfeuchter (Entfeuchter und Lüfter als Hauptteile) und Aqara
 FP300 (vier nummerierte Identifizieren-Taster). Die Standortkoordinaten des Tesla (`latitude`,
 `longitude`) sind durch 0 ersetzt. Grundlage von `check-variable-name-collisions.php`.
+
+## Discovery-Erreichbarkeit (`discovery_availability_20261003.json`)
+
+Aus einem **Anwender-Bundle** (Discovery-Splitter im Bundle-Modus, 03.10.2026), **neutralisiert**: alle 23
+Ankündigungen eines Heizkörperthermostats (Bosch Radiator thermostat II, zwei availability-Topics, Modus
+`all`) und die Payloads seiner availability-Topics (Gerät offline, Bridge online) sowie die Online-Meldung
+eines Nachbargeräts. Raumpfade, eigener Basis-Topic und Zigbee-Adressen sind durch Platzhalter ersetzt
+(`Raum/Heizkoerper`, `Raum/Nachbar`, `zigbee2mqtt`, `0x…a1`/`0x…b2`); Struktur und Payload-Format sind
+unverändert. Grundlage von `check-discovery-reachability.php`. **Fixtures aus Anwender-Bundles nie
+unverändert einchecken.**
