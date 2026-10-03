@@ -151,6 +151,23 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Test: `tests/check-action-contract.php` am echten Device- und Entity-Modul über den
   Kernel-Stub (`tests/device-harness.php`).
 
+## Position bei Rollladen und Ventil (statestream)
+
+- statestream meldet Zustand und Attribute als getrennte Topics, den Zustand zuerst. Ein
+  „state = open" trägt also keine Position; `extractPositionEntityUpdateContext()` (Cover und
+  Ventil) liest sie deshalb aus dem State-Cache, überlagert über die gespeicherten Attribute.
+- Bis build 183 las es nur `$this->entities` — nach einer frischen PHP-Ausführung (Rust, jede
+  Meldung) also die Konfiguration mit der Position des letzten `ApplyChanges`. Am nuc
+  (03.10.2026, Gast-Rollladen) stand dort 100: Jedes „state = open" setzte die Hauptvariable auf
+  100, erst das folgende `current_position` korrigierte sie. Ohne Position in der Konfiguration
+  wäre es über `normalizeCoverStateToLevel('open')` ebenfalls 100 geworden.
+- **Allgemein:** Wer im heißen Pfad Attribute braucht, liest Konfiguration **und** State-Cache
+  (Muster `resolveMainEntityActionAttributes`); `$this->entities` allein ist der Stand des letzten
+  `ApplyChanges`.
+- Test: `tests/check-cover-position-statestream.php` (echter Mitschnitt, Fixtures
+  `cover_*_gast_20261003.*`). Für Ventile gibt es keinen Mitschnitt; sie laufen durch dieselbe
+  Funktion.
+
 ## Variablennamen
 
 - Hauptvariablen benennt `HAEntityVariableNamingTrait` (Device, Entity, MQTT Discovery), Regeln in

@@ -458,14 +458,18 @@ trait HADomainRegistryTrait
         return $this->storeEntityAttributes($entityId, $attributes);
     }
 
+    // statestream meldet Zustand und Position getrennt, den Zustand zuerst. Die Position eines
+    // „state = open" steht deshalb im State-Cache (letzte MQTT-Meldung); die gespeicherten Attribute
+    // stammen nach einer frischen PHP-Ausführung aus der Konfiguration (Stand des letzten
+    // ApplyChanges). Ohne den Cache sprang die Hauptvariable auf deren veraltete Position bzw. 100.
     private function extractPositionEntityUpdateContext(string $entityId, array $parsed): array
     {
         $state = (string)($parsed[self::KEY_STATE] ?? '');
         $rawState = $parsed[self::KEY_STATE] ?? null;
-        $attributes = $this->getStoredEntityAttributes($entityId);
+        $attributes = array_merge($this->getStoredEntityAttributes($entityId), $this->getCachedEntityAttributes($entityId));
         $rawAttributes = $parsed[self::KEY_ATTRIBUTES] ?? null;
         if (is_array($rawAttributes) && $rawAttributes !== []) {
-            $attributes = $this->storeEntityAttributes($entityId, $rawAttributes);
+            $attributes = array_merge($attributes, $this->storeEntityAttributes($entityId, $rawAttributes));
         }
 
         return [$state, $rawState, $attributes];

@@ -1,0 +1,103 @@
+# Mitschnitt 03.10.2026 am nuc (Modul 1.5 build 181, Rust 9.1-953)
+# Entität cover.gast_licht_rolladen (HM-LC-Bl1-FM über HA homematic, mqtt_statestream, Basis "homeassistant/cover/gast_licht_rolladen/")
+# Format: Uhrzeit.ms Attribut-Topic [retain] = Payload. Befehle aus Symcon: 14:49:35 RequestAction 30, 14:49:53 RequestAction 19.
+#
+# Symcon-Spur der Hauptvariable (#53574, Ident cover_status) im selben Zeitraum:
+#   14:49:35 19 -> 100 -> 30 ; 30 -> 100 -> 19
+#   14:49:54 19 -> 5
+#   14:50:03 5 -> 100 -> 19
+# HA sendet nie 100: jedes "state = open" setzt die Hauptvariable auf 100 - die current_position der
+# Konfiguration (Stand des letzten ApplyChanges, siehe cover_config_gast_20261003.json), weil der State-Cache
+# nicht gelesen wurde. Erst das folgende current_position-Topic korrigiert sie.
+#
+14:49:35.102 state [retain] = open
+14:49:35.102 last_updated [retain] = 2026-10-03T12:47:15.490843+00:00
+14:49:35.102 last_changed [retain] = 2026-10-03T12:47:15.490843+00:00
+14:49:35.102 is_closed [retain] = false
+14:49:35.102 current_position [retain] = 19
+14:49:35.102 interface_id [retain] = "homematic-ccu3-BidCos-RF"
+14:49:35.102 address [retain] = "HEQ0066232:1"
+14:49:35.102 model [retain] = "HM-LC-Bl1-FM"
+14:49:35.102 value_state [retain] = "valid"
+14:49:35.102 channel_position [retain] = 19
+14:49:35.102 device_class [retain] = "shutter"
+14:49:35.102 friendly_name [retain] = "Gast Rollladen Friendly Name"
+14:49:35.103 supported_features [retain] = 15
+14:49:35.103 restored [retain] = true
+14:49:35.103 state = open
+14:49:35.103 last_updated = 2026-10-03T12:49:34.817666+00:00
+14:49:35.103 last_changed = 2026-10-03T12:47:15.490843+00:00
+14:49:35.103 is_closed = false
+14:49:35.103 current_position = 30
+14:49:35.103 interface_id = "homematic-ccu3-BidCos-RF"
+14:49:35.103 address = "HEQ0066232:1"
+14:49:35.103 model = "HM-LC-Bl1-FM"
+14:49:35.104 value_state = "valid"
+14:49:35.147 channel_position = 30
+14:49:35.147 device_class = "shutter"
+14:49:35.147 friendly_name = "Gast Rollladen Friendly Name"
+14:49:35.147 supported_features = 15
+14:49:35.337 state = open
+14:49:35.364 last_updated = 2026-10-03T12:49:35.070567+00:00
+14:49:35.364 last_changed = 2026-10-03T12:47:15.490843+00:00
+14:49:35.364 is_closed = false
+14:49:35.364 state = closing
+14:49:35.364 current_position = 19
+14:49:35.364 last_updated = 2026-10-03T12:49:35.084177+00:00
+14:49:35.364 interface_id = "homematic-ccu3-BidCos-RF"
+14:49:35.364 last_changed = 2026-10-03T12:49:35.084177+00:00
+14:49:35.364 address = "HEQ0066232:1"
+14:49:35.364 is_closed = false
+14:49:35.364 model = "HM-LC-Bl1-FM"
+14:49:35.364 current_position = 19
+14:49:35.364 value_state = "valid"
+14:49:35.364 interface_id = "homematic-ccu3-BidCos-RF"
+14:49:35.364 channel_position = 19
+14:49:35.364 address = "HEQ0066232:1"
+14:49:35.364 device_class = "shutter"
+14:49:35.366 model = "HM-LC-Bl1-FM"
+14:49:35.503 friendly_name = "Gast Rollladen Friendly Name"
+14:49:35.503 value_state = "valid"
+14:49:35.504 supported_features = 15
+14:49:35.504 channel_position = 19
+14:49:35.504 device_class = "shutter"
+14:49:35.504 friendly_name = "Gast Rollladen Friendly Name"
+14:49:35.504 supported_features = 15
+14:49:54.210 state = opening
+14:49:54.263 last_updated = 2026-10-03T12:49:53.942317+00:00
+14:49:54.263 last_changed = 2026-10-03T12:49:53.942317+00:00
+14:49:54.263 is_closed = false
+14:49:54.263 current_position = 5
+14:49:54.263 interface_id = "homematic-ccu3-BidCos-RF"
+14:49:54.263 address = "HEQ0066232:1"
+14:49:54.264 model = "HM-LC-Bl1-FM"
+14:49:54.264 value_state = "valid"
+14:49:54.264 channel_position = 5
+14:49:54.264 device_class = "shutter"
+14:49:54.264 friendly_name = "Gast Rollladen Friendly Name"
+14:49:54.264 supported_features = 15
+14:49:59.571 state = opening
+14:49:59.595 last_updated = 2026-10-03T12:49:59.304093+00:00
+14:49:59.595 state = open
+14:49:59.595 last_changed = 2026-10-03T12:49:53.942317+00:00
+14:49:59.595 last_updated = 2026-10-03T12:49:59.312131+00:00
+14:49:59.595 is_closed = false
+14:49:59.595 last_changed = 2026-10-03T12:49:59.312131+00:00
+14:49:59.595 current_position = 19
+14:49:59.595 is_closed = false
+14:49:59.595 interface_id = "homematic-ccu3-BidCos-RF"
+14:49:59.595 current_position = 19
+14:49:59.595 address = "HEQ0066232:1"
+14:49:59.596 interface_id = "homematic-ccu3-BidCos-RF"
+14:49:59.596 model = "HM-LC-Bl1-FM"
+14:49:59.596 address = "HEQ0066232:1"
+14:49:59.596 value_state = "valid"
+14:49:59.596 model = "HM-LC-Bl1-FM"
+14:49:59.596 channel_position = 19
+14:49:59.597 value_state = "valid"
+14:49:59.597 channel_position = 19
+14:49:59.642 friendly_name = "Gast Rollladen Friendly Name"
+14:49:59.642 device_class = "shutter"
+14:49:59.642 supported_features = 15
+14:49:59.642 friendly_name = "Gast Rollladen Friendly Name"
+14:49:59.642 supported_features = 15

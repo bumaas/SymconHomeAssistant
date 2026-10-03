@@ -151,3 +151,17 @@ privaten Daten.
 Die Attribut-Meldungen in `check-action-contract.php` (`…/options`, `…/step`, `…/max`) sind
 keine Mitschnitte: Sie folgen dem Format von `mqtt_statestream` (je Attribut ein Topic,
 Wert JSON-kodiert), wurden aber nicht vom Broker abgegriffen.
+
+## Rollladen per statestream (`cover_*_gast_20261003.*`)
+
+Echter Mitschnitt vom nuc (03.10.2026, Modul 1.5 build 181, Rust 9.1-953) für
+`cover.gast_licht_rolladen` (HM-LC-Bl1-FM über die HA-Homematic-Integration):
+
+- `cover_statestream_gast_20261003.txt` — alle statestream-Topics der Entität während zweier
+  Fahrbefehle aus Symcon, samt der Symcon-Spur der Hauptvariable im Kopf.
+- `cover_config_gast_20261003.json` — die Konfiguration der Device-Instanz
+  (`HA_ExportConfigBundleDataUrl`); ihr `current_position` steht auf 100, dem Stand des letzten
+  `ApplyChanges`.
+
+Grundlage von `check-cover-position-statestream.php`. Enthält die Seriennummer des Aktors und den
+Raumnamen, keine IP-Adressen oder Zugangsdaten.

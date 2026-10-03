@@ -1,0 +1,33 @@
+[
+    {
+        "entity_id": "cover.gast_licht_rolladen",
+        "domain": "cover",
+        "name": "Gast Rollladen Friendly Name",
+        "attributes": {
+            "is_closed": false,
+            "current_position": 100,
+            "interface_id": "homematic-ccu3-BidCos-RF",
+            "address": "HEQ0066232:1",
+            "model": "HM-LC-Bl1-FM",
+            "value_state": "valid",
+            "channel_position": 100,
+            "device_class": "shutter",
+            "friendly_name": "Gast Rollladen Friendly Name",
+            "supported_features": 15,
+            "supported_features_list": [
+                "Cover feature: Open",
+                "Cover feature: Close",
+                "Cover feature: Set Position",
+                "Cover feature: Stop"
+            ]
+        },
+        "device_name": "Gast.Licht.Rolladen",
+        "device_manufacturer": "eQ-3",
+        "device_model": "HM-LC-Bl1-FM",
+        "device_id": "c18eb526b0c88ce2fd8b391d82c03af3",
+        "area": "Gast",
+        "create_var": true,
+        "device": "Gast.Licht.Rolladen",
+        "device_class": "shutter"
+    }
+]
