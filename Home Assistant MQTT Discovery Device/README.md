@@ -47,12 +47,12 @@ Laufzeitmodul für Geräte, die ihre Struktur und Laufzeitdaten über Home Assis
 ## Nicht mehr angekündigte Geräte
 
 - Kennt der Splitter das Gerät nicht, arbeitet die Instanz mit der zuletzt gespeicherten Definition weiter (Variablen bleiben, nach einem Neustart von Broker oder Splitter treffen die Ankündigungen erst nach und nach ein).
-- Läuft die MQTT-Sitzung des Splitters seit mindestens 10 Minuten und fehlt das Gerät weiterhin, geht die Instanz auf Status **202** und schreibt einmal eine **Warnung** ins Meldungsprotokoll („Nicht angekündigt: Das Gerät wird seit mindestens 10 Minuten nicht per MQTT Discovery angekündigt …"). Sie prüft alle 10 Minuten erneut; kündigt sich das Gerät wieder an, geht sie auf aktiv zurück und meldet das (seit 1.5 build 194).
+- Läuft die MQTT-Sitzung des Splitters seit mindestens 10 Minuten und fehlt das Gerät weiterhin, geht die Instanz auf Status **202** und schreibt einmal eine **Warnung** ins Meldungsprotokoll („Nicht angekündigt: Das Gerät wird seit mindestens 10 Minuten nicht per MQTT Discovery angekündigt …"). Sie prüft alle 10 Minuten erneut; kündigt sich das Gerät wieder an, geht sie auf aktiv zurück und meldet das (seit 1.6).
 - Ein dauerhaft nicht angekündigtes Gerät gibt es meist nicht mehr oder es hat MQTT Discovery abgeschaltet — Gerät prüfen oder die Instanz löschen.
 
 ## Erreichbarkeit
 
-- Meldet ein Gerät seine Erreichbarkeit selbst (availability-Topic in der Discovery-Ankündigung, bei Zigbee2MQTT z. B. `{"state":"offline"}`), legt die Instanz die Variable **„Erreichbar"** an (seit 1.5 build 195).
+- Meldet ein Gerät seine Erreichbarkeit selbst (availability-Topic in der Discovery-Ankündigung, bei Zigbee2MQTT z. B. `{"state":"offline"}`), legt die Instanz die Variable **„Erreichbar"** an (seit 1.6).
 - Sie steht auf **nicht erreichbar**, wenn alle Entitäten mit bekanntem Stand offline melden; ein noch unbekannter Stand gilt nicht als Ausfall. Eine eigene Wartezeit gibt es nicht — die Bridge urteilt mit ihrer eigenen Frist.
 - Jeder Wechsel steht im Meldungsprotokoll: der Ausfall als **Warnung**, die Erholung als **Meldung**. Der Instanzstatus bleibt aktiv.
 - Geräte ohne availability-Topic bekommen keine solche Variable.

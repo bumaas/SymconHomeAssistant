@@ -122,7 +122,7 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
 - Eine Zahl wird gegen `min`/`max` geprüft, bevor sie für eine Ganzzahl-Variable abgeschnitten wird: 100,9 ist bei `max` 100 ungültig.
 - Einheiten und Suffixe werden aus `unit_of_measurement`, `native_unit_of_measurement`, `display_unit`, `unit` und `device_class` abgeleitet.
 - Namen orientieren sich an `name`, `friendly_name` und, falls vorgesehen, an der `device_class`. Ein Name, der nur den Geräte- bzw. Instanznamen wiederholt, wird gekürzt (Licht „Stehlampe“ im Gerät „Stehlampe“ heißt „Status“). Bleibt danach nichts übrig, heißt die Variable wie die Entität in Home Assistant; nur wenn zwei Entitäten des Geräts so auf denselben Namen kämen, steht dort die Entity-ID.
-- Zwei Variablen eines Geräts heißen nie gleich (seit 1.5 build 188):
+- Zwei Variablen eines Geräts heißen nie gleich (seit 1.6):
   - Hat das Gerät mehrere Entitäten derselben Art, tragen ihre Zusatzvariablen den Namen der Entität vorn, z. B. „Klima Isttemperatur" und „Überhitzungsschutz der Kabine Isttemperatur" statt zweimal „Isttemperatur". Das gilt auch, wenn der Name einer neuen Zusatzvariable im Gerät schon vergeben ist (Mediaplayer und Update: „Titel" und „Update Titel").
   - Vergibt Home Assistant denselben Namen an Entitäten verschiedener Art, kommt die Art in Klammern dazu: „Ladekabel (Ja/Nein)" und „Ladekabel (Wert)".
   - Besteht ein Gerät aus mehreren Hauptteilen ohne eigenen Namen (Luftentfeuchter mit Lüfter), heißt die Hauptvariable wie die Entität in Home Assistant, z. B. „Luftentfeuchter", statt „Status (HUMIDIFIER)".
@@ -158,7 +158,7 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
 - `select`
   Schreibbare Enumeration; Aktionen nur bei vorhandener `options`-Liste.
 - `button`
-  Trigger-Variable für `press`. Wann zuletzt gedrückt wurde – in Symcon oder in Home Assistant –, zeigt die **„Letzte Aktualisierung"** der Variable (seit 1.5 build 189). Sie bewegt sich nur bei einem frischen Druck, nicht bei einem Neustart, einem Neuladen oder einer wiederholten Meldung. Ein Druck, den Home Assistant später als fünf Minuten danach meldet (etwa weil Symcon nicht lief), bleibt unberücksichtigt.
+  Trigger-Variable für `press`. Wann zuletzt gedrückt wurde – in Symcon oder in Home Assistant –, zeigt die **„Letzte Aktualisierung"** der Variable (seit 1.6). Sie bewegt sich nur bei einem frischen Druck, nicht bei einem Neustart, einem Neuladen oder einer wiederholten Meldung. Ein Druck, den Home Assistant später als fünf Minuten danach meldet (etwa weil Symcon nicht lief), bleibt unberücksichtigt.
 - `input_button`
   Alias zu `button`, identisches Verhalten.
 - `lock`
@@ -174,9 +174,9 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
 - `humidifier`
   Hauptvariable Ein/Aus; Attribute `target_humidity`, `current_humidity`, `mode` und `action`.
 - `media_player`
-  Read-only-Status, zusätzliche Attribute gemäß `supported_features`, zusätzliche `Playback`- und `Power`-Variable, Cover-Medienobjekt. Die Variablen sind so angelegt, dass die Kachel-Visualisierung eine Mediaplayer-Kachel baut (Wiedergabe, Titel und Interpret tragen dafür die Systemprofile `~PlaybackPreviousNext`, `~Song`, `~Artist`). Die Lautstärke zeigt Prozent (seit 1.5 build 192 auch im Wert selbst, z. B. „60 %").
+  Read-only-Status, zusätzliche Attribute gemäß `supported_features`, zusätzliche `Playback`- und `Power`-Variable, Cover-Medienobjekt. Die Variablen sind so angelegt, dass die Kachel-Visualisierung eine Mediaplayer-Kachel baut (Wiedergabe, Titel und Interpret tragen dafür die Systemprofile `~PlaybackPreviousNext`, `~Song`, `~Artist`). Die Lautstärke zeigt Prozent (seit 1.6 auch im Wert selbst, z. B. „60 %").
 - `camera`
-  Status-Hauptvariable (seit 1.5 build 193 mit den Zuständen „Bereit", „Aufnahme", „Streaming" als Optionen; der Wert selbst bleibt `idle`/`recording`/`streaming`), Kamera-Vorschau (Standbild über `…/api/camera_proxy/<entity_id>`),
+  Status-Hauptvariable (seit 1.6 mit den Zuständen „Bereit", „Aufnahme", „Streaming" als Optionen; der Wert selbst bleibt `idle`/`recording`/`streaming`), Kamera-Vorschau (Standbild über `…/api/camera_proxy/<entity_id>`),
   Stream-Medienobjekt und zusätzliche `Power`-Variable bei `FEATURE_ON_OFF`.
   Hinweis zum Live-Stream: Die Symcon-Kachel-Visualisierung spielt Kamera-Streams nur als
   RTSP/RTSPS (H264) ab. Home Assistant gibt die RTSP-Adresse aus Sicherheitsgründen nicht in
