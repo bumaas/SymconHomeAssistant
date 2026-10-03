@@ -1,0 +1,1039 @@
+{
+    "quelle": "nuc, 03.10.2026, Instanz homematic-ccu3 (#43783), 1.5 build 186. konfiguration_nachher und variablen: HA_ExportConfigBundleDataUrl bzw. Variablen der Instanz nach dem Löschen der zehn verwaisten testraum-Entitäten in HA. konfiguration_vorher: dieselbe plus die zehn Zeilen, deren entity_id, name, area und create_var aus dem Export vor dem Löschen stammen; ihre Attribute sind die einer restored-Entität.",
+    "entfernt": [
+        "button.testraum_homematic_ccu3_anlernmodus_bidcos_rf_aktivieren",
+        "button.testraum_homematic_ccu3_anlernmodus_hmip_rf_aktivieren",
+        "sensor.testraum_homematic_ccu3_anlernmodus_bidcos_rf_dauer",
+        "sensor.testraum_homematic_ccu3_anlernmodus_hmip_rf_dauer",
+        "sensor.testraum_homematic_ccu3_systemzustand",
+        "sensor.testraum_homematic_ccu3_alter_letztes_ereignis",
+        "sensor.testraum_homematic_ccu3_verbindungslatenz",
+        "binary_sensor.testraum_homematic_ccu3_connectivity_bidcos_rf",
+        "binary_sensor.testraum_homematic_ccu3_connectivity_hmip_rf",
+        "binary_sensor.testraum_homematic_ccu3_connectivity_bidcos_wired"
+    ],
+    "konfiguration_vorher": [
+        {
+            "entity_id": "button.homematic_ccu3_backup_erstellen",
+            "domain": "button",
+            "name": "homematic-ccu3 Backup erstellen",
+            "attributes": {
+                "friendly_name": "homematic-ccu3 Backup erstellen",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_posteingang",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Posteingang",
+            "attributes": {
+                "name": "inbox",
+                "description": null,
+                "value_state": "valid",
+                "devices": [
+                    "HM-Sec-SD-Team *LEQ0222276"
+                ],
+                "friendly_name": "homematic-ccu3 Posteingang",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_servicemeldungen",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Servicemeldungen",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "service_messages",
+                "description": null,
+                "value_state": "valid",
+                "friendly_name": "homematic-ccu3 Servicemeldungen",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_alarmmeldungen",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Alarmmeldungen",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "alarm_messages",
+                "description": null,
+                "value_state": "valid",
+                "friendly_name": "homematic-ccu3 Alarmmeldungen",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "button.homematic_ccu3_anlernmodus_bidcos_rf_aktivieren",
+            "domain": "button",
+            "name": "homematic-ccu3 Anlernmodus BidCos-RF aktivieren",
+            "attributes": {
+                "name": "install_mode_bidcos_button",
+                "description": null,
+                "friendly_name": "homematic-ccu3 Anlernmodus BidCos-RF aktivieren",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "button.homematic_ccu3_anlernmodus_hmip_rf_aktivieren",
+            "domain": "button",
+            "name": "homematic-ccu3 Anlernmodus HmIP-RF aktivieren",
+            "attributes": {
+                "name": "install_mode_hmip_button",
+                "description": null,
+                "friendly_name": "homematic-ccu3 Anlernmodus HmIP-RF aktivieren",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_anlernmodus_bidcos_rf_dauer",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Anlernmodus BidCos-RF Dauer",
+            "attributes": {
+                "name": "install_mode_bidcos",
+                "description": null,
+                "value_state": "not valid",
+                "friendly_name": "homematic-ccu3 Anlernmodus BidCos-RF Dauer",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_anlernmodus_hmip_rf_dauer",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Anlernmodus HmIP-RF Dauer",
+            "attributes": {
+                "name": "install_mode_hmip",
+                "description": null,
+                "value_state": "not valid",
+                "friendly_name": "homematic-ccu3 Anlernmodus HmIP-RF Dauer",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_systemzustand",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Systemzustand",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "system_health",
+                "description": null,
+                "value_state": "valid",
+                "unit_of_measurement": "%",
+                "icon": "mdi:heart-pulse",
+                "friendly_name": "homematic-ccu3 Systemzustand",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_alter_letztes_ereignis",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Alter letztes Ereignis",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "last_event_age",
+                "description": null,
+                "value_state": "valid",
+                "unit_of_measurement": "s",
+                "device_class": "duration",
+                "icon": "mdi:clock-alert-outline",
+                "friendly_name": "homematic-ccu3 Alter letztes Ereignis",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "duration"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_verbindungslatenz",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Verbindungslatenz",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "connection_latency",
+                "description": null,
+                "value_state": "valid",
+                "unit_of_measurement": "ms",
+                "device_class": "duration",
+                "icon": "mdi:timer-outline",
+                "friendly_name": "homematic-ccu3 Verbindungslatenz",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "duration"
+        },
+        {
+            "entity_id": "binary_sensor.homematic_ccu3_connectivity_hmip_rf",
+            "domain": "binary_sensor",
+            "name": "homematic-ccu3 Connectivity HmIP-RF",
+            "attributes": {
+                "name": "Connectivity HmIP-RF",
+                "description": "Connectivity status for HmIP-RF interface",
+                "value_state": "valid",
+                "device_class": "connectivity",
+                "friendly_name": "homematic-ccu3 Connectivity HmIP-RF",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "connectivity"
+        },
+        {
+            "entity_id": "binary_sensor.homematic_ccu3_connectivity_bidcos_wired",
+            "domain": "binary_sensor",
+            "name": "homematic-ccu3 Connectivity BidCos-Wired",
+            "attributes": {
+                "name": "Connectivity BidCos-Wired",
+                "description": "Connectivity status for BidCos-Wired interface",
+                "value_state": "valid",
+                "device_class": "connectivity",
+                "friendly_name": "homematic-ccu3 Connectivity BidCos-Wired",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "connectivity"
+        },
+        {
+            "entity_id": "binary_sensor.homematic_ccu3_connectivity_bidcos_rf",
+            "domain": "binary_sensor",
+            "name": "homematic-ccu3 Connectivity BidCos-RF",
+            "attributes": {
+                "name": "Connectivity BidCos-RF",
+                "description": "Connectivity status for BidCos-RF interface",
+                "value_state": "valid",
+                "device_class": "connectivity",
+                "friendly_name": "homematic-ccu3 Connectivity BidCos-RF",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "connectivity"
+        },
+        {
+            "entity_id": "update.homematic_ccu3_system_update",
+            "domain": "update",
+            "name": "homematic-ccu3 System Update",
+            "attributes": {
+                "auto_update": false,
+                "display_precision": 0,
+                "installed_version": "3.89.11.20260919",
+                "in_progress": false,
+                "latest_version": "3.89.11.20260919",
+                "release_summary": null,
+                "release_url": null,
+                "skipped_version": null,
+                "title": null,
+                "update_percentage": null,
+                "device_class": "firmware",
+                "entity_picture": "/api/brands/integration/homematicip_local/icon.png",
+                "friendly_name": "homematic-ccu3 System Update",
+                "supported_features": 13,
+                "supported_features_list": [
+                    "Install",
+                    "Progress",
+                    "Backup"
+                ]
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "firmware"
+        },
+        {
+            "entity_id": "button.testraum_homematic_ccu3_anlernmodus_bidcos_rf_aktivieren",
+            "domain": "button",
+            "name": "homematic-ccu3 Anlernmodus BidCos-RF aktivieren",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Anlernmodus BidCos-RF aktivieren",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "button.testraum_homematic_ccu3_anlernmodus_hmip_rf_aktivieren",
+            "domain": "button",
+            "name": "homematic-ccu3 Anlernmodus HmIP-RF aktivieren",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Anlernmodus HmIP-RF aktivieren",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.testraum_homematic_ccu3_anlernmodus_bidcos_rf_dauer",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Anlernmodus BidCos-RF Dauer",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Anlernmodus BidCos-RF Dauer",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.testraum_homematic_ccu3_anlernmodus_hmip_rf_dauer",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Anlernmodus HmIP-RF Dauer",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Anlernmodus HmIP-RF Dauer",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.testraum_homematic_ccu3_systemzustand",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Systemzustand",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Systemzustand",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.testraum_homematic_ccu3_alter_letztes_ereignis",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Alter letztes Ereignis",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Alter letztes Ereignis",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.testraum_homematic_ccu3_verbindungslatenz",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Verbindungslatenz",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Verbindungslatenz",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "binary_sensor.testraum_homematic_ccu3_connectivity_bidcos_rf",
+            "domain": "binary_sensor",
+            "name": "homematic-ccu3 Connectivity BidCos-RF",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Connectivity BidCos-RF",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "binary_sensor.testraum_homematic_ccu3_connectivity_hmip_rf",
+            "domain": "binary_sensor",
+            "name": "homematic-ccu3 Connectivity HmIP-RF",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Connectivity HmIP-RF",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "binary_sensor.testraum_homematic_ccu3_connectivity_bidcos_wired",
+            "domain": "binary_sensor",
+            "name": "homematic-ccu3 Connectivity BidCos-Wired",
+            "attributes": {
+                "restored": true,
+                "friendly_name": "homematic-ccu3 Connectivity BidCos-Wired",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        }
+    ],
+    "konfiguration_nachher": [
+        {
+            "entity_id": "button.homematic_ccu3_backup_erstellen",
+            "domain": "button",
+            "name": "homematic-ccu3 Backup erstellen",
+            "attributes": {
+                "friendly_name": "homematic-ccu3 Backup erstellen",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_posteingang",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Posteingang",
+            "attributes": {
+                "name": "inbox",
+                "description": null,
+                "value_state": "valid",
+                "devices": [
+                    "HM-Sec-SD-Team *LEQ0222276"
+                ],
+                "friendly_name": "homematic-ccu3 Posteingang",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_servicemeldungen",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Servicemeldungen",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "service_messages",
+                "description": null,
+                "value_state": "valid",
+                "friendly_name": "homematic-ccu3 Servicemeldungen",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_alarmmeldungen",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Alarmmeldungen",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "alarm_messages",
+                "description": null,
+                "value_state": "valid",
+                "friendly_name": "homematic-ccu3 Alarmmeldungen",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "button.homematic_ccu3_anlernmodus_bidcos_rf_aktivieren",
+            "domain": "button",
+            "name": "homematic-ccu3 Anlernmodus BidCos-RF aktivieren",
+            "attributes": {
+                "name": "install_mode_bidcos_button",
+                "description": null,
+                "friendly_name": "homematic-ccu3 Anlernmodus BidCos-RF aktivieren",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "button.homematic_ccu3_anlernmodus_hmip_rf_aktivieren",
+            "domain": "button",
+            "name": "homematic-ccu3 Anlernmodus HmIP-RF aktivieren",
+            "attributes": {
+                "name": "install_mode_hmip_button",
+                "description": null,
+                "friendly_name": "homematic-ccu3 Anlernmodus HmIP-RF aktivieren",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_anlernmodus_bidcos_rf_dauer",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Anlernmodus BidCos-RF Dauer",
+            "attributes": {
+                "name": "install_mode_bidcos",
+                "description": null,
+                "value_state": "not valid",
+                "friendly_name": "homematic-ccu3 Anlernmodus BidCos-RF Dauer",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_anlernmodus_hmip_rf_dauer",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Anlernmodus HmIP-RF Dauer",
+            "attributes": {
+                "name": "install_mode_hmip",
+                "description": null,
+                "value_state": "not valid",
+                "friendly_name": "homematic-ccu3 Anlernmodus HmIP-RF Dauer",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_systemzustand",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Systemzustand",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "system_health",
+                "description": null,
+                "value_state": "valid",
+                "unit_of_measurement": "%",
+                "icon": "mdi:heart-pulse",
+                "friendly_name": "homematic-ccu3 Systemzustand",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_alter_letztes_ereignis",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Alter letztes Ereignis",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "last_event_age",
+                "description": null,
+                "value_state": "valid",
+                "unit_of_measurement": "s",
+                "device_class": "duration",
+                "icon": "mdi:clock-alert-outline",
+                "friendly_name": "homematic-ccu3 Alter letztes Ereignis",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "duration"
+        },
+        {
+            "entity_id": "sensor.homematic_ccu3_verbindungslatenz",
+            "domain": "sensor",
+            "name": "homematic-ccu3 Verbindungslatenz",
+            "attributes": {
+                "state_class": "measurement",
+                "name": "connection_latency",
+                "description": null,
+                "value_state": "valid",
+                "unit_of_measurement": "ms",
+                "device_class": "duration",
+                "icon": "mdi:timer-outline",
+                "friendly_name": "homematic-ccu3 Verbindungslatenz",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "duration"
+        },
+        {
+            "entity_id": "binary_sensor.homematic_ccu3_connectivity_hmip_rf",
+            "domain": "binary_sensor",
+            "name": "homematic-ccu3 Connectivity HmIP-RF",
+            "attributes": {
+                "name": "Connectivity HmIP-RF",
+                "description": "Connectivity status for HmIP-RF interface",
+                "value_state": "valid",
+                "device_class": "connectivity",
+                "friendly_name": "homematic-ccu3 Connectivity HmIP-RF",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "connectivity"
+        },
+        {
+            "entity_id": "binary_sensor.homematic_ccu3_connectivity_bidcos_wired",
+            "domain": "binary_sensor",
+            "name": "homematic-ccu3 Connectivity BidCos-Wired",
+            "attributes": {
+                "name": "Connectivity BidCos-Wired",
+                "description": "Connectivity status for BidCos-Wired interface",
+                "value_state": "valid",
+                "device_class": "connectivity",
+                "friendly_name": "homematic-ccu3 Connectivity BidCos-Wired",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "connectivity"
+        },
+        {
+            "entity_id": "binary_sensor.homematic_ccu3_connectivity_bidcos_rf",
+            "domain": "binary_sensor",
+            "name": "homematic-ccu3 Connectivity BidCos-RF",
+            "attributes": {
+                "name": "Connectivity BidCos-RF",
+                "description": "Connectivity status for BidCos-RF interface",
+                "value_state": "valid",
+                "device_class": "connectivity",
+                "friendly_name": "homematic-ccu3 Connectivity BidCos-RF",
+                "supported_features": 0
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "connectivity"
+        },
+        {
+            "entity_id": "update.homematic_ccu3_system_update",
+            "domain": "update",
+            "name": "homematic-ccu3 System Update",
+            "attributes": {
+                "auto_update": false,
+                "display_precision": 0,
+                "installed_version": "3.89.11.20260919",
+                "in_progress": false,
+                "latest_version": "3.89.11.20260919",
+                "release_summary": null,
+                "release_url": null,
+                "skipped_version": null,
+                "title": null,
+                "update_percentage": null,
+                "device_class": "firmware",
+                "entity_picture": "/api/brands/integration/homematicip_local/icon.png",
+                "friendly_name": "homematic-ccu3 System Update",
+                "supported_features": 13,
+                "supported_features_list": [
+                    "Install",
+                    "Progress",
+                    "Backup"
+                ]
+            },
+            "device_name": "homematic-ccu3",
+            "device_manufacturer": "eQ-3",
+            "device_model": "",
+            "device_id": "b705eaf017ae359c07ac9a693371ea37",
+            "area": "Testraum",
+            "create_var": true,
+            "device": "homematic-ccu3",
+            "device_class": "firmware"
+        }
+    ],
+    "variablen": [
+        {
+            "ident": "binary_sensor_connectivity_bidcos_rf",
+            "name": "Connectivity BidCos-RF",
+            "typ": 0,
+            "aktion": false
+        },
+        {
+            "ident": "binary_sensor_connectivity_bidcos_wired",
+            "name": "Connectivity BidCos-Wired",
+            "typ": 0,
+            "aktion": false
+        },
+        {
+            "ident": "binary_sensor_connectivity_hmip_rf",
+            "name": "Connectivity HmIP-RF",
+            "typ": 0,
+            "aktion": false
+        },
+        {
+            "ident": "binary_sensor_testraum_homematic_ccu3_connectivity_bidcos_rf",
+            "name": "Connectivity BidCos-RF",
+            "typ": 0,
+            "aktion": false
+        },
+        {
+            "ident": "binary_sensor_testraum_homematic_ccu3_connectivity_bidcos_wired",
+            "name": "Connectivity BidCos-Wired",
+            "typ": 0,
+            "aktion": false
+        },
+        {
+            "ident": "binary_sensor_testraum_homematic_ccu3_connectivity_hmip_rf",
+            "name": "Connectivity HmIP-RF",
+            "typ": 0,
+            "aktion": false
+        },
+        {
+            "ident": "button_anlernmodus_bidcos_rf_aktivieren",
+            "name": "Anlernmodus BidCos-RF aktivieren",
+            "typ": 1,
+            "aktion": true
+        },
+        {
+            "ident": "button_anlernmodus_hmip_rf_aktivieren",
+            "name": "Anlernmodus HmIP-RF aktivieren",
+            "typ": 1,
+            "aktion": true
+        },
+        {
+            "ident": "button_backup_erstellen",
+            "name": "Backup erstellen",
+            "typ": 1,
+            "aktion": true
+        },
+        {
+            "ident": "button_testraum_homematic_ccu3_anlernmodus_bidcos_rf_aktivieren",
+            "name": "Anlernmodus BidCos-RF aktivieren",
+            "typ": 1,
+            "aktion": true
+        },
+        {
+            "ident": "button_testraum_homematic_ccu3_anlernmodus_hmip_rf_aktivieren",
+            "name": "Anlernmodus HmIP-RF aktivieren",
+            "typ": 1,
+            "aktion": true
+        },
+        {
+            "ident": "reachable",
+            "name": "Erreichbar",
+            "typ": 0,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_alarmmeldungen",
+            "name": "Alarmmeldungen",
+            "typ": 2,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_alter_letztes_ereignis",
+            "name": "Alter letztes Ereignis",
+            "typ": 1,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_anlernmodus_bidcos_rf_dauer",
+            "name": "Anlernmodus BidCos-RF Dauer",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_anlernmodus_hmip_rf_dauer",
+            "name": "Anlernmodus HmIP-RF Dauer",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_posteingang",
+            "name": "Posteingang",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_servicemeldungen",
+            "name": "Servicemeldungen",
+            "typ": 2,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_systemzustand",
+            "name": "Systemzustand",
+            "typ": 2,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_testraum_homematic_ccu3_alter_letztes_ereignis",
+            "name": "Alter letztes Ereignis",
+            "typ": 1,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_testraum_homematic_ccu3_anlernmodus_bidcos_rf_dauer",
+            "name": "Anlernmodus BidCos-RF Dauer",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_testraum_homematic_ccu3_anlernmodus_hmip_rf_dauer",
+            "name": "Anlernmodus HmIP-RF Dauer",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_testraum_homematic_ccu3_systemzustand",
+            "name": "Systemzustand",
+            "typ": 2,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_testraum_homematic_ccu3_verbindungslatenz",
+            "name": "Verbindungslatenz",
+            "typ": 1,
+            "aktion": false
+        },
+        {
+            "ident": "sensor_verbindungslatenz",
+            "name": "Verbindungslatenz",
+            "typ": 1,
+            "aktion": false
+        },
+        {
+            "ident": "update_system_update",
+            "name": "System Update",
+            "typ": 0,
+            "aktion": false
+        },
+        {
+            "ident": "update_system_update_in_progress",
+            "name": "In Arbeit",
+            "typ": 0,
+            "aktion": false
+        },
+        {
+            "ident": "update_system_update_installed_version",
+            "name": "Installierte Version",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "update_system_update_latest_version",
+            "name": "Neueste Version",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "update_system_update_release_summary",
+            "name": "Release-Zusammenfassung",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "update_system_update_release_url",
+            "name": "Release-URL",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "update_system_update_skipped_version",
+            "name": "Übersprungene Version",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "update_system_update_title",
+            "name": "Titel",
+            "typ": 3,
+            "aktion": false
+        },
+        {
+            "ident": "update_system_update_update_install",
+            "name": "System Update Update installieren",
+            "typ": 1,
+            "aktion": true
+        },
+        {
+            "ident": "update_system_update_update_percentage",
+            "name": "Update-Fortschritt",
+            "typ": 2,
+            "aktion": false
+        }
+    ]
+}

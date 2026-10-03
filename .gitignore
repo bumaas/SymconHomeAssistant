@@ -29,6 +29,7 @@ tests/fixtures/*
 !tests/fixtures/cover_config_gast_20261003.json
 !tests/fixtures/cover_statestream_gast_20261003.txt
 !tests/fixtures/legacy_idents_20261003.json
+!tests/fixtures/removed_entities_ccu3_20261003.json
 
 # Claude Code (persönliche Dateien)
 CLAUDE.local.md

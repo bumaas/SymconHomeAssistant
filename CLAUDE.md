@@ -187,8 +187,16 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   am nuc blieben rund 45 tote, schaltbare Doppelgänger stehen (Denon, Sonos, homematic-ccu3 …).
   Seit build 186 zählt es als veraltet, außer es liegt unter dem Präfix einer **anderen** aktiven
   Entität oder umschließt ein aktives Präfix.
-- Test: `tests/check-legacy-idents.php` (Konfiguration und Variablen vom nuc, Fixture
-  `legacy_idents_20261003.json`). Das Entity-Modul hat einen eigenen Pfad
+- **Entfallene Entitäten** (in HA gelöscht oder umbenannt) erkennt nur `UpdateConfiguration()`:
+  Es liest die alte `ResolvedConfig` vor dem Überschreiben und gibt sie an `processEntities()`.
+  Bis build 186 kam der Vorstand allein aus `$this->entities` — unter Rust in jeder Ausführung
+  leer, die Variablen entfallener Entitäten blieben schaltbar stehen (nuc 03.10.2026,
+  homematic-ccu3, zehn verwaiste HA-Entitäten). Die alte Konfiguration dient nur dem Aufräumen,
+  nicht dem Zusammenführen der Attribute. Ist die neue Konfiguration einmal geschrieben, ist der
+  Vorstand weg — ein späteres `ApplyChanges` holt das nicht nach.
+- Tests: `tests/check-legacy-idents.php` (Konfiguration und Variablen vom nuc, Fixture
+  `legacy_idents_20261003.json`), `tests/check-removed-entities.php` (Fixture
+  `removed_entities_ccu3_20261003.json`). Das Entity-Modul hat einen eigenen Pfad
   (`cleanupRenamedSharedEntityObjects`), am nuc ohne Doppelgänger.
 
 ## Variablennamen

@@ -173,3 +173,13 @@ aktualisiert) der Device-Instanzen „Denon Wohnzimmer" und „Gast.Licht.Rollad
 (03.10.2026, 1.5 build 184). Neben den aktuellen Variablen stehen dort die Variablen aus dem
 Ident-Schema vor Mai 2026 (voller Entitätsname im Ident), seit Mai ohne Aktualisierung.
 Grundlage von `check-legacy-idents.php`. Keine IP-Adressen oder Zugangsdaten.
+
+## Entfallene Entitäten (`removed_entities_ccu3_20261003.json`)
+
+Instanz „homematic-ccu3" am nuc (03.10.2026, 1.5 build 186). `konfiguration_nachher` und
+`variablen` stammen aus dem Export nach dem Löschen von zehn verwaisten `testraum_homematic_ccu3_*`
+-Entitäten in HA. `konfiguration_vorher` ergänzt diese zehn Zeilen: `entity_id`, `name`, `area` und
+`create_var` aus dem Export vor dem Löschen, die Attribute so, wie HA sie für eine wiederhergestellte
+(`restored`) Entität meldet — die vollständigen Zeilen von damals sind nicht mehr abrufbar.
+Grundlage von `check-removed-entities.php`. Enthält die Seriennummer eines Rauchmelders
+(`devices` in `sensor.homematic_ccu3_posteingang`), keine IP-Adressen oder Zugangsdaten.

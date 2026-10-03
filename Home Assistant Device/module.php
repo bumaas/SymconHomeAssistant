@@ -231,6 +231,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         $configData = $this->mergeCreateVarSettings($configData, $existingCreateVarMap);
 
+        // Vor dem Überschreiben: Nur hier ist noch bekannt, welche Entitäten wegfallen.
+        $previousConfig = $this->readResolvedConfig(__FUNCTION__);
         $this->writeResolvedConfig(
             json_encode($configData, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
@@ -256,7 +258,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->SetSummary($this->buildDeviceSummary($configData) ?: $deviceId);
 
         // 3. Entitäten verarbeiten und Topics sammeln.
-        $filterTopics = $this->processEntities($configData, $baseTopic);
+        $filterTopics = $this->processEntities($configData, $baseTopic, $previousConfig);
         $this->maintainUnavailableEntitiesJsonVariable();
         $this->updateUnavailableEntitiesJsonVariable();
         $this->maintainReachableVariable();
@@ -1018,12 +1020,18 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     /**
      * Iteriert über die Konfiguration, legt Variablen an und baut die Topic-Map auf.
      *
+     * @param array $previousConfig Konfiguration vor dem Aktualisieren (UpdateConfiguration), sonst leer
      * @return array Liste der Topics für den Filter
      * @throws \JsonException
      */
-    private function processEntities(array $configData, string $baseTopic): array
+    private function processEntities(array $configData, string $baseTopic, array $previousConfig = []): array
     {
         $previousEntities = $this->entities;
+        // Unter der Rust-Edition ist $this->entities in jeder Ausführung leer — entfallene oder
+        // umbenannte Entitäten wären damit unbekannt, ihre Variablen blieben schaltbar stehen
+        // (nuc 03.10.2026, homematic-ccu3). Dann kennt nur die alte Konfiguration den Vorstand.
+        // Sie dient allein dem Aufräumen, nicht dem Zusammenführen der Attribute.
+        $cleanupPrevious = $previousEntities !== [] ? $previousEntities : $this->indexEntitiesWithIdents($previousConfig);
         $this->entities = [];
         $this->topicMapping = [];
         $this->rebuildSharedEntityIdentIndexes();
@@ -1062,7 +1070,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             $entity['position_base'] = $basePosition;
             $entity                  = $this->mergePreviousEntityAttributes($entity, $previousEntities, $entityId);
             $this->entities[$entityId] = $entity;
-            if ($this->hasSharedManagedIdentChanged($previousEntities[$entityId] ?? null, $entity)) {
+            if ($this->hasSharedManagedIdentChanged($cleanupPrevious[$entityId] ?? null, $entity)) {
                 $renamedEntityIds[] = $entityId;
             }
             $this->debugExpert('processEntities', 'Entity registriert', ['EntityID' => $entityId, 'Domain' => $entity['domain'] ?? null]);
@@ -1079,13 +1087,13 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
         $this->rebuildSharedEntityIdentIndexes();
 
-        $entityIdsToCleanup = $previousEntities
+        $entityIdsToCleanup = $cleanupPrevious
                               |> array_keys(...)
                               |> (static fn($x) => array_diff($x, $activeEntityIds))
                               |> (static fn($x) => array_merge($x, $inactiveEntityIds, $renamedEntityIds))
                               |> array_unique(...)
                               |> array_values(...);
-        $this->cleanupManagedEntityObjects($entityIdsToCleanup, $activeEntityIds, array_merge($previousEntities, $inactiveEntities));
+        $this->cleanupManagedEntityObjects($entityIdsToCleanup, $activeEntityIds, array_merge($cleanupPrevious, $inactiveEntities));
 
         return $filterTopics;
     }
@@ -1112,6 +1120,19 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             $normalized[] = $entity;
         }
         return $normalized;
+    }
+
+    /**
+     * Konfigurationszeilen mit berechneten Idents, nach entity_id — wie processEntities sie für die
+     * neue Konfiguration bildet. Die dabei gesetzten Namenszähler rechnet processEntities danach neu.
+     */
+    private function indexEntitiesWithIdents(array $configData): array
+    {
+        $indexed = [];
+        foreach ($this->applySharedEntityIdents($this->normalizeConfiguredEntityRows($configData)) as $entity) {
+            $indexed[(string)$entity['entity_id']] = $entity;
+        }
+        return $indexed;
     }
 
     /**
