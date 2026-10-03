@@ -83,6 +83,22 @@ function timerLaeuftAb(DeviceHarness $g): void
     neueAusfuehrung($g)->RequestAction(HADeviceConstants::ACTION_REACHABILITY_CHECK, '');
 }
 
+/**
+ * Logeinträge der Instanz seit dem Anlegen, als Liste der Typen (KL_WARNING, KL_MESSAGE …).
+ *
+ * @return list<int>
+ */
+function logTypen(IPSModuleStrict $g): array
+{
+    return array_map(static fn(array $m): int => $m['Type'], IPS\LogServer::getLogMessages((string)$g->id()));
+}
+
+/** @return list<string> */
+function logTexte(IPSModuleStrict $g): array
+{
+    return array_map(static fn(array $m): string => $m['Message'], IPS\LogServer::getLogMessages((string)$g->id()));
+}
+
 /** @return array{entities: list<string>, ereignisse: list<array{ts:int, entity_id:string, state:string}>} */
 function ladeFixture(string $name): array
 {
@@ -152,6 +168,9 @@ $rueckkehr = strtotime('2026-09-30T14:07:49+00:00');
 $beiRueckkehr = array_values(array_filter($spur, static fn(array $s): bool => $s[0] === $rueckkehr));
 pruefe(count($beiRueckkehr) === 1 && $beiRueckkehr[0][1] === true, 'Entfeuchter: erste gültige Meldung (14:07:49) macht sofort erreichbar');
 pruefe(end($spur)[1] === true && end($spur)[2] === 0, 'Entfeuchter: am Ende erreichbar, kein Timer');
+// Regel 11 (MCP-Tauglichkeit): Wer im Log sucht, findet Ausfall und Erholung.
+pruefe(logTypen($g) === [KL_WARNING, KL_MESSAGE], 'Entfeuchter: genau eine Warnung beim Ausfall, eine Meldung bei der Erholung', json_encode(logTexte($g), JSON_UNESCAPED_UNICODE));
+pruefe(str_contains(logTexte($g)[0] ?? '', 'unavailable') && str_contains(logTexte($g)[0] ?? '', '10'), 'Entfeuchter: die Warnung nennt „unavailable" und die Frist', logTexte($g)[0] ?? '');
 
 // ---- Teil 3: Wandthermostat 29.09.2026 — HA-Neustart, 143–161 s weg, bleibt durchgehend true ----
 
@@ -161,6 +180,7 @@ $spur = abspielen($g, $f['ereignisse'], strtotime($f['fenster'][1]));
 pruefe(array_all($spur, static fn(array $s): bool => $s[1] === true), 'Wandthermostat: beim HA-Neustart nie nicht erreichbar');
 pruefe(array_any($spur, static fn(array $s): bool => $s[2] > 0), 'Wandthermostat: Timer wurde beim Ausfall gestellt');
 pruefe(end($spur)[2] === 0, 'Wandthermostat: Timer nach Rückkehr wieder aus');
+pruefe(logTypen($g) === [], 'Wandthermostat: HA-Neustart schreibt nichts ins Log', json_encode(logTexte($g), JSON_UNESCAPED_UNICODE));
 
 // ---- Teil 4: Geschirrspüler 27.09.2026 — nie alle weg ----
 
@@ -177,6 +197,7 @@ $spur = abspielen($g, $f['ereignisse'], strtotime($f['fenster'][1]));
 pruefe(end($spur)[1] === false, 'Backofen: dauerhaft getrennt → nicht erreichbar');
 $ersterFalse = array_values(array_filter($spur, static fn(array $s): bool => $s[1] === false))[0][0] ?? null;
 pruefe($ersterFalse === $f['ereignisse'][0]['ts'] + $delay, 'Backofen: genau nach der Entprellzeit gekippt');
+pruefe(logTypen($g) === [KL_WARNING], 'Backofen: eine einzige Warnung über den ganzen Verlauf', json_encode(logTexte($g), JSON_UNESCAPED_UNICODE));
 
 // ---- Teil 6: heißer Pfad bleibt im Normalbetrieb ohne Auswertung ----
 
@@ -289,10 +310,13 @@ $schreibvorgaenge[] = KernelZaehler::seit($vorher)['SetValue:' . REACHABLE] ?? 0
 pruefe($g->wert(REACHABLE) === false, 'Ausfall: weitere unavailable-Meldungen ändern nichts');
 pruefe(array_sum($schreibvorgaenge) === 0, 'Ausfall: reachable wird kein einziges Mal neu geschrieben (kein Ereignis für Anwender)', json_encode($schreibvorgaenge));
 
+pruefe(logTypen($g) === [KL_WARNING], 'Ausfall: ApplyChanges und Kernel-Neustart schreiben keine zweite Warnung', json_encode(logTexte($g), JSON_UNESCAPED_UNICODE));
+
 DeviceHarness::$jetzt = 7000;
 melde($g, 'sensor.b', '21.5');
 cacheFlush($g);
 pruefe($g->wert(REACHABLE) === true, 'Ausfall: erste gültige Meldung nach dem Neustart macht sofort erreichbar');
+pruefe(logTypen($g) === [KL_WARNING, KL_MESSAGE], 'Ausfall: die Erholung steht als Meldung im Log', json_encode(logTexte($g), JSON_UNESCAPED_UNICODE));
 
 // ---- Teil 11: eine neu angelegte Variable kennt keinen Ausfall ----
 // Code-Review build 168: Die Variable entsteht mit dem Standardwert false. Für „gilt schon als nicht
@@ -313,6 +337,7 @@ DeviceHarness::$jetzt = 2000;
 neueAusfuehrung($g)->ApplyChanges();
 pruefe($g->wert(REACHABLE) === true, 'Neue Variable: gilt zunächst als erreichbar', var_export($g->wert(REACHABLE), true));
 pruefe($g->timer(TIMER) > 0, 'Neue Variable: die Entprellung läuft');
+pruefe(logTypen($g) === [], 'Neue Variable: das Anlegen schreibt nichts ins Log', json_encode(logTexte($g), JSON_UNESCAPED_UNICODE));
 
 DeviceHarness::$jetzt = 2000 + $delay;
 timerLaeuftAb($g);

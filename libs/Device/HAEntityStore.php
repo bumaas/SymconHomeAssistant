@@ -343,11 +343,27 @@ trait HAEntityStoreTrait
         $this->setReachableValue(false);
     }
 
+    // Einziger Ort, an dem „reachable" wechselt — deshalb steht hier auch der Logeintrag: Wer im Log
+    // sucht (Anwender wie KI über symcon_log), findet Ausfall und Erholung, ohne die Variable zu
+    // kennen; der Instanzstatus bleibt bewusst 102. Anlegen der Variable und ein schon bekannter
+    // Ausfall nach Neustart laufen nicht hier durch und schreiben deshalb nichts.
     private function setReachableValue(bool $reachable): void
     {
-        if ($this->GetValue(self::REACHABLE_IDENT) !== $reachable) {
-            $this->SetValue(self::REACHABLE_IDENT, $reachable);
+        if ($this->GetValue(self::REACHABLE_IDENT) === $reachable) {
+            return;
         }
+        $this->SetValue(self::REACHABLE_IDENT, $reachable);
+        if ($reachable) {
+            $this->LogMessage($this->Translate('Reachable again'), KL_MESSAGE);
+            return;
+        }
+        $this->LogMessage(
+            sprintf(
+                $this->Translate("Not reachable: Home Assistant has reported 'unavailable' for all entities for %d minutes. Check the device in Home Assistant."),
+                intdiv(self::REACHABILITY_DELAY_S, 60)
+            ),
+            KL_WARNING
+        );
     }
 
     // Schreibt das LastMQTTMessage-Attribut und aktualisiert die Diagnose-Labels höchstens alle

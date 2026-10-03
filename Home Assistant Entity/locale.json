@@ -57,6 +57,8 @@
       "Disconnected": "Getrennt",
       "Reachable": "Erreichbar",
       "Not reachable": "Nicht erreichbar",
+      "Reachable again": "Wieder erreichbar",
+      "Not reachable: Home Assistant has reported 'unavailable' for all entities for %d minutes. Check the device in Home Assistant.": "Nicht erreichbar: Home Assistant meldet seit %d Minuten „unavailable“ für alle Entitäten. Gerät in Home Assistant prüfen.",
       "Invalid value \"%s\" for \"%s\"": "Ungültiger Wert \"%s\" für \"%s\"",
       "Invalid value \"%s\" for \"%s\" (allowed: %s)": "Ungültiger Wert \"%s\" für \"%s\" (erlaubt: %s)",
       "Closed": "Geschlossen",

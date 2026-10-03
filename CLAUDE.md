@@ -31,6 +31,10 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   State-Cache-Eintrag `raw_state = unavailable` tragen, seit mindestens
   `REACHABILITY_DELAY_S` (600 s). Kein Instanzstatus, kein Ausnahmeschalter (bewusst,
   Abstimmung 30.09.2026).
+- Jeder Wechsel steht im Log (build 185, MCP-Regel 11, Abstimmung 03.10.2026): Ausfall als
+  `KL_WARNING` mit Frist und nächstem Schritt, Erholung als `KL_MESSAGE`. Geschrieben wird nur
+  in `setReachableValue()`, dem einzigen Ort des Wechsels — das Anlegen der Variable und ein
+  über Neustart gehaltener Ausfall laufen nicht dort durch und loggen deshalb nichts.
 - Die 600 s sind gemessen, nicht geschätzt: Beim nächtlichen HA-Neustart gehen Geräte der
   HA-Homematic- und der Sonos-Integration bis 218 s komplett auf `unavailable`.
 - Heißer Pfad: `markReachabilityDirty()` liest nur den Buffer `ReachabilitySince`
