@@ -403,7 +403,9 @@
       "Button": "Taster",
       "Text": "Text",
       "Light": "Licht",
-      "Event": "Ereignis"
+      "Event": "Ereignis",
+      "recording": "Aufnahme",
+      "streaming": "Streaming"
     }
   }
 }

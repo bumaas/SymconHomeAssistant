@@ -46,6 +46,7 @@ trait HAPresentationTrait
             HAHumidifierDefinitions::DOMAIN => $this->getHumidifierPresentation(),
             HAButtonDefinitions::DOMAIN => $this->getButtonPresentation($entity),
             HAMediaPlayerDefinitions::DOMAIN => $this->getMediaPlayerPresentation(),
+            HACameraDefinitions::DOMAIN => $this->getStateOptionsPresentation(HACameraDefinitions::STATE_OPTIONS),
             HACoverDefinitions::DOMAIN => $this->getCoverPresentation($attributes, $type),
             HAValveDefinitions::DOMAIN => $this->getValvePresentation($attributes, $type),
             HAEventDefinitions::DOMAIN => $this->getEventPresentation(),
@@ -202,24 +203,31 @@ trait HAPresentationTrait
         ]);
     }
 
-    private function getMediaPlayerPresentation(): array
+    // Nicht schaltbarer Zustand mit fester Werteliste: Wertanzeige mit Optionen (eine Aufzählung
+    // verlangt eine Variablenaktion). Der Rohwert aus HA bleibt in der Variable.
+    private function getStateOptionsPresentation(array $stateOptions): array
     {
         $options = [];
-        foreach (HAMediaPlayerDefinitions::STATE_OPTIONS as $value => $caption) {
+        foreach ($stateOptions as $value => $caption) {
             $options[] = [
-                'Value'      => $value,
-                'Caption'    => $this->Translate((string)$caption),
-                'IconActive' => false,
-                'IconValue'  => '',
-                'ColorActive'      => false,
-                'ColorValue'      => -1
+                'Value'       => $value,
+                'Caption'     => $this->Translate((string)$caption),
+                'IconActive'  => false,
+                'IconValue'   => '',
+                'ColorActive' => false,
+                'ColorValue'  => -1
             ];
         }
 
         return $this->filterPresentation([
-            'PRESENTATION' => HAMediaPlayerDefinitions::PRESENTATION,
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
             'OPTIONS'      => json_encode($options, JSON_THROW_ON_ERROR)
         ]);
+    }
+
+    private function getMediaPlayerPresentation(): array
+    {
+        return $this->getStateOptionsPresentation(HAMediaPlayerDefinitions::STATE_OPTIONS);
     }
 
     private function getFanPresentation(): array

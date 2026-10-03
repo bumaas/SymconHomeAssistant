@@ -212,6 +212,19 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   „%" trotzdem nur einmal (am nuc mit eigener Darstellung an Sonos erprobt). Test:
   `tests/check-volume-suffix.php`.
 
+## Kamera (build 193)
+
+- Der Kamera-Zustand bleibt als Rohwert (`idle`/`recording`/`streaming`) in der Variable; die
+  Darstellung ist eine Wertanzeige mit diesen Optionen (`HACameraDefinitions::STATE_OPTIONS`,
+  gemeinsamer Helfer `getStateOptionsPresentation()` wie beim Mediaplayer-Status). Keine Aufzählung:
+  Die verlangt in Symcon eine Variablenaktion (siehe `check-readonly-enum-presentation.php`).
+- Der rotierende Kamera-Schlüssel (`access_token`, `token=` in `entity_picture`) kommt nicht in die
+  Konfiguration und nicht ins Config-Bundle: `removeCameraSecretAttributes()` beim Schreiben in
+  `UpdateConfiguration()` und beim Export, `normalizeCameraAttributes()` für REST-Zustände
+  (`mergeStateAttributes`). Bis build 192 stand er am nuc in der Konfiguration der HIKVISION.
+- Test: `tests/check-camera-state-token.php` (Fixture `camera_hikvision_20261003.json`, Schlüssel
+  durch Platzhalter ersetzt).
+
 ## Buttons und Diagnose (build 189, MCP-Punkt H5)
 
 - Ein Button meldet als Zustand den Zeitpunkt des letzten Drückens. Den Druck zeigt die

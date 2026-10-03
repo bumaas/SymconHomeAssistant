@@ -173,9 +173,31 @@ trait HAEntityNormalizationTrait
         return $attributes;
     }
 
+    // Der rotierende Kamera-Schlüssel (access_token, auch als token= in entity_picture) gehört nicht in
+    // die gespeicherte Konfiguration und damit nicht ins Config-Bundle, das Anwender weitergeben. Das
+    // Modul braucht ihn nicht: Die Vorschau läuft über camera_proxy mit dem Long-Lived-Token des
+    // Splitters (nuc 03.10.2026, HIKVISION). Schmal gehalten, damit er auch auf rohe Bundle-Zeilen passt.
+    private const array CAMERA_SECRET_ATTRIBUTES = ['access_token', 'entity_picture'];
+
+    protected function removeCameraSecretAttributes(array $configData): array
+    {
+        foreach ($configData as &$row) {
+            if (!is_array($row) || !is_array($row['attributes'] ?? null)) {
+                continue;
+            }
+            $domain = (string)($row['domain'] ?? strstr((string)($row['entity_id'] ?? ''), '.', true));
+            if ($domain === HACameraDefinitions::DOMAIN) {
+                $row['attributes'] = array_diff_key($row['attributes'], array_flip(self::CAMERA_SECRET_ATTRIBUTES));
+            }
+        }
+        unset($row);
+        return $configData;
+    }
+
     protected function normalizeCameraAttributes(array $attributes, ?string $context = null): array
     {
         unset($context);
+        $attributes = array_diff_key($attributes, array_flip(self::CAMERA_SECRET_ATTRIBUTES));
         foreach (['stream_source', 'rtsp_url'] as $key) {
             if (isset($attributes[$key]) && is_string($attributes[$key])) {
                 $attributes[$key] = trim($attributes[$key]);

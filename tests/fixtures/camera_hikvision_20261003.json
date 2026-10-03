@@ -1,0 +1,351 @@
+{
+    "quelle": "nuc, 03.10.2026, 1.5 build 186: HA_ExportConfigBundleDataUrl der Device-Instanz HIKVISION DS-2CD2686G2-IZS (#58706). Der Kamera-Schlüssel (access_token und token= in entity_picture) ist durch einen Platzhalter gleicher Länge ersetzt.",
+    "konfiguration": [
+        {
+            "entity_id": "button.hikvision_ds_2cd2686g2_izs_reboot",
+            "domain": "button",
+            "name": "HIKVISION DS-2CD2686G2-IZS Reboot",
+            "attributes": {
+                "device_class": "restart",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Reboot",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "restart"
+        },
+        {
+            "entity_id": "button.hikvision_ds_2cd2686g2_izs_set_system_date_and_time",
+            "domain": "button",
+            "name": "HIKVISION DS-2CD2686G2-IZS Set System Date and Time",
+            "attributes": {
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Set System Date and Time",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_motion_alarm_2",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Motion Alarm 2",
+            "attributes": {
+                "device_class": "motion",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Motion Alarm 2",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "motion"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_global_scene_change",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Global Scene Change",
+            "attributes": {
+                "device_class": "problem",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Global Scene Change",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "problem"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_cell_motion_detection",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Cell Motion Detection",
+            "attributes": {
+                "device_class": "motion",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Cell Motion Detection",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "motion"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_tamper_detection",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Tamper Detection",
+            "attributes": {
+                "device_class": "problem",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Tamper Detection",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "problem"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_image_too_dark",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Image Too Dark",
+            "attributes": {
+                "device_class": "problem",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Image Too Dark",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "problem"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_field_detection",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Field Detection",
+            "attributes": {
+                "device_class": "motion",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Field Detection",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "motion"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_storage_failure",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Storage Failure",
+            "attributes": {
+                "device_class": "problem",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Storage Failure",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "problem"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_relay_triggered",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Relay Triggered",
+            "attributes": {
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Relay Triggered",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_motion_alarm_1",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Motion Alarm 1",
+            "attributes": {
+                "device_class": "motion",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Motion Alarm 1",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "motion"
+        },
+        {
+            "entity_id": "binary_sensor.hikvision_ds_2cd2686g2_izs_digital_input",
+            "domain": "binary_sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Digital Input",
+            "attributes": {
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Digital Input",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        },
+        {
+            "entity_id": "sensor.hikvision_ds_2cd2686g2_izs_last_reboot",
+            "domain": "sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Last Reboot",
+            "attributes": {
+                "device_class": "timestamp",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Last Reboot",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS",
+            "device_class": "timestamp"
+        },
+        {
+            "entity_id": "sensor.hikvision_ds_2cd2686g2_izs_processor_usage",
+            "domain": "sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Processor Usage",
+            "attributes": {
+                "unit_of_measurement": "percent",
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Processor Usage",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        },
+        {
+            "entity_id": "sensor.hikvision_ds_2cd2686g2_izs_count_aggregation_counter",
+            "domain": "sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Hikvision Kamera DS-2CD2686G2-IZS Count Aggregation Counter",
+            "attributes": {
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Hikvision Kamera DS-2CD2686G2-IZS Count Aggregation Counter",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        },
+        {
+            "entity_id": "sensor.hikvision_ds_2cd2686g2_izs_line_detector_crossed",
+            "domain": "sensor",
+            "name": "HIKVISION DS-2CD2686G2-IZS Hikvision Kamera DS-2CD2686G2-IZS Line Detector Crossed",
+            "attributes": {
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Hikvision Kamera DS-2CD2686G2-IZS Line Detector Crossed",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        },
+        {
+            "entity_id": "switch.hikvision_ds_2cd2686g2_izs_autofokus",
+            "domain": "switch",
+            "name": "HIKVISION DS-2CD2686G2-IZS Autofokus",
+            "attributes": {
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Autofokus",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        },
+        {
+            "entity_id": "switch.hikvision_ds_2cd2686g2_izs_ir_lampe",
+            "domain": "switch",
+            "name": "HIKVISION DS-2CD2686G2-IZS IR-Lampe",
+            "attributes": {
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS IR-Lampe",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        },
+        {
+            "entity_id": "switch.hikvision_ds_2cd2686g2_izs_wischer",
+            "domain": "switch",
+            "name": "HIKVISION DS-2CD2686G2-IZS Wischer",
+            "attributes": {
+                "friendly_name": "HIKVISION DS-2CD2686G2-IZS Wischer",
+                "supported_features": 0
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        },
+        {
+            "entity_id": "camera.hikvision_ds_2cd2686g2_izs_mainstream",
+            "domain": "camera",
+            "name": "ms",
+            "attributes": {
+                "access_token": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "entity_picture": "/api/camera_proxy/camera.hikvision_ds_2cd2686g2_izs_mainstream?token=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "friendly_name": "ms",
+                "supported_features": 2,
+                "supported_features_list": [
+                    "Camera feature: Stream"
+                ]
+            },
+            "device_name": "HIKVISION DS-2CD2686G2-IZS",
+            "device_manufacturer": "HIKVISION",
+            "device_model": "DS-2CD2686G2-IZS",
+            "device_id": "d1eb2f293b4864dd2932339e189dc030",
+            "area": "Kamera",
+            "create_var": true,
+            "device": "HIKVISION DS-2CD2686G2-IZS"
+        }
+    ]
+}

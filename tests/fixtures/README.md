@@ -184,6 +184,13 @@ Instanz „homematic-ccu3" am nuc (03.10.2026, 1.5 build 186). `konfiguration_na
 Grundlage von `check-removed-entities.php`. Enthält die Seriennummer eines Rauchmelders
 (`devices` in `sensor.homematic_ccu3_posteingang`), keine IP-Adressen oder Zugangsdaten.
 
+## Kamera (`camera_hikvision_20261003.json`)
+
+Konfiguration (`HA_ExportConfigBundleDataUrl`) der Device-Instanz „HIKVISION DS-2CD2686G2-IZS" am nuc
+(03.10.2026, 1.5 build 186), 20 Entitäten. Der Kamera-Schlüssel (`access_token` und `token=` in
+`entity_picture`) ist durch den Platzhalter `0123456789abcdef…` gleicher Länge ersetzt. Grundlage von
+`check-camera-state-token.php`.
+
 ## Gleichnamige Variablen (`naming_collisions_20261003.json`)
 
 Konfiguration (`HA_ExportConfigBundleDataUrl`) dreier Device-Instanzen am nuc (03.10.2026,

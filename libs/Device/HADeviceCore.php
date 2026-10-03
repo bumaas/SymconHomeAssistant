@@ -245,7 +245,11 @@ trait HADeviceCoreTrait
                 $existing = [];
             }
 
-            $row['attributes'] = array_merge($existing, $attrs);
+            // Durch die Domänen-Normalisierung, damit die REST-Zustände nichts in die Konfiguration
+            // tragen, was der Konfigurationsaufbau herausfiltert (Kamera-Schlüssel).
+            $merged = array_merge($existing, $attrs);
+            $domain = (string)($entity['domain'] ?? '');
+            $row['attributes'] = $domain !== '' ? $this->filterAttributesByDomain($domain, $merged) : $merged;
         }
         unset($row);
 

@@ -31,6 +31,7 @@ tests/fixtures/*
 !tests/fixtures/legacy_idents_20261003.json
 !tests/fixtures/removed_entities_ccu3_20261003.json
 !tests/fixtures/naming_collisions_20261003.json
+!tests/fixtures/camera_hikvision_20261003.json
 
 # Claude Code (persönliche Dateien)
 CLAUDE.local.md

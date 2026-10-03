@@ -146,7 +146,15 @@
       "Button": "Taster",
       "Text": "Text",
       "Light": "Licht",
-      "Event": "Ereignis"
+      "Event": "Ereignis",
+      "idle": "Bereit",
+      "recording": "Aufnahme",
+      "streaming": "Streaming",
+      "off": "Aus",
+      "on": "An",
+      "playing": "Wiedergabe",
+      "paused": "Pausiert",
+      "buffering": "Puffert"
     }
   }
 }
