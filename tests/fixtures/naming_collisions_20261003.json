@@ -1,0 +1,2094 @@
+{
+    "quelle": "nuc, 03.10.2026, 1.5 build 186: HA_ExportConfigBundleDataUrl der Device-Instanzen „Luftentfeuchter\" (#49151) und „Küche.Licht.Bewegungsmelder\" (Aqara FP300, #33347) aus Burkhards Home Assistant, dazu „Home Assistant Gerät\" (#54477): ein Tesla aus dem Config-Bundle eines Supportfalls (Anwenderdaten), neutralisiert — Fahrzeugname „Testauto\", Geräte-ID durch Platzhalter ersetzt, Standortkoordinaten 0.",
+    "geraete": {
+        "Home Assistant Gerät": [
+            {
+                "entity_id": "binary_sensor.testauto_status",
+                "domain": "binary_sensor",
+                "name": "Testauto Status",
+                "attributes": {
+                    "device_class": "connectivity",
+                    "friendly_name": "Testauto Status",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "connectivity"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_ladekabel",
+                "domain": "binary_sensor",
+                "name": "Testauto Ladekabel",
+                "attributes": {
+                    "device_class": "connectivity",
+                    "friendly_name": "Testauto Ladekabel",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "connectivity"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_benutzer_anwesend",
+                "domain": "binary_sensor",
+                "name": "Testauto Benutzer anwesend",
+                "attributes": {
+                    "device_class": "presence",
+                    "friendly_name": "Testauto Benutzer anwesend",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "presence"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_fahrerfenster_vorne",
+                "domain": "binary_sensor",
+                "name": "Testauto Fahrerfenster vorne",
+                "attributes": {
+                    "device_class": "window",
+                    "friendly_name": "Testauto Fahrerfenster vorne",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "window"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_beifahrerfenster_vorne",
+                "domain": "binary_sensor",
+                "name": "Testauto Beifahrerfenster vorne",
+                "attributes": {
+                    "device_class": "window",
+                    "friendly_name": "Testauto Beifahrerfenster vorne",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "window"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_fahrerfenster_hinten",
+                "domain": "binary_sensor",
+                "name": "Testauto Fahrerfenster hinten",
+                "attributes": {
+                    "device_class": "window",
+                    "friendly_name": "Testauto Fahrerfenster hinten",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "window"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_beifahrerfenster_hinten",
+                "domain": "binary_sensor",
+                "name": "Testauto Beifahrerfenster hinten",
+                "attributes": {
+                    "device_class": "window",
+                    "friendly_name": "Testauto Beifahrerfenster hinten",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "window"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_fahrertur_vorne",
+                "domain": "binary_sensor",
+                "name": "Testauto Fahrertür vorne",
+                "attributes": {
+                    "device_class": "door",
+                    "friendly_name": "Testauto Fahrertür vorne",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "door"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_fahrertur_hinten",
+                "domain": "binary_sensor",
+                "name": "Testauto Fahrertür hinten",
+                "attributes": {
+                    "device_class": "door",
+                    "friendly_name": "Testauto Fahrertür hinten",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "door"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_beifahrertur_vorne",
+                "domain": "binary_sensor",
+                "name": "Testauto Beifahrertür vorne",
+                "attributes": {
+                    "device_class": "door",
+                    "friendly_name": "Testauto Beifahrertür vorne",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "door"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_beifahrertur_hinten",
+                "domain": "binary_sensor",
+                "name": "Testauto Beifahrertür hinten",
+                "attributes": {
+                    "device_class": "door",
+                    "friendly_name": "Testauto Beifahrertür hinten",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "door"
+            },
+            {
+                "entity_id": "button.testauto_wecken",
+                "domain": "button",
+                "name": "Testauto Wecken",
+                "attributes": {
+                    "friendly_name": "Testauto Wecken",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "button.testauto_lichthupe",
+                "domain": "button",
+                "name": "Testauto Lichthupe",
+                "attributes": {
+                    "friendly_name": "Testauto Lichthupe",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "button.testauto_hupen",
+                "domain": "button",
+                "name": "Testauto Hupen",
+                "attributes": {
+                    "friendly_name": "Testauto Hupen",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "button.testauto_schlusselloses_fahren",
+                "domain": "button",
+                "name": "Testauto Schlüsselloses Fahren",
+                "attributes": {
+                    "friendly_name": "Testauto Schlüsselloses Fahren",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "button.testauto_furz_abspielen",
+                "domain": "button",
+                "name": "Testauto Furz abspielen",
+                "attributes": {
+                    "friendly_name": "Testauto Furz abspielen",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "button.testauto_homelink",
+                "domain": "button",
+                "name": "Testauto Homelink",
+                "attributes": {
+                    "friendly_name": "Testauto Homelink",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "climate.testauto_klima",
+                "domain": "climate",
+                "name": "Testauto Klima",
+                "attributes": {
+                    "hvac_modes": [
+                        "heat_cool",
+                        "off"
+                    ],
+                    "min_temp": 15,
+                    "max_temp": 28,
+                    "preset_modes": [
+                        "off",
+                        "keep",
+                        "dog",
+                        "camp"
+                    ],
+                    "current_temperature": 28,
+                    "preset_mode": "off",
+                    "friendly_name": "Testauto Klima",
+                    "supported_features": 401,
+                    "target_temperature": 23,
+                    "supported_features_list": [
+                        "Target Temp",
+                        "Preset Mode",
+                        "Turn On",
+                        "Turn Off"
+                    ],
+                    "temperature": 23
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "cover.testauto_fenster",
+                "domain": "cover",
+                "name": "Testauto Fenster",
+                "attributes": {
+                    "is_closed": true,
+                    "device_class": "window",
+                    "friendly_name": "Testauto Fenster",
+                    "supported_features": 3,
+                    "supported_features_list": [
+                        "Cover feature: Open",
+                        "Cover feature: Close"
+                    ]
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "window"
+            },
+            {
+                "entity_id": "cover.testauto_ladeanschluss_klappe",
+                "domain": "cover",
+                "name": "Testauto Ladeanschluss-Klappe",
+                "attributes": {
+                    "is_closed": false,
+                    "device_class": "door",
+                    "friendly_name": "Testauto Ladeanschluss-Klappe",
+                    "supported_features": 3,
+                    "supported_features_list": [
+                        "Cover feature: Open",
+                        "Cover feature: Close"
+                    ]
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "door"
+            },
+            {
+                "entity_id": "cover.testauto_front_kofferraum",
+                "domain": "cover",
+                "name": "Testauto Front-Kofferraum",
+                "attributes": {
+                    "is_closed": true,
+                    "device_class": "door",
+                    "friendly_name": "Testauto Front-Kofferraum",
+                    "supported_features": 1,
+                    "supported_features_list": [
+                        "Cover feature: Open"
+                    ]
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "door"
+            },
+            {
+                "entity_id": "cover.testauto_kofferraum",
+                "domain": "cover",
+                "name": "Testauto Kofferraum",
+                "attributes": {
+                    "is_closed": true,
+                    "device_class": "door",
+                    "friendly_name": "Testauto Kofferraum",
+                    "supported_features": 3,
+                    "supported_features_list": [
+                        "Cover feature: Open",
+                        "Cover feature: Close"
+                    ]
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "door"
+            },
+            {
+                "entity_id": "device_tracker.testauto_standort",
+                "domain": "device_tracker",
+                "name": "Testauto Standort",
+                "attributes": {
+                    "in_zones": [
+                        "zone.home"
+                    ],
+                    "source_type": "gps",
+                    "latitude": 0.0,
+                    "longitude": 0.0,
+                    "gps_accuracy": 0,
+                    "friendly_name": "Testauto Standort",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "device_tracker.testauto_route",
+                "domain": "device_tracker",
+                "name": "Testauto Route",
+                "attributes": {
+                    "in_zones": [],
+                    "source_type": "gps",
+                    "friendly_name": "Testauto Route",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "lock.testauto_schloss",
+                "domain": "lock",
+                "name": "Testauto Schloss",
+                "attributes": {
+                    "friendly_name": "Testauto Schloss",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "lock.testauto_verriegelung_des_ladekabels",
+                "domain": "lock",
+                "name": "Testauto Verriegelung des Ladekabels",
+                "attributes": {
+                    "friendly_name": "Testauto Verriegelung des Ladekabels",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "media_player.testauto_mediaplayer",
+                "domain": "media_player",
+                "name": "Testauto Mediaplayer",
+                "attributes": {
+                    "volume_level": 0.32257742976056225,
+                    "media_title": "",
+                    "media_artist": "",
+                    "media_album_name": "",
+                    "media_playlist": "",
+                    "source": "AmazonMusic",
+                    "device_class": "speaker",
+                    "friendly_name": "Testauto Mediaplayer",
+                    "supported_features": 16437,
+                    "supported_features_list": [
+                        "Media player feature: Next Track",
+                        "Media player feature: Pause",
+                        "Media player feature: Play",
+                        "Media player feature: Previous Track",
+                        "Media player feature: Volume Set"
+                    ]
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "speaker"
+            },
+            {
+                "entity_id": "number.testauto_ladestromstarke",
+                "domain": "number",
+                "name": "Testauto Ladestromstärke",
+                "attributes": {
+                    "min": 0,
+                    "max": 5,
+                    "step": 1,
+                    "mode": "auto",
+                    "unit_of_measurement": "A",
+                    "device_class": "current",
+                    "friendly_name": "Testauto Ladestromstärke",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "current"
+            },
+            {
+                "entity_id": "number.testauto_ladelimit",
+                "domain": "number",
+                "name": "Testauto Ladelimit",
+                "attributes": {
+                    "min": 50,
+                    "max": 100,
+                    "step": 1,
+                    "mode": "auto",
+                    "unit_of_measurement": "%",
+                    "device_class": "battery",
+                    "friendly_name": "Testauto Ladelimit",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "battery"
+            },
+            {
+                "entity_id": "select.testauto_sitzheizung_vorne_links",
+                "domain": "select",
+                "name": "Testauto Sitzheizung vorne links",
+                "attributes": {
+                    "options": [
+                        "off",
+                        "low",
+                        "medium",
+                        "high"
+                    ],
+                    "friendly_name": "Testauto Sitzheizung vorne links",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "select.testauto_sitzheizung_vorne_rechts",
+                "domain": "select",
+                "name": "Testauto Sitzheizung vorne rechts",
+                "attributes": {
+                    "options": [
+                        "off",
+                        "low",
+                        "medium",
+                        "high"
+                    ],
+                    "friendly_name": "Testauto Sitzheizung vorne rechts",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "select.testauto_lenkradheizung",
+                "domain": "select",
+                "name": "Testauto Lenkradheizung",
+                "attributes": {
+                    "options": [
+                        "off",
+                        "low",
+                        "high"
+                    ],
+                    "friendly_name": "Testauto Lenkradheizung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "sensor.testauto_ladestatus",
+                "domain": "sensor",
+                "name": "Testauto Ladestatus",
+                "attributes": {
+                    "options": [
+                        "starting",
+                        "charging",
+                        "stopped",
+                        "complete",
+                        "disconnected",
+                        "no_power"
+                    ],
+                    "device_class": "enum",
+                    "friendly_name": "Testauto Ladestatus",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "enum"
+            },
+            {
+                "entity_id": "sensor.testauto_batteriestand",
+                "domain": "sensor",
+                "name": "Testauto Batteriestand",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "%",
+                    "device_class": "battery",
+                    "friendly_name": "Testauto Batteriestand",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "battery"
+            },
+            {
+                "entity_id": "sensor.testauto_ladeenergie_hinzugefugt",
+                "domain": "sensor",
+                "name": "Testauto Ladeenergie hinzugefügt",
+                "attributes": {
+                    "state_class": "total",
+                    "last_reset": "2026-06-18T09:21:55.770640+00:00",
+                    "unit_of_measurement": "kWh",
+                    "device_class": "energy",
+                    "friendly_name": "Testauto Ladeenergie hinzugefügt",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "energy"
+            },
+            {
+                "entity_id": "sensor.testauto_ladegerat_leistung",
+                "domain": "sensor",
+                "name": "Testauto Ladegerät-Leistung",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "kW",
+                    "device_class": "power",
+                    "friendly_name": "Testauto Ladegerät-Leistung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "power"
+            },
+            {
+                "entity_id": "sensor.testauto_ladegerat_spannung",
+                "domain": "sensor",
+                "name": "Testauto Ladegerät-Spannung",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "V",
+                    "device_class": "voltage",
+                    "friendly_name": "Testauto Ladegerät-Spannung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "voltage"
+            },
+            {
+                "entity_id": "sensor.testauto_ladegerat_stromstarke",
+                "domain": "sensor",
+                "name": "Testauto Ladegerät-Stromstärke",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "A",
+                    "device_class": "current",
+                    "friendly_name": "Testauto Ladegerät-Stromstärke",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "current"
+            },
+            {
+                "entity_id": "sensor.testauto_ladegeschwindigkeit",
+                "domain": "sensor",
+                "name": "Testauto Ladegeschwindigkeit",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "km/h",
+                    "device_class": "speed",
+                    "friendly_name": "Testauto Ladegeschwindigkeit",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "speed"
+            },
+            {
+                "entity_id": "sensor.testauto_batteriereichweite",
+                "domain": "sensor",
+                "name": "Testauto Batteriereichweite",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "km",
+                    "device_class": "distance",
+                    "friendly_name": "Testauto Batteriereichweite",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "distance"
+            },
+            {
+                "entity_id": "sensor.testauto_innentemperatur",
+                "domain": "sensor",
+                "name": "Testauto Innentemperatur",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "°C",
+                    "device_class": "temperature",
+                    "friendly_name": "Testauto Innentemperatur",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "temperature"
+            },
+            {
+                "entity_id": "sensor.testauto_aussentemperatur",
+                "domain": "sensor",
+                "name": "Testauto Außentemperatur",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "°C",
+                    "device_class": "temperature",
+                    "friendly_name": "Testauto Außentemperatur",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "temperature"
+            },
+            {
+                "entity_id": "sensor.testauto_entfernung_bis_zur_ankunft",
+                "domain": "sensor",
+                "name": "Testauto Entfernung bis zur Ankunft",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "km",
+                    "device_class": "distance",
+                    "friendly_name": "Testauto Entfernung bis zur Ankunft",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "distance"
+            },
+            {
+                "entity_id": "sensor.testauto_zeit_zum_vollstandigen_aufladen",
+                "domain": "sensor",
+                "name": "Testauto Zeit zum vollständigen Aufladen",
+                "attributes": {
+                    "device_class": "timestamp",
+                    "friendly_name": "Testauto Zeit zum vollständigen Aufladen",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "timestamp"
+            },
+            {
+                "entity_id": "sensor.testauto_zeit_bis_zur_ankunft",
+                "domain": "sensor",
+                "name": "Testauto Zeit bis zur Ankunft",
+                "attributes": {
+                    "device_class": "timestamp",
+                    "friendly_name": "Testauto Zeit bis zur Ankunft",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "timestamp"
+            },
+            {
+                "entity_id": "switch.testauto_wachter_modus",
+                "domain": "switch",
+                "name": "Testauto Wächter-Modus",
+                "attributes": {
+                    "device_class": "switch",
+                    "friendly_name": "Testauto Wächter-Modus",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "switch"
+            },
+            {
+                "entity_id": "switch.testauto_automatische_sitzklimatisierung_links",
+                "domain": "switch",
+                "name": "Testauto Automatische Sitzklimatisierung links",
+                "attributes": {
+                    "device_class": "switch",
+                    "friendly_name": "Testauto Automatische Sitzklimatisierung links",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "switch"
+            },
+            {
+                "entity_id": "switch.testauto_automatische_sitzklimatisierung_rechts",
+                "domain": "switch",
+                "name": "Testauto Automatische Sitzklimatisierung rechts",
+                "attributes": {
+                    "device_class": "switch",
+                    "friendly_name": "Testauto Automatische Sitzklimatisierung rechts",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "switch"
+            },
+            {
+                "entity_id": "switch.testauto_automatische_lenkradheizung",
+                "domain": "switch",
+                "name": "Testauto Automatische Lenkradheizung",
+                "attributes": {
+                    "device_class": "switch",
+                    "friendly_name": "Testauto Automatische Lenkradheizung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "switch"
+            },
+            {
+                "entity_id": "switch.testauto_entfrosten",
+                "domain": "switch",
+                "name": "Testauto Entfrosten",
+                "attributes": {
+                    "device_class": "switch",
+                    "friendly_name": "Testauto Entfrosten",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "switch"
+            },
+            {
+                "entity_id": "switch.testauto_aufladung",
+                "domain": "switch",
+                "name": "Testauto Aufladung",
+                "attributes": {
+                    "device_class": "switch",
+                    "friendly_name": "Testauto Aufladung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "switch"
+            },
+            {
+                "entity_id": "update.testauto_update",
+                "domain": "update",
+                "name": "Testauto Update",
+                "attributes": {
+                    "auto_update": false,
+                    "display_precision": 0,
+                    "installed_version": "2026.20",
+                    "in_progress": false,
+                    "latest_version": "2026.20",
+                    "release_summary": null,
+                    "release_url": null,
+                    "skipped_version": null,
+                    "title": null,
+                    "update_percentage": null,
+                    "entity_picture": "/api/brands/integration/tesla_fleet/icon.png",
+                    "friendly_name": "Testauto Update",
+                    "supported_features": 4,
+                    "supported_features_list": [
+                        "Progress"
+                    ]
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "sensor.testauto_geschwindigkeit",
+                "domain": "sensor",
+                "name": "Testauto Geschwindigkeit",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "km/h",
+                    "device_class": "speed",
+                    "friendly_name": "Testauto Geschwindigkeit",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "speed"
+            },
+            {
+                "entity_id": "sensor.testauto_fahrmodus_zustand",
+                "domain": "sensor",
+                "name": "Testauto Fahrmodus-Zustand",
+                "attributes": {
+                    "options": [
+                        "p",
+                        "d",
+                        "r",
+                        "n"
+                    ],
+                    "device_class": "enum",
+                    "friendly_name": "Testauto Fahrmodus-Zustand",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "enum"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_batterieheizung",
+                "domain": "binary_sensor",
+                "name": "Testauto Batterieheizung",
+                "attributes": {
+                    "device_class": "heat",
+                    "friendly_name": "Testauto Batterieheizung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "heat"
+            },
+            {
+                "entity_id": "sensor.testauto_nutzbarer_batteriestand",
+                "domain": "sensor",
+                "name": "Testauto Nutzbarer Batteriestand",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "%",
+                    "device_class": "battery",
+                    "friendly_name": "Testauto Nutzbarer Batteriestand",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "battery"
+            },
+            {
+                "entity_id": "sensor.testauto_schatzung_der_batteriereichweite",
+                "domain": "sensor",
+                "name": "Testauto Schätzung der Batteriereichweite",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "km",
+                    "device_class": "distance",
+                    "friendly_name": "Testauto Schätzung der Batteriereichweite",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "distance"
+            },
+            {
+                "entity_id": "sensor.testauto_ideale_batteriereichweite",
+                "domain": "sensor",
+                "name": "Testauto Ideale Batteriereichweite",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "km",
+                    "device_class": "distance",
+                    "friendly_name": "Testauto Ideale Batteriereichweite",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "distance"
+            },
+            {
+                "entity_id": "sensor.testauto_kilometerzahler",
+                "domain": "sensor",
+                "name": "Testauto Kilometerzähler",
+                "attributes": {
+                    "state_class": "total_increasing",
+                    "unit_of_measurement": "km",
+                    "device_class": "distance",
+                    "friendly_name": "Testauto Kilometerzähler",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "distance"
+            },
+            {
+                "entity_id": "sensor.testauto_verkehrsverzogerung",
+                "domain": "sensor",
+                "name": "Testauto Verkehrsverzögerung",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "min",
+                    "device_class": "duration",
+                    "friendly_name": "Testauto Verkehrsverzögerung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "duration"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_vorkonditionierung_aktiviert",
+                "domain": "binary_sensor",
+                "name": "Testauto Vorkonditionierung aktiviert",
+                "attributes": {
+                    "friendly_name": "Testauto Vorkonditionierung aktiviert",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_vorkonditionierung",
+                "domain": "binary_sensor",
+                "name": "Testauto Vorkonditionierung",
+                "attributes": {
+                    "friendly_name": "Testauto Vorkonditionierung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_fahrtenladung",
+                "domain": "binary_sensor",
+                "name": "Testauto Fahrtenladung",
+                "attributes": {
+                    "friendly_name": "Testauto Fahrtenladung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "sensor.testauto_schnelllader_typ",
+                "domain": "sensor",
+                "name": "Testauto Schnelllader-Typ",
+                "attributes": {
+                    "friendly_name": "Testauto Schnelllader-Typ",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "sensor.testauto_leistung",
+                "domain": "sensor",
+                "name": "Testauto Leistung",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "kW",
+                    "device_class": "power",
+                    "friendly_name": "Testauto Leistung",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "power"
+            },
+            {
+                "entity_id": "sensor.testauto_reifendruck_vorne_links",
+                "domain": "sensor",
+                "name": "Testauto Reifendruck vorne links",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "psi",
+                    "device_class": "pressure",
+                    "friendly_name": "Testauto Reifendruck vorne links",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "pressure"
+            },
+            {
+                "entity_id": "sensor.testauto_reifendruck_vorne_rechts",
+                "domain": "sensor",
+                "name": "Testauto Reifendruck vorne rechts",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "psi",
+                    "device_class": "pressure",
+                    "friendly_name": "Testauto Reifendruck vorne rechts",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "pressure"
+            },
+            {
+                "entity_id": "sensor.testauto_reifendruck_hinten_links",
+                "domain": "sensor",
+                "name": "Testauto Reifendruck hinten links",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "psi",
+                    "device_class": "pressure",
+                    "friendly_name": "Testauto Reifendruck hinten links",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "pressure"
+            },
+            {
+                "entity_id": "sensor.testauto_reifendruck_hinten_rechts",
+                "domain": "sensor",
+                "name": "Testauto Reifendruck hinten rechts",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "psi",
+                    "device_class": "pressure",
+                    "friendly_name": "Testauto Reifendruck hinten rechts",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "pressure"
+            },
+            {
+                "entity_id": "sensor.testauto_einstellung_der_fahrertemperatur",
+                "domain": "sensor",
+                "name": "Testauto Einstellung der Fahrertemperatur",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "°C",
+                    "device_class": "temperature",
+                    "friendly_name": "Testauto Einstellung der Fahrertemperatur",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "temperature"
+            },
+            {
+                "entity_id": "sensor.testauto_einstellung_der_beifahrertemperatur",
+                "domain": "sensor",
+                "name": "Testauto Einstellung der Beifahrertemperatur",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "°C",
+                    "device_class": "temperature",
+                    "friendly_name": "Testauto Einstellung der Beifahrertemperatur",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "temperature"
+            },
+            {
+                "entity_id": "sensor.testauto_ladezustand_bei_ankunft",
+                "domain": "sensor",
+                "name": "Testauto Ladezustand bei Ankunft",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "%",
+                    "device_class": "battery",
+                    "friendly_name": "Testauto Ladezustand bei Ankunft",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "battery"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_ladegerat_hat_mehrere_phasen",
+                "domain": "binary_sensor",
+                "name": "Testauto Ladegerät hat mehrere Phasen",
+                "attributes": {
+                    "friendly_name": "Testauto Ladegerät hat mehrere Phasen",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_geplanter_ladevorgang_anstehend",
+                "domain": "binary_sensor",
+                "name": "Testauto Geplanter Ladevorgang anstehend",
+                "attributes": {
+                    "friendly_name": "Testauto Geplanter Ladevorgang anstehend",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_uberhitzungsschutz_in_der_kabine_kuhlt_aktiv",
+                "domain": "binary_sensor",
+                "name": "Testauto Überhitzungsschutz in der Kabine kühlt aktiv",
+                "attributes": {
+                    "device_class": "heat",
+                    "friendly_name": "Testauto Überhitzungsschutz in der Kabine kühlt aktiv",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "heat"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_dashcam",
+                "domain": "binary_sensor",
+                "name": "Testauto Dashcam",
+                "attributes": {
+                    "device_class": "running",
+                    "friendly_name": "Testauto Dashcam",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "running"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_reifendruckwarnung_vorne_links",
+                "domain": "binary_sensor",
+                "name": "Testauto Reifendruckwarnung vorne links",
+                "attributes": {
+                    "device_class": "problem",
+                    "friendly_name": "Testauto Reifendruckwarnung vorne links",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "problem"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_reifendruckwarnung_vorne_rechts",
+                "domain": "binary_sensor",
+                "name": "Testauto Reifendruckwarnung vorne rechts",
+                "attributes": {
+                    "device_class": "problem",
+                    "friendly_name": "Testauto Reifendruckwarnung vorne rechts",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "problem"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_reifendruckwarnung_hinten_links",
+                "domain": "binary_sensor",
+                "name": "Testauto Reifendruckwarnung hinten links",
+                "attributes": {
+                    "device_class": "problem",
+                    "friendly_name": "Testauto Reifendruckwarnung hinten links",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "problem"
+            },
+            {
+                "entity_id": "binary_sensor.testauto_reifendruckwarnung_hinten_rechts",
+                "domain": "binary_sensor",
+                "name": "Testauto Reifendruckwarnung hinten rechts",
+                "attributes": {
+                    "device_class": "problem",
+                    "friendly_name": "Testauto Reifendruckwarnung hinten rechts",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto",
+                "device_class": "problem"
+            },
+            {
+                "entity_id": "climate.testauto_uberhitzungsschutz_der_kabine",
+                "domain": "climate",
+                "name": "Testauto Überhitzungsschutz der Kabine",
+                "attributes": {
+                    "hvac_modes": [
+                        "off",
+                        "cool",
+                        "fan_only"
+                    ],
+                    "min_temp": 30,
+                    "max_temp": 40,
+                    "current_temperature": 28,
+                    "friendly_name": "Testauto Überhitzungsschutz der Kabine",
+                    "supported_features": 384,
+                    "target_temperature_step": 5,
+                    "supported_features_list": [
+                        "Turn On",
+                        "Turn Off"
+                    ],
+                    "target_temp_step": 5
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "select.testauto_sitzheizung_hinten_links",
+                "domain": "select",
+                "name": "Testauto Sitzheizung hinten links",
+                "attributes": {
+                    "options": [
+                        "off",
+                        "low",
+                        "medium",
+                        "high"
+                    ],
+                    "friendly_name": "Testauto Sitzheizung hinten links",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "select.testauto_sitzheizung_hinten_mitte",
+                "domain": "select",
+                "name": "Testauto Sitzheizung hinten Mitte",
+                "attributes": {
+                    "options": [
+                        "off",
+                        "low",
+                        "medium",
+                        "high"
+                    ],
+                    "friendly_name": "Testauto Sitzheizung hinten Mitte",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "select.testauto_sitzheizung_hinten_rechts",
+                "domain": "select",
+                "name": "Testauto Sitzheizung hinten rechts",
+                "attributes": {
+                    "options": [
+                        "off",
+                        "low",
+                        "medium",
+                        "high"
+                    ],
+                    "friendly_name": "Testauto Sitzheizung hinten rechts",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            },
+            {
+                "entity_id": "sensor.testauto_ladekabel",
+                "domain": "sensor",
+                "name": "Testauto Ladekabel",
+                "attributes": {
+                    "friendly_name": "Testauto Ladekabel",
+                    "supported_features": 0
+                },
+                "device_name": "Testauto",
+                "device_manufacturer": "Tesla",
+                "device_model": "Model Y",
+                "device_id": "0000000000000000000000000000a001",
+                "area": "Garage",
+                "create_var": true,
+                "device": "Testauto"
+            }
+        ],
+        "Luftentfeuchter": [
+            {
+                "entity_id": "binary_sensor.luftentfeuchter_tank_full",
+                "domain": "binary_sensor",
+                "name": "Tank voll",
+                "attributes": {
+                    "device_class": "problem",
+                    "friendly_name": "Tank voll",
+                    "supported_features": 0
+                },
+                "device_name": "Luftentfeuchter",
+                "device_manufacturer": "Midea",
+                "device_model": "Dehumidifier",
+                "device_id": "b1d46980849f6cc73f70a08781766549",
+                "area": "Keller",
+                "create_var": true,
+                "device": "Luftentfeuchter",
+                "device_class": "problem"
+            },
+            {
+                "entity_id": "fan.luftentfeuchter_fan",
+                "domain": "fan",
+                "name": "Lüfter",
+                "attributes": {
+                    "preset_modes": [
+                        "Low",
+                        "Medium",
+                        "High"
+                    ],
+                    "preset_mode": "Low",
+                    "friendly_name": "Lüfter",
+                    "supported_features": 56,
+                    "supported_features_list": [
+                        "Fan feature: Preset Mode",
+                        "Fan feature: Turn Off",
+                        "Fan feature: Turn On"
+                    ]
+                },
+                "device_name": "Luftentfeuchter",
+                "device_manufacturer": "Midea",
+                "device_model": "Dehumidifier",
+                "device_id": "b1d46980849f6cc73f70a08781766549",
+                "area": "Keller",
+                "create_var": true,
+                "device": "Luftentfeuchter"
+            },
+            {
+                "entity_id": "humidifier.luftentfeuchter",
+                "domain": "humidifier",
+                "name": "Luftentfeuchter",
+                "attributes": {
+                    "min_humidity": 35,
+                    "max_humidity": 85,
+                    "available_modes": [
+                        "Set",
+                        "Smart",
+                        "Continuous",
+                        "Dry"
+                    ],
+                    "current_humidity": 50,
+                    "mode": "Smart",
+                    "last_error_code": 0,
+                    "last_error_time": "2026-09-29T03:05:59.221119",
+                    "capabilities": "{'fan_speed': 7, 'auto': 1, 'dry_clothes': 1}",
+                    "capabilities_data": "b503100201071f02010120020101cb5c",
+                    "error_code": 0,
+                    "last_data": "c80103287f7f00370000000000000000325e00000000eb583b",
+                    "device_class": "dehumidifier",
+                    "friendly_name": "Luftentfeuchter",
+                    "supported_features": 1,
+                    "target_humidity": 55,
+                    "supported_features_list": [
+                        "Humidifier feature: Modes"
+                    ],
+                    "humidity": 55
+                },
+                "device_name": "Luftentfeuchter",
+                "device_manufacturer": "Midea",
+                "device_model": "Dehumidifier",
+                "device_id": "b1d46980849f6cc73f70a08781766549",
+                "area": "Keller",
+                "create_var": true,
+                "device": "Luftentfeuchter",
+                "device_class": "dehumidifier"
+            },
+            {
+                "entity_id": "sensor.luftentfeuchter_humidity",
+                "domain": "sensor",
+                "name": "Luftfeuchtigkeit",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "%",
+                    "device_class": "humidity",
+                    "friendly_name": "Luftfeuchtigkeit",
+                    "supported_features": 0
+                },
+                "device_name": "Luftentfeuchter",
+                "device_manufacturer": "Midea",
+                "device_model": "Dehumidifier",
+                "device_id": "b1d46980849f6cc73f70a08781766549",
+                "area": "Keller",
+                "create_var": true,
+                "device": "Luftentfeuchter",
+                "device_class": "humidity"
+            },
+            {
+                "entity_id": "sensor.luftentfeuchter_temperature",
+                "domain": "sensor",
+                "name": "Temperatur",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "°C",
+                    "device_class": "temperature",
+                    "friendly_name": "Temperatur",
+                    "supported_features": 0
+                },
+                "device_name": "Luftentfeuchter",
+                "device_manufacturer": "Midea",
+                "device_model": "Dehumidifier",
+                "device_id": "b1d46980849f6cc73f70a08781766549",
+                "area": "Keller",
+                "create_var": true,
+                "device": "Luftentfeuchter",
+                "device_class": "temperature"
+            }
+        ],
+        "Küche.Licht.Bewegungsmelder": [
+            {
+                "entity_id": "update.presence_multi_sensor_fp300_firmware",
+                "domain": "update",
+                "name": "Küche.Licht:Bewegungsmelder Firmware",
+                "attributes": {
+                    "auto_update": false,
+                    "display_precision": 0,
+                    "installed_version": "1.1.0.1",
+                    "in_progress": false,
+                    "latest_version": "1.1.0.1",
+                    "release_summary": null,
+                    "release_url": null,
+                    "skipped_version": null,
+                    "title": null,
+                    "update_percentage": null,
+                    "device_class": "firmware",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Firmware",
+                    "supported_features": 23,
+                    "supported_features_list": [
+                        "Install",
+                        "Specific Version",
+                        "Progress",
+                        "Release Notes"
+                    ]
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "firmware"
+            },
+            {
+                "entity_id": "binary_sensor.presence_multi_sensor_fp300_belegung",
+                "domain": "binary_sensor",
+                "name": "Küche.Licht:Bewegungsmelder Belegung",
+                "attributes": {
+                    "device_class": "occupancy",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Belegung",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "occupancy"
+            },
+            {
+                "entity_id": "button.presence_multi_sensor_fp300_identifizieren_1",
+                "domain": "button",
+                "name": "Küche.Licht:Bewegungsmelder Identifizieren (1)",
+                "attributes": {
+                    "device_class": "identify",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Identifizieren (1)",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "identify"
+            },
+            {
+                "entity_id": "number.presence_multi_sensor_fp300_haltezeit",
+                "domain": "number",
+                "name": "Küche.Licht:Bewegungsmelder Haltezeit",
+                "attributes": {
+                    "min": 1,
+                    "max": 65534,
+                    "step": 1,
+                    "mode": "box",
+                    "unit_of_measurement": "s",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Haltezeit",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder"
+            },
+            {
+                "entity_id": "select.presence_multi_sensor_fp300_empfindlichkeit",
+                "domain": "select",
+                "name": "Küche.Licht:Bewegungsmelder Empfindlichkeit",
+                "attributes": {
+                    "options": [
+                        "low",
+                        "standard",
+                        "high"
+                    ],
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Empfindlichkeit",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder"
+            },
+            {
+                "entity_id": "button.presence_multi_sensor_fp300_identifizieren_2",
+                "domain": "button",
+                "name": "Küche.Licht:Bewegungsmelder Identifizieren (2)",
+                "attributes": {
+                    "device_class": "identify",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Identifizieren (2)",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "identify"
+            },
+            {
+                "entity_id": "sensor.presence_multi_sensor_fp300_beleuchtungsstarke",
+                "domain": "sensor",
+                "name": "Küche.Licht:Bewegungsmelder Beleuchtungsstärke",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "lx",
+                    "device_class": "illuminance",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Beleuchtungsstärke",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "illuminance"
+            },
+            {
+                "entity_id": "button.presence_multi_sensor_fp300_identifizieren_3",
+                "domain": "button",
+                "name": "Küche.Licht:Bewegungsmelder Identifizieren (3)",
+                "attributes": {
+                    "device_class": "identify",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Identifizieren (3)",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "identify"
+            },
+            {
+                "entity_id": "sensor.presence_multi_sensor_fp300_temperatur",
+                "domain": "sensor",
+                "name": "Küche.Licht:Bewegungsmelder Temperatur",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "°C",
+                    "device_class": "temperature",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Temperatur",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "temperature"
+            },
+            {
+                "entity_id": "button.presence_multi_sensor_fp300_identifizieren_4",
+                "domain": "button",
+                "name": "Küche.Licht:Bewegungsmelder Identifizieren (4)",
+                "attributes": {
+                    "device_class": "identify",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Identifizieren (4)",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "identify"
+            },
+            {
+                "entity_id": "sensor.presence_multi_sensor_fp300_luftfeuchtigkeit",
+                "domain": "sensor",
+                "name": "Küche.Licht:Bewegungsmelder Luftfeuchtigkeit",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "%",
+                    "device_class": "humidity",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Luftfeuchtigkeit",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "humidity"
+            },
+            {
+                "entity_id": "sensor.presence_multi_sensor_fp300_batterie",
+                "domain": "sensor",
+                "name": "Küche.Licht:Bewegungsmelder Batterie",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "%",
+                    "device_class": "battery",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Batterie",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "battery"
+            },
+            {
+                "entity_id": "sensor.presence_multi_sensor_fp300_batteriespannung",
+                "domain": "sensor",
+                "name": "Küche.Licht:Bewegungsmelder Batteriespannung",
+                "attributes": {
+                    "state_class": "measurement",
+                    "unit_of_measurement": "V",
+                    "device_class": "voltage",
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Batteriespannung",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder",
+                "device_class": "voltage"
+            },
+            {
+                "entity_id": "sensor.presence_multi_sensor_fp300_batterietyp",
+                "domain": "sensor",
+                "name": "Küche.Licht:Bewegungsmelder Batterietyp",
+                "attributes": {
+                    "friendly_name": "Küche.Licht:Bewegungsmelder Batterietyp",
+                    "supported_features": 0
+                },
+                "device_name": "Küche.Licht:Bewegungsmelder",
+                "device_manufacturer": "Aqara",
+                "device_model": "Presence Multi-Sensor FP300",
+                "device_id": "7acc417e466d4a6dc35740d332628a0b",
+                "area": "Küche",
+                "create_var": true,
+                "device": "Küche.Licht:Bewegungsmelder"
+            }
+        ]
+    }
+}

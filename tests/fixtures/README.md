@@ -183,3 +183,12 @@ Instanz „homematic-ccu3" am nuc (03.10.2026, 1.5 build 186). `konfiguration_na
 (`restored`) Entität meldet — die vollständigen Zeilen von damals sind nicht mehr abrufbar.
 Grundlage von `check-removed-entities.php`. Enthält die Seriennummer eines Rauchmelders
 (`devices` in `sensor.homematic_ccu3_posteingang`), keine IP-Adressen oder Zugangsdaten.
+
+## Gleichnamige Variablen (`naming_collisions_20261003.json`)
+
+Konfiguration (`HA_ExportConfigBundleDataUrl`) dreier Device-Instanzen am nuc (03.10.2026,
+1.5 build 186): ein Tesla aus dem Config-Bundle eines Supportfalls — Anwenderdaten, neutralisiert (Name „Testauto",
+Geräte-ID Platzhalter) — (85 Entitäten, zwei Klima-Entitäten, zwei Ortungen, „Ladekabel"
+als Ja/Nein- und als Textsensor), Luftentfeuchter (Entfeuchter und Lüfter als Hauptteile) und Aqara
+FP300 (vier nummerierte Identifizieren-Taster). Die Standortkoordinaten des Tesla (`latitude`,
+`longitude`) sind durch 0 ersetzt. Grundlage von `check-variable-name-collisions.php`.

@@ -7,6 +7,31 @@ trait HAEntityVariableNamingTrait
     // Zählschlüssel für den eigenen Namen als letzten Ausweg; das NUL-Zeichen kommt in keinem
     // Anzeigenamen vor, die Schlüssel können also nicht mit einem Basisnamen zusammenfallen.
     private const string SHARED_OWN_NAME_COUNT_PREFIX = "\0own:";
+    // Weitere Zählschlüssel (MCP-Regel 14, gleichnamige Variablen): Entitäten je Domäne, Basisname je
+    // Domäne, ungekürzter Name der Entitäten ohne eigenen Namen.
+    private const string SHARED_DOMAIN_COUNT_PREFIX = "\0domain:";
+    private const string SHARED_DOMAIN_NAME_COUNT_PREFIX = "\0dname:";
+    private const string SHARED_RAW_NAME_COUNT_PREFIX = "\0raw:";
+
+    // Art-Hinweis, wenn Home Assistant denselben Namen an Entitäten verschiedener Art vergibt
+    // (Tesla: „Ladekabel" als Ja/Nein- und als Textsensor). Domänen ohne Eintrag bekommen keinen.
+    private const array SHARED_DOMAIN_KIND_CAPTIONS = [
+        'binary_sensor' => 'Yes/No',
+        'sensor'        => 'Value',
+        'select'        => 'Selection',
+        'input_select'  => 'Selection',
+        'number'        => 'Number',
+        'input_number'  => 'Number',
+        'switch'        => 'Switch',
+        'input_boolean' => 'Switch',
+        'button'        => 'Button',
+        'input_button'  => 'Button',
+        'text'          => 'Text',
+        'input_text'    => 'Text',
+        'light'         => 'Light',
+        'lock'          => 'Lock',
+        'event'         => 'Event',
+    ];
 
     // base name (without dedup suffix) => number of entities in this instance sharing it
     private array $sharedEntityBaseNameCounts = [];
@@ -29,7 +54,7 @@ trait HAEntityVariableNamingTrait
             HAButtonDefinitions::DOMAIN => $this->getSharedButtonVariableName($entity),
             HAEventDefinitions::DOMAIN => $this->formatSharedEntityNameWithSuffix($entity, 'Last Event'),
             HABinarySensorDefinitions::DOMAIN => $this->getSharedBinarySensorEntityVariableName($entity),
-            default => HADomainCatalog::isStatusDomain($domain) ? ($this->getSharedEntityName($entity) ?: $this->getSharedStatusEntityVariableName($domain, $hasMultipleStatusEntities)) : null,
+            default => HADomainCatalog::isStatusDomain($domain) ? ($this->getSharedEntityName($entity) ?: $this->getSharedStatusEntityVariableName($domain, $hasMultipleStatusEntities, $entity)) : null,
         };
     }
 
@@ -42,14 +67,22 @@ trait HAEntityVariableNamingTrait
 
         if (array_key_exists(HAClimateDefinitions::ATTRIBUTE_TARGET_TEMPERATURE, $attributes)
             || $this->supportsSharedClimateTargetTemperature($attributes)) {
-            return $this->Translate('Target Temperature');
+            $caption = $this->Translate('Target Temperature');
+        } elseif (array_key_exists(HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE, $attributes)) {
+            $caption = $this->Translate('Current Temperature');
+        } else {
+            return null;
         }
 
-        if (array_key_exists(HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE, $attributes)) {
-            return $this->Translate('Current Temperature');
+        // Mehrere Klima-Entitäten (Tesla: „Klima" und „Überhitzungsschutz der Kabine"): ohne
+        // Entitätsnamen hießen beide Hauptvariablen nur nach der Temperatur. Zeigt die Hauptvariable
+        // die Isttemperatur, heißt sie nach der Entität allein — die Zusatzvariable der Isttemperatur
+        // trüge sonst denselben Namen.
+        $name = $this->getSharedEntityName($entity);
+        if ($name === '' || $this->getSharedDomainEntityCount(HAClimateDefinitions::DOMAIN) < 2) {
+            return $caption;
         }
-
-        return null;
+        return $caption === $this->Translate('Target Temperature') ? $name . ' ' . $caption : $name;
     }
 
     private function getSharedImageEntityVariableName(array $entity): string
@@ -72,10 +105,17 @@ trait HAEntityVariableNamingTrait
         return $name !== '' ? $name : $this->Translate('Location');
     }
 
-    private function getSharedStatusEntityVariableName(string $domain, bool $hasMultipleStatusEntities): string
+    private function getSharedStatusEntityVariableName(string $domain, bool $hasMultipleStatusEntities, array $entity = []): string
     {
         if (!$hasMultipleStatusEntities) {
             return $this->Translate('Status');
+        }
+
+        // Mehrere Hauptteile (Luftentfeuchter mit Lüfter): Der ungekürzte Name aus Home Assistant
+        // sagt mehr als die Domäne in Großbuchstaben — sofern ihn keine zweite Entität ebenso trägt.
+        $rawName = trim((string)($entity['name'] ?? ''));
+        if ($rawName !== '' && ($this->sharedEntityBaseNameCounts[self::SHARED_RAW_NAME_COUNT_PREFIX . $rawName] ?? 0) < 2) {
+            return $rawName;
         }
 
         return $this->Translate('Status') . ' (' . strtoupper($domain) . ')';
@@ -193,7 +233,7 @@ trait HAEntityVariableNamingTrait
 
         $attributes = $this->getSharedEntityAttributesArray($entity);
         if (!$this->isSharedCoverPositionEntity($attributes)) {
-            return $this->getSharedStatusEntityVariableName(HACoverDefinitions::DOMAIN, $hasMultipleStatusEntities);
+            return $this->getSharedStatusEntityVariableName(HACoverDefinitions::DOMAIN, $hasMultipleStatusEntities, $entity);
         }
 
         return match ($this->getSharedEntityDeviceClass($entity)) {
@@ -218,7 +258,7 @@ trait HAEntityVariableNamingTrait
             return $this->Translate('Position');
         }
 
-        return $this->getSharedStatusEntityVariableName(HAValveDefinitions::DOMAIN, $hasMultipleStatusEntities);
+        return $this->getSharedStatusEntityVariableName(HAValveDefinitions::DOMAIN, $hasMultipleStatusEntities, $entity);
     }
 
     private function formatSharedEntityNameWithSuffix(array $entity, string $suffix): string
@@ -272,11 +312,25 @@ trait HAEntityVariableNamingTrait
     // slug-uniqueness (e.g. identical devices) and must not leak into the variable name.
     private function disambiguateSharedEntityName(string $baseName, array $entity): string
     {
-        if (($this->sharedEntityBaseNameCounts[$baseName] ?? 0) < 2) {
+        $count = $this->sharedEntityBaseNameCounts[$baseName] ?? 0;
+        if ($count < 2) {
             return $baseName;
         }
 
-        return $this->appendHaDeduplicationSuffix($baseName, $entity);
+        $numbered = $this->appendHaDeduplicationSuffix($baseName, $entity);
+        if ($numbered !== $baseName) {
+            return $numbered;
+        }
+
+        // Gleicher Name bei Entitäten verschiedener Art: Die HA-Nummer fehlt (andere Domäne, anderer
+        // Slug), unterscheiden kann nur die Art. Gleichartige Entitäten bleiben wie bisher.
+        $domain = $this->getSharedEntityDomainForNaming($entity);
+        $sameDomain = $this->sharedEntityBaseNameCounts[self::SHARED_DOMAIN_NAME_COUNT_PREFIX . $domain . "\0" . $baseName] ?? 0;
+        $kind = self::SHARED_DOMAIN_KIND_CAPTIONS[$domain] ?? null;
+        if ($sameDomain >= $count || $kind === null) {
+            return $baseName;
+        }
+        return $baseName . ' (' . $this->Translate($kind) . ')';
     }
 
     // Counts how often each (non-empty) base name occurs across the instance's entities.
@@ -289,19 +343,88 @@ trait HAEntityVariableNamingTrait
             if (!is_array($entity)) {
                 continue;
             }
+            $domain = $this->getSharedEntityDomainForNaming($entity);
+            $this->incrementSharedCount($counts, self::SHARED_DOMAIN_COUNT_PREFIX . $domain);
             $baseName = $this->getSharedEntityBaseName($entity);
             if ($baseName === '') {
                 $ownName = $this->getSharedOwnNameFallback($entity);
                 if ($ownName !== null) {
-                    $key = self::SHARED_OWN_NAME_COUNT_PREFIX . $ownName;
-                    $counts[$key] = ($counts[$key] ?? 0) + 1;
+                    $this->incrementSharedCount($counts, self::SHARED_OWN_NAME_COUNT_PREFIX . $ownName);
+                }
+                $rawName = trim((string)($entity['name'] ?? ''));
+                if ($rawName !== '') {
+                    $this->incrementSharedCount($counts, self::SHARED_RAW_NAME_COUNT_PREFIX . $rawName);
                 }
                 continue;
             }
-            $counts[$baseName] = ($counts[$baseName] ?? 0) + 1;
+            $this->incrementSharedCount($counts, $baseName);
+            $this->incrementSharedCount($counts, self::SHARED_DOMAIN_NAME_COUNT_PREFIX . $domain . "\0" . $baseName);
         }
 
         $this->sharedEntityBaseNameCounts = $counts;
+    }
+
+    /**
+     * Eine eben angelegte Zusatzvariable (Attribut, Aktion, Ein/Aus …) bekommt den Entitätsnamen
+     * vorangestellt, wenn ihr Name allein nicht eindeutig ist: Die Instanz hat mehrere Entitäten
+     * derselben Art (Tesla: zwei Klima-Entitäten, je „Isttemperatur"), oder eine andere Variable der
+     * Instanz trägt den Namen schon („Titel" von Mediaplayer und Update). Hauptvariablen benennt
+     * buildSharedEntityVariableName; Variablen ohne zugehörige Entität bleiben unberührt.
+     */
+    protected function scopeCreatedEntityVariableName(string $ident, string $name): void
+    {
+        if (!property_exists($this, 'entities') || !is_array($this->entities)) {
+            return;
+        }
+        $owner = null;
+        $ownerPrefixLength = -1;
+        foreach ($this->entities as $entity) {
+            if (!is_array($entity) || $ident === (string)($entity['ident'] ?? '')) {
+                continue;
+            }
+            $prefix = (string)($entity['ident_prefix'] ?? '');
+            if ($prefix !== '' && str_starts_with($ident, $prefix . '_') && strlen($prefix) > $ownerPrefixLength) {
+                $owner = $entity;
+                $ownerPrefixLength = strlen($prefix);
+            }
+        }
+        if ($owner === null) {
+            return;
+        }
+
+        $entityName = $this->getSharedEntityName($owner);
+        if ($entityName === '' || str_starts_with($name, $entityName)) {
+            return;
+        }
+
+        $variableId = @$this->GetIDForIdent($ident);
+        if ($variableId === false) {
+            return;
+        }
+        $ambiguous = $this->getSharedDomainEntityCount($this->getSharedEntityDomainForNaming($owner)) > 1
+            || array_any(
+                IPS_GetChildrenIDs($this->InstanceID),
+                static fn(int $childId): bool => $childId !== $variableId && IPS_GetName($childId) === $name
+            );
+        if ($ambiguous) {
+            IPS_SetName($variableId, $entityName . ' ' . $name);
+        }
+    }
+
+    private function incrementSharedCount(array &$counts, string $key): void
+    {
+        $counts[$key] = ($counts[$key] ?? 0) + 1;
+    }
+
+    private function getSharedEntityDomainForNaming(array $entity): string
+    {
+        return HADomainCatalog::normalizeDomainAlias((string)($entity['domain'] ?? $entity['component'] ?? ''));
+    }
+
+    // Anzahl der Entitäten dieser Domäne in der Instanz (Stand des letzten applySharedEntityIdents).
+    private function getSharedDomainEntityCount(string $domain): int
+    {
+        return $this->sharedEntityBaseNameCounts[self::SHARED_DOMAIN_COUNT_PREFIX . HADomainCatalog::normalizeDomainAlias($domain)] ?? 0;
     }
 
     // HA appends _2, _3, ... to entity_ids when multiple entities share the same name.

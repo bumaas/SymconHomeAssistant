@@ -27,7 +27,13 @@ trait HASharedPresentationTrait
      */
     protected function MaintainVariable(string $Ident, string $Name, int $Type, array|string $ProfileOrPresentation, int $Position, bool $Keep): bool
     {
-        return parent::MaintainVariable($Ident, $Name, $Type, self::fitPresentationToVariableType($ProfileOrPresentation, $Type), $Position, $Keep);
+        $created = parent::MaintainVariable($Ident, $Name, $Type, self::fitPresentationToVariableType($ProfileOrPresentation, $Type), $Position, $Keep);
+        // Der Name zählt nur beim Anlegen (MaintainVariable benennt nie um); deshalb wird er genau
+        // dann eindeutig gemacht — an einer Stelle für alle Zusatzvariablen (MCP-Regel 14).
+        if ($created && $Keep && method_exists($this, 'scopeCreatedEntityVariableName')) {
+            $this->scopeCreatedEntityVariableName($Ident, $Name);
+        }
+        return $created;
     }
 
     private static function fitPresentationToVariableType(array|string $presentation, int $type): array|string

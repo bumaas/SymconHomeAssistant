@@ -208,6 +208,14 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Variablen). Neue Zählschlüssel in `sharedEntityBaseNameCounts` verlangen einen neuen
   `CONFIGURED_ENTITIES_CACHE_MARKER`, weil der Konfigurations-Cache die Zähler mitspeichert.
   Test: `tests/check-shared-entity-naming.php`.
+- Keine zwei Variablen einer Instanz heißen gleich (build 188, MCP-Regel 14, Abstimmung 03.10.2026):
+  Entitätsname vor Zusatzvariablen bei mehreren Entitäten derselben Art oder schon vergebenem Namen,
+  Art-Hinweis bei gleichem HA-Namen verschiedener Domänen, ungekürzter Name statt „Status (FAN)".
+  Zusatzvariablen werden **zentral beim Anlegen** benannt (`MaintainVariable()` in
+  `HASharedPresentationTrait` → `scopeCreatedEntityVariableName()`), nicht an den einzelnen
+  Stellen — eine neue Art Zusatzvariable braucht dafür nichts. Bestehende Variablen benennt das
+  nicht um. Test: `tests/check-variable-name-collisions.php` (Fixture
+  `naming_collisions_20261003.json`; der Testrahmen übersetzt nicht, erwartet sind englische Schlüssel).
 
 ## libs/
 

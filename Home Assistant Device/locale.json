@@ -394,7 +394,16 @@
       "Media Player (media_player)": "Medienplayer (media_player)",
       "Lawn Mower (lawn_mower)": "Mähroboter (lawn_mower)",
       "Off": "Aus",
-      "On": "An"
+      "On": "An",
+      "Yes/No": "Ja/Nein",
+      "Value": "Wert",
+      "Selection": "Auswahl",
+      "Number": "Zahl",
+      "Switch": "Schalter",
+      "Button": "Taster",
+      "Text": "Text",
+      "Light": "Licht",
+      "Event": "Ereignis"
     }
   }
 }

@@ -176,7 +176,16 @@
       "online %d | offline %d | unknown %d | n/a %d": "online %d | offline %d | unbekannt %d | n/a %d",
       "none": "keine",
       "%d runtime warning": "%d Laufzeit-Warnung",
-      "%d runtime warnings": "%d Laufzeit-Warnungen"
+      "%d runtime warnings": "%d Laufzeit-Warnungen",
+      "Yes/No": "Ja/Nein",
+      "Value": "Wert",
+      "Selection": "Auswahl",
+      "Number": "Zahl",
+      "Switch": "Schalter",
+      "Button": "Taster",
+      "Text": "Text",
+      "Light": "Licht",
+      "Event": "Ereignis"
     }
   }
 }

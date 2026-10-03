@@ -138,7 +138,15 @@
       "Entity invalid": "Entit\u00e4t ung\u00fcltig",
       "never": "nie",
       "Home Assistant entity ID, e.g. sensor.living_room_temperature. It is the only setting of the instance; name, domain, device and area are read from Home Assistant. The instance needs a Home Assistant Splitter as parent.": "Entitäts-ID aus Home Assistant, z. B. sensor.wohnzimmer_temperatur. Sie ist die einzige Einstellung der Instanz; Name, Domäne, Gerät und Bereich kommen aus Home Assistant. Die Instanz braucht einen Home Assistant Splitter als übergeordnete Instanz.",
-      "No active Home Assistant Splitter connected as parent": "Kein aktiver Home Assistant Splitter als übergeordnete Instanz verbunden"
+      "No active Home Assistant Splitter connected as parent": "Kein aktiver Home Assistant Splitter als übergeordnete Instanz verbunden",
+      "Yes/No": "Ja/Nein",
+      "Selection": "Auswahl",
+      "Number": "Zahl",
+      "Switch": "Schalter",
+      "Button": "Taster",
+      "Text": "Text",
+      "Light": "Licht",
+      "Event": "Ereignis"
     }
   }
 }
