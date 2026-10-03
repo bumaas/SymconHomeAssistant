@@ -1162,11 +1162,24 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         foreach ($activeEntityIds as $entityId) {
             $activeBaseIdents[] = $this->getSharedEntityIdentPrefix($entityId);
         }
+        // Altes Schema: Bis Mai 2026 trug jeder Ident den vollen Entitätsnamen. Ist das Präfix seither
+        // gekürzt (media_player_denon_wohnzimmer → media_player), liegt das alte unter dem eigenen neuen
+        // und gilt trotzdem als veraltet; die Longest-Prefix-Prüfung unten ordnet jede Variable dem
+        // längsten passenden Präfix zu. Tabu bleibt ein altes Präfix, das unter dem Präfix einer
+        // ANDEREN aktiven Entität liegt oder selbst eines umschließt — dort könnten lebende Variablen
+        // stehen.
         foreach ($activeEntityIds as $entityId) {
             $legacyBaseIdent = $this->sanitizeIdent($entityId);
-            if ($legacyBaseIdent !== '' && !$this->isManagedEntityIdent($legacyBaseIdent, $activeBaseIdents)) {
-                $baseIdents[] = $legacyBaseIdent;
+            $ownPrefix = $this->getSharedEntityIdentPrefix($entityId);
+            if ($legacyBaseIdent === '' || $legacyBaseIdent === $ownPrefix) {
+                continue;
             }
+            $otherPrefixes = array_values(array_diff($activeBaseIdents, [$ownPrefix]));
+            if ($this->isManagedEntityIdent($legacyBaseIdent, $otherPrefixes)
+                || array_any($activeBaseIdents, static fn(string $prefix): bool => str_starts_with($prefix, $legacyBaseIdent . '_'))) {
+                continue;
+            }
+            $baseIdents[] = $legacyBaseIdent;
         }
         $baseIdents = array_filter($baseIdents, static fn(string $ident): bool => $ident !== '')
                       |> array_unique(...)

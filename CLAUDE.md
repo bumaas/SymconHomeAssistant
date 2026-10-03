@@ -172,6 +172,25 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `cover_*_gast_20261003.*`). Für Ventile gibt es keinen Mitschnitt; sie laufen durch dieselbe
   Funktion.
 
+## Veraltete Variablen (Device)
+
+- Was das Modul nicht mehr versorgt, wird nicht gelöscht, sondern „(veraltet)": Zusatz am Namen,
+  Aktion weg (`markVariableAsLegacy`). Entscheidend ist allein der Ident, nie der Name — vom
+  Anwender geänderte Namen behalten ihren Text.
+- `cleanupManagedEntityObjects()` (Device `module.php`) läuft bei jedem `ApplyChanges` und ordnet
+  jede Variable per Longest-Prefix dem Präfix einer Entität zu: aktiv → bleibt, nur altes/inaktives
+  Präfix → veraltet. Variablen ohne Ident oder außerhalb jedes Entitäts-Namensraums bleiben tabu.
+- **Keine Liste der gepflegten Idents als Maßstab:** Attributvariablen entstehen auch erst im heißen
+  Pfad (erstes MQTT-Attribut); eine Liste aus `ApplyChanges` würde lebende Variablen kennzeichnen.
+- Altes Schema (vor `ab131d3`, 18.05.2026): voller Entitätsname im Ident. Ist das Präfix seither
+  gekürzt, liegt das alte unter dem eigenen neuen — bis build 185 wurde es deshalb übersprungen,
+  am nuc blieben rund 45 tote, schaltbare Doppelgänger stehen (Denon, Sonos, homematic-ccu3 …).
+  Seit build 186 zählt es als veraltet, außer es liegt unter dem Präfix einer **anderen** aktiven
+  Entität oder umschließt ein aktives Präfix.
+- Test: `tests/check-legacy-idents.php` (Konfiguration und Variablen vom nuc, Fixture
+  `legacy_idents_20261003.json`). Das Entity-Modul hat einen eigenen Pfad
+  (`cleanupRenamedSharedEntityObjects`), am nuc ohne Doppelgänger.
+
 ## Variablennamen
 
 - Hauptvariablen benennt `HAEntityVariableNamingTrait` (Device, Entity, MQTT Discovery), Regeln in

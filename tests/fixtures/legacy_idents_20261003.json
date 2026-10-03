@@ -1,0 +1,281 @@
+{
+    "quelle": "nuc, 03.10.2026, Modul 1.5 build 184 (HA_ExportConfigBundleDataUrl und Variablen der Instanzen)",
+    "instanzen": [
+        {
+            "instanz": "Denon Wohnzimmer",
+            "konfiguration": [
+                {
+                    "entity_id": "media_player.denon_wohnzimmer",
+                    "domain": "media_player",
+                    "name": "Denon Wohnzimmer",
+                    "attributes": {
+                        "source_list": [
+                            "Apple TV",
+                            "Bluetooth",
+                            "Game",
+                            "HEOS Music",
+                            "Set Top Box",
+                            "Sonos",
+                            "Sony",
+                            "Source",
+                            "Tuner"
+                        ],
+                        "sound_mode_list": [
+                            "MUSIC",
+                            "MOVIE",
+                            "GAME",
+                            "AUTO",
+                            "STANDARD",
+                            "VIRTUAL",
+                            "MATRIX",
+                            "ROCK ARENA",
+                            "JAZZ CLUB",
+                            "VIDEO GAME",
+                            "MONO MOVIE",
+                            "SUPER STADIUM",
+                            "CLASSIC CONCERT",
+                            "WIDE SCREEN",
+                            "DIRECT",
+                            "PURE DIRECT",
+                            "DOLBY DIGITAL",
+                            "DTS SURROUND",
+                            "AURO3D",
+                            "AURO2DSURR",
+                            "MCH STEREO",
+                            "STEREO",
+                            "ALL ZONE STEREO"
+                        ],
+                        "device_class": "receiver",
+                        "friendly_name": "Denon Wohnzimmer",
+                        "supported_features": 69004,
+                        "supported_features_list": [
+                            "Media player feature: Select Sound Mode",
+                            "Media player feature: Select Source",
+                            "Media player feature: Turn Off",
+                            "Media player feature: Turn On",
+                            "Media player feature: Volume Mute",
+                            "Media player feature: Volume Set",
+                            "Media player feature: Volume Step"
+                        ]
+                    },
+                    "device_name": "Denon Wohnzimmer",
+                    "device_manufacturer": "Denon",
+                    "device_model": "Denon AVC-X3800H",
+                    "device_id": "ab47d39b52303310c2db719f94bf33c9",
+                    "area": "Wohnzimmer",
+                    "create_var": true,
+                    "device": "Denon Wohnzimmer",
+                    "device_class": "receiver"
+                }
+            ],
+            "variablen": [
+                {
+                    "ident": "media_player_denon_wohnzimmer",
+                    "name": "Status",
+                    "typ": 3,
+                    "aktion": false,
+                    "aktualisiert": "2026-05-18"
+                },
+                {
+                    "ident": "media_player_denon_wohnzimmer_is_volume_muted",
+                    "name": "Stumm",
+                    "typ": 0,
+                    "aktion": true,
+                    "aktualisiert": "2026-05-17"
+                },
+                {
+                    "ident": "media_player_denon_wohnzimmer_power",
+                    "name": "Ein/Aus",
+                    "typ": 0,
+                    "aktion": true,
+                    "aktualisiert": "2026-05-18"
+                },
+                {
+                    "ident": "media_player_denon_wohnzimmer_sound_mode",
+                    "name": "Sound Mode",
+                    "typ": 3,
+                    "aktion": true,
+                    "aktualisiert": "2026-05-17"
+                },
+                {
+                    "ident": "media_player_denon_wohnzimmer_source",
+                    "name": "Source",
+                    "typ": 3,
+                    "aktion": true,
+                    "aktualisiert": "2026-05-17"
+                },
+                {
+                    "ident": "media_player_denon_wohnzimmer_status",
+                    "name": "Status",
+                    "typ": 3,
+                    "aktion": false,
+                    "aktualisiert": "2026-05-18"
+                },
+                {
+                    "ident": "media_player_denon_wohnzimmer_volume_level",
+                    "name": "Lautstärke",
+                    "typ": 2,
+                    "aktion": true,
+                    "aktualisiert": "2026-05-17"
+                },
+                {
+                    "ident": "media_player_is_volume_muted",
+                    "name": "Stumm",
+                    "typ": 0,
+                    "aktion": true,
+                    "aktualisiert": "2026-10-01"
+                },
+                {
+                    "ident": "media_player_media_content_type",
+                    "name": "Inhaltstyp",
+                    "typ": 3,
+                    "aktion": false,
+                    "aktualisiert": "2026-10-01"
+                },
+                {
+                    "ident": "media_player_media_player_action",
+                    "name": "Wiedergabe",
+                    "typ": 1,
+                    "aktion": true,
+                    "aktualisiert": "2026-06-22"
+                },
+                {
+                    "ident": "media_player_media_title",
+                    "name": "Titel",
+                    "typ": 3,
+                    "aktion": false,
+                    "aktualisiert": "2026-10-01"
+                },
+                {
+                    "ident": "media_player_power",
+                    "name": "Ein/Aus",
+                    "typ": 0,
+                    "aktion": true,
+                    "aktualisiert": "2026-10-02"
+                },
+                {
+                    "ident": "media_player_sound_mode",
+                    "name": "Sound Mode",
+                    "typ": 3,
+                    "aktion": true,
+                    "aktualisiert": "2026-10-01"
+                },
+                {
+                    "ident": "media_player_source",
+                    "name": "Source",
+                    "typ": 3,
+                    "aktion": true,
+                    "aktualisiert": "2026-10-01"
+                },
+                {
+                    "ident": "media_player_status",
+                    "name": "Status",
+                    "typ": 3,
+                    "aktion": false,
+                    "aktualisiert": "2026-10-02"
+                },
+                {
+                    "ident": "media_player_volume_level",
+                    "name": "Lautstärke",
+                    "typ": 2,
+                    "aktion": true,
+                    "aktualisiert": "2026-10-01"
+                },
+                {
+                    "ident": "reachable",
+                    "name": "Erreichbar",
+                    "typ": 0,
+                    "aktion": false,
+                    "aktualisiert": "2026-09-30"
+                }
+            ]
+        },
+        {
+            "instanz": "Gast.Licht.Rolladen",
+            "konfiguration": [
+                {
+                    "entity_id": "cover.gast_licht_rolladen",
+                    "domain": "cover",
+                    "name": "Gast Rollladen Friendly Name",
+                    "attributes": {
+                        "is_closed": false,
+                        "current_position": 100,
+                        "interface_id": "homematic-ccu3-BidCos-RF",
+                        "address": "HEQ0066232:1",
+                        "model": "HM-LC-Bl1-FM",
+                        "value_state": "valid",
+                        "channel_position": 100,
+                        "device_class": "shutter",
+                        "friendly_name": "Gast Rollladen Friendly Name",
+                        "supported_features": 15,
+                        "supported_features_list": [
+                            "Cover feature: Open",
+                            "Cover feature: Close",
+                            "Cover feature: Set Position",
+                            "Cover feature: Stop"
+                        ]
+                    },
+                    "device_name": "Gast.Licht.Rolladen",
+                    "device_manufacturer": "eQ-3",
+                    "device_model": "HM-LC-Bl1-FM",
+                    "device_id": "c18eb526b0c88ce2fd8b391d82c03af3",
+                    "area": "Gast",
+                    "create_var": true,
+                    "device": "Gast.Licht.Rolladen",
+                    "device_class": "shutter"
+                }
+            ],
+            "variablen": [
+                {
+                    "ident": "cover_cover_action",
+                    "name": "Aktion",
+                    "typ": 1,
+                    "aktion": true,
+                    "aktualisiert": "2026-05-18"
+                },
+                {
+                    "ident": "cover_cover_tilt_action",
+                    "name": "gast_licht_rolladen Lamellen",
+                    "typ": 1,
+                    "aktion": true,
+                    "aktualisiert": "2026-06-22"
+                },
+                {
+                    "ident": "cover_gast_licht_rolladen",
+                    "name": "Position",
+                    "typ": 2,
+                    "aktion": true,
+                    "aktualisiert": "2026-05-18"
+                },
+                {
+                    "ident": "cover_gast_licht_rolladen_cover_action",
+                    "name": "Aktion",
+                    "typ": 1,
+                    "aktion": true,
+                    "aktualisiert": "2026-05-08"
+                },
+                {
+                    "ident": "cover_gast_licht_rolladen_status",
+                    "name": "Position",
+                    "typ": 2,
+                    "aktion": true,
+                    "aktualisiert": "2026-05-18"
+                },
+                {
+                    "ident": "cover_status",
+                    "name": "Gast Rollladen Friendly Name",
+                    "typ": 2,
+                    "aktion": true,
+                    "aktualisiert": "2026-10-03"
+                },
+                {
+                    "ident": "reachable",
+                    "name": "Erreichbar",
+                    "typ": 0,
+                    "aktion": false,
+                    "aktualisiert": "2026-09-30"
+                }
+            ]
+        }
+    ]
+}

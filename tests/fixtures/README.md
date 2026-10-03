@@ -165,3 +165,11 @@ Echter Mitschnitt vom nuc (03.10.2026, Modul 1.5 build 181, Rust 9.1-953) für
 
 Grundlage von `check-cover-position-statestream.php`. Enthält die Seriennummer des Aktors und den
 Raumnamen, keine IP-Adressen oder Zugangsdaten.
+
+## Altes Ident-Schema (`legacy_idents_20261003.json`)
+
+Konfiguration (`HA_ExportConfigBundleDataUrl`) und Variablen (Ident, Name, Typ, Aktion, zuletzt
+aktualisiert) der Device-Instanzen „Denon Wohnzimmer" und „Gast.Licht.Rolladen" am nuc
+(03.10.2026, 1.5 build 184). Neben den aktuellen Variablen stehen dort die Variablen aus dem
+Ident-Schema vor Mai 2026 (voller Entitätsname im Ident), seit Mai ohne Aktualisierung.
+Grundlage von `check-legacy-idents.php`. Keine IP-Adressen oder Zugangsdaten.
