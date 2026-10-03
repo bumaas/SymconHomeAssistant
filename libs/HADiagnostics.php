@@ -8,44 +8,17 @@ trait HADiagnosticsTrait
     {
         $lastMqtt = $this->ReadAttributeString('LastMQTTMessage');
         if ($lastMqtt === '') {
-            $lastMqtt = 'nie';
+            $lastMqtt = $this->Translate('never');
         }
-        $this->updateFormFieldSafe($field, 'caption', 'Letzte MQTT-Message: ' . $lastMqtt);
+        $this->updateFormFieldSafe($field, 'caption', sprintf($this->Translate('Last MQTT message: %s'), $lastMqtt));
     }
 
     protected function updateLastRestFetchLabel(string $field = 'DiagLastREST'): void
     {
         $lastRest = $this->ReadAttributeString('LastRESTFetch');
         if ($lastRest === '') {
-            $lastRest = 'nie';
+            $lastRest = $this->Translate('never');
         }
-        $this->updateFormFieldSafe($field, 'caption', 'Letzter REST-Abruf: ' . $lastRest);
-    }
-
-    protected function updateRestErrorLabel(string $field = 'DiagRest'): void
-    {
-        $lastRestError = $this->ReadAttributeString('LastRestError');
-        if ($lastRestError === '') {
-            $lastRestError = 'keiner';
-        }
-        $this->updateFormFieldSafe($field, 'caption', 'Letzter REST-Fehler: ' . $lastRestError);
-    }
-
-    protected function updateRestResponseLabel(string $field = 'DiagRestResponse'): void
-    {
-        $lastRestResponse = $this->ReadAttributeString('LastRestResponse');
-        if ($lastRestResponse === '') {
-            $lastRestResponse = 'keine';
-        }
-        $this->updateFormFieldSafe($field, 'caption', 'Letzte REST-Antwort: ' . $lastRestResponse);
-    }
-
-    protected function updateRestTimeoutLabel(string $field = 'DiagRestTimeout'): void
-    {
-        $lastRestTimeout = $this->ReadAttributeString('LastRestTimeout');
-        if ($lastRestTimeout === '') {
-            $lastRestTimeout = 'keiner';
-        }
-        $this->updateFormFieldSafe($field, 'caption', 'Letzter REST-Timeout: ' . $lastRestTimeout);
+        $this->updateFormFieldSafe($field, 'caption', sprintf($this->Translate('Last REST fetch: %s'), $lastRest));
     }
 }

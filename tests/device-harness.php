@@ -90,6 +90,15 @@ trait ModulRahmenTrait
     /** Zeit des Moduls (reachabilityNow), je Test gestellt. */
     public static int $jetzt = 0;
 
+    /** @var array<string, mixed> zuletzt per UpdateFormField gesetzte Werte, Schlüssel „Feld.Parameter" */
+    public static array $formularFelder = [];
+
+    protected function UpdateFormField(string $Field, string $Parameter, mixed $Value): bool
+    {
+        self::$formularFelder[$Field . '.' . $Parameter] = $Value;
+        return parent::UpdateFormField($Field, $Parameter, $Value);
+    }
+
     /** false = Bestandsinstanz im Reload-Fenster: Create() hat den ReachabilityTimer noch nicht registriert. */
     public bool $erreichbarkeitsTimerRegistriert = true;
 
@@ -372,6 +381,22 @@ trait FensterRahmenTrait
     public function id(): int
     {
         return $this->InstanceID;
+    }
+
+    public function attribut(string $name): string
+    {
+        return parent::ReadAttributeString($name);
+    }
+
+    public function attributSetzen(string $name, string $wert): void
+    {
+        parent::WriteAttributeString($name, $wert);
+    }
+
+    /** Ruft eine private Methode des Moduls auf. */
+    public function rufe(string $methode, mixed ...$argumente): mixed
+    {
+        return Closure::bind(fn() => $this->{$methode}(...$argumente), $this, get_parent_class($this))();
     }
 
     public function puffer(string $name): string

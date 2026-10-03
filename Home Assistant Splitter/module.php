@@ -1726,7 +1726,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
                 if ($service !== '') {
                     $message .= ' | ' . $service;
                 }
-                $message .= ' | ' . $timeoutSec . 's';
+                // Mit Zeitpunkt: Ohne ihn war nicht zu erkennen, ob der Timeout aktuell oder Wochen alt ist.
+                $message .= ' | ' . $timeoutSec . 's | ' . date('Y-m-d H:i:s', $now);
                 $this->WriteAttributeString('LastRestTimeout', $message);
                 unset($pending[$entityId]);
                 $changed = true;

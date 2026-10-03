@@ -53,6 +53,9 @@ interface HADeviceConstants
     // weil ReceiveData über getrennte PHP-Ausführungen läuft.
     public const string BUFFER_LAST_MQTT_TOUCH = 'LastMqttTouchEpoch';
     public const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
+    // Ein Button-Druck zählt nur, wenn HA ihn höchstens so lange nach dem Drücken meldet; ältere
+    // Zeitpunkte stammen aus Wiederholungen oder aus der Zeit, in der Symcon nicht lief.
+    public const int BUTTON_PRESS_MAX_AGE_S = 300;
 
     // Ausführungsübergreifender Cache der aufgelösten Entitäten-Konfiguration
     // (Begründung: HADeviceCore, getConfiguredEntities). Der Build-Marker in der

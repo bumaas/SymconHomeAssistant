@@ -1348,6 +1348,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     // Trigger domains keep metadata but do not persist a main state value.
     private function applyTriggerEntityStateUpdate(string $entityId, array $parsed): void
     {
+        if ($this->getEntityDomain($entityId) === HAButtonDefinitions::DOMAIN) {
+            $this->touchButtonOnNewPress($this->getSharedEntityMainIdent($entityId), $parsed[self::KEY_STATE] ?? null);
+        }
         $attributes = $parsed[self::KEY_ATTRIBUTES] ?? null;
         if (!is_array($attributes) || $attributes === []) {
             return;

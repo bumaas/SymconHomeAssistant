@@ -199,6 +199,19 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `removed_entities_ccu3_20261003.json`). Das Entity-Modul hat einen eigenen Pfad
   (`cleanupRenamedSharedEntityObjects`), am nuc ohne Doppelgänger.
 
+## Buttons und Diagnose (build 189, MCP-Punkt H5)
+
+- Ein Button meldet als Zustand den Zeitpunkt des letzten Drückens. Den Druck zeigt die
+  „Letzte Aktualisierung" der Button-Variable (Abstimmung 03.10.2026: keine eigene Variable).
+  `touchButtonOnNewPress()` (HADeviceCore) schreibt sie nur, wenn der HA-Zeitpunkt neuer ist als
+  die letzte Aktualisierung und höchstens `BUTTON_PRESS_MAX_AGE_S` (300 s) alt. Device: aus
+  `applyTriggerEntityStateUpdate`, Entity: aus `updateEntityValue` (dort wurde die Variable vorher
+  bei jeder Meldung geschrieben, auch beim REST-Abgleich). Test: `tests/check-button-last-press.php`.
+- Diagnosetexte laufen über `Translate()`; `HADiagnosticsTrait` schrieb sie fest deutsch (drei
+  der fünf Funktionen waren ungenutzt und sind entfernt). `LastRestTimeout` trägt den Zeitpunkt.
+  Test: `tests/check-diagnostic-labels.php`; der Testrahmen schneidet dafür `UpdateFormField` mit
+  (`DeviceHarness::$formularFelder`).
+
 ## Variablennamen
 
 - Hauptvariablen benennt `HAEntityVariableNamingTrait` (Device, Entity, MQTT Discovery), Regeln in

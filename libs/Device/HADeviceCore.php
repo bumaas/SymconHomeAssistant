@@ -1392,8 +1392,12 @@ trait HADeviceCoreTrait
         $this->updateAvailabilityValue($state);
 
         $resolvedAttributes = $this->resolveEntityStateAttributes($entityId, $attributes);
-        $finalValue = $this->convertValueByDomain($domain, $state, $resolvedAttributes);
-        $this->setEntityMainValue($entityId, $ident, $finalValue, $state);
+        if ($this->normalizeDomainAlias($domain) === HAButtonDefinitions::DOMAIN) {
+            $this->touchButtonOnNewPress($ident, $state);
+        } else {
+            $finalValue = $this->convertValueByDomain($domain, $state, $resolvedAttributes);
+            $this->setEntityMainValue($entityId, $ident, $finalValue, $state);
+        }
         $this->updateEntityCache($entityId, $state, $attributes !== [] ? $attributes : null);
 
         if ($attributes !== []) {
@@ -1481,6 +1485,26 @@ trait HADeviceCoreTrait
         }
 
         $this->SetValue($ident, $this->castVariableValue($value, $type));
+    }
+
+    // Ein Button meldet als Zustand den Zeitpunkt des letzten Drückens. Die Button-Variable selbst ist
+    // nur ein Auslöser; den Druck zeigt ihre „Letzte Aktualisierung" (Abstimmung 03.10.2026, keine
+    // eigene Variable). Deshalb wird sie nur bei einem neuen, frischen Druck geschrieben — nicht bei
+    // retained Wiederholungen, REST-Abgleich oder einem Druck aus der Zeit, in der Symcon nicht lief.
+    protected function touchButtonOnNewPress(string $ident, mixed $state): void
+    {
+        $pressedAt = is_string($state) ? strtotime($state) : false;
+        if ($pressedAt === false) {
+            return;
+        }
+        $variableId = @$this->GetIDForIdent($ident);
+        if ($variableId === false) {
+            return;
+        }
+        if ($pressedAt <= IPS_GetVariable($variableId)['VariableUpdated'] || time() - $pressedAt > self::BUTTON_PRESS_MAX_AGE_S) {
+            return;
+        }
+        $this->SetValue($ident, $this->GetValue($ident));
     }
 
     protected function setEntityMainValue(string $entityId, string $ident, mixed $value, mixed $rawState = null): void

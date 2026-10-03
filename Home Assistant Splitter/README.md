@@ -78,7 +78,7 @@ HA_CallService($splitterId, 'script', 'turn_on', [
 
 ## 6. Statusvariablen und Profile
 
-- Diagnosefelder in der Konfiguration (z.B. REST-Fehler, REST-Antwort, REST-Timeout, Parent-Status). Sie sind der erste Anlaufpunkt bei der Fehlersuche.
+- Diagnosefelder in der Konfiguration (z.B. REST-Fehler, REST-Antwort, REST-Timeout, Parent-Status). Sie sind der erste Anlaufpunkt bei der Fehlersuche. Der REST-Timeout nennt Entität, Dienst, Frist und Zeitpunkt, z. B. `climate.klima | set_temperature | 10s | 2026-10-03 14:12:05`.
 - Button **„Selbsttest ausführen"**: prüft die häufigsten Fehlerquellen (MQTT-Parent aktiv/Typ, REST-API & Token, `MQTTBaseTopic`, Broker-Socket, Aktualität der MQTT-Daten, Subscription deckt das Base-Topic ab) und zeigt das Ergebnis als Checkliste (✓/⚠/✗) mit konkreten Tipps im Popup. Schnellster erster Schritt bei Problemen.
 
 > **Fehlersuche:** Eine Übersicht typischer Fehlersituationen (kein MQTT Parent, falscher Status, Schalten nicht möglich) steht im Haupt-README unter [„7. Fehlersuche"](../README.md#7-fehlersuche).

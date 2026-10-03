@@ -158,7 +158,7 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
 - `select`
   Schreibbare Enumeration; Aktionen nur bei vorhandener `options`-Liste.
 - `button`
-  Trigger-Variable für `press`.
+  Trigger-Variable für `press`. Wann zuletzt gedrückt wurde – in Symcon oder in Home Assistant –, zeigt die **„Letzte Aktualisierung"** der Variable (seit 1.5 build 189). Sie bewegt sich nur bei einem frischen Druck, nicht bei einem Neustart, einem Neuladen oder einer wiederholten Meldung. Ein Druck, den Home Assistant später als fünf Minuten danach meldet (etwa weil Symcon nicht lief), bleibt unberücksichtigt.
 - `input_button`
   Alias zu `button`, identisches Verhalten.
 - `lock`
