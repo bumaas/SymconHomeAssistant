@@ -229,6 +229,18 @@ trait HAAttributeHandlersTrait
             return $this->handleMediaPlayerRepeatAttributeTopic($entityId, $attribute, $payload);
         }
 
+        if ($attribute === 'source') {
+            // Die Anzeige entsteht nur bei vorhandener source_list (shouldCreateMediaPlayerAttribute).
+            $handled = $this->handleMediaPlayerDefinedAttributeTopic($entityId, $attribute, $payload);
+            $this->handleMediaPlayerDefinedAttributeTopic($entityId, HAMediaPlayerDefinitions::ATTRIBUTE_CURRENT_SOURCE, $payload);
+            return $handled;
+        }
+
+        return $this->handleMediaPlayerDefinedAttributeTopic($entityId, $attribute, $payload);
+    }
+
+    private function handleMediaPlayerDefinedAttributeTopic(string $entityId, string $attribute, string $payload): bool
+    {
         return $this->handleAttributeTopicWithDefinitions(
             $entityId,
             $attribute,

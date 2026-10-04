@@ -15,6 +15,8 @@ trait HADomainAttributeMaintenanceTrait
                 $hasAttribute = array_key_exists('source_list', $attributes);
             } elseif ($attribute === 'sound_mode') {
                 $hasAttribute = array_key_exists('sound_mode_list', $attributes);
+            } elseif ($attribute === HAMediaPlayerDefinitions::ATTRIBUTE_CURRENT_SOURCE) {
+                $hasAttribute = array_key_exists('source_list', $attributes);
             }
         }
 

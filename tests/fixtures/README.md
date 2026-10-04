@@ -194,6 +194,13 @@ Konfiguration (`HA_ExportConfigBundleDataUrl`) der Device-Instanz „HIKVISION D
 `entity_picture`) ist durch den Platzhalter `0123456789abcdef…` gleicher Länge ersetzt. Grundlage von
 `check-camera-state-token.php`.
 
+## Sonos Wintergarten (`sonos_wintergarten_20261004.json`)
+
+Echter Zustand von `media_player.wintergarten` aus `/api/states` (04.10.2026, ohne `context`, Player
+inaktiv, also ohne `source`). Die `source_list` ist auf Sender und Räume gekürzt (11 von 44); die
+gestrichenen Playlists tragen Vornamen. Grundlage von `check-current-source.php`; die
+`source`-Meldungen dort folgen dem statestream-Format, sind aber kein Mitschnitt.
+
 ## Gleichnamige Variablen (`naming_collisions_20261003.json`)
 
 Konfiguration (`HA_ExportConfigBundleDataUrl`) dreier Device-Instanzen am nuc (03.10.2026,

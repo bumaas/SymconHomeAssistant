@@ -190,6 +190,14 @@ final class HAMediaPlayerDefinitions
             'writable' => true,
             'requires_features' => [self::FEATURE_SELECT_SOURCE]
         ],
+        // Reine Anzeige der Quelle neben der Auswahl: Eine Quelle außerhalb von source_list (Sonos:
+        // „Spotify Connect") zeigt die Auswahl als „-" (Blindtest 04.10.2026). Abgeleitet aus source,
+        // nur bei vorhandener source_list (HAEntityNormalizationTrait::mapMediaPlayerAttributeAliases).
+        self::ATTRIBUTE_CURRENT_SOURCE => [
+            'caption' => 'Current Source',
+            'type' => VARIABLETYPE_STRING,
+            'writable' => false
+        ],
         'sound_mode' => [
             'caption' => 'Sound Mode',
             'type' => VARIABLETYPE_STRING,
@@ -300,6 +308,8 @@ final class HAMediaPlayerDefinitions
         ]
     ];
 
+    public const string ATTRIBUTE_CURRENT_SOURCE = 'current_source';
+
     public const array ATTRIBUTE_REFRESH_TRIGGERS = [
         'source' => ['source_list'],
         'sound_mode' => ['sound_mode_list'],
@@ -323,6 +333,7 @@ final class HAMediaPlayerDefinitions
         'repeat',
         'shuffle',
         'source',
+        self::ATTRIBUTE_CURRENT_SOURCE,
         'sound_mode',
         'media_image_url',
         'media_cover',

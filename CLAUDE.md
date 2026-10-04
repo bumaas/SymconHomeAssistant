@@ -211,6 +211,14 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   (build 192): sonst lautete der formatierte Wert — den MCP zeigt — nur „60". Die Kachel zeigt das
   „%" trotzdem nur einmal (am nuc mit eigener Darstellung an Sonos erprobt). Test:
   `tests/check-volume-suffix.php`.
+- **Aktuelle Quelle** (build 199, Blindtest 04.10.2026, Abstimmung Burkhard): Die Auswahl `source`
+  bietet nur `source_list` an; eine Quelle außerhalb (Sonos „Spotify Connect") zeigt sie als „-" —
+  HA selbst zeigt sie dann auch nicht (Frontend `more-info-media_player.ts`, keine Markierung).
+  Deshalb die Anzeige `current_source` (Text, nur lesen): abgeleitet in
+  `mapMediaPlayerAttributeAliases` (nur mit `source_list`, ohne `source` leer), im heißen Pfad
+  schreibt `handleMediaPlayerAttributeTopic` sie bei jeder `source`-Meldung mit. Die Auswahl bekommt
+  bewusst keine Zusatzoption (wäre auswählbar, HA lehnt ab). Test: `tests/check-current-source.php`
+  (Fixture `sonos_wintergarten_20261004.json`).
 
 ## Kamera (build 193)
 

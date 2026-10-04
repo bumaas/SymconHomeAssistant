@@ -1,0 +1,33 @@
+{
+    "entity_id": "media_player.wintergarten",
+    "state": "idle",
+    "attributes": {
+        "source_list": [
+            "Line-in",
+            "RADIO BOB!",
+            "Radio Hochstift",
+            "SWR3",
+            "WDR2 BI",
+            "WDR2 Ostwestfalen-Lippe",
+            "SONOS Bad",
+            "SONOS Flur",
+            "SONOS Kueche",
+            "SONOS Wintergarten",
+            "SONOS Wohnzimmer"
+        ],
+        "group_members": [
+            "media_player.wintergarten"
+        ],
+        "volume_level": 0.2,
+        "is_volume_muted": false,
+        "media_content_type": "music",
+        "shuffle": false,
+        "repeat": "off",
+        "device_class": "speaker",
+        "friendly_name": "Wintergarten",
+        "supported_features": 8321599
+    },
+    "last_changed": "2026-10-04T06:08:33.915977+00:00",
+    "last_reported": "2026-10-04T06:08:35.178812+00:00",
+    "last_updated": "2026-10-04T06:08:35.178812+00:00"
+}
