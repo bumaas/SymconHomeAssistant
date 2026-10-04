@@ -333,5 +333,7 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
   `libs/Device/HADeviceCore.php` gelesene Property muss in Device- und Entity-Modul
   registriert sein), `tests/check_presentations.php` (nur gültige Darstellungsparameter) und
   alle Laufzeit-Checks `tests/check-*.php` (Glob, neue Tests laufen automatisch mit;
-  dazu gehört auch die Doku-Sperrklinke `tests/check-readme.php`).
+  dazu gehört auch die Doku-Sperrklinke `tests/check-readme.php`), zuletzt die statischen MCP-Regeln
+  über die Action `bumaas/symcon-mcp-check@v1` (privates Repo, für eigene Repos freigegeben; Befunde als
+  Anmerkungen, scheitert nur an Fehlern — die Warnungen sind offene Punkte aus `mcp-tauglichkeit.md`).
 - Version/Build: siehe globale CLAUDE.md, Abschnitt „Symcon: Build-/Versionspflege in Modul-Repos".
