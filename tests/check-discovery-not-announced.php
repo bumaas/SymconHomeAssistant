@@ -93,6 +93,10 @@ pruefe(logTypen($g) === [KL_WARNING], 'Nach der Frist: eine Warnung im Log', log
 $nachher = count(array_filter(IPS_GetChildrenIDs($g->id()), static fn(int $id): bool => IPS_GetObject($id)['ObjectType'] === OBJECTTYPE_VARIABLE));
 pruefe($nachher === $variablen, 'Nach der Frist: Variablen bleiben erhalten', $nachher . ' statt ' . $variablen);
 pruefe($g->timer('DeferredApply') === FRIST * 1000, 'Nach der Frist: regelmäßige Nachprüfung', (string)$g->timer('DeferredApply'));
+// Blindtest 04.10.2026: Status 202 ließ „Erreichbar" auf erreichbar stehen — widersprüchlich.
+$erreichbar = @IPS_GetObjectIDByIdent('reachable', $g->id());
+pruefe($erreichbar !== false && GetValue($erreichbar) === false, 'Nach der Frist: „Erreichbar" steht auf nicht erreichbar',
+    var_export($erreichbar === false ? null : GetValue($erreichbar), true));
 
 // 4. Nachprüfung, Gerät weiter unbekannt → keine zweite Warnung.
 $g = anwenden($g);
@@ -102,7 +106,10 @@ pruefe($g->status() === STATUS_NICHT_ANGEKUENDIGT && logTypen($g) === [KL_WARNIN
 splitterAntwort($mitGeraet, FRIST + 120);
 $g = anwenden($g);
 pruefe($g->status() === IS_ACTIVE, 'Wieder angekündigt: Status 102', (string)$g->status());
-pruefe(logTypen($g) === [KL_WARNING, KL_MESSAGE], 'Wieder angekündigt: Meldung im Log', logTexte($g));
+pruefe(GetValue($erreichbar) === true, 'Wieder angekündigt: „Erreichbar" wieder erreichbar', var_export(GetValue($erreichbar), true));
+// Die Warnung „Nicht angekündigt" deckt den Ausfall ab; „Erreichbar" fällt dabei ohne eigene Warnung,
+// die Rückkehr meldet „Wieder angekündigt" und „Wieder erreichbar".
+pruefe(logTypen($g) === [KL_WARNING, KL_MESSAGE, KL_MESSAGE], 'Wieder angekündigt: Meldungen im Log', logTexte($g));
 pruefe($g->timer('DeferredApply') === 0, 'Wieder angekündigt: keine Nachprüfung mehr', (string)$g->timer('DeferredApply'));
 
 // 6. Ohne bekannten Sitzungsbeginn (älterer Splitter) wird nicht geurteilt.

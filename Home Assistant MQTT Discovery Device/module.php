@@ -281,11 +281,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->writeTopicProcessingIndex($this->buildTopicProcessingIndex($entities));
         $this->updateReceiveFilter($topics);
         $this->applyCachedTopicPayloads($entities, $cachedTopics);
+        // Erst der Status, dann „Erreichbar": Ein nicht angekündigtes Gerät ist nicht erreichbar,
+        // auch wenn seine letzte availability-Meldung „online" war (Blindtest 04.10.2026).
+        $status = $this->evaluateAnnouncementStatus($deviceDefinition);
         $this->maintainReachableVariable($entities);
-        $this->evaluateReachability($entities);
+        $this->evaluateReachability($entities, $status !== self::STATUS_DISCOVERY_CACHE_MISSING);
 
         $this->SetSummary($this->ReadPropertyString(self::PROP_DEVICE_ID));
-        $this->SetStatus($this->evaluateAnnouncementStatus($deviceDefinition));
+        $this->SetStatus($status);
         $this->updateDiagnosticsLabels($entities, $topics, $warningMap);
         $this->updateInstanceSummary($entities);
         $this->logPerformanceSample(__FUNCTION__, $startedAt, [
@@ -341,7 +344,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         if ($result['diagnostics_changed']) {
             $stepStartedAt = microtime(true);
-            $this->evaluateReachability($entities);
+            $this->evaluateReachability($entities, $this->GetStatus() !== self::STATUS_DISCOVERY_CACHE_MISSING);
             $this->updateDiagnosticsLabels($entities, $topicIndex['topics']);
             $this->updateInstanceSummary($entities);
             $this->logPerformanceSample('ReceiveData.updateDiagnostics', $stepStartedAt);
@@ -4982,9 +4985,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     // Nicht erreichbar, wenn alle Entitäten mit bekanntem Stand offline melden; „unbekannt" ist kein
     // Ausfall. Keine eigene Entprellung: Die Bridge urteilt schon mit ihrer eigenen Frist.
-    private function evaluateReachability(array $entities): void
+    private function evaluateReachability(array $entities, bool $announced = true): void
     {
         if (@$this->GetIDForIdent(self::REACHABLE_IDENT) === false) {
+            return;
+        }
+        // Nicht angekündigt: nicht erreichbar, ohne eigene Warnung — „Nicht angekündigt" steht schon im Log.
+        if (!$announced) {
+            if ($this->GetValue(self::REACHABLE_IDENT) !== false) {
+                $this->SetValue(self::REACHABLE_IDENT, false);
+            }
             return;
         }
         $state = $this->readAvailabilityState();

@@ -145,7 +145,8 @@ Zugangsdaten, nur HA-Geräte-IDs und Entitätsnamen. Extraktion: `tools/fixture_
 
 Echte Zustände aus `/api/states` (01.10.2026, ohne `context`) für `input_select.test_auswahl`
 (Optionen A, B, C), `input_number.test_zahl` (0–100, Schritt 1, cm) und `input_text.test_text`
-(Länge 0–100, kein Muster). Grundlage von `check-action-contract.php`. Reine HA-Helfer, keine
+(Länge 0–100, kein Muster), dazu `input_button.test_button` (04.10.2026, Grundlage von
+`check-button-caption.php`). Grundlage von `check-action-contract.php`. Reine HA-Helfer, keine
 privaten Daten.
 
 Die Attribut-Meldungen in `check-action-contract.php` (`…/options`, `…/step`, `…/max`) sind
@@ -172,7 +173,9 @@ Konfiguration (`HA_ExportConfigBundleDataUrl`) und Variablen (Ident, Name, Typ, 
 aktualisiert) der Device-Instanzen „Denon Wohnzimmer" und „Gast.Licht.Rolladen" am nuc
 (03.10.2026, 1.5 build 184). Neben den aktuellen Variablen stehen dort die Variablen aus dem
 Ident-Schema vor Mai 2026 (voller Entitätsname im Ident), seit Mai ohne Aktualisierung.
-Grundlage von `check-legacy-idents.php`. Keine IP-Adressen oder Zugangsdaten.
+Grundlage von `check-legacy-idents.php`. Keine IP-Adressen oder Zugangsdaten. Auch
+`check-media-image-token.php` nutzt die Denon-Konfiguration; die Cover-Adresse mit `token=` setzt der
+Test selbst (Format wie aus HA gelesen, Schlüssel als Platzhalter).
 
 ## Entfallene Entitäten (`removed_entities_ccu3_20261003.json`)
 

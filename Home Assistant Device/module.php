@@ -229,7 +229,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
         }
 
-        $configData = $this->removeCameraSecretAttributes($this->mergeCreateVarSettings($configData, $existingCreateVarMap));
+        $configData = $this->removeSecretAttributes($this->mergeCreateVarSettings($configData, $existingCreateVarMap));
 
         // Vor dem Überschreiben: Nur hier ist noch bekannt, welche Entitäten wegfallen.
         $previousConfig = $this->readResolvedConfig(__FUNCTION__);
@@ -680,7 +680,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 // Auch eine vor build 193 gespeicherte Konfiguration gibt keinen Kamera-Schlüssel heraus.
                 $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
                 if (is_array($decoded)) {
-                    $decoded = $this->removeCameraSecretAttributes($decoded);
+                    $decoded = $this->removeSecretAttributes($decoded);
                 }
                 $json    = json_encode($decoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
             } catch (JsonException $e) {

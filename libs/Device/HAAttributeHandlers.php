@@ -250,7 +250,7 @@ trait HAAttributeHandlersTrait
             return true;
         }
 
-        $original = (string)$value;
+        $original = self::removeAccessTokenFromUrl((string)$value);
         $absolute = $this->makeMediaImageUrlAbsolute($original);
         if (!$this->ensureAttributeTopicVariable($entityId, $attribute, [$this, 'ensureMediaPlayerAttributeVariable'])) {
             return false;

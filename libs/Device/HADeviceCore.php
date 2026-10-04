@@ -935,10 +935,14 @@ trait HADeviceCoreTrait
             default => '',
         };
 
+        // Variablenname statt Ident: Unter dem Namen kennen Anwender und KI die Variable
+        // (Blindtest 04.10.2026: „für "select_status"").
+        $variableId = @$this->GetIDForIdent($ident);
+        $label = $variableId !== false ? IPS_GetName($variableId) : $ident;
         trigger_error(
             $allowed === ''
-                ? sprintf($this->Translate('Invalid value "%s" for "%s"'), $shownValue, $ident)
-                : sprintf($this->Translate('Invalid value "%s" for "%s" (allowed: %s)'), $shownValue, $ident, $allowed),
+                ? sprintf($this->Translate('Invalid value "%s" for "%s"'), $shownValue, $label)
+                : sprintf($this->Translate('Invalid value "%s" for "%s" (allowed: %s)'), $shownValue, $label, $allowed),
             E_USER_WARNING
         );
     }

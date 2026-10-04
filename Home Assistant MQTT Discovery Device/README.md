@@ -56,6 +56,7 @@ Laufzeitmodul für Geräte, die ihre Struktur und Laufzeitdaten über Home Assis
 - Sie steht auf **nicht erreichbar**, wenn alle Entitäten mit bekanntem Stand offline melden; ein noch unbekannter Stand gilt nicht als Ausfall. Eine eigene Wartezeit gibt es nicht — die Bridge urteilt mit ihrer eigenen Frist.
 - Jeder Wechsel steht im Meldungsprotokoll: der Ausfall als **Warnung**, die Erholung als **Meldung**. Der Instanzstatus bleibt aktiv.
 - Geräte ohne availability-Topic bekommen keine solche Variable.
+- Ein nicht mehr angekündigtes Gerät (Status 202, siehe oben) gilt auch als nicht erreichbar. Dieser Wechsel steht nicht zusätzlich im Meldungsprotokoll — die Warnung „Nicht angekündigt" sagt es schon. Kündigt es sich wieder an, zählt wieder seine eigene Meldung.
 
 ## Hinweis
 

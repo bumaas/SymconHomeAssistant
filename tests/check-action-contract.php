@@ -92,6 +92,14 @@ pruefe(
     'Auswahl: Fehlermeldung nennt den Wert und die erlaubten Optionen',
     (string)$meldung
 );
+// Blindtest 04.10.2026: Die Meldung nannte den Ident („select_status"); eine KI und ein Anwender
+// kennen die Variable aber unter ihrem Namen.
+$selectName = IPS_GetName((int)$geraet->variablenId($selectIdent));
+pruefe(
+    $meldung !== null && str_contains($meldung, '"' . $selectName . '"') && !str_contains($meldung, '"' . $selectIdent . '"'),
+    'Auswahl: Fehlermeldung nennt den Variablennamen statt des Idents',
+    (string)$meldung
+);
 pruefe(requestActionFehler($geraet, $selectIdent, 'B') === null, 'Auswahl: erlaubte Option „B" meldet keinen Fehler');
 
 $meldung = requestActionFehler($geraet, $numberIdent, 'abc');
@@ -134,6 +142,9 @@ $entitaet = neueEntitaet([
 // Wie UpdateConfiguration(): Rohdaten aus HA → aufgelöste Zeile → ResolvedConfig.
 $zeile = $entitaet->rufe('buildResolvedEntityRow', $zustaende[0], true, true);
 $entitaet->rufe('writeResolvedConfig', json_encode([$zeile], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+// Variable anlegen wie ApplyChanges: An der Anlage gehört jeder Ident, den RequestAction erreicht, zu einer Variable.
+$neu = neueAusfuehrung($entitaet);
+$neu->rufe('processEntities', $neu->rufe('getConfiguredEntities', 'check'), 'statestream');
 $entityIdent = neueAusfuehrung($entitaet)->rufe('getConfiguredEntityById', 'input_select.test_auswahl')['ident'] ?? '';
 pruefe($entityIdent === 'select_status', 'Entity-Modul: Ident wie an der Anlage (#24021 select_status)', $entityIdent);
 
@@ -141,6 +152,12 @@ $meldung = requestActionFehler($entitaet, $entityIdent, 'D');
 pruefe(
     $meldung !== null && str_contains($meldung, 'A, B, C'),
     'Entity-Modul: nicht erlaubte Option „D" wird als Fehler mit den erlaubten Optionen gemeldet',
+    (string)$meldung
+);
+
+pruefe(
+    $meldung !== null && str_contains($meldung, '"' . IPS_GetName((int)$entitaet->variablenId($entityIdent)) . '"') && !str_contains($meldung, '"select_status"'),
+    'Entity-Modul: Fehlermeldung nennt den Variablennamen statt des Idents',
     (string)$meldung
 );
 

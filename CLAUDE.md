@@ -219,11 +219,17 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   gemeinsamer Helfer `getStateOptionsPresentation()` wie beim Mediaplayer-Status). Keine Aufzählung:
   Die verlangt in Symcon eine Variablenaktion (siehe `check-readonly-enum-presentation.php`).
 - Der rotierende Kamera-Schlüssel (`access_token`, `token=` in `entity_picture`) kommt nicht in die
-  Konfiguration und nicht ins Config-Bundle: `removeCameraSecretAttributes()` beim Schreiben in
+  Konfiguration und nicht ins Config-Bundle: `removeSecretAttributes()` beim Schreiben in
   `UpdateConfiguration()` und beim Export, `normalizeCameraAttributes()` für REST-Zustände
   (`mergeStateAttributes`). Bis build 192 stand er am nuc in der Konfiguration der HIKVISION.
 - Test: `tests/check-camera-state-token.php` (Fixture `camera_hikvision_20261003.json`, Schlüssel
   durch Platzhalter ersetzt).
+- **Mediaplayer-Cover** (build 198, Blindtest 04.10.2026): `entity_picture`/`media_image_url` tragen
+  `token=` — damit liefert `/api/media_player_proxy` das Bild **ohne Anmeldung** (eigenes HA geprüft:
+  mit token= 200, ohne token= und ohne Anmeldung 403). `removeAccessTokenFromUrl()` entfernt ihn in
+  `mapMediaPlayerAttributeAliases` (REST/Konfiguration), in `removeSecretAttributes` (gespeicherte
+  Konfiguration, Export) und im Attribut-Topic (`handleMediaPlayerImageAttributeTopic`); `cache=` bleibt.
+  Test: `tests/check-media-image-token.php`.
 
 ## Buttons und Diagnose (build 189, MCP-Punkt H5)
 
@@ -266,6 +272,10 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `maintainEntityVariables` pflegt, muss dort ausdrücklich als aktiv übergeben werden, sonst wird sie
   beim nächsten `ApplyChanges` „(veraltet)" (so bei `reachable` im Test gefunden).
 - Test: `tests/check-discovery-reachability.php` (Fixture `discovery_availability_20261003.json`).
+- **Nicht angekündigt heißt nicht erreichbar** (build 198, Blindtest 04.10.2026: Gerät auf 202, aber
+  „Erreichbar" = true): `evaluateReachability($entities, $announced)` setzt bei `false` still auf nicht
+  erreichbar (die 202-Warnung meldet es schon); deshalb wird der Status vor der Erreichbarkeit bestimmt.
+  Test: `tests/check-discovery-not-announced.php`.
 
 ## Variablennamen
 
@@ -275,7 +285,10 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   wenn ihn keine zweite Entität der Instanz ebenso als Ausweg nimmt (build 173, sonst gleichnamige
   Variablen). Neue Zählschlüssel in `sharedEntityBaseNameCounts` verlangen einen neuen
   `CONFIGURED_ENTITIES_CACHE_MARKER`, weil der Konfigurations-Cache die Zähler mitspeichert.
-  Test: `tests/check-shared-entity-naming.php`.
+  Test: `tests/check-shared-entity-naming.php`. Buttons nehmen denselben Ausweg (build 198,
+  `getSharedButtonVariableName`; Test `tests/check-button-caption.php`).
+- Fehlermeldungen an Anwender nennen den Variablennamen, nicht den Ident (`rejectInvalidActionValue`,
+  build 198); fehlt die Variable, bleibt es beim Ident.
 - Keine zwei Variablen einer Instanz heißen gleich (build 188, MCP-Regel 14, Abstimmung 03.10.2026):
   Entitätsname vor Zusatzvariablen bei mehreren Entitäten derselben Art oder schon vergebenem Namen,
   Art-Hinweis bei gleichem HA-Namen verschiedener Domänen, ungekürzter Name statt „Status (FAN)".

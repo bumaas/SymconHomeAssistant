@@ -46,5 +46,16 @@
         "last_changed": "2026-09-29T01:05:24.319149+00:00",
         "last_reported": "2026-09-29T01:05:24.319149+00:00",
         "last_updated": "2026-09-29T01:05:24.319149+00:00"
+    },
+    {
+        "entity_id": "input_button.test_button",
+        "state": "2026-10-04T08:11:59.322301+00:00",
+        "attributes": {
+            "editable": true,
+            "friendly_name": "Test Button"
+        },
+        "last_changed": "2026-10-04T08:11:59.322495+00:00",
+        "last_reported": "2026-10-04T08:11:59.322495+00:00",
+        "last_updated": "2026-10-04T08:11:59.322495+00:00"
     }
 ]

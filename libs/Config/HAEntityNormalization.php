@@ -149,8 +149,27 @@ trait HAEntityNormalizationTrait
         return $attributes;
     }
 
+    // HA-Proxy-Adressen tragen einen Zugangsschlüssel: Mit token= liefert /api/media_player_proxy das Bild
+    // ohne jede Anmeldung (eigenes HA, 04.10.2026: HTTP 200; ohne token= und ohne Anmeldung 403). Das Modul
+    // holt das Cover über den Splitter angemeldet und braucht ihn nicht; cache= bleibt (Titelwechsel).
+    private const array MEDIA_IMAGE_URL_ATTRIBUTES = ['entity_picture', 'entity_picture_local', 'media_image_url'];
+
+    protected static function removeAccessTokenFromUrl(string $url): string
+    {
+        if (!str_contains($url, 'token=')) {
+            return $url;
+        }
+        $cleaned = (string)preg_replace('/([?&])token=[^&#]*&?/', '$1', $url);
+        return rtrim($cleaned, '?&');
+    }
+
     private function mapMediaPlayerAttributeAliases(array $attributes): array
     {
+        foreach (self::MEDIA_IMAGE_URL_ATTRIBUTES as $key) {
+            if (isset($attributes[$key]) && is_string($attributes[$key])) {
+                $attributes[$key] = self::removeAccessTokenFromUrl($attributes[$key]);
+            }
+        }
         if (!array_key_exists('media_image_url', $attributes)) {
             if (array_key_exists('entity_picture', $attributes)) {
                 $attributes['media_image_url'] = $attributes['entity_picture'];
@@ -179,7 +198,7 @@ trait HAEntityNormalizationTrait
     // Splitters (nuc 03.10.2026, HIKVISION). Schmal gehalten, damit er auch auf rohe Bundle-Zeilen passt.
     private const array CAMERA_SECRET_ATTRIBUTES = ['access_token', 'entity_picture'];
 
-    protected function removeCameraSecretAttributes(array $configData): array
+    protected function removeSecretAttributes(array $configData): array
     {
         foreach ($configData as &$row) {
             if (!is_array($row) || !is_array($row['attributes'] ?? null)) {
@@ -188,6 +207,13 @@ trait HAEntityNormalizationTrait
             $domain = (string)($row['domain'] ?? strstr((string)($row['entity_id'] ?? ''), '.', true));
             if ($domain === HACameraDefinitions::DOMAIN) {
                 $row['attributes'] = array_diff_key($row['attributes'], array_flip(self::CAMERA_SECRET_ATTRIBUTES));
+            }
+            if ($domain === HAMediaPlayerDefinitions::DOMAIN) {
+                foreach (self::MEDIA_IMAGE_URL_ATTRIBUTES as $key) {
+                    if (isset($row['attributes'][$key]) && is_string($row['attributes'][$key])) {
+                        $row['attributes'][$key] = self::removeAccessTokenFromUrl($row['attributes'][$key]);
+                    }
+                }
             }
         }
         unset($row);

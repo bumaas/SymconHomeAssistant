@@ -1027,30 +1027,11 @@ trait HAPresentationTrait
         return $this->buildSharedEntityVariableName($domain, $entity, $this->hasMultipleStatusEntities);
     }
 
+    // Beschriftung der einzigen Option = Name der Button-Variable; eine Regel für beides
+    // (HAEntityVariableNamingTrait::getSharedButtonVariableName).
     private function getButtonVariableName(array $entity): string
     {
-        $name = $this->getSharedEntityName($entity);
-        if ($name !== '') {
-            return $name;
-        }
-
-        $caption = $this->getButtonDeviceClassCaption($this->getEntityDeviceClass($entity));
-        if ($caption !== null) {
-            return $this->Translate($caption);
-        }
-
-        $entityId = $this->getEntityId($entity);
-        return $entityId !== '' ? $entityId : 'Press';
-    }
-
-    private function getButtonDeviceClassCaption(string $deviceClass): ?string
-    {
-        return match ($deviceClass) {
-            'identify' => 'Identify',
-            'restart' => 'Restart',
-            'update' => 'Update',
-            default => null,
-        };
+        return $this->getSharedButtonVariableName($entity);
     }
 
     private function isStatusDomain(string $domain): bool

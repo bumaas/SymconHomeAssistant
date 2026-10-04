@@ -138,6 +138,14 @@ trait HAEntityVariableNamingTrait
             return $this->Translate($caption);
         }
 
+        // Ungekürzter HA-Name vor der Entity-ID (wie getSharedDefaultEntityVariableName seit build 171):
+        // Ein Button, dessen Name nur den Instanznamen wiederholt, hieß sonst „input_button.test_button"
+        // (Blindtest 04.10.2026) — sofern keine zweite Entität der Instanz ebenso darauf ausweicht.
+        $rawName = trim((string)($entity['name'] ?? ''));
+        if ($rawName !== '' && ($this->sharedEntityBaseNameCounts[self::SHARED_RAW_NAME_COUNT_PREFIX . $rawName] ?? 0) < 2) {
+            return $rawName;
+        }
+
         $entityId = $this->getSharedEntityId($entity);
         return $entityId !== '' ? $entityId : 'Press';
     }
