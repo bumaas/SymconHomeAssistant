@@ -41,6 +41,9 @@ interface HADeviceConstants
     public const int MEDIA_REFRESH_DELAY_MS = 1000;
     public const string BUFFER_PENDING_MEDIA_JOBS = 'PendingMediaJobs';
     public const string BUFFER_MEDIA_LAST_FETCH = 'MediaLastFetch';
+    // Mediaplayer, deren Quelle nach einer Zustandsmeldung per REST nachgeprüft wird (siehe
+    // HAMediaObjectsTrait::scheduleMediaPlayerSourceCheck); läuft über denselben Timer.
+    public const string BUFFER_PENDING_SOURCE_CHECKS = 'PendingSourceChecks';
     public const int MEDIA_REFRESH_MIN_INTERVAL_SEC = 10;
 
     // Entkoppelte Persistenz des EntityStateCache (Begründung: HAEntityStore, readEntityStateCache).

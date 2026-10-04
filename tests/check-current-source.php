@@ -69,6 +69,37 @@ pruefe(!in_array('Spotify Connect', $optionen, true) && in_array('SWR3', $option
 neueAusfuehrung($entitaet)->ReceiveData(mqttMeldung('statestream/media_player/wintergarten/source', '"SWR3"'));
 pruefe(GetValueString($anzeige) === 'SWR3', 'Quelle aus der Liste: Anzeige folgt', GetValueString($anzeige));
 
+// Quelle fällt weg (Player gestoppt): statestream veröffentlicht nur vorhandene Attribute, das alte
+// source-Topic bleibt stehen (HA mqtt_statestream, _state_publisher). Erkennbar nur per REST-Abfrage
+// nach der Zustandsmeldung; entkoppelt über den MediaRefresh-Timer.
+HaSendungen::$zustaende['media_player.wintergarten'] = $zustand;   // echter Zustand: idle, ohne source
+HaSendungen::$zustandsAbfragen = [];
+neueAusfuehrung($entitaet)->ReceiveData(mqttMeldung('statestream/media_player/wintergarten/state', 'idle'));
+pruefe(HaSendungen::$zustandsAbfragen === [], 'Zustandsmeldung fragt nicht im MQTT-Pfad per REST nach');
+neueAusfuehrung($entitaet)->RequestAction('MediaRefresh', '');
+pruefe(HaSendungen::$zustandsAbfragen === ['media_player.wintergarten'], 'Timer fragt den Zustand einmal per REST ab',
+    json_encode(HaSendungen::$zustandsAbfragen));
+pruefe(GetValueString($anzeige) === '', 'Quelle weggefallen: Anzeige leer', GetValueString($anzeige));
+pruefe(GetValueString((int)$auswahl) === '', 'Quelle weggefallen: Auswahl leer', GetValueString((int)$auswahl));
+
+// Ohne Quelle löst die nächste Zustandsmeldung keine weitere Abfrage aus.
+HaSendungen::$zustandsAbfragen = [];
+neueAusfuehrung($entitaet)->ReceiveData(mqttMeldung('statestream/media_player/wintergarten/state', 'idle'));
+neueAusfuehrung($entitaet)->RequestAction('MediaRefresh', '');
+pruefe(HaSendungen::$zustandsAbfragen === [], 'Schon ohne Quelle: keine REST-Abfrage', json_encode(HaSendungen::$zustandsAbfragen));
+
+// Quelle bleibt (Pause bei laufendem Sender): REST liefert sie, nichts wird geleert.
+neueAusfuehrung($entitaet)->ReceiveData(mqttMeldung('statestream/media_player/wintergarten/source', '"SWR3"'));
+$pausiert = $zustand;
+$pausiert['state'] = 'paused';
+$pausiert['attributes']['source'] = 'SWR3';
+HaSendungen::$zustaende['media_player.wintergarten'] = $pausiert;
+neueAusfuehrung($entitaet)->ReceiveData(mqttMeldung('statestream/media_player/wintergarten/state', 'paused'));
+neueAusfuehrung($entitaet)->RequestAction('MediaRefresh', '');
+pruefe(GetValueString($anzeige) === 'SWR3' && GetValueString((int)$auswahl) === 'SWR3', 'Quelle noch gemeldet: beide bleiben',
+    GetValueString($anzeige) . ' / ' . GetValueString((int)$auswahl));
+HaSendungen::$zustaende = [];
+
 // Device-Modul (Bundle): Konfiguration „Denon Wohnzimmer" aus tests/fixtures/legacy_idents_20261003.json,
 // source_list mit neun Eingängen, source fehlt (Gerät aus).
 $fixture = json_decode((string)file_get_contents(__DIR__ . '/fixtures/legacy_idents_20261003.json'), true, 512, JSON_THROW_ON_ERROR);
@@ -86,6 +117,16 @@ pruefe($geraetAnzeige !== null, 'Device: Anzeige der aktuellen Quelle angelegt')
 neueAusfuehrung($g)->ReceiveData(mqttMeldung('statestream/media_player/denon_wohnzimmer/source', '"HEOS Music"'));
 pruefe($geraetAnzeige !== null && GetValueString($geraetAnzeige) === 'HEOS Music', 'Device: Anzeige folgt der Quelle',
     $geraetAnzeige !== null ? GetValueString($geraetAnzeige) : '');
+HaSendungen::$zustaende['media_player.denon_wohnzimmer'] = [
+    'entity_id'  => 'media_player.denon_wohnzimmer',
+    'state'      => 'off',
+    'attributes' => $konfiguration[0]['attributes'],   // Konfiguration vom nuc: Gerät aus, ohne source
+];
+neueAusfuehrung($g)->ReceiveData(mqttMeldung('statestream/media_player/denon_wohnzimmer/state', 'off'));
+neueAusfuehrung($g)->RequestAction('MediaRefresh', '');
+pruefe($geraetAnzeige !== null && GetValueString($geraetAnzeige) === '', 'Device: Quelle weggefallen, Anzeige leer',
+    $geraetAnzeige !== null ? GetValueString($geraetAnzeige) : '');
+HaSendungen::$zustaende = [];
 unlink((string)$datei);
 
 ergebnis();

@@ -219,6 +219,60 @@ trait HAMediaObjectsTrait
     {
         $this->SetTimerInterval(self::TIMER_MEDIA_REFRESH, 0);
         $this->SetBuffer(self::BUFFER_PENDING_MEDIA_JOBS, '');
+        $this->SetBuffer(self::BUFFER_PENDING_SOURCE_CHECKS, '');
+    }
+
+    // statestream veröffentlicht nur vorhandene Attribute; fällt source weg (Player gestoppt), bleibt das
+    // alte Topic stehen (HA mqtt_statestream, _state_publisher). Nach einer Zustandsmeldung fragt der
+    // MediaRefresh-Timer deshalb einmal per REST nach — nur solange eine Quelle angezeigt wird.
+    private function scheduleMediaPlayerSourceCheck(string $entityId): void
+    {
+        if (!$this->hasMediaPlayerSource($entityId)) {
+            return;
+        }
+        $pending = $this->loadMediaRefreshBuffer(self::BUFFER_PENDING_SOURCE_CHECKS);
+        $pending[$entityId] = true;
+        $this->SetBuffer(self::BUFFER_PENDING_SOURCE_CHECKS, json_encode($pending, JSON_THROW_ON_ERROR));
+        if ($this->GetTimerInterval(self::TIMER_MEDIA_REFRESH) <= 0) {
+            $this->SetTimerInterval(self::TIMER_MEDIA_REFRESH, self::MEDIA_REFRESH_DELAY_MS);
+        }
+    }
+
+    private function hasMediaPlayerSource(string $entityId): bool
+    {
+        $source = $this->getCachedEntityAttributes($entityId)['source'] ?? '';
+        return is_string($source) && $source !== '';
+    }
+
+    private function processPendingSourceChecks(): void
+    {
+        $pending = $this->loadMediaRefreshBuffer(self::BUFFER_PENDING_SOURCE_CHECKS);
+        $this->SetBuffer(self::BUFFER_PENDING_SOURCE_CHECKS, '');
+        foreach (array_keys($pending) as $entityId) {
+            $entityId = (string)$entityId;
+            if (!$this->hasMediaPlayerSource($entityId)) {
+                continue;
+            }
+            $state = $this->requestHaState($entityId);
+            $attributes = is_array($state) ? ($state[self::KEY_ATTRIBUTES] ?? null) : null;
+            if (!is_array($attributes)) {
+                continue;
+            }
+            $source = $attributes['source'] ?? null;
+            if (is_string($source) && $source !== '') {
+                continue;
+            }
+            // Nur die beiden Variablen schreiben: Eine Darstellungsauffrischung mit diesen Teilattributen
+            // verlöre die Optionen der Auswahl.
+            $cleared = ['source' => '', HAMediaPlayerDefinitions::ATTRIBUTE_CURRENT_SOURCE => ''];
+            foreach (array_keys($cleared) as $attribute) {
+                $ident = $this->buildSharedAttributeIdent($entityId, $attribute);
+                if ($this->attributeVariableExists($ident)) {
+                    $this->setValueWithDebug($ident, '');
+                }
+            }
+            $this->updateEntityCache($entityId, null, $cleared);
+        }
     }
 
     private function scheduleMediaRefresh(string $ident, string $url, string $filePrefix, string $debugCategory): void
@@ -238,6 +292,7 @@ trait HAMediaObjectsTrait
             return false;
         }
         $this->processPendingMediaRefreshJobs();
+        $this->processPendingSourceChecks();
         return true;
     }
 

@@ -401,6 +401,10 @@ trait HADomainRegistryTrait
         if (is_string($state) && $state !== '') {
             $this->setEntityMainValue($entityId, $ident, $state, $state);
             $this->updateMediaPlayerPowerValue($entityId, $state);
+            // Zustandsmeldung ohne Attribute (statestream): Ob die Quelle weggefallen ist, sagt nur REST.
+            if (($parsed[self::KEY_ATTRIBUTES] ?? []) === []) {
+                $this->scheduleMediaPlayerSourceCheck($entityId);
+            }
         }
 
         $this->updateMediaPlayerAttributeValues($entityId, $attributes);

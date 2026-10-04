@@ -177,10 +177,12 @@ trait HAEntityNormalizationTrait
                 $attributes['media_image_url'] = $attributes['entity_picture_local'];
             }
         }
-        // Fehlt source (Player inaktiv), ist die Anzeige leer statt auf der letzten Quelle stehen zu bleiben.
+        // Fehlt source (Player inaktiv), sind Auswahl und Anzeige leer statt auf der letzten Quelle stehen
+        // zu bleiben.
         if (array_key_exists('source_list', $attributes)) {
             $source = $attributes['source'] ?? '';
-            $attributes[HAMediaPlayerDefinitions::ATTRIBUTE_CURRENT_SOURCE] = is_scalar($source) ? (string)$source : '';
+            $attributes['source'] = is_scalar($source) ? (string)$source : '';
+            $attributes[HAMediaPlayerDefinitions::ATTRIBUTE_CURRENT_SOURCE] = $attributes['source'];
         }
 
         return $attributes;

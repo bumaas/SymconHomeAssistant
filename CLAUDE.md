@@ -219,6 +219,14 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   schreibt `handleMediaPlayerAttributeTopic` sie bei jeder `source`-Meldung mit. Die Auswahl bekommt
   bewusst keine Zusatzoption (wäre auswählbar, HA lehnt ab). Test: `tests/check-current-source.php`
   (Fixture `sonos_wintergarten_20261004.json`).
+- **Weggefallene Attribute meldet statestream nie** (HA `mqtt_statestream._state_publisher` veröffentlicht
+  nur vorhandene Attribute, retained — das alte Topic bleibt stehen). Für die Quelle (build 200): Auf eine
+  Zustandsmeldung ohne Attribute reiht `scheduleMediaPlayerSourceCheck()` den Player ein, solange der
+  State-Cache eine Quelle führt; der vorhandene `MediaRefreshTimer` fragt dann per REST
+  (`processPendingSourceChecks`) und leert `source` und `current_source`. Kein neuer Timer (Reload-Fenster).
+  Im vollen Pfad setzt die Normalisierung beide auf `''`. Andere Attribute (Titel, Interpret …) bleiben
+  nach dem Stoppen weiterhin stehen. Der Testrahmen bildet die REST-Abfrage über
+  `HaSendungen::$zustaende` nach.
 
 ## Kamera (build 193)
 

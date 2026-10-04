@@ -72,6 +72,12 @@ final class HaSendungen
     /** Antwort des Parents auf einen REST-Service-Aufruf; null = echter Weg (ohne Parent: Fehlschlag). */
     public static ?bool $restAntwort = null;
 
+    /** @var array<string, array> Antworten auf GET /api/states/<entity_id>; fehlt der Eintrag, echter Weg. */
+    public static array $zustaende = [];
+
+    /** @var list<string> abgefragte Entitäten (GET /api/states/<entity_id>) */
+    public static array $zustandsAbfragen = [];
+
     /** @return list<array> Sendungen seit dem letzten Aufruf */
     public static function abholen(): array
     {
@@ -220,6 +226,12 @@ trait ModulRahmenTrait
     {
         HaSendungen::$liste[] = ['rest', $domain, $service, $data];
         return HaSendungen::$restAntwort ?? parent::sendServiceRequestToParent($domain, $service, $data);
+    }
+
+    protected function requestHaState(string $entityId): ?array
+    {
+        HaSendungen::$zustandsAbfragen[] = $entityId;
+        return HaSendungen::$zustaende[$entityId] ?? parent::requestHaState($entityId);
     }
 
     protected function sendMqttMessage(string $topic, string $payload): void
