@@ -546,6 +546,9 @@ final class DiscoveryDeviceHarness extends HomeAssistantMQTTDiscoveryDevice
     /** Antwort des Discovery-Splitters auf GetDiscoveryConfigs (null = Stub fragen). */
     public static ?array $splitterAntwort = null;
 
+    /** Antwort des Discovery-Splitters auf GetTopicPayloads (zwischengespeicherte Meldungen; null = Stub fragen). */
+    public static ?array $topicPayloadAntwort = null;
+
     /** Splitter antwortet nicht (leere Antwort, wie bei einem kurz belegten Splitter). */
     public static bool $splitterStumm = false;
 
@@ -555,6 +558,9 @@ final class DiscoveryDeviceHarness extends HomeAssistantMQTTDiscoveryDevice
     protected function SendDataToParent(string $Data): string
     {
         $anfrage = json_decode($Data, true);
+        if (self::$topicPayloadAntwort !== null && ($anfrage['DiscoveryAction'] ?? '') === 'GetTopicPayloads') {
+            return json_encode(self::$topicPayloadAntwort, JSON_THROW_ON_ERROR);
+        }
         if (self::$splitterStumm && ($anfrage['DiscoveryAction'] ?? '') === 'GetDiscoveryConfigs') {
             return '';
         }

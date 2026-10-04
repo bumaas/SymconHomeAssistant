@@ -191,6 +191,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function ApplyChanges(): void
     {
+        // Übernehmen bringt keine neue Meldung des Geräts: nur geänderte Werte schreiben (setReceivedValue).
+        $this->writeOnlyChangedValues = true;
+        try {
+            $this->applyChangesWithoutNewMessages();
+        } finally {
+            $this->writeOnlyChangedValues = false;
+        }
+    }
+
+    private function applyChangesWithoutNewMessages(): void
+    {
         $this->topicIndexMemo = null;
         if (!$this->isInstanceCreated()) {
             parent::ApplyChanges();
@@ -2098,7 +2109,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                     ? $this->castSensorValue($attributeContext[$attribute], $variableType)
                     : null;
                 if ($value !== null) {
-                    $this->SetValue($ident, $value);
+                    $this->setReceivedValue($ident, $value);
                 }
             }
 
@@ -2134,7 +2145,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             if ($variableId !== false) {
                 $this->DisableAction($ident);
                 if (array_key_exists($attribute, $attributeContext)) {
-                    $this->SetValue($ident, $attributeContext[$attribute]);
+                    $this->setReceivedValue($ident, $attributeContext[$attribute]);
                 }
             }
 
@@ -2198,7 +2209,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->EnableAction($ident);
 
         if ($needsInitialization) {
-            $this->SetValue($ident, self::TRIGGER_RESET_VALUE);
+            $this->setReceivedValue($ident, self::TRIGGER_RESET_VALUE);
         }
     }
 
@@ -2293,7 +2304,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
-            $this->SetValue($ident, $storedValue);
+            $this->setReceivedValue($ident, $storedValue);
         }
     }
 
@@ -3103,6 +3114,31 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
     }
 
+    // ApplyChanges bringt keine neue Meldung des Geräts — weder die eingespielten Meldungen aus dem
+    // Zwischenspeicher des Splitters noch feste Werte aus der Konfiguration oder zurückgesetzte Taster.
+    // Dort wird nur ein geänderter Wert geschrieben. Sonst setzte jedes SetValue VariableUpdated, und ein
+    // seit Monaten totes Gerät wirkte frisch: ApplyChanges läuft bei nicht angekündigten Geräten alle
+    // 10 Minuten (nuc 04.10.2026: „ID.4 Pro", letzter Wert 26.06.2026, Aktualisierung vor Minuten).
+    // Neue Meldungen (ReceiveData) schreiben wie bisher immer.
+    private bool $writeOnlyChangedValues = false;
+
+    private function setReceivedValue(string $ident, mixed $value): void
+    {
+        // Nur überspringen, wenn die Variable schon einmal geschrieben wurde: Eine eben angelegte trägt den
+        // Standardwert (false, 0, ''), der dem eingespielten Wert gleichen kann — sie bliebe sonst ohne
+        // Zeitstempel („01.01.1970").
+        if ($this->writeOnlyChangedValues) {
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId !== false) {
+                $variable = IPS_GetVariable($variableId);
+                if ($variable['VariableUpdated'] > 0 && $variable['VariableValue'] === $value) {
+                    return;
+                }
+            }
+        }
+        $this->SetValue($ident, $value);
+    }
+
     private function applyTopicPayloadToEntities(array $entityLookup, array $topicIndex, string $topic, string $payload, int $receivedAt = 0): array
     {
         $diagnosticsChanged = false;
@@ -3285,7 +3321,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             if ($currentTimestamp > $timestamp) {
                 return;
             }
-            $this->SetValue($ident, $timestamp);
+            $this->setReceivedValue($ident, $timestamp);
             return;
         }
 
@@ -3294,7 +3330,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             if ($boolValue === null) {
                 return;
             }
-            $this->SetValue($ident, $boolValue);
+            $this->setReceivedValue($ident, $boolValue);
             if ($component === HALightDefinitions::DOMAIN) {
                 $this->applyLightRuntimeAttributes($entity, $payload);
             }
@@ -3310,7 +3346,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             if ($index === false) {
                 return;
             }
-            $this->SetValue($ident, (int)$index);
+            $this->setReceivedValue($ident, (int)$index);
             return;
         }
 
@@ -3320,7 +3356,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        $this->SetValue($ident, $castValue);
+        $this->setReceivedValue($ident, $castValue);
     }
 
     private function applyAttributesPayload(array $entity, string $payload): void
@@ -3361,7 +3397,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         $timestamp = $receivedAt > 0 ? $receivedAt : time();
         if (@$this->GetIDForIdent((string)$entity['ident']) !== false) {
-            $this->SetValue((string)$entity['ident'], $timestamp);
+            $this->setReceivedValue((string)$entity['ident'], $timestamp);
         }
     }
 
@@ -3477,7 +3513,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
             $castValue = $this->castSensorValue($value, (int)($meta['type'] ?? VARIABLETYPE_STRING));
             if ($castValue !== null) {
-                $this->SetValue($ident, $castValue);
+                $this->setReceivedValue($ident, $castValue);
             }
         }
 
@@ -3517,7 +3553,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         $ident = (string)($entity['ident'] ?? '');
         if ($ident !== '' && @$this->GetIDForIdent($ident) !== false) {
-            $this->SetValue($ident, $availability);
+            $this->setReceivedValue($ident, $availability);
         }
     }
 
@@ -3650,7 +3686,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
-            $this->SetValue($ident, $value);
+            $this->setReceivedValue($ident, $value);
         }
     }
 
@@ -4575,7 +4611,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        $this->SetValue($ident, $castValue);
+        $this->setReceivedValue($ident, $castValue);
     }
 
     private function castToVariableType(mixed $value, int $type): bool|int|float|string|null
@@ -4597,7 +4633,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         if ($entity['component'] === HAButtonDefinitions::DOMAIN) {
-            $this->SetValue($ident, HAButtonDefinitions::ACTION_PRESS);
+            $this->setReceivedValue($ident, HAButtonDefinitions::ACTION_PRESS);
             return;
         }
 
@@ -4618,7 +4654,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             }
             $index = array_search($option, $entity['options'], true);
             if ($index !== false) {
-                $this->SetValue($ident, (int)$index);
+                $this->setReceivedValue($ident, (int)$index);
             }
             return;
         }
@@ -4641,7 +4677,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
             $stringValue = $this->scalarToString($normalized);
             if ($stringValue !== null) {
-                $this->SetValue($ident, $stringValue);
+                $this->setReceivedValue($ident, $stringValue);
             }
             return;
         }
@@ -4662,7 +4698,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 (int)(IPS_GetVariable($variableId)['VariableType'] ?? VARIABLETYPE_STRING)
             );
             if ($castValue !== null) {
-                $this->SetValue($ident, $castValue);
+                $this->setReceivedValue($ident, $castValue);
             }
         }
     }
@@ -4673,7 +4709,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($boolValue === null) {
             return;
         }
-        $this->SetValue($ident, $boolValue);
+        $this->setReceivedValue($ident, $boolValue);
     }
 
     private function setOptimisticCastValue(string $ident, mixed $value): void
@@ -4688,7 +4724,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             (int)(IPS_GetVariable($variableId)['VariableType'] ?? VARIABLETYPE_FLOAT)
         );
         if ($castValue !== null) {
-            $this->SetValue($ident, $castValue);
+            $this->setReceivedValue($ident, $castValue);
         }
     }
 
@@ -4698,7 +4734,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        $this->SetValue($ident, self::TRIGGER_RESET_VALUE);
+        $this->setReceivedValue($ident, self::TRIGGER_RESET_VALUE);
     }
 
     private function isCoverPositionEntity(array $metadata, mixed $value = null): bool

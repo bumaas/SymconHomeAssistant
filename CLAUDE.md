@@ -275,6 +275,13 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `evaluateAnnouncementStatus()` behält dann 202 samt Nachprüfung. Vorher galt die gespeicherte
   Definition als angekündigt — ein verschwundenes Gerät meldete „wieder angekündigt" und die
   Nachprüfung endete.
+- **`ApplyChanges` schreibt nur geänderte Werte** (build 206): Alle Wertzugriffe laufen über
+  `setReceivedValue()`; während `ApplyChanges` (Flag `writeOnlyChangedValues`) überspringt es gleiche
+  Werte einer schon einmal geschriebenen Variable. Anlass: `applyCachedTopicPayloads()` spielt bei jedem
+  Übernehmen den Zwischenspeicher des Splitters ein, dazu feste Konfigurationswerte und Taster-Rücksetzer —
+  bei nicht angekündigten Geräten alle 10 Minuten. „ID.4 Pro" (VW-Dienst stillgelegt, letzter Wert
+  26.06.2026) trug dadurch eine Aktualisierung von vor Minuten. `ReceiveData` schreibt weiter immer.
+  „Erreichbar" geht direkt über `SetValue`. Test: `tests/check-discovery-replay-timestamp.php`.
 - „Schon gewarnt" steht im Attribut `NotAnnouncedWarned` (build 202), nicht nur im Status: Der beginnt
   nach Reload und Kernel-Neustart neu, und jedes schon nicht angekündigte Gerät warnte erneut (nuc
   04.10.2026, Reload 10:51: vier Geräte). Gelesen und geschrieben mit `@` (Reload-Fenster).
