@@ -270,6 +270,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   seit `NOT_ANNOUNCED_GRACE_S` (600 s) läuft, sonst 102 mit Nachprüfung nach Ablauf. Nachgeprüft wird
   über den Timer `DeferredApply` (ruft `IPS_ApplyChanges`) — eine neue Ankündigung löst sonst kein
   `ApplyChanges` aus. Die Kennzeichen werden nicht mit der Definition gespeichert.
+- „Schon gewarnt" steht im Attribut `NotAnnouncedWarned` (build 202), nicht nur im Status: Der beginnt
+  nach Reload und Kernel-Neustart neu, und jedes schon nicht angekündigte Gerät warnte erneut (nuc
+  04.10.2026, Reload 10:51: vier Geräte). Gelesen und geschrieben mit `@` (Reload-Fenster).
 - Test: `tests/check-discovery-not-announced.php`; `DiscoveryDeviceHarness` gibt dafür die
   Splitter-Antwort (`$splitterAntwort`) und einen aktiven Parent (`$parentAktiv`) vor.
 

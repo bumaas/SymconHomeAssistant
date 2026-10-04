@@ -47,6 +47,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string ATTR_AVAILABILITY_STATE = 'AvailabilityState';
     private const string ATTR_RESOLVED_DEVICE_DEFINITION = 'ResolvedDeviceDefinition';
     private const string ATTR_STATE_WARNINGS = 'StateWarnings';
+    // Schon gewarnt „nicht angekündigt": Der Instanzstatus beginnt nach Reload und Kernel-Neustart neu,
+    // daran allein erkannt, wiederholte sich die Warnung bei jedem Start (nuc 04.10.2026).
+    private const string ATTR_NOT_ANNOUNCED_WARNED = 'NotAnnouncedWarned';
     private const string ATTR_TOPIC_PROCESSING_INDEX = 'TopicProcessingIndex';
     private const int ENTITY_POSITION_STEP = 10;
     private const int TRIGGER_RESET_VALUE = -1;
@@ -128,6 +131,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterAttributeString(self::ATTR_AVAILABILITY_STATE, '{}');
         $this->RegisterAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION, '{}');
         $this->RegisterAttributeString(self::ATTR_STATE_WARNINGS, '{}');
+        $this->RegisterAttributeBoolean(self::ATTR_NOT_ANNOUNCED_WARNED, false);
         // Zuletzt: Merkmal „Create() durchgelaufen" für das Reload-Fenster, siehe isInstanceCreated().
         $this->RegisterAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX, '{}');
     }
@@ -670,9 +674,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function evaluateAnnouncementStatus(array $deviceDefinition): int
     {
         $previous = $this->GetStatus();
+        $warned = $this->wasNotAnnouncedWarned();
         if (($deviceDefinition['announced'] ?? true) !== false) {
-            if ($previous === self::STATUS_DISCOVERY_CACHE_MISSING) {
+            if ($previous === self::STATUS_DISCOVERY_CACHE_MISSING || $warned) {
                 $this->LogMessage($this->Translate('Announced again via MQTT Discovery'), KL_MESSAGE);
+                $this->setNotAnnouncedWarned(false);
             }
             return IS_ACTIVE;
         }
@@ -688,7 +694,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::NOT_ANNOUNCED_GRACE_S * 1000);
-        if ($previous !== self::STATUS_DISCOVERY_CACHE_MISSING) {
+        if ($previous !== self::STATUS_DISCOVERY_CACHE_MISSING && !$warned) {
             $this->LogMessage(
                 sprintf(
                     $this->Translate('Not announced: the device has not been announced via MQTT Discovery for at least %d minutes. Check the device or delete the instance.'),
@@ -696,8 +702,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 ),
                 KL_WARNING
             );
+            $this->setNotAnnouncedWarned(true);
         }
         return self::STATUS_DISCOVERY_CACHE_MISSING;
+    }
+
+    // Mit @: Bestandsinstanzen kennen das Attribut erst nach ihrem nächsten Create() (Reload-Fenster).
+    private function wasNotAnnouncedWarned(): bool
+    {
+        return @$this->ReadAttributeBoolean(self::ATTR_NOT_ANNOUNCED_WARNED) === true;
+    }
+
+    private function setNotAnnouncedWarned(bool $warned): void
+    {
+        @$this->WriteAttributeBoolean(self::ATTR_NOT_ANNOUNCED_WARNED, $warned);
     }
 
     private function buildOfflineDeviceDefinition(): array

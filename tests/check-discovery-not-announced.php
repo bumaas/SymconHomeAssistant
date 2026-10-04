@@ -102,6 +102,13 @@ pruefe($erreichbar !== false && GetValue($erreichbar) === false, 'Nach der Frist
 $g = anwenden($g);
 pruefe($g->status() === STATUS_NICHT_ANGEKUENDIGT && logTypen($g) === [KL_WARNING], 'Weiter unbekannt: keine zweite Warnung', logTexte($g));
 
+// 4b. Reload der Bibliothek bzw. Kernel-Neustart: Die Instanz entsteht neu, ihr Status beginnt bei 102
+//     (nuc 04.10.2026 10:51:45: vier schon nicht angekündigte Geräte warnten erneut). Keine neue Warnung.
+$g->rufe('SetStatus', IS_ACTIVE);
+$g = anwenden($g);
+pruefe($g->status() === STATUS_NICHT_ANGEKUENDIGT, 'Nach Reload: wieder Status 202', (string)$g->status());
+pruefe(logTypen($g) === [KL_WARNING], 'Nach Reload: keine erneute Warnung', logTexte($g));
+
 // 5. Gerät kündigt sich wieder an → 102 und eine Meldung im Log, Nachprüfung aus.
 splitterAntwort($mitGeraet, FRIST + 120);
 $g = anwenden($g);

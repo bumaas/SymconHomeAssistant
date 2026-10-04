@@ -47,7 +47,7 @@ Laufzeitmodul für Geräte, die ihre Struktur und Laufzeitdaten über Home Assis
 ## Nicht mehr angekündigte Geräte
 
 - Kennt der Splitter das Gerät nicht, arbeitet die Instanz mit der zuletzt gespeicherten Definition weiter (Variablen bleiben, nach einem Neustart von Broker oder Splitter treffen die Ankündigungen erst nach und nach ein).
-- Läuft die MQTT-Sitzung des Splitters seit mindestens 10 Minuten und fehlt das Gerät weiterhin, geht die Instanz auf Status **202** und schreibt einmal eine **Warnung** ins Meldungsprotokoll („Nicht angekündigt: Das Gerät wird seit mindestens 10 Minuten nicht per MQTT Discovery angekündigt …"). Sie prüft alle 10 Minuten erneut; kündigt sich das Gerät wieder an, geht sie auf aktiv zurück und meldet das (seit 1.6).
+- Läuft die MQTT-Sitzung des Splitters seit mindestens 10 Minuten und fehlt das Gerät weiterhin, geht die Instanz auf Status **202** und schreibt einmal eine **Warnung** ins Meldungsprotokoll („Nicht angekündigt: Das Gerät wird seit mindestens 10 Minuten nicht per MQTT Discovery angekündigt …"). Sie prüft alle 10 Minuten erneut; kündigt sich das Gerät wieder an, geht sie auf aktiv zurück und meldet das (seit 1.6). Die Warnung kommt je Ausfall nur einmal, auch über einen Neustart von Symcon oder ein Modul-Update hinweg.
 - Ein dauerhaft nicht angekündigtes Gerät gibt es meist nicht mehr oder es hat MQTT Discovery abgeschaltet — Gerät prüfen oder die Instanz löschen.
 
 ## Erreichbarkeit
