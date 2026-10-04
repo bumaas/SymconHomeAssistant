@@ -387,6 +387,6 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
   registriert sein), `tests/check_presentations.php` (nur gültige Darstellungsparameter) und
   alle Laufzeit-Checks `tests/check-*.php` (Glob, neue Tests laufen automatisch mit;
   dazu gehört auch die Doku-Sperrklinke `tests/check-readme.php`), zuletzt die statischen MCP-Regeln
-  über die Action `bumaas/symcon-mcp-check@v1` (privates Repo, für eigene Repos freigegeben; Befunde als
+  über die Action `bumaas/symcon-mcp-check@v1` (öffentliches Repo — aus einem privaten können öffentliche Repos keine Action laden; Befunde als
   Anmerkungen, scheitert nur an Fehlern — die Warnungen sind offene Punkte aus `mcp-tauglichkeit.md`).
 - Version/Build: siehe globale CLAUDE.md, Abschnitt „Symcon: Build-/Versionspflege in Modul-Repos".
