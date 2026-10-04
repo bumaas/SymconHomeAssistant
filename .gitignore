@@ -34,6 +34,7 @@ tests/fixtures/*
 !tests/fixtures/camera_hikvision_20261003.json
 !tests/fixtures/discovery_availability_20261003.json
 !tests/fixtures/sonos_wintergarten_20261004.json
+!tests/fixtures/display_precision_20261004.json
 
 # Claude Code (persönliche Dateien)
 CLAUDE.local.md

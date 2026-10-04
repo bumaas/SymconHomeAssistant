@@ -233,6 +233,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
 
         // Vor dem Überschreiben: Nur hier ist noch bekannt, welche Entitäten wegfallen.
         $previousConfig = $this->readResolvedConfig(__FUNCTION__);
+        if (!$isBundleMode) {
+            $configData = $this->applyDisplayPrecisions($configData, $previousConfig);
+        }
         $this->writeResolvedConfig(
             json_encode($configData, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );

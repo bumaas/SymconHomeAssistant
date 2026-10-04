@@ -1,0 +1,225 @@
+{
+    "zustaende": [
+        {
+            "entity_id": "sensor.alpstuga_air_quality_monitor_luftfeuchtigkeit",
+            "state": "60.05",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "%",
+                "device_class": "humidity",
+                "friendly_name": "ALPSTUGA air quality monitor Luftfeuchtigkeit"
+            },
+            "last_changed": "2026-10-04T10:13:38.827250+00:00",
+            "last_reported": "2026-10-04T10:13:38.827250+00:00",
+            "last_updated": "2026-10-04T10:13:38.827250+00:00"
+        },
+        {
+            "entity_id": "sensor.wasserlecksensor_batteriespannung",
+            "state": "2.89",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "V",
+                "device_class": "voltage",
+                "friendly_name": "Wasserlecksensor Batteriespannung"
+            },
+            "last_changed": "2026-10-04T01:02:24.715400+00:00",
+            "last_reported": "2026-10-04T01:02:24.715400+00:00",
+            "last_updated": "2026-10-04T01:02:24.715400+00:00"
+        },
+        {
+            "entity_id": "sensor.shelly_dimmer_gen4_spannung_effektivwert",
+            "state": "231.0",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "V",
+                "device_class": "voltage",
+                "friendly_name": "Shelly Dimmer Gen4 Spannung (Effektivwert)"
+            },
+            "last_changed": "2026-10-04T01:02:24.896482+00:00",
+            "last_reported": "2026-10-04T01:02:24.896482+00:00",
+            "last_updated": "2026-10-04T01:02:24.896482+00:00"
+        },
+        {
+            "entity_id": "sensor.marstek_venus_modbus_batteriespannung",
+            "state": "53.77",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "V",
+                "device_class": "voltage",
+                "friendly_name": "Marstek Venus Modbus Batteriespannung"
+            },
+            "last_changed": "2026-10-04T10:13:32.529890+00:00",
+            "last_reported": "2026-10-04T10:13:32.529890+00:00",
+            "last_updated": "2026-10-04T10:13:32.529890+00:00"
+        },
+        {
+            "entity_id": "sensor.marstek_venus_modbus_ac_spannung",
+            "state": "235.6",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "V",
+                "device_class": "voltage",
+                "friendly_name": "Marstek Venus Modbus AC-Spannung"
+            },
+            "last_changed": "2026-10-04T10:13:49.790858+00:00",
+            "last_reported": "2026-10-04T10:13:49.790858+00:00",
+            "last_updated": "2026-10-04T10:13:49.790858+00:00"
+        },
+        {
+            "entity_id": "sensor.marstek_venus_modbus_batteriepack_1_zelle_1_spannung",
+            "state": "3.355",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "V",
+                "device_class": "voltage",
+                "friendly_name": "Marstek Venus Modbus Batteriepack 1 Zelle 1 Spannung"
+            },
+            "last_changed": "2026-10-04T10:13:49.793133+00:00",
+            "last_reported": "2026-10-04T10:13:49.793133+00:00",
+            "last_updated": "2026-10-04T10:13:49.793133+00:00"
+        },
+        {
+            "entity_id": "sensor.marstek_venus_modbus_batteriepack_1_zelle_2_spannung",
+            "state": "3.379",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "V",
+                "device_class": "voltage",
+                "friendly_name": "Marstek Venus Modbus Batteriepack 1 Zelle 2 Spannung"
+            },
+            "last_changed": "2026-10-04T10:13:49.793981+00:00",
+            "last_reported": "2026-10-04T10:13:49.793981+00:00",
+            "last_updated": "2026-10-04T10:13:49.793981+00:00"
+        },
+        {
+            "entity_id": "sensor.keller_energie_kuhlschrank_spannung",
+            "state": "230.9",
+            "attributes": {
+                "state_class": "measurement",
+                "interface_id": "homematic-ccu3-HmIP-RF",
+                "address": "0001D3C99C64CA:6",
+                "model": "HMIP-PSM",
+                "parameter": "VOLTAGE",
+                "function": "Energie",
+                "value_state": "valid",
+                "unit_of_measurement": "V",
+                "device_class": "voltage",
+                "friendly_name": "Keller.Energie.Kühlschrank Spannung"
+            },
+            "last_changed": "2026-10-04T10:11:16.241690+00:00",
+            "last_reported": "2026-10-04T10:11:16.241690+00:00",
+            "last_updated": "2026-10-04T10:11:16.241690+00:00"
+        },
+        {
+            "entity_id": "sensor.bewegungsmelder_gast_batterie",
+            "state": "80",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "%",
+                "device_class": "battery",
+                "friendly_name": "Gast.Licht.Bewegungsmelder Batterie"
+            },
+            "last_changed": "2026-10-04T01:02:24.245361+00:00",
+            "last_reported": "2026-10-04T01:02:24.245361+00:00",
+            "last_updated": "2026-10-04T01:02:24.245361+00:00"
+        }
+    ],
+    "registry": [
+        {
+            "ei": "sensor.keller_energie_kuhlschrank_spannung",
+            "pl": "homematicip_local",
+            "lb": [],
+            "di": "4d2f342f51c69b846dcfe68d5092047c",
+            "hn": true,
+            "en": "Spannung",
+            "dp": 0
+        },
+        {
+            "ei": "sensor.alpstuga_air_quality_monitor_luftfeuchtigkeit",
+            "pl": "matter",
+            "lb": [],
+            "di": "a87088a6110628ce3d68f8204389070e",
+            "hn": true,
+            "en": "Luftfeuchtigkeit"
+        },
+        {
+            "ei": "sensor.marstek_venus_modbus_batteriespannung",
+            "pl": "marstek_modbus",
+            "lb": [],
+            "di": "efe48a9543f73a313a1d9e8bb3505eff",
+            "tk": "battery_voltage",
+            "hn": true,
+            "en": "Batteriespannung",
+            "dp": 2
+        },
+        {
+            "ei": "sensor.marstek_venus_modbus_ac_spannung",
+            "pl": "marstek_modbus",
+            "lb": [],
+            "di": "efe48a9543f73a313a1d9e8bb3505eff",
+            "tk": "ac_voltage",
+            "hn": true,
+            "en": "AC-Spannung",
+            "dp": 1
+        },
+        {
+            "ei": "sensor.marstek_venus_modbus_batteriepack_1_zelle_1_spannung",
+            "pl": "marstek_modbus",
+            "lb": [],
+            "di": "efe48a9543f73a313a1d9e8bb3505eff",
+            "tk": "battery_1_cell_1_voltage",
+            "hn": true,
+            "en": "Batteriepack 1 Zelle 1 Spannung",
+            "dp": 3
+        },
+        {
+            "ei": "sensor.marstek_venus_modbus_batteriepack_1_zelle_2_spannung",
+            "pl": "marstek_modbus",
+            "lb": [],
+            "di": "efe48a9543f73a313a1d9e8bb3505eff",
+            "tk": "battery_1_cell_2_voltage",
+            "hn": true,
+            "en": "Batteriepack 1 Zelle 2 Spannung",
+            "dp": 3
+        },
+        {
+            "ei": "sensor.wasserlecksensor_batteriespannung",
+            "pl": "matter",
+            "lb": [],
+            "di": "8a5fe6af7c57da80e2418020fb8956b4",
+            "tk": "battery_voltage",
+            "ec": 1,
+            "hn": true,
+            "en": "Batteriespannung",
+            "dp": 2
+        },
+        {
+            "ei": "sensor.shelly_dimmer_gen4_spannung_effektivwert",
+            "pl": "matter",
+            "lb": [],
+            "di": "30d67b9e833fde0ff9481d14312a0bc5",
+            "tk": "rms_voltage",
+            "ec": 1,
+            "hn": true,
+            "en": "Spannung (Effektivwert)",
+            "dp": 0
+        },
+        {
+            "ei": "sensor.bewegungsmelder_gast_batterie",
+            "pl": "matter",
+            "lb": [],
+            "di": "3a7e75248b037c994ac584eb7b40a606",
+            "ec": 1,
+            "hn": true,
+            "en": "Batterie"
+        }
+    ],
+    "rahmen": {
+        "handshake": "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: upgrade\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\nDate: Sun, 04 Oct 2026 10:13:56 GMT\r\nServer: Python/3.14 aiohttp/3.14.3",
+        "auth_required_hex": "81307b2274797065223a22617574685f7265717569726564222c2268615f76657273696f6e223a22323032362e392e34227d",
+        "auth_ok_hex": "812a7b2274797065223a22617574685f6f6b222c2268615f76657273696f6e223a22323032362e392e34227d",
+        "result_header_hex": "817f0000000000036753",
+        "result_payload_length": 223059,
+        "result_fin": true
+    }
+}

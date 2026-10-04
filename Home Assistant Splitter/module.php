@@ -15,6 +15,12 @@ class HomeAssistantSplitter extends IPSModuleStrict
     use HASupportedFeaturesTrait;
     use HADiagnosticsTrait;
 
+    // Anzeigegenauigkeit aus der Entity-Registry (WebSocket, list_for_display): einmal geholt, für alle
+    // Kinder zwischengespeichert. Ein Fehlschlag wird ebenso lange gemerkt, damit 60 Geräte beim Start
+    // nicht 60 Verbindungsversuche auslösen.
+    private const string BUFFER_DISPLAY_PRECISION = 'DisplayPrecisionCache';
+    private const int DISPLAY_PRECISION_TTL_SEC = 900;
+
     private const string TIMER_RESTACK = 'RestAckTimer';
     private const string TIMER_TOPIC_STATS = 'TopicStatsTimer';
 
@@ -294,6 +300,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
             }
             if (array_key_exists('ImageUrl', $data)) {
                 return $this->handleImageRequest($data);
+            }
+            if (array_key_exists('DisplayPrecision', $data)) {
+                return $this->handleDisplayPrecisionRequest($data);
             }
             $data['DataID'] = HAIds::DATA_MQTT_TX;
             $JSONString = json_encode($data, JSON_THROW_ON_ERROR);
@@ -1017,6 +1026,60 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $this->debugExpert('REST', 'Response | HttpCode=' . $httpCode . ' | ' . $response);
         }
         return json_encode($result, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Liefert den anfragenden Kindern die Anzeigegenauigkeit (Nachkommastellen) ihrer Entitäten, so wie
+     * Home Assistant sie anzeigt: Vorschlag der Integration oder eigene Einstellung des Anwenders.
+     * Antwort: {"Ok": bool, "Map": {entity_id: Stellen}} — Entitäten ohne Angabe fehlen in der Map.
+     */
+    private function handleDisplayPrecisionRequest(array $data): string
+    {
+        $requested = $data['DisplayPrecision'];
+        $requested = is_array($requested) ? array_filter($requested, 'is_string') : [];
+        $cache = $this->loadDisplayPrecisionCache();
+        $map = $cache['map'];
+        $result = [];
+        foreach ($requested as $entityId) {
+            if (array_key_exists($entityId, $map)) {
+                $result[$entityId] = $map[$entityId];
+            }
+        }
+        return json_encode(['Ok' => $cache['ok'], 'Map' => (object)$result], JSON_THROW_ON_ERROR);
+    }
+
+    /** @return array{ok: bool, map: array<string, int>} */
+    private function loadDisplayPrecisionCache(): array
+    {
+        $raw = $this->GetBuffer(self::BUFFER_DISPLAY_PRECISION);
+        $cache = $raw !== '' ? json_decode($raw, true) : null;
+        if (is_array($cache) && (time() - (int)($cache['at'] ?? 0)) < self::DISPLAY_PRECISION_TTL_SEC) {
+            return ['ok' => (bool)($cache['ok'] ?? false), 'map' => is_array($cache['map'] ?? null) ? $cache['map'] : []];
+        }
+
+        $credentials = $this->readHaCredentials();
+        $response = $credentials === null
+            ? ['ok' => false, 'error' => 'Missing HAUrl/HAToken']
+            : $this->fetchEntityRegistryForDisplay($credentials['url'], $credentials['token']);
+        $map = [];
+        if ($response['ok']) {
+            foreach ((array)($response['result']['entities'] ?? []) as $entry) {
+                if (is_array($entry) && is_string($entry['ei'] ?? null) && is_int($entry['dp'] ?? null)) {
+                    $map[$entry['ei']] = $entry['dp'];
+                }
+            }
+            $this->debugExpert('WebSocket', 'Anzeigegenauigkeit geladen', ['Entitäten' => count($map)]);
+        } else {
+            $this->debugExpert('WebSocket', 'Anzeigegenauigkeit nicht verfügbar', ['Error' => $response['error']], true);
+        }
+        $this->SetBuffer(self::BUFFER_DISPLAY_PRECISION, json_encode(['at' => time(), 'ok' => $response['ok'], 'map' => (object)$map], JSON_THROW_ON_ERROR));
+        return ['ok' => $response['ok'], 'map' => $map];
+    }
+
+    // Naht für Tests: die einzige Stelle mit Netzverkehr zur WebSocket-API.
+    protected function fetchEntityRegistryForDisplay(string $haUrl, string $token): array
+    {
+        return HAWebSocketClient::request($haUrl, $token, ['type' => 'config/entity_registry/list_for_display']);
     }
 
     private function handleImageRequest(array $data): string

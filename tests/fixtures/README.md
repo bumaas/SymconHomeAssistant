@@ -194,6 +194,17 @@ Konfiguration (`HA_ExportConfigBundleDataUrl`) der Device-Instanz „HIKVISION D
 `entity_picture`) ist durch den Platzhalter `0123456789abcdef…` gleicher Länge ersetzt. Grundlage von
 `check-camera-state-token.php`.
 
+## Anzeigegenauigkeit (`display_precision_20261004.json`)
+
+Aus dem eigenen HA (04.10.2026): `zustaende` — echte Zustände von neun Sensoren aus `/api/states`
+(ohne `context`; Spannungen von Marstek, Homematic und Matter, eine Luftfeuchte und eine Batterie ohne
+Genauigkeitsangabe); `registry` — deren Einträge aus `config/entity_registry/list_for_display`
+(WebSocket); `rahmen` — echte Server-Bytes einer WebSocket-Sitzung: Handshake-Antwort (mit dem
+Beispielschlüssel aus RFC 6455 angefragt), Rahmen `auth_required` und `auth_ok`, Kopf der
+list_for_display-Antwort (64-Bit-Länge) samt Nutzlastlänge. Die Nutzlast selbst (alle Entitäten des
+Hauses) ist nicht enthalten. Keine Personennamen, keine Zugangsdaten. Grundlage von
+`check-display-precision.php`.
+
 ## Sonos Wintergarten (`sonos_wintergarten_20261004.json`)
 
 Echter Zustand von `media_player.wintergarten` aus `/api/states` (04.10.2026, ohne `context`, Player

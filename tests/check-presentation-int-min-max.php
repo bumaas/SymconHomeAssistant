@@ -76,6 +76,19 @@ abstract class Kernel952Attrappe
         return $Text;
     }
 
+    // Die Attrappe hält keine Variablen: Wie im Kernel für einen unbekannten Ident liefert die Suche false
+    // (getObservedFloatDigits, Stellen eines Sensors ohne Genauigkeitsangabe).
+    protected function GetIDForIdent(string $Ident): int|false
+    {
+        return false;
+    }
+
+    // Im Modul aus HAEntityStoreTrait; hier nur für den Ident-Weg oben.
+    protected function getSharedEntityMainIdent(string $entityId): string
+    {
+        return str_replace('.', '_', $entityId);
+    }
+
     protected function debugExpert(string $message, string $label = '', mixed $data = null, bool $force = false): void
     {
     }

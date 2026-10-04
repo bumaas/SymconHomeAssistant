@@ -16,6 +16,30 @@ trait HARestParentClientTrait
         return $this->buildCurrentParentDebugContext();
     }
 
+    /**
+     * Anzeigegenauigkeit (Nachkommastellen) der Entitäten, wie Home Assistant sie anzeigt — der Splitter
+     * holt sie per WebSocket aus der Entity-Registry. null = keine Antwort (Parent fehlt, Fehlschlag).
+     *
+     * @param list<string> $entityIds
+     * @return array<string, int>|null
+     */
+    protected function requestDisplayPrecisions(array $entityIds): ?array
+    {
+        if ($entityIds === [] || $this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]) !== 'active') {
+            return null;
+        }
+        $responseJson = $this->SendDataToParent(json_encode([
+            'DataID'           => HAIds::DATA_DEVICE_TO_SPLITTER,
+            'DisplayPrecision' => array_values($entityIds),
+        ], JSON_THROW_ON_ERROR));
+        $response = is_string($responseJson) && $responseJson !== '' ? json_decode($responseJson, true) : null;
+        if (!is_array($response) || ($response['Ok'] ?? false) !== true || !is_array($response['Map'] ?? null)) {
+            $this->debugExpert('REST', 'Anzeigegenauigkeit nicht verfügbar', ['Response' => $responseJson]);
+            return null;
+        }
+        return array_filter($response['Map'], 'is_int');
+    }
+
     private function sendRestRequestToParent(string $endpoint, ?string $postData): ?array
     {
         $parentState = $this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]);

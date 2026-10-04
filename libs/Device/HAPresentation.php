@@ -22,7 +22,7 @@ trait HAPresentationTrait
         }
 
         return $this->getTypeFallbackEntityPresentation($domain, $attributes, $type)
-            ?? $this->getDefaultEntityValuePresentation($attributes, $type);
+            ?? $this->getDefaultEntityValuePresentation($attributes, $type, (string)($entity['entity_id'] ?? ''));
     }
 
     // Split the main dispatcher into domain-specific, type fallback and default paths.
@@ -117,15 +117,49 @@ trait HAPresentationTrait
         return null;
     }
 
-    private function getDefaultEntityValuePresentation(array $attributes, int $type): array
+    private function getDefaultEntityValuePresentation(array $attributes, int $type, string $entityId = ''): array
     {
         $suffix = $this->getPresentationSuffix($attributes);
+        $digits = null;
+        if ($type === VARIABLETYPE_FLOAT && $entityId !== '' && !$this->hasNumericPrecisionInfo($attributes)) {
+            $digits = $this->getObservedFloatDigits($entityId);
+        } elseif ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT) {
+            $digits = $this->getNumericDigits($attributes);
+        }
         return $this->filterPresentation([
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'DIGITS' => ($type === VARIABLETYPE_INTEGER || $type === VARIABLETYPE_FLOAT)
-                ? $this->getNumericDigits($attributes) : null,
+            'DIGITS' => $digits,
             'SUFFIX' => $this->formatPresentationSuffix($suffix)
         ]);
+    }
+
+    private function hasNumericPrecisionInfo(array $attributes): bool
+    {
+        foreach (['display_precision', 'step', 'native_step', 'precision', 'suggested_display_precision'] as $key) {
+            if (isset($attributes[$key]) && is_numeric($attributes[$key])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Ohne jede Angabe zeigt Home Assistant den ungerundeten Wert (höchstens 3 Stellen). Nachgebildet über
+    // die Stellen des aktuellen Werts, die nur zunehmen: „80" bleibt ohne, „60.05" macht 2 daraus, ein
+    // späteres „52" nimmt sie nicht zurück — die Anzeige springt nicht und schneidet nie ab. Feste 2 Stellen
+    // hätten am nuc 75 von 90 solchen Sensoren ein „.00" angehängt (Abstimmung Burkhard 04.10.2026).
+    // Kosten: ein Lesezugriff je Variable im Abgleich; ein neuer Wert mit mehr Stellen wirkt erst beim
+    // nächsten Abgleich.
+    private function getObservedFloatDigits(string $entityId): int
+    {
+        $variableId = @$this->GetIDForIdent($this->getSharedEntityMainIdent($entityId));
+        if ($variableId === false) {
+            return 0;
+        }
+        $variable = IPS_GetVariable($variableId);
+        $current = (int)($variable['VariablePresentation']['DIGITS'] ?? 0);
+        $value = $variable['VariableValue'] ?? null;
+        $observed = is_float($value) || is_int($value) ? $this->getDigitsFromNumber((float)$value) : 0;
+        return min(3, max($current, $observed));
     }
 
     private function getStaticPresentation(string|int $presentation): array
@@ -1387,6 +1421,11 @@ trait HAPresentationTrait
     private function getNumericDigits(array $attributes, mixed $step = null, mixed $value = null): int
     {
         //        $this->debugExpert('getNumericDigits', 'Attribute', ['Attributes' => $attributes, 'Step' => $step, 'Value' => $value]);
+        // Genauigkeit, mit der Home Assistant selbst anzeigt (Entity-Registry über den Splitter, siehe
+        // applyDisplayPrecisions) — Vorrang vor allem Abgeleiteten.
+        if (isset($attributes['display_precision']) && is_int($attributes['display_precision'])) {
+            return min(6, max(0, $attributes['display_precision']));
+        }
         $digits = null;
 
         $stepValue = $step;

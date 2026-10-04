@@ -12,6 +12,7 @@ require_once __DIR__ . '/HALegacyVariableMigration.php';
 require_once __DIR__ . '/ModuleDebug.php';
 require_once __DIR__ . '/HAParentConnection.php';
 require_once __DIR__ . '/HARestParentClient.php';
+require_once __DIR__ . '/HAWebSocketClient.php';
 require_once __DIR__ . '/HARestPayloadBuilder.php';
 require_once __DIR__ . '/HADiagnosticAggregation.php';
 require_once __DIR__ . '/HADiagnosticFormatting.php';

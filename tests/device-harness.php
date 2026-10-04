@@ -78,6 +78,9 @@ final class HaSendungen
     /** @var list<string> abgefragte Entitäten (GET /api/states/<entity_id>) */
     public static array $zustandsAbfragen = [];
 
+    /** @var array<string, int>|null Antwort des Splitters auf die Anzeigegenauigkeit; null = echter Weg (ohne Parent: keine Antwort). */
+    public static ?array $anzeigeGenauigkeit = null;
+
     /** @return list<array> Sendungen seit dem letzten Aufruf */
     public static function abholen(): array
     {
@@ -226,6 +229,14 @@ trait ModulRahmenTrait
     {
         HaSendungen::$liste[] = ['rest', $domain, $service, $data];
         return HaSendungen::$restAntwort ?? parent::sendServiceRequestToParent($domain, $service, $data);
+    }
+
+    protected function requestDisplayPrecisions(array $entityIds): ?array
+    {
+        if (HaSendungen::$anzeigeGenauigkeit === null) {
+            return parent::requestDisplayPrecisions($entityIds);
+        }
+        return array_intersect_key(HaSendungen::$anzeigeGenauigkeit, array_flip($entityIds));
     }
 
     protected function requestHaState(string $entityId): ?array
@@ -488,6 +499,16 @@ final class SplitterHarness extends HomeAssistantSplitter
     public const string MODULE_ID = HAIds::MODULE_SPLITTER;
     public const string MODULE_NAME = 'Home Assistant Splitter';
     public const int MODULE_TYPE = MODULETYPE_SPLITTER;
+
+    /** Antwort der WebSocket-API auf list_for_display (Form wie HAWebSocketClient::request). */
+    public static array $registryAntwort = ['ok' => false, 'error' => 'kein Testwert'];
+    public static int $registryAbrufe = 0;
+
+    protected function fetchEntityRegistryForDisplay(string $haUrl, string $token): array
+    {
+        self::$registryAbrufe++;
+        return self::$registryAntwort;
+    }
 
     protected function readBaseTopicProperty(): string|false
     {

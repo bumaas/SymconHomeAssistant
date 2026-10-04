@@ -206,6 +206,43 @@ trait HADeviceCoreTrait
         return $stateMap;
     }
 
+    /**
+     * Trägt die Anzeigegenauigkeit aus Home Assistant als Attribut display_precision in die Konfiguration
+     * ein (Quelle: Entity-Registry über den Splitter). Ohne Antwort bleiben die Werte der letzten
+     * Konfiguration, damit ein kurzer Ausfall die Darstellung nicht auf den Rückfall umstellt.
+     */
+    protected function applyDisplayPrecisions(array $configData, array $previousConfig): array
+    {
+        $entityIds = [];
+        foreach ($configData as $row) {
+            if (is_array($row) && is_string($row['entity_id'] ?? null)) {
+                $entityIds[] = $row['entity_id'];
+            }
+        }
+        $map = $this->requestDisplayPrecisions($entityIds);
+        if ($map === null) {
+            $map = [];
+            foreach ($previousConfig as $row) {
+                $dp = is_array($row) ? ($row[self::KEY_ATTRIBUTES]['display_precision'] ?? null) : null;
+                if (is_int($dp) && is_string($row['entity_id'] ?? null)) {
+                    $map[$row['entity_id']] = $dp;
+                }
+            }
+        }
+        foreach ($configData as &$row) {
+            if (!is_array($row) || !is_string($row['entity_id'] ?? null) || !is_array($row[self::KEY_ATTRIBUTES] ?? null)) {
+                continue;
+            }
+            if (array_key_exists($row['entity_id'], $map)) {
+                $row[self::KEY_ATTRIBUTES]['display_precision'] = $map[$row['entity_id']];
+            } else {
+                unset($row[self::KEY_ATTRIBUTES]['display_precision']);
+            }
+        }
+        unset($row);
+        return $configData;
+    }
+
     protected function requestHaState(string $entityId): ?array
     {
         $endpoint = '/api/states/' . rawurlencode($entityId);

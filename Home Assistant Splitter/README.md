@@ -25,6 +25,7 @@ Zentraler Transportknoten der klassischen Bridge-Funktionalität. Er verbindet e
 - Führt `*/set` Topics automatisch über die Home-Assistant-REST-API aus (Fallback auf MQTT-Weiterleitung, falls REST nicht konfiguriert oder die Domain nicht unterstützt ist).
 - REST-Steuerung für `light`, `switch`, `input_boolean`, `lock`, `cover`, `number`, `input_number`, `select`, `input_select`, `input_text`, `datetime`, `input_datetime`, `climate`, `fan`, `humidifier`, `media_player`, `button`, `input_button`, `vacuum`, `lawn_mower`.
 - Optionaler generischer REST-Service-Call für beliebige Home Assistant Services.
+- Holt für Device und Entity die Anzeigegenauigkeit (Nachkommastellen) aus der Entity-Registry von Home Assistant – über die WebSocket-API, mit derselben Adresse und demselben Token wie REST; einmal je Abgleich, 15 Minuten zwischengespeichert (seit 1.6). Ist die WebSocket-API nicht erreichbar (z. B. hinter einem Proxy ohne WebSocket-Weiterleitung), behalten die Variablen ihre bisherigen Stellen; der Grund steht im Debug.
 
 ## 2. Voraussetzungen
 

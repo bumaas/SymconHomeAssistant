@@ -293,6 +293,27 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   erreichbar (die 202-Warnung meldet es schon); deshalb wird der Status vor der Erreichbarkeit bestimmt.
   Test: `tests/check-discovery-not-announced.php`.
 
+## Nachkommastellen (build 201, Blindtest-Befund 8)
+
+- HA führt die Anzeigegenauigkeit (`suggested_display_precision` der Integration, `display_precision` des
+  Anwenders) **nur in der Entity-Registry** — weder Zustand noch statestream noch Templates kennen sie
+  (Anzeigeeinstellung, kein Zustand). Sie ist je Sensor gewählt, nicht aus Einheit oder Wert ableitbar
+  (nuc 04.10.2026, Spannung: Homematic 0, Marstek AC 1 / Batterie 2 / Zelle 3, Matter Netz 0 / Batterie 2).
+- Der Splitter holt sie per WebSocket (`HAWebSocketClient`, eigener RFC-6455-Client, einmalige Anfrage
+  `config/entity_registry/list_for_display`, Feld `dp`; keine Adminrechte nötig) und hält sie 900 s im
+  Buffer `DisplayPrecisionCache` — auch einen Fehlschlag, damit 60 Kinder beim Start nicht 60 Versuche
+  auslösen. Kinder fragen per `ForwardData` mit `DisplayPrecision` (Liste ihrer Entitäten).
+- Device/Entity tragen sie in `UpdateConfiguration()` als Attribut `display_precision` ein
+  (`applyDisplayPrecisions`, nicht im Bundle-Modus); ohne Antwort bleiben die Werte der letzten
+  Konfiguration. `getNumericDigits()` gibt ihr Vorrang vor allem Abgeleiteten.
+- **Ohne Angabe** (am nuc 90 Float-Sensoren, HA zeigt dort den ungerundeten Wert): Stellen aus dem Wert,
+  nur zunehmend, höchstens 3 (`getObservedFloatDigits`, liest die bestehende Variable). Feste 2 Stellen
+  verworfen: 75 der 90 haben glatte Werte („80.00 %"). Bis build 200 gab es hier 0 Stellen — Symcon
+  schneidet ab, 2.98 V erschien als „2 V".
+- Test: `tests/check-display-precision.php` (Fixture `display_precision_20261004.json`: echte Zustände,
+  Registry-Einträge und WebSocket-Rahmen). Testrahmen: `HaSendungen::$anzeigeGenauigkeit`,
+  `SplitterHarness::$registryAntwort`.
+
 ## Variablennamen
 
 - Hauptvariablen benennt `HAEntityVariableNamingTrait` (Device, Entity, MQTT Discovery), Regeln in

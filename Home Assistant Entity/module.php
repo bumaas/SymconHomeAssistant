@@ -205,7 +205,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
-        $resolvedConfig = [$resolved];
+        $resolvedConfig = $this->applyDisplayPrecisions([$resolved], $this->readResolvedConfig(__FUNCTION__));
         $this->writeResolvedConfig(
             json_encode($resolvedConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );

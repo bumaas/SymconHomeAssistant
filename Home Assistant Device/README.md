@@ -147,6 +147,7 @@ Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.
   Boolesche Hauptvariable mit textlicher Präsentation und Icon anhand von `device_class`.
 - `sensor`
   Typableitung über Zustand und Attribute; `enum` mit `options` als Enumeration, `date` und `timestamp` als Zeitwert, `duration` in Symcon-Sekunden.
+  Die **Nachkommastellen** entsprechen der Anzeige in Home Assistant (seit 1.6): Gibt die Integration eine Genauigkeit vor oder ist dort eine eigene eingestellt, gilt diese – etwa 3 Stellen für die Zellspannung einer Batterie, 0 für die Netzspannung einer Steckdose. Home Assistant führt diese Angabe nur in seiner Entity-Registry; der Splitter holt sie beim Abgleich über die WebSocket-API (keine weitere Einstellung nötig). Ohne Vorgabe zeigt Home Assistant den ungerundeten Wert; das Modul richtet die Stellen dann nach den Werten aus (höchstens 3, sie werden nur mehr, nie weniger) – „80 %“ bleibt ohne Nachkommastelle, „60.05 %“ zeigt zwei. Ändert sich der Wert auf mehr Stellen, passt sich die Anzeige beim nächsten Abgleich an. Eine in Symcon selbst gesetzte Darstellung bleibt davon unberührt.
 - `number`
   Numerische Hauptvariable; Präsentation nutzt `min`, `max`, `step` sowie `native_*` auch bei `mode: box`; Eingaben werden numerisch validiert.
 - `input_text`
