@@ -113,6 +113,13 @@ $h->SetProperty('DeviceID', GERAET);
 neueAusfuehrung($h)->ApplyChanges();
 pruefe(@IPS_GetObjectIDByIdent(REACHABLE, $h->id()) === false, 'Ohne availability-Topic: keine Variable');
 
+// 8. Das Gerät von oben kündigt sich ohne availability-Topic neu an (Firmware, geänderte Bridge-
+//    Einstellung): „Erreichbar" wird wie jede nicht mehr versorgte Variable „(veraltet)" — sonst bliebe
+//    sie mit dem letzten Wert stehen (Code-Review 04.10.2026).
+neueAusfuehrung($g)->ApplyChanges();
+$name = IPS_GetName((int)IPS_GetObjectIDByIdent(REACHABLE, $g->id()));
+pruefe(str_contains($name, '('), 'Availability entfallen: „Erreichbar" gilt als veraltet', $name);
+
 DiscoveryDeviceHarness::$splitterAntwort = null;
 DiscoveryDeviceHarness::$parentAktiv = false;
 ergebnis();

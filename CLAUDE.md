@@ -270,6 +270,11 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   seit `NOT_ANNOUNCED_GRACE_S` (600 s) läuft, sonst 102 mit Nachprüfung nach Ablauf. Nachgeprüft wird
   über den Timer `DeferredApply` (ruft `IPS_ApplyChanges`) — eine neue Ankündigung löst sonst kein
   `ApplyChanges` aus. Die Kennzeichen werden nicht mit der Definition gespeichert.
+- **Keine Antwort ist kein Befund** (build 205, Code-Review): Ist der Parent inaktiv oder antwortet der
+  Splitter nicht, kennzeichnet `markAnnouncementUnknown()` die Definition mit `announced = null`;
+  `evaluateAnnouncementStatus()` behält dann 202 samt Nachprüfung. Vorher galt die gespeicherte
+  Definition als angekündigt — ein verschwundenes Gerät meldete „wieder angekündigt" und die
+  Nachprüfung endete.
 - „Schon gewarnt" steht im Attribut `NotAnnouncedWarned` (build 202), nicht nur im Status: Der beginnt
   nach Reload und Kernel-Neustart neu, und jedes schon nicht angekündigte Gerät warnte erneut (nuc
   04.10.2026, Reload 10:51: vier Geräte). Gelesen und geschrieben mit `@` (Reload-Fenster).
@@ -292,7 +297,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   gingen auf 202 und warnten (Blindtest-Befund 4). Bei 0 urteilt das Gerät nicht.
 - **`cleanupObsoleteVariables()` kennt nur Entitäts-Idents** — jede Variable, die nicht
   `maintainEntityVariables` pflegt, muss dort ausdrücklich als aktiv übergeben werden, sonst wird sie
-  beim nächsten `ApplyChanges` „(veraltet)" (so bei `reachable` im Test gefunden).
+  beim nächsten `ApplyChanges` „(veraltet)" (so bei `reachable` im Test gefunden). Aber nur, solange sie
+  versorgt wird: `reachable` nur bei `hasAvailabilityEntities()` (build 205, Code-Review) — kündigt sich
+  ein Gerät ohne availability-Topic neu an, wird sie veraltet statt mit dem letzten Wert stehen zu bleiben.
 - Test: `tests/check-discovery-reachability.php` (Fixture `discovery_availability_20261003.json`).
 - **Nicht angekündigt heißt nicht erreichbar** (build 198, Blindtest 04.10.2026: Gerät auf 202, aber
   „Erreichbar" = true): `evaluateReachability($entities, $announced)` setzt bei `false` still auf nicht
@@ -337,7 +344,11 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Art-Hinweis bei gleichem HA-Namen verschiedener Domänen, ungekürzter Name statt „Status (FAN)".
   Zusatzvariablen werden **zentral beim Anlegen** benannt (`MaintainVariable()` in
   `HASharedPresentationTrait` → `scopeCreatedEntityVariableName()`), nicht an den einzelnen
-  Stellen — eine neue Art Zusatzvariable braucht dafür nichts. Bestehende Variablen benennt das
+  Stellen — eine neue Art Zusatzvariable braucht dafür nichts. Die Namen der Kinder liest es einmal je
+  Ausführung (`childNameCounts`, build 205, Code-Review: vorher je neuer Variable alle Namen einzeln —
+  quadratisch beim ersten Abgleich großer Geräte); „doppelt" bestätigt es an der Anlage, weil der Merker
+  ersetzte Variablen weiterzählt. Im Testrahmen meldet der Stub bei `MaintainVariable` immer „angelegt",
+  dort läuft die Benennung also auch für bestehende Variablen. Bestehende Variablen benennt das
   nicht um. Test: `tests/check-variable-name-collisions.php` (Fixture
   `naming_collisions_20261003.json`; der Testrahmen übersetzt nicht, erwartet sind englische Schlüssel).
 

@@ -384,6 +384,20 @@ trait HAEntityVariableNamingTrait
         if (!property_exists($this, 'entities') || !is_array($this->entities)) {
             return;
         }
+        // Namen der Kinder einmal je Ausführung lesen und danach mitführen: Vorher las jede neu angelegte
+        // Variable alle bisherigen Namen einzeln (IPS_GetName) — beim ersten Abgleich eines großen Geräts
+        // quadratisch viele Kernel-Aufrufe (Code-Review 04.10.2026). Gezählt wird jede neu angelegte
+        // Variable, auch ohne zugehörige Entität; beim ersten Aufruf ist sie im gelesenen Stand schon dabei.
+        if ($this->childNameCounts === null) {
+            $this->childNameCounts = [];
+            foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
+                $childName = IPS_GetName($childId);
+                $this->childNameCounts[$childName] = ($this->childNameCounts[$childName] ?? 0) + 1;
+            }
+        } else {
+            $this->childNameCounts[$name] = ($this->childNameCounts[$name] ?? 0) + 1;
+        }
+
         $owner = null;
         $ownerPrefixLength = -1;
         foreach ($this->entities as $entity) {
@@ -409,15 +423,23 @@ trait HAEntityVariableNamingTrait
         if ($variableId === false) {
             return;
         }
+        // Der Merker zählt eher zu viel (eine bei einem Typwechsel ersetzte Variable bleibt mit ihrem Namen
+        // stehen) — „doppelt" wird deshalb an der Anlage bestätigt, „eindeutig" nicht.
         $ambiguous = $this->getSharedDomainEntityCount($this->getSharedEntityDomainForNaming($owner)) > 1
-            || array_any(
+            || (($this->childNameCounts[$name] ?? 0) > 1 && array_any(
                 IPS_GetChildrenIDs($this->InstanceID),
                 static fn(int $childId): bool => $childId !== $variableId && IPS_GetName($childId) === $name
-            );
+            ));
         if ($ambiguous) {
-            IPS_SetName($variableId, $entityName . ' ' . $name);
+            $scopedName = $entityName . ' ' . $name;
+            IPS_SetName($variableId, $scopedName);
+            $this->childNameCounts[$name]--;
+            $this->childNameCounts[$scopedName] = ($this->childNameCounts[$scopedName] ?? 0) + 1;
         }
     }
+
+    /** @var array<string, int>|null Namen der Kinder mit Anzahl, je Ausführung (scopeCreatedEntityVariableName) */
+    private ?array $childNameCounts = null;
 
     private function incrementSharedCount(array &$counts, string $key): void
     {

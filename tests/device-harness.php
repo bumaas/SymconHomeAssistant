@@ -546,12 +546,18 @@ final class DiscoveryDeviceHarness extends HomeAssistantMQTTDiscoveryDevice
     /** Antwort des Discovery-Splitters auf GetDiscoveryConfigs (null = Stub fragen). */
     public static ?array $splitterAntwort = null;
 
+    /** Splitter antwortet nicht (leere Antwort, wie bei einem kurz belegten Splitter). */
+    public static bool $splitterStumm = false;
+
     /** Parent gilt als aktiv, ohne einen Splitter mit Broker aufzubauen. */
     public static bool $parentAktiv = false;
 
     protected function SendDataToParent(string $Data): string
     {
         $anfrage = json_decode($Data, true);
+        if (self::$splitterStumm && ($anfrage['DiscoveryAction'] ?? '') === 'GetDiscoveryConfigs') {
+            return '';
+        }
         if (self::$splitterAntwort !== null && ($anfrage['DiscoveryAction'] ?? '') === 'GetDiscoveryConfigs') {
             return json_encode(self::$splitterAntwort, JSON_THROW_ON_ERROR);
         }

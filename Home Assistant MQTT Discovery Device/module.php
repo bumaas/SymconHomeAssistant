@@ -278,8 +278,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $cachedTopics = $this->loadCachedTopicPayloads($entities);
         $warningMap = $this->synchronizeStateWarnings($entities, $cachedTopics);
         $activeIdents = $this->maintainEntityVariables($entities, $cachedTopics);
-        // „reachable" pflegt nicht maintainEntityVariables, sondern maintainReachableVariable — nicht veraltet.
-        $this->cleanupObsoleteVariables(array_merge($activeIdents, [self::REACHABLE_IDENT]));
+        // „reachable" pflegt nicht maintainEntityVariables, sondern maintainReachableVariable — nicht veraltet,
+        // solange eine Entität ein availability-Topic hat; danach wie jede nicht mehr versorgte Variable.
+        $this->cleanupObsoleteVariables(
+            $this->hasAvailabilityEntities($entities) ? array_merge($activeIdents, [self::REACHABLE_IDENT]) : $activeIdents
+        );
 
         $topics = $this->collectRelevantTopics($entities);
         $this->writeTopicProcessingIndex($this->buildTopicProcessingIndex($entities));
@@ -597,7 +600,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'Result' => 'fallback_parent_inactive',
                 'DeviceID' => $deviceId
             ], true);
-            return $fallback;
+            return $this->markAnnouncementUnknown($fallback);
         }
 
         $response = $this->sendDiscoveryRequestToParent('GetDiscoveryConfigs');
@@ -606,7 +609,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'Result' => 'fallback_no_response',
                 'DeviceID' => $deviceId
             ], true);
-            return $fallback;
+            return $this->markAnnouncementUnknown($fallback);
         }
 
         $records = $response['Items'] ?? [];
@@ -656,6 +659,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     // Der Splitter antwortet, kennt das Gerät aber nicht: Die gespeicherte Definition trägt weiter
     // (Variablen, Empfangsfilter), gilt aber als nicht angekündigt. Ob das schon etwas heißt, hängt
     // daran, wie lange die MQTT-Sitzung des Splitters läuft (evaluateAnnouncementStatus).
+    // Keine Antwort vom Splitter (Parent inaktiv, kurz belegt): Über die Ankündigung ist nichts bekannt.
+    // Ohne diese Kennzeichnung galt die gespeicherte Definition als angekündigt — ein schon
+    // verschwundenes Gerät ging auf 102, meldete „wieder angekündigt" und die Nachprüfung endete
+    // (Code-Review 04.10.2026).
+    private function markAnnouncementUnknown(array $fallback): array
+    {
+        $fallback['announced'] = null;
+        return $fallback;
+    }
+
     private function markNotAnnounced(array $fallback, array $response): array
     {
         $fallback['announced'] = false;
@@ -675,6 +688,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $previous = $this->GetStatus();
         $warned = $this->wasNotAnnouncedWarned();
+        if (array_key_exists('announced', $deviceDefinition) && $deviceDefinition['announced'] === null) {
+            if ($previous === self::STATUS_DISCOVERY_CACHE_MISSING || $warned) {
+                $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::NOT_ANNOUNCED_GRACE_S * 1000);
+                return self::STATUS_DISCOVERY_CACHE_MISSING;
+            }
+            return IS_ACTIVE;
+        }
         if (($deviceDefinition['announced'] ?? true) !== false) {
             if ($previous === self::STATUS_DISCOVERY_CACHE_MISSING || $warned) {
                 $this->LogMessage($this->Translate('Announced again via MQTT Discovery'), KL_MESSAGE);
@@ -4976,13 +4996,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     // den availability-Meldungen, die das Gerät bzw. seine Bridge selbst schickt. Bis dahin standen sie
     // nur in der Zusammenfassung; am nuc waren so vier Geräte komplett offline, ohne dass es jemand
     // erfuhr. Nur für Geräte mit availability-Topic; Instanzstatus bleibt 102 wie bei Device/Entity.
-    private function maintainReachableVariable(array $entities): void
+    private function hasAvailabilityEntities(array $entities): bool
     {
-        $hasAvailability = array_any(
+        return array_any(
             $entities,
             static fn(array $entity): bool => ($entity['create_var'] ?? true) && ($entity['availability']['entries'] ?? []) !== []
         );
-        if (!$hasAvailability) {
+    }
+
+    private function maintainReachableVariable(array $entities): void
+    {
+        if (!$this->hasAvailabilityEntities($entities)) {
             return;
         }
         $isNew = @$this->GetIDForIdent(self::REACHABLE_IDENT) === false;

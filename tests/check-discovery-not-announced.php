@@ -109,6 +109,15 @@ $g = anwenden($g);
 pruefe($g->status() === STATUS_NICHT_ANGEKUENDIGT, 'Nach Reload: wieder Status 202', (string)$g->status());
 pruefe(logTypen($g) === [KL_WARNING], 'Nach Reload: keine erneute Warnung', logTexte($g));
 
+// 4c. Splitter antwortet bei der Nachprüfung nicht (kurz belegt). Das sagt nichts über die Ankündigung:
+//     Status 202 und Nachprüfung bleiben, keine Meldung „wieder angekündigt" (Code-Review 04.10.2026).
+DiscoveryDeviceHarness::$splitterStumm = true;
+$g = anwenden($g);
+DiscoveryDeviceHarness::$splitterStumm = false;
+pruefe($g->status() === STATUS_NICHT_ANGEKUENDIGT, 'Splitter stumm: Status bleibt 202', (string)$g->status());
+pruefe(logTypen($g) === [KL_WARNING], 'Splitter stumm: keine Meldung im Log', logTexte($g));
+pruefe($g->timer('DeferredApply') > 0, 'Splitter stumm: Nachprüfung bleibt geplant', (string)$g->timer('DeferredApply'));
+
 // 5. Gerät kündigt sich wieder an → 102 und eine Meldung im Log, Nachprüfung aus.
 splitterAntwort($mitGeraet, FRIST + 120);
 $g = anwenden($g);
