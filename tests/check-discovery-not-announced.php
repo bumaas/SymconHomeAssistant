@@ -124,6 +124,23 @@ splitterAntwort($ohneGeraet, null);
 $g = anwenden($g);
 pruefe($g->status() === IS_ACTIVE, 'Sitzungsbeginn unbekannt: Status bleibt 102', (string)$g->status());
 
+// 7. Splitter im Bundle-Modus: Eine Momentaufnahme sagt nichts darüber, ob ein Gerät heute noch
+//    angekündigt wird; ihr Sitzungsbeginn liegt in der Vergangenheit, die Frist wäre sofort erfüllt
+//    (Blindtest 04.10.2026, Befund 4: „Keypad Haustür" und GeCoS-Sensor am Bundle-Splitter #54459 als
+//    verschwunden gemeldet). Der Splitter meldet deshalb keinen Sitzungsbeginn, das Gerät urteilt nicht.
+$bundleSplitter = neueFensterInstanz(DiscoverySplitterHarness::class);
+// Echtes v2-Bundle (Zigbee2MQTT, siehe tests/fixtures/README.md); das ebusd-Bundle ist v1 und wird abgelehnt.
+$bundleSplitter->ActivateBundleMode(__DIR__ . '/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json');
+// ApplyChanges bricht im Testrahmen vor dem Laden ab (kein Parent); das Laden selbst wie dort.
+$bundleSplitter->rufe('applyBundleMode');
+$bundleSplitter = neueAusfuehrung($bundleSplitter);
+pruefe($bundleSplitter->rufe('isBundleMode') === true, 'Bundle-Splitter: Bundle-Modus aktiv');
+$sitzung = $bundleSplitter->rufe('readMqttSessionState');
+pruefe((int)($sitzung['started_at'] ?? 0) > 0, 'Bundle-Splitter: Das Bundle trägt einen Sitzungsbeginn', json_encode($sitzung));
+$antwort = $bundleSplitter->rufe('buildDiscoveryResponse');
+pruefe(($antwort['SessionStartedAt'] ?? null) === 0, 'Bundle-Splitter: meldet den Geräten keinen Sitzungsbeginn',
+    var_export($antwort['SessionStartedAt'] ?? null, true));
+
 DiscoveryDeviceHarness::$splitterAntwort = null;
 DiscoveryDeviceHarness::$parentAktiv = false;
 ergebnis();

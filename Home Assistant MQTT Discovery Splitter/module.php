@@ -1575,13 +1575,15 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         // Beginn der laufenden MQTT-Sitzung (0 = keine aktive): Erst wenn sie eine Weile läuft, heißt
         // „Gerät fehlt in den Ankündigungen" wirklich „wird nicht mehr angekündigt" — direkt nach einem
-        // Neustart treffen die retained Ankündigungen noch ein.
+        // Neustart treffen die retained Ankündigungen noch ein. Im Bundle-Modus immer 0: Eine
+        // Momentaufnahme sagt nichts darüber, was heute angekündigt wird, und ihr Sitzungsbeginn ließe
+        // die Frist sofort ablaufen (Blindtest 04.10.2026, Befund 4).
         $session = $this->readMqttSessionState();
         return [
             'Items' => $records,
             'Count' => count($records),
             'DiscoveryPrefix' => $this->getDiscoveryPrefix(),
-            'SessionStartedAt' => ($session['active'] ?? false) ? max(0, (int)($session['started_at'] ?? 0)) : 0
+            'SessionStartedAt' => (!$this->isBundleMode() && ($session['active'] ?? false)) ? max(0, (int)($session['started_at'] ?? 0)) : 0
         ];
     }
 

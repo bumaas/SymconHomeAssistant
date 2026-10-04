@@ -287,6 +287,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Werte, Verfügbarkeit und „nicht angekündigt" zeigen dann den Stand des Bundles, nicht die Gegenwart.
   Befunde an Geräten unter einem Bundle-Splitter sind keine Befunde über die Anlage — vorher den Modus
   prüfen (`HAMD_RunSelfTest`: „Quelle: Bundle"). Fixtures daraus sind Anwenderdaten: neutralisieren.
+  Seit build 204 meldet der Splitter im Bundle-Modus `SessionStartedAt = 0` (`buildDiscoveryResponse`):
+  Der Sitzungsbeginn des Bundles ließ die 10-Minuten-Frist sofort ablaufen, Geräte außerhalb des Bundles
+  gingen auf 202 und warnten (Blindtest-Befund 4). Bei 0 urteilt das Gerät nicht.
 - **`cleanupObsoleteVariables()` kennt nur Entitäts-Idents** — jede Variable, die nicht
   `maintainEntityVariables` pflegt, muss dort ausdrücklich als aktiv übergeben werden, sonst wird sie
   beim nächsten `ApplyChanges` „(veraltet)" (so bei `reachable` im Test gefunden).
