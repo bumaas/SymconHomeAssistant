@@ -154,6 +154,14 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Anlegen bleibt also stehen, bis der Anwender ihn ändert.
 - Test: `tests/check-action-contract.php` am echten Device- und Entity-Modul über den
   Kernel-Stub (`tests/device-harness.php`).
+- **`…/set` im Splitter** (build 207): Auswahl und Text (`select`, `input_select`, `input_text`,
+  `TEXT_PAYLOAD_DOMAINS`) gehen unverändert an HA. Bis build 206 lief jeder Befehl durch
+  `normalizePayload()`: Die Option „on" wurde `"1"` (HA: 400 „Option 1 is not valid"), „off" und
+  „null" wurden leer — beide Male fiel der Befehl auf MQTT zurück, wo ihn niemand liest (Friemler,
+  PN t/144231 #26; am nuc betroffen: Hue-Wiedereinschaltverhalten, evcc „Mit min. laden",
+  „Fahrzeug"). Ein sichtbares `set`-Topic heißt immer: der REST-Weg ist gescheitert.
+  Test: `tests/check-rest-set-payload.php` (Fixture `rest_set_select_20261015.json`); der
+  `SplitterHarness` fängt dafür `performCurl` (seitdem protected) und `SendDataToParent` ab.
 
 ## Position bei Rollladen und Ventil (statestream)
 

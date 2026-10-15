@@ -105,6 +105,16 @@ class HomeAssistantSplitter extends IPSModuleStrict
         HAClimateDefinitions::DOMAIN       => HAClimateDefinitions::class,
     ];
 
+    // Domänen, deren Befehl ein Text ist (Option bzw. Eingabe): Er geht unverändert an HA. Die übrige
+    // Umwandlung in normalizePayload() machte aus der Option „on" true und daraus „1", aus „off" und
+    // „null" einen leeren Wert — HA lehnte ab, der Befehl landete als set-Topic auf MQTT (Friemler,
+    // PN t/144231 #26, 15.10.2026).
+    private const array TEXT_PAYLOAD_DOMAINS = [
+        HASelectDefinitions::DOMAIN,
+        'input_select',
+        HAInputTextDefinitions::DOMAIN,
+    ];
+
     public function Create(): void
     {
         parent::Create();
@@ -812,9 +822,9 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     /**
      * Gemeinsamer cURL-Unterbau der vier HA-HTTP-Zugriffe (Reachability-Probe, Service-Call,
-     * Raw-Request, Image-Download). Baut das Handle einheitlich auf (Bearer-Auth, RETURNTRANSFER)
-     * und schließt es nach der Ausführung IMMER mit curl_close(). Die komplette Fehler-/
-     * Erfolgsbehandlung bleibt Sache der Aufrufer.
+     * Raw-Request, Image-Download). Baut das Handle einheitlich auf (Bearer-Auth, RETURNTRANSFER);
+     * die komplette Fehler-/Erfolgsbehandlung bleibt Sache der Aufrufer. Kein curl_close(): seit
+     * PHP 8.0 wirkungslos, seit 8.5 als veraltet gemeldet. Protected als Naht für den Testrahmen.
      *
      * Optionen (nur die Abweichungen vom Standardfall):
      * - headers:        list<string> — zusätzliche Header nach dem Authorization-Header
@@ -828,7 +838,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
      *
      * @return array{response: string|false, httpCode: int, contentType: string|null, error: string}
      */
-    private function performCurl(string $url, string $token, array $options = []): array
+    protected function performCurl(string $url, string $token, array $options = []): array
     {
         $ch = curl_init($url);
 
@@ -856,7 +866,6 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
         $error = curl_error($ch);
-        curl_close($ch);
 
         return [
             'response' => $response,
@@ -925,7 +934,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return false;
         }
 
-        $value = $this->normalizePayload($payload);
+        $value = in_array($domain, self::TEXT_PAYLOAD_DOMAINS, true) ? $payload : $this->normalizePayload($payload);
         [$service, $data] = $this->buildRestServicePayload($domain, $value);
         if ($service === '') {
             $this->debugExpert('REST', 'Unsupported domain for REST command: ' . $domain);

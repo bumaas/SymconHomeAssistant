@@ -1,0 +1,101 @@
+{
+    "quelle": "GET /api/states/<entity_id>, Home Assistant am nuc, 15.10.2026 06:06",
+    "zustaende": [
+        {
+            "entity_id": "select.hue_aurelle_wiedereinschaltverhalten",
+            "state": "off",
+            "attributes": {
+                "options": [
+                    "on",
+                    "off",
+                    "toggle",
+                    "previous"
+                ],
+                "friendly_name": "Hue Aurelle Wiedereinschaltverhalten"
+            },
+            "last_changed": "2026-10-14T01:01:33.919514+00:00",
+            "last_reported": "2026-10-14T01:01:33.919514+00:00",
+            "last_updated": "2026-10-14T01:01:33.919514+00:00"
+        },
+        {
+            "entity_id": "select.evcc_elli_charger_pro_always_charge",
+            "state": "off",
+            "attributes": {
+                "options": [
+                    "off",
+                    "on",
+                    "once"
+                ],
+                "icon": "mdi:sync",
+                "friendly_name": "Mit min. laden ♾️"
+            },
+            "last_changed": "2026-10-14T01:01:44.198792+00:00",
+            "last_reported": "2026-10-14T01:01:44.198792+00:00",
+            "last_updated": "2026-10-14T01:01:44.198792+00:00"
+        },
+        {
+            "entity_id": "select.evcc_elli_charger_pro_vehicle_name",
+            "state": "null",
+            "attributes": {
+                "options": [
+                    "null",
+                    "db:6"
+                ],
+                "icon": "mdi:car-outline",
+                "friendly_name": "Fahrzeug"
+            },
+            "last_changed": "2026-10-14T01:01:44.199748+00:00",
+            "last_reported": "2026-10-14T01:01:44.199748+00:00",
+            "last_updated": "2026-10-14T01:01:44.199748+00:00"
+        },
+        {
+            "entity_id": "select.evcc_elli_charger_pro_min_current",
+            "state": "6",
+            "attributes": {
+                "options": [
+                    "0.125",
+                    "0.25",
+                    "0.5",
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9",
+                    "10",
+                    "11",
+                    "12",
+                    "13",
+                    "14",
+                    "15",
+                    "16"
+                ],
+                "unit_of_measurement": "A",
+                "device_class": "current",
+                "icon": "mdi:current-ac",
+                "friendly_name": "Min. Ladestrom"
+            },
+            "last_changed": "2026-10-14T01:01:44.200309+00:00",
+            "last_reported": "2026-10-14T01:01:44.200309+00:00",
+            "last_updated": "2026-10-14T01:01:44.200309+00:00"
+        },
+        {
+            "entity_id": "select.evcc_buffer_start_soc",
+            "state": "100",
+            "attributes": {
+                "options": [
+                    "100",
+                    "0"
+                ],
+                "icon": "mdi:home-battery-outline",
+                "friendly_name": "Hausbatterie: Fahrzeug Laden unterstützen"
+            },
+            "last_changed": "2026-10-14T01:01:44.197168+00:00",
+            "last_reported": "2026-10-14T01:01:44.197168+00:00",
+            "last_updated": "2026-10-14T01:01:44.197168+00:00"
+        }
+    ]
+}

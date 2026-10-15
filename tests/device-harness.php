@@ -514,6 +514,25 @@ final class SplitterHarness extends HomeAssistantSplitter
     {
         return $this->attributeRegistriert ? parent::readBaseTopicProperty() : false;
     }
+
+    /** @var list<array{url: string, daten: mixed}> REST-Aufrufe an HA (performCurl) */
+    public static array $restAufrufe = [];
+
+    /** @var list<string> Topics, die der Splitter an den MQTT Client weiterreicht */
+    public static array $mqttWeiterleitungen = [];
+
+    /** HA antwortet auf jeden Aufruf mit 200; der Inhalt wird für Schaltbefehle nicht ausgewertet. */
+    protected function performCurl(string $url, string $token, array $options = []): array
+    {
+        self::$restAufrufe[] = ['url' => $url, 'daten' => isset($options['postFields']) ? json_decode($options['postFields'], true) : null];
+        return ['response' => '[]', 'httpCode' => 200, 'contentType' => 'application/json', 'error' => ''];
+    }
+
+    protected function SendDataToParent(string $Data): string
+    {
+        self::$mqttWeiterleitungen[] = (string)(json_decode($Data, true)['Topic'] ?? '');
+        return '';
+    }
 }
 
 final class DiscoverySplitterHarness extends HomeAssistantMQTTDiscoverySplitter
