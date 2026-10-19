@@ -230,3 +230,11 @@ eines Nachbargeräts. Raumpfade, eigener Basis-Topic und Zigbee-Adressen sind du
 (`Raum/Heizkoerper`, `Raum/Nachbar`, `zigbee2mqtt`, `0x…a1`/`0x…b2`); Struktur und Payload-Format sind
 unverändert. Grundlage von `check-discovery-reachability.php`. **Fixtures aus Anwender-Bundles nie
 unverändert einchecken.**
+
+## Licht über statestream (`hue_aurelle_config_20261019.json`, `hue_aurelle_statestream_20261019.txt`)
+
+Echter Mitschnitt vom nuc (19.10.2026): Konfiguration der Entität `light.hue_aurelle` (Philips Hue, aus
+`HA_ExportConfigBundleDataUrl`, beim letzten Übernehmen war das Licht aus) und alle statestream-Topics beim
+Ein- und Ausschalten per HA-REST, samt der retained Topics beim Abonnieren. Keine privaten Daten außer
+Gerätename und HA-Geräte-ID. Grundlage von `check-light-attributes-statestream.php`. Die Namen tragen
+bewusst kein „light“: `check-mqtt-discovery-light-runtime.php` liest jede `*light*.json` als Discovery-Bundle.

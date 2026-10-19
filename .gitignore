@@ -36,6 +36,8 @@ tests/fixtures/*
 !tests/fixtures/sonos_wintergarten_20261004.json
 !tests/fixtures/display_precision_20261004.json
 !tests/fixtures/rest_set_select_20261015.json
+!tests/fixtures/hue_aurelle_config_20261019.json
+!tests/fixtures/hue_aurelle_statestream_20261019.txt
 
 # Claude Code (persönliche Dateien)
 CLAUDE.local.md

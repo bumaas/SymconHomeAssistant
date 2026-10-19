@@ -1,0 +1,82 @@
+# Mitschnitt 19.10.2026 am nuc (Modul 1.6 build 207, Rust 9.1), gemeldet von doctee (t/142973 #373)
+# Entität light.hue_aurelle (Philips Hue 3216331P6, Device #31022 „Küche.Deckenpanel“), mqtt_statestream, Basis "homeassistant/light/hue_aurelle/"
+# Format: Uhrzeit.ms (Uhr des Mitschneiders, UTC) Attribut-Topic [retain] = Payload. Die ersten 15 Zeilen sind die retained Topics beim Abonnieren.
+# Geschaltet per HA-REST: 20:46:24 UTC light.turn_on (brightness_pct 50, color_temp_kelvin 3000), 20:46:32 UTC light.turn_off.
+#
+# Symcon-Spur im selben Zeitraum (gelesen 4 s nach dem Einschalten, Licht an, HA 255 / 2702 K):
+#   light_status true, light_brightness 0, light_color_temp_kelvin 0, light_hs_color "", light_color_mode ""
+# Die Konfiguration (hue_aurelle_config_20261019.json) stammt vom letzten ApplyChanges bei ausgeschaltetem
+# Licht (alle Werte null). Jedes supported_color_modes/supported_features-Topic schrieb sie über die gerade
+# empfangenen Werte zurück.
+#
+20:46:54.182 state [retain] = off
+20:46:54.182 last_updated [retain] = 2026-10-19T17:17:37.337259+00:00
+20:46:54.182 last_changed [retain] = 2026-10-19T17:17:37.337259+00:00
+20:46:54.182 min_color_temp_kelvin [retain] = 2202
+20:46:54.182 max_color_temp_kelvin [retain] = 4000
+20:46:54.182 supported_color_modes [retain] = ["color_temp"]
+20:46:54.182 color_mode [retain] = null
+20:46:54.182 brightness [retain] = null
+20:46:54.182 color_temp_kelvin [retain] = null
+20:46:54.182 hs_color [retain] = null
+20:46:54.182 rgb_color [retain] = null
+20:46:54.182 xy_color [retain] = null
+20:46:54.182 friendly_name [retain] = "Hue Aurelle"
+20:46:54.183 supported_features [retain] = 32
+20:46:54.183 restored [retain] = true
+20:47:00.041 state = on
+20:47:00.084 last_updated = 2026-10-19T20:46:24.233719+00:00
+20:47:00.084 last_changed = 2026-10-19T20:46:24.233719+00:00
+20:47:00.084 min_color_temp_kelvin = 2202
+20:47:00.084 max_color_temp_kelvin = 4000
+20:47:00.084 supported_color_modes = ["color_temp"]
+20:47:00.084 color_mode = "color_temp"
+20:47:00.084 brightness = 128
+20:47:00.084 color_temp_kelvin = 3003
+20:47:00.084 hs_color = [27.82, 56.814]
+20:47:00.131 rgb_color = [255, 177, 110]
+20:47:00.131 xy_color = [0.496, 0.383]
+20:47:00.131 friendly_name = "Hue Aurelle"
+20:47:00.131 supported_features = 32
+20:47:00.760 state = on
+20:47:00.787 last_updated = 2026-10-19T20:46:24.953477+00:00
+20:47:00.787 last_changed = 2026-10-19T20:46:24.233719+00:00
+20:47:00.787 state = on
+20:47:00.787 min_color_temp_kelvin = 2202
+20:47:00.787 last_updated = 2026-10-19T20:46:24.961465+00:00
+20:47:00.787 max_color_temp_kelvin = 4000
+20:47:00.787 last_changed = 2026-10-19T20:46:24.233719+00:00
+20:47:00.787 supported_color_modes = ["color_temp"]
+20:47:00.787 min_color_temp_kelvin = 2202
+20:47:00.787 color_mode = "color_temp"
+20:47:00.787 max_color_temp_kelvin = 4000
+20:47:00.787 brightness = 255
+20:47:00.787 supported_color_modes = ["color_temp"]
+20:47:00.787 color_temp_kelvin = 3003
+20:47:00.787 color_mode = "color_temp"
+20:47:00.787 hs_color = [27.82, 56.814]
+20:47:00.787 brightness = 255
+20:47:00.790 rgb_color = [255, 177, 110]
+20:47:00.791 color_temp_kelvin = 2702
+20:47:00.791 xy_color = [0.496, 0.383]
+20:47:00.833 hs_color = [28.391, 65.659]
+20:47:00.833 friendly_name = "Hue Aurelle"
+20:47:00.833 rgb_color = [255, 167, 88]
+20:47:00.833 supported_features = 32
+20:47:00.833 xy_color = [0.524, 0.388]
+20:47:00.833 friendly_name = "Hue Aurelle"
+20:47:00.833 supported_features = 32
+20:47:08.175 state = off
+20:47:08.234 last_updated = 2026-10-19T20:46:32.369195+00:00
+20:47:08.234 last_changed = 2026-10-19T20:46:32.369195+00:00
+20:47:08.234 min_color_temp_kelvin = 2202
+20:47:08.234 max_color_temp_kelvin = 4000
+20:47:08.234 supported_color_modes = ["color_temp"]
+20:47:08.234 color_mode = null
+20:47:08.234 brightness = null
+20:47:08.234 color_temp_kelvin = null
+20:47:08.234 hs_color = null
+20:47:08.234 rgb_color = null
+20:47:08.234 xy_color = null
+20:47:08.234 friendly_name = "Hue Aurelle"
+20:47:08.234 supported_features = 32

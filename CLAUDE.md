@@ -163,7 +163,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Test: `tests/check-rest-set-payload.php` (Fixture `rest_set_select_20261015.json`); der
   `SplitterHarness` fängt dafür `performCurl` (seitdem protected) und `SendDataToParent` ab.
 
-## Position bei Rollladen und Ventil (statestream)
+## Attribute im heißen Pfad: Rollladen, Ventil, Licht (statestream)
 
 - statestream meldet Zustand und Attribute als getrennte Topics, den Zustand zuerst. Ein
   „state = open" trägt also keine Position; `extractPositionEntityUpdateContext()` (Cover und
@@ -173,6 +173,16 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   (03.10.2026, Gast-Rollladen) stand dort 100: Jedes „state = open" setzte die Hauptvariable auf
   100, erst das folgende `current_position` korrigierte sie. Ohne Position in der Konfiguration
   wäre es über `normalizeCoverStateToLevel('open')` ebenfalls 100 geworden.
+- **Licht** (build 208, doctee t/142973 #373): statestream schickt bei jeder Änderung auch
+  `supported_color_modes` und `supported_features`; jedes dieser Topics gleicht alle Lichtvariablen ab
+  (`handleLightAttributeTopic` → `updateLightAttributeValues`). Bis build 207 lieferte
+  `getStoredAttributeTopicAttributes()` dafür nur `$this->entities`: War das Licht beim letzten
+  `ApplyChanges` aus, sprang die gerade gemeldete Helligkeit auf 0, Farben wurden leer (am nuc nachgestellt,
+  Küche.Deckenpanel). Seitdem überlagert der Helfer den State-Cache, das gilt auch für Staubsauger,
+  Device Tracker und `refreshStatefulAttributeValues`. Ein `null`-Topic (Licht aus) schreibt der Lichtzweig
+  seitdem als 0 bzw. `''` und hält es im Cache fest, wie der volle Pfad; vorher verwarf er es, und erst der
+  Fehler oben setzte die Werte zufällig zurück. Test: `tests/check-light-attributes-statestream.php`
+  (Fixtures `hue_aurelle_*_20261019.*`).
 - **Allgemein:** Wer im heißen Pfad Attribute braucht, liest Konfiguration **und** State-Cache
   (Muster `resolveMainEntityActionAttributes`); `$this->entities` allein ist der Stand des letzten
   `ApplyChanges`.

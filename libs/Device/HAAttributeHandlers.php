@@ -378,11 +378,10 @@ trait HAAttributeHandlersTrait
             return false;
         }
 
+        // HA meldet Helligkeit, Farben und Farbmodus eines ausgeschalteten Lichts als null. Wie im vollen Pfad
+        // (updateStandardAttributeValues) wird daraus 0 bzw. '' — und der State-Cache hält es fest, sonst
+        // schriebe das nächste Fähigkeits-Topic den Wert von vor dem Ausschalten zurück.
         $value = $this->parseAttributePayload($payload);
-        if ($value === null) {
-            $this->debugExpert('AttributeTopic', 'Payload null', ['EntityID' => $entityId, 'Attribute' => $attribute]);
-            return true;
-        }
 
         $meta = $this->getRequiredAttributeMeta(HALightDefinitions::ATTRIBUTE_DEFINITIONS, $attribute);
         if ($meta === null) {
@@ -664,10 +663,16 @@ trait HAAttributeHandlersTrait
         }
     }
 
+    // Aktuelle Attribute einer Entität: Konfiguration, überlagert vom State-Cache. $this->entities allein ist
+    // unter der Rust-Edition in jeder Ausführung der Stand des letzten ApplyChanges; bis build 207 schrieb so
+    // jedes wiederholte Fähigkeits-Topic eines Lichts (supported_color_modes, supported_features) die
+    // Helligkeit und Farben von damals zurück (doctee, t/142973 #373).
     private function getStoredAttributeTopicAttributes(string $entityId): array
     {
         $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? [];
-        return is_array($attributes) ? $attributes : [];
+        $attributes = is_array($attributes) ? $attributes : [];
+        $cachedAttributes = $this->getCachedEntityAttributes($entityId);
+        return $cachedAttributes === [] ? $attributes : array_merge($attributes, $cachedAttributes);
     }
 
     private function updateClimateMainValueFromAttributes(string $entityId, string $attribute): void

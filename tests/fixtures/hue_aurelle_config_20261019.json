@@ -1,0 +1,32 @@
+[
+    {
+        "entity_id": "light.hue_aurelle",
+        "domain": "light",
+        "name": "Hue Aurelle",
+        "attributes": {
+            "min_color_temp_kelvin": 2202,
+            "max_color_temp_kelvin": 4000,
+            "supported_color_modes": [
+                "color_temp"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "color_temp_kelvin": null,
+            "hs_color": null,
+            "rgb_color": null,
+            "xy_color": null,
+            "friendly_name": "Hue Aurelle",
+            "supported_features": 32,
+            "supported_features_list": [
+                "Transition"
+            ]
+        },
+        "device_name": "Hue Aurelle",
+        "device_manufacturer": "Philips",
+        "device_model": "3216331P6",
+        "device_id": "be90bf7c1c66a24b32133270b1d4703a",
+        "area": "No area",
+        "create_var": true,
+        "device": "Hue Aurelle"
+    }
+]
