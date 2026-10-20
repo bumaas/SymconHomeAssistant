@@ -521,11 +521,19 @@ final class SplitterHarness extends HomeAssistantSplitter
     /** @var list<string> Topics, die der Splitter an den MQTT Client weiterreicht */
     public static array $mqttWeiterleitungen = [];
 
-    /** HA antwortet auf jeden Aufruf mit 200; der Inhalt wird für Schaltbefehle nicht ausgewertet. */
+    /**
+     * Stellt HA nach: bekommt URL und gesendete Daten, liefert ['response', 'httpCode', 'error'] oder null
+     * für die Standardantwort.
+     */
+    public static ?Closure $haAntwort = null;
+
+    /** HA antwortet ohne $haAntwort auf jeden Aufruf mit 200 und `[]`; für Schaltbefehle wird der Inhalt nicht ausgewertet. */
     protected function performCurl(string $url, string $token, array $options = []): array
     {
-        self::$restAufrufe[] = ['url' => $url, 'daten' => isset($options['postFields']) ? json_decode($options['postFields'], true) : null];
-        return ['response' => '[]', 'httpCode' => 200, 'contentType' => 'application/json', 'error' => ''];
+        $daten = isset($options['postFields']) ? json_decode($options['postFields'], true) : null;
+        self::$restAufrufe[] = ['url' => $url, 'daten' => $daten];
+        $antwort = self::$haAntwort !== null ? (self::$haAntwort)($url, $daten) : null;
+        return ($antwort ?? []) + ['response' => '[]', 'httpCode' => 200, 'contentType' => 'application/json', 'error' => ''];
     }
 
     protected function SendDataToParent(string $Data): string

@@ -61,6 +61,22 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   **Gilt für jeden künftig neuen Timer:** Code, der ihn außerhalb von `Create()` stellt, muss
   die Bestandsinstanz im Reload-Fenster aushalten.
 
+## HA-Startphase: leere Antwort ist kein „nicht gefunden" (build 209)
+
+- Während HA startet, beantwortet es `/api/template` schon mit HTTP 200, aber `states` ist noch leer:
+  Die Entitäten-Abfrage liefert `[]`. `/api/config` meldet dabei `state = NOT_RUNNING` (nicht
+  `STARTING`, das kommt erst kurz vor `RUNNING`; Mitschnitt 20.10.2026).
+- Bis build 208 setzte das Device darauf 211 (Entity 210), verwarf `ResolvedConfig` samt Empfangsfilter
+  und fragte nie wieder. nuc 20.10.2026: Update-Runde startet HA mit Mosquitto neu, Splitter 03:01:38
+  wieder verbunden, HA erst 03:03:00 gestartet, 30 von 32 Devices 7 h ohne Werte. Ein HA-Neustart ohne
+  Mosquitto-Neustart löst bei den Kindern nichts aus (der Splitter bleibt 102), half also nicht.
+- Jetzt fragt `confirmNotFound()` (HADeviceCore) bei leerer Antwort `isHomeAssistantRunning()`: nicht
+  `RUNNING` oder keine Antwort → Konfiguration bleibt, Nachprüfung nach 30 s; `RUNNING` → 211/210 wie
+  bisher, Nachprüfung alle 300 s. Nachgeprüft wird über den vorhandenen `DeferredApplyTimer`
+  (kein neuer Timer, Reload-Fenster).
+- Test: `tests/check-ha-startphase.php` (Fixture `ha_startphase_20261020.json`); läuft über einen echten
+  Splitter als Parent, dessen `performCurl` HA nachstellt (`SplitterHarness::$haAntwort`).
+
 ## Reload-Fenster (Neuladen der Bibliothek, Modul-Update)
 
 - Beim Neuladen treffen Meldungen und Timer Instanzen, deren `Create()` gerade läuft:

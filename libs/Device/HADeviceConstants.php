@@ -30,6 +30,11 @@ interface HADeviceConstants
     public const string TIMER_DEFERRED_APPLY = 'DeferredApplyTimer';
     public const string ACTION_DEFERRED_APPLY = 'DeferredApply';
     public const int DEFERRED_APPLY_DELAY_MS = 100;
+    // Leere Antwort auf die Entitäten-Abfrage: Startet HA noch, liefert es rund 15 s lang eine leere
+    // Liste (Mitschnitt 20.10.2026). Dann bald nachprüfen; läuft HA, gilt „nicht gefunden", nachgeprüft
+    // wird seltener (eine Integration kann nach dem Start fertig werden, ein Gerät zurückkommen).
+    public const int HA_STARTING_RECHECK_MS = 30_000;
+    public const int NOT_FOUND_RECHECK_MS = 300_000;
 
     // Entkoppelte Bild-Downloads (Kamera-Preview, Image-Preview, Media-Player-Cover): Auslöser reihen
     // nur einen Auftrag in den Buffer ein (Debounce bündelt Trigger-Salven, z. B. die HA-Token-Rotation),

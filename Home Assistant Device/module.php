@@ -223,6 +223,9 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 return;
             }
             if ($configData === []) {
+                if (!$this->confirmNotFound(__FUNCTION__, ['DeviceID' => $deviceId])) {
+                    return;
+                }
                 $this->SetSummary($deviceId);
                 $this->failResolvedConfig(self::STATUS_DEVICE_NOT_FOUND, __FUNCTION__, 'Gerät nicht in Home Assistant gefunden', ['DeviceID' => $deviceId]);
                 return;

@@ -238,3 +238,13 @@ Echter Mitschnitt vom nuc (19.10.2026): Konfiguration der Entität `light.hue_au
 Ein- und Ausschalten per HA-REST, samt der retained Topics beim Abonnieren. Keine privaten Daten außer
 Gerätename und HA-Geräte-ID. Grundlage von `check-light-attributes-statestream.php`. Die Namen tragen
 bewusst kein „light“: `check-mqtt-discovery-light-runtime.php` liest jede `*light*.json` als Discovery-Bundle.
+
+## HA-Startphase (`ha_startphase_20261020.json`)
+
+Mitschnitt eines HA-Neustarts am eigenen HA (2026.10.2, 20.10.2026 08:26:56 UTC per REST ausgelöst): je
+rund 1 s `GET /api/config` (nur das Feld `state`) und `POST /api/template` mit
+`HA_FULL_DATA_TEMPLATE_BY_DEVICE` für einen IKEA-BILRESA-Taster, als `verlauf` nur die Wechsel. HA
+beantwortet die Vorlage rund 14 s lang mit HTTP 200 und leerer Liste und meldet dabei `NOT_RUNNING`;
+zwischendurch antwortet `/api/config` nicht. Dazu `vorlage_laufend`, die Antwort im laufenden Betrieb.
+Ein Vorname im Gerätenamen ist durch „Links“ ersetzt; sonst nur Raumname und HA-Geräte-ID. Grundlage von
+`check-ha-startphase.php`.

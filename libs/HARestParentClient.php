@@ -101,6 +101,21 @@ trait HARestParentClientTrait
         return $decoded;
     }
 
+    /**
+     * Ob Home Assistant fertig gestartet ist (`state` in /api/config). Während des Starts beantwortet HA
+     * Vorlagen schon, kennt aber noch keine Entitäten. true auch, wenn HA das Feld nicht liefert;
+     * null = keine Antwort.
+     */
+    private function isHomeAssistantRunning(): ?bool
+    {
+        $config = $this->sendRestRequestToParent('/api/config', null);
+        if ($config === null) {
+            return null;
+        }
+        $state = $config['state'] ?? null;
+        return !is_string($state) || $state === 'RUNNING';
+    }
+
     protected function sendServiceRequestToParent(string $domain, string $service, array $data): bool
     {
         $endpoint = '/api/services/' . rawurlencode($domain) . '/' . rawurlencode($service);

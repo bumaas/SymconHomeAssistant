@@ -1,0 +1,230 @@
+{
+    "quelle": "Eigenes HA 2026.10.2, Neustart per REST am 20.10.2026 08:26:56 UTC; je ~1 s GET /api/config und POST /api/template mit HA_FULL_DATA_TEMPLATE_BY_DEVICE für BILRESA",
+    "device_id": "22845d77bc3ecfec73ff5a5d6c52788b",
+    "verlauf": [
+        {
+            "t": "2026-10-20T08:26:56+00:00",
+            "config_http": 0,
+            "config_state": null,
+            "vorlage_http": 0,
+            "entitaeten": null
+        },
+        {
+            "t": "2026-10-20T08:27:16+00:00",
+            "config_http": 200,
+            "config_state": "NOT_RUNNING",
+            "vorlage_http": 200,
+            "entitaeten": 0
+        },
+        {
+            "t": "2026-10-20T08:27:30+00:00",
+            "config_http": 200,
+            "config_state": "NOT_RUNNING",
+            "vorlage_http": 200,
+            "entitaeten": 7
+        },
+        {
+            "t": "2026-10-20T08:28:13+00:00",
+            "config_http": 0,
+            "config_state": null,
+            "vorlage_http": 200,
+            "entitaeten": 7
+        },
+        {
+            "t": "2026-10-20T08:28:25+00:00",
+            "config_http": 200,
+            "config_state": "NOT_RUNNING",
+            "vorlage_http": 200,
+            "entitaeten": 7
+        },
+        {
+            "t": "2026-10-20T08:28:32+00:00",
+            "config_http": 200,
+            "config_state": "STARTING",
+            "vorlage_http": 200,
+            "entitaeten": 7
+        },
+        {
+            "t": "2026-10-20T08:28:37+00:00",
+            "config_http": 200,
+            "config_state": "RUNNING",
+            "vorlage_http": 200,
+            "entitaeten": 7
+        }
+    ],
+    "vorlage_laufend": [
+        {
+            "entity_id": "sensor.schlafzimmer_schlafen_taster_links_batterie",
+            "domain": "sensor",
+            "name": "Schlafen.Taster.Links Batterie",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "%",
+                "device_class": "battery",
+                "friendly_name": "Schlafen.Taster.Links Batterie"
+            },
+            "device": "Schlafen.Taster.Links (Schlafen)",
+            "device_name": "Schlafen.Taster.Links",
+            "device_manufacturer": "IKEA of Sweden",
+            "device_model": "BILRESA dual button",
+            "device_id": "22845d77bc3ecfec73ff5a5d6c52788b",
+            "area": "Schlafen",
+            "supported_features": 0
+        },
+        {
+            "entity_id": "sensor.schlafzimmer_schlafen_taster_links_batteriespannung",
+            "domain": "sensor",
+            "name": "Schlafen.Taster.Links Batteriespannung",
+            "attributes": {
+                "state_class": "measurement",
+                "unit_of_measurement": "V",
+                "device_class": "voltage",
+                "friendly_name": "Schlafen.Taster.Links Batteriespannung"
+            },
+            "device": "Schlafen.Taster.Links (Schlafen)",
+            "device_name": "Schlafen.Taster.Links",
+            "device_manufacturer": "IKEA of Sweden",
+            "device_model": "BILRESA dual button",
+            "device_id": "22845d77bc3ecfec73ff5a5d6c52788b",
+            "area": "Schlafen",
+            "supported_features": 0
+        },
+        {
+            "entity_id": "sensor.schlafzimmer_schlafen_taster_links_batterietyp",
+            "domain": "sensor",
+            "name": "Schlafen.Taster.Links Batterietyp",
+            "attributes": {
+                "friendly_name": "Schlafen.Taster.Links Batterietyp"
+            },
+            "device": "Schlafen.Taster.Links (Schlafen)",
+            "device_name": "Schlafen.Taster.Links",
+            "device_manufacturer": "IKEA of Sweden",
+            "device_model": "BILRESA dual button",
+            "device_id": "22845d77bc3ecfec73ff5a5d6c52788b",
+            "area": "Schlafen",
+            "supported_features": 0
+        },
+        {
+            "entity_id": "update.schlafzimmer_schlafen_taster_links_firmware",
+            "domain": "update",
+            "name": "Schlafen.Taster.Links Firmware",
+            "attributes": {
+                "auto_update": false,
+                "display_precision": 0,
+                "installed_version": "1.9.15",
+                "in_progress": false,
+                "latest_version": "1.9.15",
+                "release_summary": "None",
+                "release_url": "None",
+                "skipped_version": "None",
+                "title": "None",
+                "update_percentage": "None",
+                "device_class": "firmware",
+                "friendly_name": "Schlafen.Taster.Links Firmware",
+                "supported_features": [
+                    [
+                        [
+                            [
+                                null
+                            ]
+                        ]
+                    ],
+                    [
+                        [
+                            [
+                                null
+                            ]
+                        ]
+                    ],
+                    [
+                        [
+                            [
+                                null
+                            ]
+                        ]
+                    ],
+                    [
+                        [
+                            [
+                                null
+                            ]
+                        ]
+                    ]
+                ]
+            },
+            "device": "Schlafen.Taster.Links (Schlafen)",
+            "device_name": "Schlafen.Taster.Links",
+            "device_manufacturer": "IKEA of Sweden",
+            "device_model": "BILRESA dual button",
+            "device_id": "22845d77bc3ecfec73ff5a5d6c52788b",
+            "area": "Schlafen",
+            "supported_features": 23
+        },
+        {
+            "entity_id": "button.schlafzimmer_schlafen_taster_links_identifizieren_1",
+            "domain": "button",
+            "name": "Schlafen.Taster.Links Identifizieren (1)",
+            "attributes": {
+                "device_class": "identify",
+                "friendly_name": "Schlafen.Taster.Links Identifizieren (1)"
+            },
+            "device": "Schlafen.Taster.Links (Schlafen)",
+            "device_name": "Schlafen.Taster.Links",
+            "device_manufacturer": "IKEA of Sweden",
+            "device_model": "BILRESA dual button",
+            "device_id": "22845d77bc3ecfec73ff5a5d6c52788b",
+            "area": "Schlafen",
+            "supported_features": 0
+        },
+        {
+            "entity_id": "event.schlafzimmer_schlafen_taster_links_taste_1",
+            "domain": "event",
+            "name": "Schlafen.Taster.Links Taste (1)",
+            "attributes": {
+                "event_types": [
+                    "multi_press_1",
+                    "multi_press_2",
+                    "long_press",
+                    "long_release"
+                ],
+                "event_type": "multi_press_1",
+                "previousPosition": 1,
+                "totalNumberOfPressesCounted": 1,
+                "device_class": "button",
+                "friendly_name": "Schlafen.Taster.Links Taste (1)"
+            },
+            "device": "Schlafen.Taster.Links (Schlafen)",
+            "device_name": "Schlafen.Taster.Links",
+            "device_manufacturer": "IKEA of Sweden",
+            "device_model": "BILRESA dual button",
+            "device_id": "22845d77bc3ecfec73ff5a5d6c52788b",
+            "area": "Schlafen",
+            "supported_features": 0
+        },
+        {
+            "entity_id": "event.schlafzimmer_schlafen_taster_links_taste_2",
+            "domain": "event",
+            "name": "Schlafen.Taster.Links Taste (2)",
+            "attributes": {
+                "event_types": [
+                    "multi_press_1",
+                    "multi_press_2",
+                    "long_press",
+                    "long_release"
+                ],
+                "event_type": "multi_press_1",
+                "previousPosition": 1,
+                "totalNumberOfPressesCounted": 1,
+                "device_class": "button",
+                "friendly_name": "Schlafen.Taster.Links Taste (2)"
+            },
+            "device": "Schlafen.Taster.Links (Schlafen)",
+            "device_name": "Schlafen.Taster.Links",
+            "device_manufacturer": "IKEA of Sweden",
+            "device_model": "BILRESA dual button",
+            "device_id": "22845d77bc3ecfec73ff5a5d6c52788b",
+            "area": "Schlafen",
+            "supported_features": 0
+        }
+    ]
+}

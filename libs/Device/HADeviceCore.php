@@ -772,6 +772,26 @@ trait HADeviceCoreTrait
         $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::DEFERRED_APPLY_DELAY_MS);
     }
 
+    /**
+     * Bewertet eine leere Antwort der Entitäten-Abfrage. Während HA startet, ist sie kein Befund: Die
+     * Konfiguration bleibt, nachgeprüft wird bald. Bis build 208 verwarf das Device sie als „nicht
+     * gefunden" samt Empfangsfilter und fragte nie wieder (nuc 20.10.2026, 30 von 32 Devices 7 h ohne Werte).
+     * Läuft HA, gilt der Befund, nachgeprüft wird trotzdem.
+     *
+     * @return bool true = „nicht gefunden" gilt; false = Befund unbekannt, nichts verwerfen
+     */
+    private function confirmNotFound(string $context, array $debugContext): bool
+    {
+        $running = $this->isHomeAssistantRunning();
+        if ($running !== true) {
+            $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::HA_STARTING_RECHECK_MS);
+            $this->debugExpert($context, 'Leere Antwort, Home Assistant ist noch nicht gestartet. Bestehende Konfiguration bleibt erhalten, Nachprüfung geplant.', $debugContext + ['Running' => $running], true);
+            return false;
+        }
+        $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::NOT_FOUND_RECHECK_MS);
+        return true;
+    }
+
     protected function handleDeferredApplyAction(string $Ident): bool
     {
         if ($Ident !== self::ACTION_DEFERRED_APPLY) {
