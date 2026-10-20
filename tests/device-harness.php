@@ -153,10 +153,13 @@ trait ModulRahmenTrait
         IPS\VariableManager::setVariableAction((int)$this->variablenId($ident), 0);
     }
 
-    /** Variablenwert am Modul vorbei setzen. */
+    /** Variablenwert am Modul vorbei setzen (Variablen von IPSModuleStrict sind schreibgeschützt). */
     public function wertSetzen(string $ident, mixed $wert): void
     {
-        SetValue((int)$this->variablenId($ident), $wert);
+        $id = (int)$this->variablenId($ident);
+        IPS\ObjectManager::setReadOnly($id, false);
+        SetValue($id, $wert);
+        IPS\ObjectManager::setReadOnly($id, true);
     }
 
     /** @return list<string> Idents aller Kinder der Instanz */
@@ -702,3 +705,11 @@ function mqttMeldung(string $topic, string $payload): string
 }
 
 IPS\Kernel::reset(); // einmal je Testlauf; weitere Instanzen entstehen im selben Kernel
+// Ohne registrierte Module kennt IPS_ConnectInstance() die Datenflüsse nicht. loadLibrary() des Stubs
+// bricht an tools/ (ohne module.json) ab, der Kernel überspringt solche Ordner; deshalb einzeln laden.
+(Closure::bind(static function (string $wurzel): void {
+    $bibliothek = json_decode((string)file_get_contents($wurzel . '/library.json'), true)['id'];
+    foreach (glob($wurzel . '/*/module.json') ?: [] as $moduleJson) {
+        self::loadModule(dirname($moduleJson), $bibliothek);
+    }
+}, null, IPS\ModuleLoader::class))(dirname(__DIR__));
