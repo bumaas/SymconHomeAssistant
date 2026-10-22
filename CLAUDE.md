@@ -378,7 +378,11 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `E_USER_WARNING` wie `rejectInvalidActionValue`, nicht schreibbar bleibt still wie in der Bridge. „medium“
   hat eine Beschriftung.
 - `temperature_unit` `C`/`F` wird zu `°C`/`°F`. Der Splitter zählt jedes `…command_topic`/`…cmd_t` als
-  `command` (vorher nur `cmd_t`, `bri_cmd_t`, `rgb_cmd_t`).
+  `command` (vorher nur `cmd_t`, `bri_cmd_t`, `rgb_cmd_t`), seit build 213 auch `set_position_topic` und
+  `set_fan_speed_topic` samt Kurzformen (die einzigen Befehls-Topics in `abbreviations.py` ohne diese Endung).
+- Heißer Pfad (build 213): `applyClimateChannelPayload` dekodiert das JSON einmal je Meldung und nimmt den
+  Variablentyp aus `ATTRIBUTE_DEFINITIONS` statt `IPS_GetVariable`; die Kanäle baut der Parser einmal und reicht
+  sie an `buildClimateSupportedFeatures` weiter.
 - Test: `tests/check-discovery-climate.php`, bedingte Fälle in `check-mqtt-discovery-template-parser.php`;
   der `DiscoveryDeviceHarness` schneidet MQTT-Sendungen mit (`$mqttSendungen`).
 

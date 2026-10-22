@@ -3546,27 +3546,41 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     }
 
     // Mehrere Kanäle teilen sich oft ein Topic (mitsubishi2mqtt: alles auf …/state); jeder liest sein Feld.
+    // Das JSON wird einmal je Meldung dekodiert, der Variablentyp kommt aus der Definition (so legt
+    // maintainClimateAttributeVariables die Variable an).
     private function applyClimateChannelPayload(array $entity, string $topic, string $payload): void
     {
+        $decoded = null;
         foreach ($entity['climate'] as $attribute => $channel) {
             if ($channel['state_topic'] !== $topic) {
                 continue;
             }
 
             $ident = $this->buildClimateAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), $attribute);
-            $variableId = @$this->GetIDForIdent($ident);
-            if ($variableId === false) {
+            if (@$this->GetIDForIdent($ident) === false) {
                 continue;
             }
 
-            $value = $channel['value_template'] === null
-                ? $this->extractRawPayloadValue($payload)
-                : $this->extractTemplateValue($channel['value_template'], $payload);
+            $template = $channel['value_template'];
+            if ($template === null) {
+                $value = $this->extractRawPayloadValue($payload);
+            } elseif (!($template['supported'] ?? false)) {
+                continue;
+            } elseif (($template['kind'] ?? '') === 'json_path') {
+                $decoded ??= ['json' => json_decode($payload, true)];
+                if (!is_array($decoded['json'])) {
+                    continue;
+                }
+                $value = $this->resolveTemplateJsonPath($template, $decoded['json']);
+                $value = $value === null ? null : $this->applyTemplateFilters($value, $template['filters'] ?? []);
+            } else {
+                $value = $this->extractValueFromTemplate($template, $payload);
+            }
             if ($value === null || is_array($value) || $this->isIndeterminateStateValue($value)) {
                 continue;
             }
 
-            $castValue = $this->castSensorValue($value, IPS_GetVariable($variableId)['VariableType']);
+            $castValue = $this->castSensorValue($value, (int)HAClimateDefinitions::ATTRIBUTE_DEFINITIONS[$attribute]['type']);
             if ($castValue !== null) {
                 $this->setReceivedValue($ident, $castValue);
             }
@@ -4072,16 +4086,6 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function resolveTemplateJsonPath(array $template, mixed $decoded): mixed
     {
         return HAMqttDiscoveryTemplate::resolveJsonPathValue($template, $decoded);
-    }
-
-    // Wie extractValueFromTemplate, aber ein nicht unterstütztes Template liefert null statt der Rohdaten.
-    private function extractTemplateValue(array $template, string $payload): mixed
-    {
-        if (!($template['supported'] ?? false)) {
-            return null;
-        }
-
-        return $this->extractValueFromTemplate($template, $payload);
     }
 
     private function extractRawPayloadValue(string $payload): mixed

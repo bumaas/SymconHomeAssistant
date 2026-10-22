@@ -1,0 +1,15 @@
+{
+    "quelle": "Zigbee2MQTT 2.10.1-dev, Discovery-Bundle nuc 14.05.2026, Geräteadressen neutralisiert",
+    "discovery_configs": [
+        {
+            "topic": "homeassistant/cover/0x00000000000000a1/cover/config",
+            "payload": "{\"availability\":[{\"topic\":\"Z2M-2/bridge/state\",\"value_template\":\"{{ value_json.state }}\"},{\"topic\":\"Z2M-2/0x00000000000000a1/availability\",\"value_template\":\"{{ value_json.state }}\"}],\"availability_mode\":\"all\",\"command_topic\":\"Z2M-2/0x00000000000000a1/set\",\"default_entity_id\":\"cover.0x00000000000000a1\",\"device\":{\"hw_version\":1,\"identifiers\":[\"zigbee2mqtt_0x00000000000000a1\"],\"manufacturer\":\"Zemismart\",\"model\":\"Zigbee/RF curtain converter\",\"model_id\":\"ZM-AM02_cover\",\"name\":\"0x00000000000000a1\",\"via_device\":\"zigbee2mqtt_bridge_0x00000000000000b1\"},\"name\":null,\"object_id\":\"0x00000000000000a1\",\"origin\":{\"name\":\"Zigbee2MQTT\",\"sw\":\"2.10.1-dev\",\"url\":\"https://www.zigbee2mqtt.io\"},\"position_template\":\"{{ value_json[\\\"position\\\"] }}\",\"position_topic\":\"Z2M-2/0x00000000000000a1\",\"set_position_template\":\"{ \\\"position\\\": {{ position }} }\",\"set_position_topic\":\"Z2M-2/0x00000000000000a1/set\",\"state_closed\":\"CLOSE\",\"state_open\":\"OPEN\",\"state_stopped\":\"STOP\",\"state_topic\":\"Z2M-2/0x00000000000000a1\",\"unique_id\":\"0x00000000000000a1_cover_Z2M-2\",\"value_template\":\"{{ value_json[\\\"state\\\"] }}\"}",
+            "received_at": 1778733755,
+            "session_id": "37912-5-1778733748",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        }
+    ]
+}

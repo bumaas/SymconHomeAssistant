@@ -3038,8 +3038,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private function determineReferencedRuntimeTopicKind(string $currentKey): string
     {
         // Befehls-Topics enden in Lang- und Kurzform gleich (mode_command_topic / mode_cmd_t, pow_cmd_t, …);
-        // als state gezählt erschienen sie in der Bundle-Diagnose als „fehlende Zustandsmeldung“.
-        if (str_ends_with($currentKey, 'command_topic') || str_ends_with($currentKey, 'cmd_t')) {
+        // als state gezählt erschienen sie in der Bundle-Diagnose als „fehlende Zustandsmeldung“. Zwei
+        // Befehls-Topics heißen in HA anders (abbreviations.py): set_position_topic und set_fan_speed_topic.
+        if (str_ends_with($currentKey, 'command_topic') || str_ends_with($currentKey, 'cmd_t')
+            || in_array($currentKey, ['set_position_topic', 'set_pos_t', 'set_fan_speed_topic', 'set_fan_spd_t'], true)) {
             return 'command';
         }
 

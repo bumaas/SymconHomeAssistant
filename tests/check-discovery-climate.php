@@ -273,4 +273,15 @@ foreach (['fan_mode', 'swing_mode', 'swing_horizontal_mode', 'current_temperatur
 pruefe(($geraetKlima['state']['supported_features'] ?? null) === ($einzeln['state']['supported_features'] ?? false), 'Device-Discovery: supported_features gleich',
     json_encode([$geraetKlima['state']['supported_features'] ?? null, $einzeln['state']['supported_features'] ?? null]));
 
+// --- Teil 11 (Code-Review build 211, zu Teil 6): Zwei Befehls-Topics heißen in HA nicht …command_topic:
+// set_position_topic (set_pos_t) und set_fan_speed_topic (set_fan_spd_t). Ein Zigbee2MQTT-Rollladen
+// (Fixture discovery_cover_set_position_20260514.json) zählte sein /set sonst zusätzlich als state.
+$rollladen = json_decode((string)file_get_contents(__DIR__ . '/fixtures/discovery_cover_set_position_20260514.json'), true, 512, JSON_THROW_ON_ERROR);
+$arten = array_column($sammle->invoke(neueAusfuehrung($splitter), $rollladen['discovery_configs']), 'kinds', 'topic');
+pruefe(($arten['Z2M-2/0x00000000000000a1/set'] ?? null) === ['command'], 'Splitter: set_position_topic ist command', json_encode($arten['Z2M-2/0x00000000000000a1/set'] ?? null));
+$kurz = $rollladen['discovery_configs'];
+$kurz[0]['payload'] = str_replace(['"set_position_topic"', '"command_topic"'], ['"set_pos_t"', '"cmd_t"'], $kurz[0]['payload']);
+$arten = array_column($sammle->invoke(neueAusfuehrung($splitter), $kurz), 'kinds', 'topic');
+pruefe(($arten['Z2M-2/0x00000000000000a1/set'] ?? null) === ['command'], 'Splitter: set_pos_t ist command', json_encode($arten['Z2M-2/0x00000000000000a1/set'] ?? null));
+
 ergebnis();

@@ -257,3 +257,8 @@ Instanz-IDs auf Platzhalter. Zehn Ankündigungen einer Mitsubishi-Klimaanlage (m
 fast nur in Kurzformen (`temp_cmd_t`, `mode_stat_tpl`, …) mit bedingten Templates, dazu die Payloads von
 `…/state`, `…/system/info` und `…/availability`. Grundlage von `check-discovery-climate.php` und den bedingten
 Fällen in `check-mqtt-discovery-template-parser.php`.
+
+- `discovery_cover_set_position_20260514.json`
+  - Quelle: Zigbee2MQTT 2.10.1-dev (Zemismart ZM-AM02), ein Discovery-Record aus dem nuc-Bundle vom 14.05.2026
+  - Geräteadressen durch `0x00000000000000a1`/`…b1` ersetzt
+  - Zweck: `set_position_topic` zählt in der Bundle-Diagnose als Befehls-Topic (`check-discovery-climate.php` Teil 11)

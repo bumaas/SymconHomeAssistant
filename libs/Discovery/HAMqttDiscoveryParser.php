@@ -229,6 +229,7 @@ final class HAMqttDiscoveryParser
         $resolvedValueTemplate = $this->resolveComponentValueTemplate($component, $config);
         $resolvedCommandTopic = $this->resolveComponentCommandTopic($component, $config);
         $resolvedCommandTemplate = $this->resolveComponentCommandTemplate($component, $config);
+        $climateChannels = $component === HAClimateDefinitions::DOMAIN ? $this->buildClimateChannels($config) : [];
 
         return [
             'source'         => 'mqtt_discovery',
@@ -292,7 +293,7 @@ final class HAMqttDiscoveryParser
                 'effect_list'         => $this->normalizeStringList($config['effect_list'] ?? null),
                 'supported_features'  => match ($component) {
                     HALightDefinitions::DOMAIN => $this->buildLightSupportedFeatures($config),
-                    HAClimateDefinitions::DOMAIN => $this->buildClimateSupportedFeatures($config),
+                    HAClimateDefinitions::DOMAIN => $this->buildClimateSupportedFeatures($config, $climateChannels),
                     HALockDefinitions::DOMAIN => $this->buildLockSupportedFeatures($config),
                     HACoverDefinitions::DOMAIN => $this->buildCoverSupportedFeatures($config),
                     default => null
@@ -330,7 +331,7 @@ final class HAMqttDiscoveryParser
             ],
             'availability'   => $this->parseAvailability($config),
             'origin'         => $this->parseOrigin($config['origin'] ?? null),
-            'climate'        => $component === HAClimateDefinitions::DOMAIN ? $this->buildClimateChannels($config) : [],
+            'climate'        => $climateChannels,
             'raw'            => [
                 'topic'  => $topic,
                 'config' => $config
@@ -1085,14 +1086,13 @@ final class HAMqttDiscoveryParser
             || $this->normalizeNullableString($config['temperature_command_template'] ?? null) !== null;
     }
 
-    private function buildClimateSupportedFeatures(array $config): int
+    private function buildClimateSupportedFeatures(array $config, array $channels): int
     {
         $supported = 0;
         if ($this->hasClimateTemperatureMode($config)) {
             $supported |= 1;
         }
 
-        $channels = $this->buildClimateChannels($config);
         foreach ([
             HAClimateDefinitions::ATTRIBUTE_FAN_MODE => 8,
             HAClimateDefinitions::ATTRIBUTE_PRESET_MODE => 16,
