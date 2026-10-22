@@ -99,4 +99,51 @@ function bedingteTemplates(): void
     pruefe(($parsed['path'] ?? null) === ['a'] && ($parsed['default'] ?? null) === 'x', 'Bedingung auf anderes Feld: Pfad der Ausgabe', json_encode($parsed));
     $parsed = HAMqttDiscoveryTemplate::parseValueTemplate('{% if value_json.a > 1 %}{{ value_json.a }}{% else %}{{ value_json.b }}{% endif %}');
     pruefe(($parsed['supported'] ?? true) === false, 'Block mit zwei Ausgabefeldern: nicht unterstützt', json_encode($parsed));
+
+    bedingungenWerdenAusgewertet($templates);
+}
+
+/**
+ * Code-Review build 211: Die Bedingung wurde verworfen, jedes `{{ value_json.X if … }}` galt als
+ * unterstützt. Ein aus gemeldetes Licht zeigte so die Helligkeit 120, ein ausgeschaltetes Klimagerät
+ * den letzten Modus. Jetzt wertet das Modul einfache Bedingungen aus (is defined, |length, Vergleich
+ * mit einer Zahl oder einem Text, verknüpft mit and); alles andere bleibt nicht unterstützt.
+ */
+function bedingungenWerdenAusgewertet(array $templates): void
+{
+    $nichtUnterstuetzt = [
+        '{{ value_json.a if value_json.b is defined else value_json.c }}' => 'else mit Ausdruck',
+        "{{ value_json.a if value_json.b == 'x' or value_json.c == 'y' else 0 }}" => 'or',
+        "{{ value_json.a if is_state('light.x', 'on') else 0 }}" => 'Funktionsaufruf',
+        '{{ value_json.a if not value_json.b else 0 }}' => 'not',
+    ];
+    foreach ($nichtUnterstuetzt as $template => $art) {
+        $parsed = HAMqttDiscoveryTemplate::parseValueTemplate($template);
+        pruefe(($parsed['supported'] ?? true) === false, "Bedingung mit $art: nicht unterstützt", json_encode($parsed));
+    }
+
+    if (!pruefe(method_exists(HAMqttDiscoveryTemplate::class, 'resolveJsonPathValue'), 'HAMqttDiscoveryTemplate::resolveJsonPathValue vorhanden')) {
+        return;
+    }
+
+    $wert = static fn(string $template, array $json): mixed
+        => HAMqttDiscoveryTemplate::resolveJsonPathValue(HAMqttDiscoveryTemplate::parseValueTemplate($template), $json);
+
+    $licht = "{{ value_json.brightness if value_json.state == 'ON' else 0 }}";
+    pruefe($wert($licht, ['state' => 'ON', 'brightness' => 120]) === 120, 'Licht an: Helligkeit 120');
+    pruefe($wert($licht, ['state' => 'OFF', 'brightness' => 120]) === '0', 'Licht aus: Rückfallwert 0', var_export($wert($licht, ['state' => 'OFF', 'brightness' => 120]), true));
+
+    $modus = $templates['klimaanlage-buero/mode_stat_tpl'];
+    pruefe($wert($modus, ['mode' => 'cool']) === 'cool', 'mitsubishi2mqtt-Modus: Feld gesetzt');
+    pruefe($wert($modus, ['mode' => '']) === 'off', 'mitsubishi2mqtt-Modus: leer → off');
+    pruefe($wert($modus, ['action' => 'idle']) === 'off', 'mitsubishi2mqtt-Modus: fehlt → off');
+
+    // Ohne else gibt HA einen leeren Text aus, den das Klimagerät verwirft: nichts schreiben.
+    $raum = $templates['klimaanlage-buero/curr_temp_tpl'];
+    pruefe($wert($raum, ['room_temperature' => 21.5]) === 21.5, 'Raumtemperatur 21,5 (|int > 1.00)');
+    pruefe($wert($raum, ['room_temperature' => 0.5]) === null, 'Raumtemperatur 0,5 verworfen (|int > 1.00)', var_export($wert($raum, ['room_temperature' => 0.5]), true));
+
+    $anderesFeld = "{{ value_json.a if value_json.b is defined else 'x' }}";
+    pruefe($wert($anderesFeld, ['a' => 'y']) === 'x', 'Bedingung auf fehlendes anderes Feld: Rückfallwert', var_export($wert($anderesFeld, ['a' => 'y']), true));
+    pruefe($wert($anderesFeld, ['a' => 'y', 'b' => 1]) === 'y', 'Bedingung auf vorhandenes anderes Feld: Wert');
 }

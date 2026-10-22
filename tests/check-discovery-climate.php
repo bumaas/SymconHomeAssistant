@@ -130,8 +130,30 @@ function schalte(string $ident, mixed $wert): array
 
 $s = schalte(ident('hvac_mode'), 'cool');
 pruefe($s === [['Topic' => BASIS . 'mode/set', 'Payload' => 'cool']], 'Modus „cool“ geht nur an mode/set', json_encode($s));
-$s = schalte(ident('hvac_mode'), 'turbo');
+// Ein ungültiger Wert ist für den Aufrufer ein Fehler (Code-Review build 211): sonst meldet RequestAction
+// Erfolg, und Anwender oder KI glauben, das Gerät habe umgeschaltet. Wie rejectInvalidActionValue der Bridge.
+function schalteUngueltig(string $ident, mixed $wert): array
+{
+    global $g;
+    DiscoveryDeviceHarness::$mqttSendungen = [];
+    $warnung = null;
+    try {
+        neueAusfuehrung($g)->RequestAction($ident, $wert);
+    } catch (ErrorException $e) {
+        $warnung = $e->getSeverity() === E_USER_WARNING ? $e->getMessage() : null;
+    }
+    return [DiscoveryDeviceHarness::$mqttSendungen, $warnung];
+}
+
+[$s, $warnung] = schalteUngueltig(ident('hvac_mode'), 'turbo');
 pruefe($s === [], 'Modus außerhalb von modes wird nicht gesendet', json_encode($s));
+pruefe($warnung !== null && str_contains($warnung, 'turbo') && str_contains($warnung, 'HVAC Mode') && str_contains($warnung, 'fan_only'),
+    'Modus außerhalb von modes: Warnung mit Variablenname und erlaubten Werten', (string)$warnung);
+[$s, $warnung] = schalteUngueltig(ident('fan_mode'), '');
+pruefe($s === [] && $warnung !== null, 'Leerer Lüfterwert: Warnung, nichts gesendet', json_encode([$s, $warnung]));
+// Nicht schreibbar bleibt still wie in der Bridge (nur Debug): Ohne Aktion bietet Symcon kein Schalten an.
+[$s, $warnung] = schalteUngueltig(ident('hvac_action'), 'idle');
+pruefe($s === [] && $warnung === null, 'Nur lesbare Aktion: nichts gesendet, keine Warnung', json_encode([$s, $warnung]));
 $s = schalte(ident('fan_mode'), 'high');
 pruefe($s === [['Topic' => BASIS . 'fan/set', 'Payload' => 'high']], 'Lüfter „high“ an fan/set', json_encode($s));
 $s = schalte(ident('swing_mode'), '3');
@@ -168,5 +190,87 @@ foreach (['mode/set', 'temp/set', 'power/set', 'fan/set', 'vane/set', 'wide-vane
     pruefe(($arten[BASIS . $befehl] ?? null) === ['command'], "Splitter: $befehl ist command", json_encode($arten[BASIS . $befehl] ?? null));
 }
 pruefe(($arten[BASIS . 'state'] ?? null) === ['state'], 'Splitter: state bleibt state', json_encode($arten[BASIS . 'state'] ?? null));
+
+// --- Teil 7 (Code-Review build 211): Die Klima-Zusatzvariablen bleiben im Positionsblock ihrer Entität
+// (ENTITY_POSITION_STEP = 10). Vorher zählte der Abstand über alle elf Klima-Attribute, swing_mode landete
+// auf der Position der nächsten Entität.
+$position = static fn(int $id): int => IPS_GetObject($id)['ObjectPosition'];
+$basis = $position($vars[$hauptIdent]);
+foreach ($vars as $ident => $id) {
+    $imBlock = $position($id) >= $basis && $position($id) < $basis + 10;
+    if (str_starts_with($ident, 'climate')) {
+        pruefe($imBlock, "Position $ident im Block der Klima-Entität", $position($id) . " (Basis $basis)");
+    } else {
+        pruefe(!$imBlock, "Position $ident außerhalb des Klima-Blocks", $position($id) . " (Basis $basis)");
+    }
+}
+
+// --- Teil 8 (Code-Review build 211): „medium“ gehört zu den Standard-fan_modes von HA und steht in
+// MarekGs fan_modes. Ohne Eintrag zeigte die Aufzählung „medium“ unübersetzt. Der Testrahmen übersetzt
+// nicht, erwartet ist der englische Schlüssel; die deutsche Fassung steht in beiden locale.json.
+$luefter = isset($vars[ident('fan_mode')]) ? IPS_GetVariable($vars[ident('fan_mode')])['VariablePresentation'] : [];
+$optionen = array_column(json_decode((string)($luefter['OPTIONS'] ?? '[]'), true) ?? [], 'Caption', 'Value');
+pruefe(($optionen['medium'] ?? '') === 'Medium', 'Lüfter: „medium“ beschriftet', json_encode($optionen));
+foreach (['Home Assistant Device', 'Home Assistant MQTT Discovery Device'] as $modul) {
+    $locale = json_decode((string)file_get_contents(dirname(__DIR__) . "/$modul/locale.json"), true);
+    pruefe(isset($locale['translations']['de']['Medium']), "$modul: Übersetzung für „Medium“");
+}
+
+// --- Teil 9 (Code-Review build 211): Ein nur lesbarer Kanal mit nicht verstandenem Template bekäme nie
+// einen Wert und stünde dauerhaft auf 0 °C, MarekGs Symptom an einer Untervariable. Er bekommt keine
+// Variable. Ein schaltbarer Kanal behält sie und zeigt nach dem Schalten den gesendeten Wert.
+// Grundlage: MarekGs Konfiguration, nur die beiden Templates ersetzt.
+$konfigs = $bundle['discovery_configs'];
+foreach ($konfigs as &$record) {
+    if (str_starts_with($record['topic'], 'homeassistant/climate/')) {
+        $payload = json_decode($record['payload'], true, 512, JSON_THROW_ON_ERROR);
+        $payload['curr_temp_tpl'] = '{{ value_json.room_temperature | round(1) }}';
+        $payload['fan_mode_stat_tpl'] = '{{ value_json.fan | title }}';
+        $record['payload'] = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+}
+unset($record);
+DiscoveryDeviceHarness::$splitterAntwort['Items'] = $konfigs;
+$g = neueFensterInstanz(DiscoveryDeviceHarness::class);
+IPS_ConnectInstance($g->id(), $splitter->id());
+$g->SetProperty('DeviceID', GERAET);
+neueAusfuehrung($g)->ApplyChanges();
+$vars = variablen($g->id());
+$hauptIdent = array_find(array_keys($vars), static fn(string $i): bool => str_starts_with($i, 'climate')) ?? 'climate';
+pruefe(!isset($vars[ident('current_temperature')]), 'Raumtemperatur mit round(1): keine Variable', json_encode(array_keys($vars)));
+pruefe(isset($vars[ident('fan_mode')]) && schaltbar(ident('fan_mode')), 'Lüfter mit title: Variable bleibt schaltbar');
+$s = schalte(ident('fan_mode'), 'high');
+pruefe($s === [['Topic' => BASIS . 'fan/set', 'Payload' => 'high']], 'Lüfter mit title: „high“ an fan/set', json_encode($s));
+pruefe(wert(ident('fan_mode')) === 'high', 'Lüfter mit title: zeigt den gesendeten Wert', var_export(wert(ident('fan_mode')), true));
+
+// --- Teil 10 (Code-Review build 211): Device-Discovery (homeassistant/device/…/config) erlaubt die
+// Klima-Optionen auf oberster Ebene als gemeinsame Angaben. Die Positivliste kannte nur Modus, Aktion und
+// Raumtemperatur; Lüfter, Lamellen, Preset und Raumfeuchte fielen still weg. Grundlage: MarekGs
+// Klima-Konfiguration, umgeformt in die Device-Form; die Kanäle müssen gleich herauskommen.
+$klima = json_decode(array_find($bundle['discovery_configs'], static fn(array $r): bool => str_starts_with($r['topic'], 'homeassistant/climate/'))['payload'], true);
+$parser = new HAMqttDiscoveryParser('homeassistant');
+$einzeln = $parser->parseConfigMessage('homeassistant/climate/klimaanlage-buero/config', json_encode($klima, JSON_UNESCAPED_SLASHES));
+$wurzel = array_intersect_key($klima, array_flip(['dev', 'avty_t', 'pl_avail', 'pl_not_avail']));
+$komponente = ['p' => 'climate'];
+foreach ($klima as $schluessel => $wert) {
+    if (isset($wurzel[$schluessel])) {
+        continue;
+    }
+    // Alles, was zu Lüfter, Lamellen und Raumtemperatur gehört, als gemeinsame Angabe an die Wurzel.
+    if (preg_match('/^(fan_mode|swing_mode|swing_h_mode|curr_temp)/', $schluessel) === 1) {
+        $wurzel[$schluessel] = $wert;
+    } else {
+        $komponente[$schluessel] = $wert;
+    }
+}
+$wurzel['cmps'] = ['klima' => $komponente];
+$geraet = $parser->parseConfigRecord('homeassistant/device/klimaanlage-buero/config', json_encode($wurzel, JSON_UNESCAPED_SLASHES));
+$geraetKlima = array_values(array_filter($geraet, static fn(mixed $e): bool => is_array($e) && ($e['component'] ?? '') === 'climate'))[0] ?? [];
+foreach (['fan_mode', 'swing_mode', 'swing_horizontal_mode', 'current_temperature'] as $attribut) {
+    pruefe(($geraetKlima['climate'][$attribut] ?? null) === ($einzeln['climate'][$attribut] ?? false),
+        "Device-Discovery: Kanal $attribut wie in der Einzelkonfiguration", json_encode($geraetKlima['climate'][$attribut] ?? null));
+}
+pruefe(($geraetKlima['state']['supported_features'] ?? null) === ($einzeln['state']['supported_features'] ?? false), 'Device-Discovery: supported_features gleich',
+    json_encode([$geraetKlima['state']['supported_features'] ?? null, $einzeln['state']['supported_features'] ?? null]));
 
 ergebnis();

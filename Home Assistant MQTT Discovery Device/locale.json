@@ -210,6 +210,8 @@
       "Preheating": "Vorheizen",
       "Defrosting": "Abtauen",
       "Low": "Niedrig",
+      "Medium": "Mittel",
+      "Invalid value \"%s\" for \"%s\" (allowed: %s)": "Ungültiger Wert \"%s\" für \"%s\" (erlaubt: %s)",
       "Low-Middle": "Niedrig-Mittel",
       "Middle-High": "Mittel-Hoch",
       "High": "Hoch",

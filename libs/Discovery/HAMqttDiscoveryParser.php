@@ -33,7 +33,7 @@ final class HAMqttDiscoveryParser
      * HAClimateDefinitions. Topics, Templates und Vorgabelisten nach HA Core (mqtt/climate.py):
      * Ohne eigene Liste gelten dort die Vorgaben; `null` heißt nur lesen.
      */
-    private const array CLIMATE_CHANNELS = [
+    public const array CLIMATE_CHANNELS = [
         HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => [
             'state_topic' => 'mode_state_topic', 'state_template' => 'mode_state_template',
             'command_topic' => 'mode_command_topic', 'command_template' => 'mode_command_template',
@@ -831,6 +831,16 @@ final class HAMqttDiscoveryParser
             }
 
             $shared[$key] = $config[$key];
+        }
+
+        // Alle Klimakanäle samt Optionslisten (fan_modes …), nicht nur die oben genannten.
+        foreach (self::CLIMATE_CHANNELS as $keys) {
+            foreach (['state_topic', 'state_template', 'command_topic', 'command_template', 'options'] as $part) {
+                $key = $keys[$part];
+                if ($key !== null && array_key_exists($key, $config)) {
+                    $shared[$key] = $config[$key];
+                }
+            }
         }
 
         return $shared;

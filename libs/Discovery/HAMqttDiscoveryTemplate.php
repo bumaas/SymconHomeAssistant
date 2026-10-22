@@ -10,6 +10,9 @@ final class HAMqttDiscoveryTemplate
     /** Zugriff auf ein JSON-Feld: .feld, ["feld"], ['feld'] oder [0], beliebig verkettet. */
     private const string JSON_ACCESSOR = '((?:\.\w+|\[(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\'|\d+)])+)';
 
+    /** Text in einfachen oder doppelten Anführungszeichen oder eine Zahl. */
+    private const string LITERAL = '(\'(?:[^\'\\\\]|\\\\.)*\'|"(?:[^"\\\\]|\\\\.)*"|-?\d+(?:\.\d+)?)';
+
     public static function parseValueTemplate(?string $template): ?array
     {
         if (!is_string($template)) {
@@ -21,7 +24,7 @@ final class HAMqttDiscoveryTemplate
             return null;
         }
 
-        if (preg_match('/^{{\s*value_json((?:\.\w+|\[(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\'|\d+)])+)\s*((?:\|\s*[A-Za-z_]+\s*)*)}}$/', $raw, $matches) === 1) {
+        if (preg_match('/^{{\s*value_json' . self::JSON_ACCESSOR . '\s*((?:\|\s*[A-Za-z_]+\s*)*)}}$/', $raw, $matches) === 1) {
             $filters = self::parseFilters($matches[2] ?? '');
             $path = self::parseJsonAccessorPath($matches[1]);
             if ($path === []) {
@@ -100,24 +103,51 @@ final class HAMqttDiscoveryTemplate
     }
 
     /**
+     * Wert eines json_path-Templates aus dem dekodierten Payload. Bedingungen (guards) werden ausgewertet;
+     * trifft eine nicht zu, gilt der Rückfallwert, ohne else null (HA gibt dann einen leeren Text aus,
+     * den Klima und Sensor verwerfen). Fehlt das Feld, ebenfalls null.
+     */
+    public static function resolveJsonPathValue(array $template, mixed $decoded): mixed
+    {
+        $default = $template['default'] ?? null;
+        foreach ($template['guards'] ?? [] as $guard) {
+            if (!self::evaluateGuard($guard, $decoded)) {
+                return $default;
+            }
+        }
+
+        [$found, $value] = self::lookupPath($decoded, $template['path'] ?? []);
+        return $found ? $value : null;
+    }
+
+    /**
      * Bedingte Templates, die am Ende genau ein JSON-Feld ausgeben (mitsubishi2mqtt u. a.):
      *   {{ value_json.mode if (…) else 'off' }}   → Feld mode, Rückfallwert „off“
      *   {{ value_json.room_temperature if (…) }}   → Feld room_temperature, ohne Rückfallwert
      *   {% if … %}{{ value_json.temperature }}{% elif … %}16.00{% endif %} → Feld temperature
-     * Die Bedingung selbst wertet das Modul nicht aus. Beim Block bleiben Begrenzungen wie 16.00 außen
-     * vor: gilt der Wert, steht er im Feld. Der Rückfallwert greift, wenn das Feld fehlt oder leer ist
-     * (so prüfen die Producer mit `is defined` und `|length`).
+     * Die Bedingung des Ausdrucks wertet resolveJsonPathValue aus; verstanden werden mit `and`
+     * verknüpfte Prüfungen `is defined`, `|length` und Vergleiche mit einem Text oder einer Zahl
+     * (optional über |int oder |float). Alles andere (or, not, Funktionen, else mit Ausdruck) ist nicht
+     * unterstützt: Ein Wert ohne Bedingung wäre falsch (Licht aus, Helligkeit 120). Beim Block bleiben die
+     * Bedingungen und Begrenzungen wie 16.00 außen vor: gilt der Wert, steht er im Feld.
      */
     private static function parseConditionalJsonTemplate(string $raw): ?array
     {
-        $literal = '(\'(?:[^\'\\\\]|\\\\.)*\'|"(?:[^"\\\\]|\\\\.)*"|-?\d+(?:\.\d+)?)';
-        if (preg_match('/^{{\s*value_json' . self::JSON_ACCESSOR . '\s+if\s+.+?(?:\s+else\s+' . $literal . ')?\s*}}$/s', $raw, $matches) === 1) {
+        if (preg_match('/^{{\s*value_json' . self::JSON_ACCESSOR . '\s+if\s+(.+?)(?:\s+else\s+' . self::LITERAL . ')?\s*}}$/s', $raw, $matches) === 1) {
             $path = self::parseJsonAccessorPath($matches[1]);
             if ($path === []) {
                 return null;
             }
-            $default = isset($matches[2]) && $matches[2] !== '' ? self::parseLiteral($matches[2]) : null;
-            return ['kind' => 'json_path', 'path' => $path, 'filters' => [], 'supported' => true, 'default' => $default];
+            $guards = self::parseCondition($matches[2]);
+            $default = isset($matches[3]) && $matches[3] !== '' ? self::parseLiteral($matches[3]) : null;
+            return [
+                'kind'      => 'json_path',
+                'path'      => $path,
+                'filters'   => [],
+                'supported' => $guards !== null,
+                'default'   => is_string($default) ? $default : ($default === null ? null : (string)$default),
+                'guards'    => $guards ?? []
+            ];
         }
 
         if (!str_starts_with($raw, '{%')) {
@@ -147,12 +177,104 @@ final class HAMqttDiscoveryTemplate
         return $path === null ? null : ['kind' => 'json_path', 'path' => $path, 'filters' => [], 'supported' => true, 'default' => null];
     }
 
-    private static function parseLiteral(string $literal): string
+    private static function parseLiteral(string $literal): string|int|float
     {
         if ($literal[0] === '\'' || $literal[0] === '"') {
             return stripcslashes(substr($literal, 1, -1));
         }
-        return $literal;
+        return str_contains($literal, '.') ? (float)$literal : (int)$literal;
+    }
+
+    /** @return list<array>|null null = Bedingung nicht verstanden */
+    private static function parseCondition(string $condition): ?array
+    {
+        $guards = [];
+        foreach (preg_split('/\s+and\s+/', self::stripParentheses($condition)) ?: [] as $term) {
+            $guard = self::parseGuard(self::stripParentheses($term));
+            if ($guard === null) {
+                return null;
+            }
+            $guards[] = $guard;
+        }
+        return $guards;
+    }
+
+    // Äußere Klammern nur, wenn innen keine weiteren stehen: „(a) and (b)“ wird erst je Teil entklammert.
+    private static function stripParentheses(string $text): string
+    {
+        $text = trim($text);
+        if (str_starts_with($text, '(') && str_ends_with($text, ')') && strpbrk(substr($text, 1, -1), '()') === false) {
+            return trim(substr($text, 1, -1));
+        }
+        return $text;
+    }
+
+    private static function parseGuard(string $term): ?array
+    {
+        if (preg_match('/^value_json(?:' . self::JSON_ACCESSOR . ')?\s+is\s+defined$/', $term, $matches) === 1) {
+            return ['test' => 'defined', 'path' => self::parseJsonAccessorPath($matches[1] ?? '')];
+        }
+        if (preg_match('/^value_json' . self::JSON_ACCESSOR . '\s*\|\s*length$/', $term, $matches) === 1) {
+            return ['test' => 'length', 'path' => self::parseJsonAccessorPath($matches[1])];
+        }
+        if (preg_match('/^value_json' . self::JSON_ACCESSOR . '\s*(?:\|\s*(int|float)\s*)?(==|!=|<=|>=|<|>)\s*' . self::LITERAL . '$/', $term, $matches) === 1) {
+            return [
+                'test'    => 'compare',
+                'path'    => self::parseJsonAccessorPath($matches[1]),
+                'cast'    => $matches[2] !== '' ? $matches[2] : null,
+                'op'      => $matches[3],
+                'literal' => self::parseLiteral($matches[4])
+            ];
+        }
+        return null;
+    }
+
+    private static function evaluateGuard(array $guard, mixed $decoded): bool
+    {
+        [$found, $value] = self::lookupPath($decoded, $guard['path'] ?? []);
+        if (!$found) {
+            return false;
+        }
+
+        if ($guard['test'] === 'defined') {
+            return true;
+        }
+        if ($guard['test'] === 'length') {
+            // Jinja: length einer Zahl ist ein Fehler, HA schreibt dann nichts.
+            return (is_string($value) && $value !== '') || (is_array($value) && $value !== []);
+        }
+
+        if ($guard['cast'] !== null) {
+            $number = is_numeric($value) ? (float)$value : 0.0;
+            $value = $guard['cast'] === 'int' ? (int)$number : $number;
+        }
+        $literal = $guard['literal'];
+        if (is_string($literal) !== is_string($value) || (!is_string($value) && !is_int($value) && !is_float($value))) {
+            // Text gegen Zahl ist in Jinja nie gleich; ein Größenvergleich wäre ein Fehler.
+            return $guard['op'] === '!=';
+        }
+        $order = is_string($value) ? strcmp($value, $literal) : $value <=> $literal;
+        return match ($guard['op']) {
+            '==' => $order === 0,
+            '!=' => $order !== 0,
+            '<' => $order < 0,
+            '<=' => $order <= 0,
+            '>' => $order > 0,
+            '>=' => $order >= 0,
+        };
+    }
+
+    /** @return array{0: bool, 1: mixed} gefunden, Wert */
+    private static function lookupPath(mixed $decoded, array $path): array
+    {
+        $value = $decoded;
+        foreach ($path as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return [false, null];
+            }
+            $value = $value[$segment];
+        }
+        return [true, $value];
     }
 
     private static function parseJsonAccessorPath(string $path): array

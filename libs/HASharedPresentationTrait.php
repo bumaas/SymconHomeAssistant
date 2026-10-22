@@ -266,6 +266,7 @@ trait HASharedPresentationTrait
             'preheating' => 'Preheating',
             'defrosting' => 'Defrosting',
             'low' => 'Low',
+            'medium' => 'Medium',
             'low' . 'mid' => 'Low-Middle',
             'high' . 'mid' => 'Middle-High',
             'high' => 'High',

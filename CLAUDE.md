@@ -363,10 +363,20 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - **Optionsdarstellung** (`buildSharedOptionPresentation`, `getClimateOptionCaption`) liegt im
   `HASharedPresentationTrait` und gilt für beide Familien; Übersetzung reicht der Aufrufer als Callback herein.
   Neue Beschriftungen gehören in die `locale.json` von Device **und** MQTT Discovery Device.
-- **Templates:** `parseConditionalJsonTemplate` erkennt `{{ value_json.X if … else 'Y' }}` (Rückfallwert Y bei
-  fehlendem oder leerem Feld, Schlüssel `default`) und `{% if %}`-Blöcke, die nur ein Feld und Zahlen
-  ausgeben. Die Bedingung wird nicht ausgewertet. Ein nicht unterstütztes Template auf einem JSON-Objekt
-  schreibt nichts mehr (vorher das ganze JSON, „Up Time“).
+- **Templates:** `parseConditionalJsonTemplate` erkennt `{{ value_json.X if … else 'Y' }}` (Rückfallwert
+  `default`) und `{% if %}`-Blöcke, die nur ein Feld und Zahlen ausgeben. Die Bedingung des Ausdrucks steht als
+  `guards` im Template und wird in `HAMqttDiscoveryTemplate::resolveJsonPathValue` ausgewertet (build 212,
+  Code-Review): mit `and` verknüpft `is defined`, `|length`, Vergleich mit Text oder Zahl, optional `|int`/`|float`.
+  Alles andere (`or`, `not`, Funktionen, `else` mit Ausdruck) ist nicht unterstützt; bis build 211 galt jede
+  Bedingung als erfüllt (Licht aus, Helligkeit 120). Beim Block bleibt die Bedingung unausgewertet. Ein nicht
+  unterstütztes Template auf einem JSON-Objekt schreibt nichts mehr (vorher das ganze JSON, „Up Time“).
+- **Nachgezogen in build 212** (Code-Review von build 211): Device-Discovery übernimmt alle Kanalschlüssel aus
+  `CLIMATE_CHANNELS` als gemeinsame Angaben (`extractDeviceDiscoverySharedConfig`, vorher fehlten Lüfter,
+  Lamellen, Preset, Feuchte). Ein nur lesbarer Kanal mit nicht unterstütztem Template bekommt keine Variable
+  (`isClimateChannelReadable`), ein schaltbarer zeigt den gesendeten Wert. Der Positionsabstand zählt nur
+  Kanal-Attribute (alle elf überschritten `ENTITY_POSITION_STEP`). Ungültiger Wert beim Schalten ist ein
+  `E_USER_WARNING` wie `rejectInvalidActionValue`, nicht schreibbar bleibt still wie in der Bridge. „medium“
+  hat eine Beschriftung.
 - `temperature_unit` `C`/`F` wird zu `°C`/`°F`. Der Splitter zählt jedes `…command_topic`/`…cmd_t` als
   `command` (vorher nur `cmd_t`, `bri_cmd_t`, `rgb_cmd_t`).
 - Test: `tests/check-discovery-climate.php`, bedingte Fälle in `check-mqtt-discovery-template-parser.php`;

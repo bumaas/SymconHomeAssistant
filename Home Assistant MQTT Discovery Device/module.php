@@ -481,6 +481,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'Value' => $Value,
                 'Options' => $channel['options']
             ], true);
+            // Wie rejectInvalidActionValue der Bridge: Der Aufrufer von RequestAction bekommt einen Fehler
+            // statt Erfolg, sonst glauben Anwender oder KI, das Gerät habe umgeschaltet.
+            $variableId = @$this->GetIDForIdent($Ident);
+            trigger_error(sprintf(
+                $this->Translate('Invalid value "%s" for "%s" (allowed: %s)'),
+                is_scalar($Value) ? (string)$Value : gettype($Value),
+                $variableId !== false ? IPS_GetName($variableId) : $Ident,
+                implode(', ', $channel['options'])
+            ), E_USER_WARNING);
             return;
         }
 
@@ -498,7 +507,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         ]);
         $this->sendMqttMessage($channel['command_topic'], $payload, (int)$entity['qos'], (bool)$entity['retain']);
 
-        if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || $channel['state_topic'] === '') {
+        if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || !$this->isClimateChannelReadable($channel)) {
             $this->emulateOptimisticStatus($Ident, $value);
         }
     }
@@ -1517,6 +1526,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $idents = [];
         $offset = 0;
         foreach (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS as $attribute => $meta) {
+            // Nur Attribute, die ein Kanal sein können, zählen: Alle elf überschritten ENTITY_POSITION_STEP.
+            if (!array_key_exists($attribute, HAMqttDiscoveryParser::CLIMATE_CHANNELS)) {
+                continue;
+            }
             $offset++;
             $channel = $entity['climate'][$attribute] ?? null;
             if (!is_array($channel)) {
@@ -1526,6 +1539,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $ident = $this->buildClimateAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), $attribute);
             $variableType = (int)$meta['type'];
             $writable = $this->isClimateChannelWritable($channel);
+            // Ein nur lesbarer Kanal mit nicht verstandenem Template bekäme nie einen Wert (stünde auf 0 °C).
+            if (!$writable && !$this->isClimateChannelReadable($channel)) {
+                $this->debugExpert('Climate', 'Template nicht unterstützt, keine Variable', [
+                    'Attribute' => $attribute,
+                    'Template' => $channel['value_template']['raw'] ?? null
+                ]);
+                continue;
+            }
             $this->recreateVariableIfTypeChanged($ident, $variableType);
             $this->MaintainVariable(
                 $ident,
@@ -1569,6 +1590,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function isClimateChannelWritable(array $channel): bool
     {
         return $channel['command_topic'] !== '' && in_array($channel['command_mode'], ['payload', 'template'], true);
+    }
+
+    private function isClimateChannelReadable(array $channel): bool
+    {
+        return $channel['state_topic'] !== '' && ($channel['value_template'] === null || ($channel['value_template']['supported'] ?? false));
     }
 
     private function buildClimateAttributeIdent(string $entityIdentPrefix, string $attribute): string
@@ -4042,19 +4068,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return $this->normalizeComponentStateValue($entity, $this->extractRawPayloadValue($payload));
     }
 
-    // Feld nach Pfad; fehlt es oder ist es leer, gilt der Rückfallwert des Templates (… else 'off').
+    // Feld nach Pfad unter den Bedingungen des Templates; trifft eine nicht zu, gilt der Rückfallwert (… else 'off').
     private function resolveTemplateJsonPath(array $template, mixed $decoded): mixed
     {
-        $default = $template['default'] ?? null;
-        $value = $decoded;
-        foreach (($template['path'] ?? []) as $segment) {
-            if (!is_array($value) || !array_key_exists($segment, $value)) {
-                return $default;
-            }
-            $value = $value[$segment];
-        }
-
-        return ($value === null || $value === '') && $default !== null ? $default : $value;
+        return HAMqttDiscoveryTemplate::resolveJsonPathValue($template, $decoded);
     }
 
     // Wie extractValueFromTemplate, aber ein nicht unterstütztes Template liefert null statt der Rohdaten.
