@@ -39,6 +39,7 @@ tests/fixtures/*
 !tests/fixtures/hue_aurelle_config_20261019.json
 !tests/fixtures/hue_aurelle_statestream_20261019.txt
 !tests/fixtures/ha_startphase_20261020.json
+!tests/fixtures/discovery_mitsubishi2mqtt_20261022.json
 
 # Claude Code (persönliche Dateien)
 CLAUDE.local.md

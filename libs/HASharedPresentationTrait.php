@@ -192,4 +192,96 @@ trait HASharedPresentationTrait
             'ICON'         => $icon !== '' ? $icon : null
         ]);
     }
+
+    /**
+     * Optionsdarstellung für Auswahl-Attribute (alle Domains, Bridge und MQTT Discovery). Beschreibbare
+     * (aktionsfähige) Variablen erhalten eine Aufzählung, read-only Variablen eine Wertanzeige mit
+     * Optionen; sonst meldet Symcon "Diese Darstellung ist nur für Variablen mit einer Variablenaktion
+     * verfügbar". Die Optionsschemata unterscheiden sich: Aufzählung nutzt "Color", die Wertanzeige
+     * "ColorActive"/"ColorValue". $caption liefert die fertige (übersetzte) Beschriftung je Wert.
+     */
+    private function buildSharedOptionPresentation(array|string|null $options, bool $writable, callable $caption): ?array
+    {
+        $formatted = [];
+        foreach (HASelectDefinitions::normalizeOptions($options) as $value) {
+            $text = is_scalar($value) ? (string)$value : '';
+            if ($text === '') {
+                continue;
+            }
+            $option = [
+                'Value'      => $text,
+                'Caption'    => (string)$caption($text),
+                'IconActive' => false,
+                'IconValue'  => ''
+            ];
+            if ($writable) {
+                $option['Color'] = -1;
+            } else {
+                $option['ColorActive'] = false;
+                $option['ColorValue'] = -1;
+            }
+            $formatted[] = $option;
+        }
+
+        if ($formatted === []) {
+            return null;
+        }
+
+        return $this->sharedFilterPresentation([
+            'PRESENTATION' => $writable ? VARIABLE_PRESENTATION_ENUMERATION : VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'OPTIONS'      => json_encode($formatted, JSON_THROW_ON_ERROR)
+        ]);
+    }
+
+    // Beschriftungsschlüssel der Klima-Optionen (Modus, Lüfter, Lamellen, Aktion); übersetzt wird beim Aufrufer.
+    private function getClimateOptionCaption(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+        if ($normalized === '') {
+            return $value;
+        }
+
+        $map = [
+            'heat' => 'Heating',
+            'cool' => 'Cooling',
+            'heat_cool' => 'Heat/Cool',
+            'dry' => 'Dry (mode)',
+            'fan_only' => 'Fan Only',
+            'auto' => 'Auto',
+            'off' => 'Off',
+            'on' => 'On',
+            'none' => 'None',
+            'eco' => 'Eco',
+            'boost' => 'Boost',
+            'comfort' => 'Comfort',
+            'away' => 'Away',
+            'home' => 'Home',
+            'sleep' => 'Sleep',
+            'activity' => 'Activity',
+            'idle' => 'Idle',
+            'heating' => 'Heating',
+            'cooling' => 'Cooling',
+            'drying' => 'Drying',
+            'fan' => 'Fan',
+            'preheating' => 'Preheating',
+            'defrosting' => 'Defrosting',
+            'low' => 'Low',
+            'low' . 'mid' => 'Low-Middle',
+            'high' . 'mid' => 'Middle-High',
+            'high' => 'High',
+            'up' => 'Up',
+            'down' => 'Down',
+            'left' => 'Left',
+            'right' => 'Right',
+            'mid' => 'Middle',
+            'middle' => 'Middle',
+            'left' . 'mid' => 'Middle-Left',
+            'right' . 'mid' => 'Middle-Right',
+            'up' . 'mid' => 'Upper-Middle',
+            'down' . 'mid' => 'Lower-Middle',
+            'swing' => 'Swing'
+        ];
+
+        return $map[$normalized] ?? $value;
+    }
 }

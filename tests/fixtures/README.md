@@ -248,3 +248,12 @@ beantwortet die Vorlage rund 14 s lang mit HTTP 200 und leerer Liste und meldet 
 zwischendurch antwortet `/api/config` nicht. Dazu `vorlage_laufend`, die Antwort im laufenden Betrieb.
 Ein Vorname im Gerätenamen ist durch „Links“ ersetzt; sonst nur Raumname und HA-Geräte-ID. Grundlage von
 `check-ha-startphase.php`.
+
+## Klimagerät mit mitsubishi2mqtt (`discovery_mitsubishi2mqtt_20261022.json`)
+
+Aus einem **Anwender-Bundle** (MarekG, PN im Forum, 22.10.2026, Export „aktuelle Session“), **neutralisiert**:
+MAC (`AABBCC000001`), BSSID (`00:00:5E:00:53:01`) und die IP der Weboberfläche (`192.0.2.10`) ersetzt,
+Instanz-IDs auf Platzhalter. Zehn Ankündigungen einer Mitsubishi-Klimaanlage (mitsubishi2mqtt 2025.10.30)
+fast nur in Kurzformen (`temp_cmd_t`, `mode_stat_tpl`, …) mit bedingten Templates, dazu die Payloads von
+`…/state`, `…/system/info` und `…/availability`. Grundlage von `check-discovery-climate.php` und den bedingten
+Fällen in `check-mqtt-discovery-template-parser.php`.

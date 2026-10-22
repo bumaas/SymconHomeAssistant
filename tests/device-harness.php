@@ -585,9 +585,16 @@ final class DiscoveryDeviceHarness extends HomeAssistantMQTTDiscoveryDevice
     /** Parent gilt als aktiv, ohne einen Splitter mit Broker aufzubauen. */
     public static bool $parentAktiv = false;
 
+    /** @var list<array{Topic: string, Payload: string}> MQTT-Sendungen an den Splitter (PacketType 3), Payload dekodiert */
+    public static array $mqttSendungen = [];
+
     protected function SendDataToParent(string $Data): string
     {
         $anfrage = json_decode($Data, true);
+        if (($anfrage['PacketType'] ?? null) === 3) {
+            self::$mqttSendungen[] = ['Topic' => (string)$anfrage['Topic'], 'Payload' => (string)hex2bin((string)$anfrage['Payload'])];
+            return '';
+        }
         if (self::$topicPayloadAntwort !== null && ($anfrage['DiscoveryAction'] ?? '') === 'GetTopicPayloads') {
             return json_encode(self::$topicPayloadAntwort, JSON_THROW_ON_ERROR);
         }

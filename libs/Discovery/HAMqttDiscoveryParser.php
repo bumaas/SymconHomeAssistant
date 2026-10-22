@@ -23,6 +23,56 @@ final class HAMqttDiscoveryParser
         HALightDefinitions::DOMAIN
     ];
 
+    /** Kurzformen, die HA nicht mehr führt, die ältere Producer aber noch senden. */
+    private const array LEGACY_ABBREVIATIONS = [
+        'obj_id' => 'object_id'
+    ];
+
+    /**
+     * Zusatzkanäle eines Klimageräts neben der Solltemperatur (Hauptvariable), Schlüssel wie in
+     * HAClimateDefinitions. Topics, Templates und Vorgabelisten nach HA Core (mqtt/climate.py):
+     * Ohne eigene Liste gelten dort die Vorgaben; `null` heißt nur lesen.
+     */
+    private const array CLIMATE_CHANNELS = [
+        HAClimateDefinitions::ATTRIBUTE_HVAC_MODE => [
+            'state_topic' => 'mode_state_topic', 'state_template' => 'mode_state_template',
+            'command_topic' => 'mode_command_topic', 'command_template' => 'mode_command_template',
+            'options' => 'modes', 'default_options' => ['auto', 'off', 'cool', 'heat', 'dry', 'fan_only']
+        ],
+        HAClimateDefinitions::ATTRIBUTE_PRESET_MODE => [
+            'state_topic' => 'preset_mode_state_topic', 'state_template' => 'preset_mode_value_template',
+            'command_topic' => 'preset_mode_command_topic', 'command_template' => 'preset_mode_command_template',
+            'options' => 'preset_modes', 'default_options' => []
+        ],
+        HAClimateDefinitions::ATTRIBUTE_FAN_MODE => [
+            'state_topic' => 'fan_mode_state_topic', 'state_template' => 'fan_mode_state_template',
+            'command_topic' => 'fan_mode_command_topic', 'command_template' => 'fan_mode_command_template',
+            'options' => 'fan_modes', 'default_options' => ['auto', 'low', 'medium', 'high']
+        ],
+        HAClimateDefinitions::ATTRIBUTE_SWING_MODE => [
+            'state_topic' => 'swing_mode_state_topic', 'state_template' => 'swing_mode_state_template',
+            'command_topic' => 'swing_mode_command_topic', 'command_template' => 'swing_mode_command_template',
+            'options' => 'swing_modes', 'default_options' => ['on', 'off']
+        ],
+        HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE => [
+            'state_topic' => 'swing_horizontal_mode_state_topic', 'state_template' => 'swing_horizontal_mode_state_template',
+            'command_topic' => 'swing_horizontal_mode_command_topic', 'command_template' => 'swing_horizontal_mode_command_template',
+            'options' => 'swing_horizontal_modes', 'default_options' => ['on', 'off']
+        ],
+        HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION => [
+            'state_topic' => 'action_topic', 'state_template' => 'action_template',
+            'command_topic' => null, 'command_template' => null, 'options' => null, 'default_options' => []
+        ],
+        HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE => [
+            'state_topic' => 'current_temperature_topic', 'state_template' => 'current_temperature_template',
+            'command_topic' => null, 'command_template' => null, 'options' => null, 'default_options' => []
+        ],
+        HAClimateDefinitions::ATTRIBUTE_CURRENT_HUMIDITY => [
+            'state_topic' => 'current_humidity_topic', 'state_template' => 'current_humidity_template',
+            'command_topic' => null, 'command_template' => null, 'options' => null, 'default_options' => []
+        ]
+    ];
+
     private const string DEVICE_AUTOMATION_COMPONENT = 'device_automation';
     private const string DEVICE_DISCOVERY_COMPONENT = 'device';
 
@@ -280,11 +330,51 @@ final class HAMqttDiscoveryParser
             ],
             'availability'   => $this->parseAvailability($config),
             'origin'         => $this->parseOrigin($config['origin'] ?? null),
+            'climate'        => $component === HAClimateDefinitions::DOMAIN ? $this->buildClimateChannels($config) : [],
             'raw'            => [
                 'topic'  => $topic,
                 'config' => $config
             ]
         ];
+    }
+
+    /**
+     * Kanäle nach HA: Modus gibt es immer, sobald ein Modus-Topic angekündigt ist; Lüfter und Lamellen
+     * bei State- oder Command-Topic; Preset nur mit Command-Topic, dann mit vorangestelltem „none“.
+     */
+    private function buildClimateChannels(array $config): array
+    {
+        $channels = [];
+        foreach (self::CLIMATE_CHANNELS as $attribute => $keys) {
+            $stateTopic = $this->normalizeNullableString($config[$keys['state_topic']] ?? null);
+            $commandTopic = $keys['command_topic'] !== null ? $this->normalizeNullableString($config[$keys['command_topic']] ?? null) : null;
+            if ($attribute === HAClimateDefinitions::ATTRIBUTE_PRESET_MODE ? $commandTopic === null : ($stateTopic === null && $commandTopic === null)) {
+                continue;
+            }
+
+            $options = [];
+            if ($keys['options'] !== null) {
+                $options = $this->normalizeStringList($config[$keys['options']] ?? null);
+                if (!array_key_exists($keys['options'], $config)) {
+                    $options = $keys['default_options'];
+                }
+                if ($attribute === HAClimateDefinitions::ATTRIBUTE_PRESET_MODE && $options !== [] && !in_array('none', $options, true)) {
+                    array_unshift($options, 'none');
+                }
+            }
+
+            $commandTemplate = $keys['command_template'] !== null ? $this->normalizeNullableString($config[$keys['command_template']] ?? null) : null;
+            $channels[$attribute] = [
+                'state_topic'      => $stateTopic ?? '',
+                'value_template'   => HAMqttDiscoveryTemplate::parseValueTemplate($this->normalizeNullableString($config[$keys['state_template']] ?? null)),
+                'command_topic'    => $commandTopic ?? '',
+                'command_template' => HAMqttDiscoveryTemplate::parseCommandTemplate($commandTemplate),
+                'command_mode'     => $this->determineCommandModeFromParts($commandTopic, $commandTemplate),
+                'options'          => $options
+            ];
+        }
+
+        return $channels;
     }
 
     private function parseDeviceAutomationMessage(array $topicMeta, array $config, string $topic): ?array
@@ -655,38 +745,7 @@ final class HAMqttDiscoveryParser
 
     private function normalizeConfigAliases(array $config): array
     {
-        $config = $this->applyAliases($config, [
-            'availability'         => 'av' . 'ty',
-            'availability_mode'    => 'av' . 'ty_mode',
-            'availability_topic'   => 'av' . 'ty_t',
-            'availability_template' => 'av' . 'ty_tpl',
-            'command_template'     => 'cmd_tpl',
-            'command_topic'        => 'cmd_t',
-            'device'               => 'dev',
-            'device_class'         => 'dev_cla',
-            'entity_category'      => 'ent_cat',
-            'json_attributes_topic' => 'json_attr_t',
-            'origin'               => 'o',
-            'object_id'            => 'obj_id',
-            'payload_available'    => 'pl_avail',
-            'payload_not_available' => 'pl_not_avail',
-            'payload_off'          => 'pl_off',
-            'payload_on'           => 'pl_on',
-            'payload_install'      => 'pl_inst',
-            'payload_press'        => 'pl_prs',
-            'platform'             => 'p',
-            'state_class'          => 'stat_cla',
-            'state_off'            => 'stat_off',
-            'state_on'             => 'stat_on',
-            'state_topic'          => 'stat_t',
-            'unique_id'            => 'uniq_id',
-            'unit_of_measurement'  => 'unit_of_meas',
-            'value_template'       => 'val_tpl',
-            'icon'                 => 'ic',
-            'optimistic'           => 'opt',
-            'retain'               => 'ret',
-            'components'           => 'cm' . 'ps'
-        ]);
+        $config = $this->expandAbbreviations($config, HAMqttDiscoveryAbbreviations::CONFIG + self::LEGACY_ABBREVIATIONS);
 
         if (isset($config['device']) && is_array($config['device'])) {
             $config['device'] = $this->normalizeDeviceAliases($config['device']);
@@ -700,11 +759,8 @@ final class HAMqttDiscoveryParser
                     continue;
                 }
 
-                $normalizedAvailability[] = $this->applyAliases($entry, [
-                    'payload_available'     => 'pl_avail',
-                    'payload_not_available' => 'pl_not_avail',
-                    'value_template'        => 'val_tpl'
-                ]);
+                // HA kürzt auch die Einträge der availability-Liste (pl_avail, val_tpl, …).
+                $normalizedAvailability[] = $this->expandAbbreviations($entry, HAMqttDiscoveryAbbreviations::CONFIG);
             }
             $config['availability'] = $normalizedAvailability;
         }
@@ -816,18 +872,16 @@ final class HAMqttDiscoveryParser
 
     private function normalizeDeviceAliases(array $device): array
     {
-        return $this->applyAliases($device, [
-            'identifiers' => 'ids',
-            'manufacturer' => 'mf',
-            'model'       => 'mdl',
-            'model_id'    => 'mdl_id',
-            'sw_version'  => 'sw'
-        ]);
+        return $this->expandAbbreviations($device, HAMqttDiscoveryAbbreviations::DEVICE);
     }
 
-    private function applyAliases(array $data, array $aliases): array
+    /**
+     * Ergänzt zu jeder Kurzform die Langform (Kurzform => Langform). Die Kurzform bleibt stehen, eine
+     * schon vorhandene Langform hat Vorrang.
+     */
+    private function expandAbbreviations(array $data, array $abbreviations): array
     {
-        foreach ($aliases as $canonicalKey => $aliasKey) {
+        foreach ($abbreviations as $aliasKey => $canonicalKey) {
             if (array_key_exists($canonicalKey, $data) || !array_key_exists($aliasKey, $data)) {
                 continue;
             }
@@ -1026,6 +1080,18 @@ final class HAMqttDiscoveryParser
         $supported = 0;
         if ($this->hasClimateTemperatureMode($config)) {
             $supported |= 1;
+        }
+
+        $channels = $this->buildClimateChannels($config);
+        foreach ([
+            HAClimateDefinitions::ATTRIBUTE_FAN_MODE => 8,
+            HAClimateDefinitions::ATTRIBUTE_PRESET_MODE => 16,
+            HAClimateDefinitions::ATTRIBUTE_SWING_MODE => 32,
+            HAClimateDefinitions::ATTRIBUTE_SWING_HORIZONTAL_MODE => 512
+        ] as $attribute => $flag) {
+            if (isset($channels[$attribute])) {
+                $supported |= $flag;
+            }
         }
 
         return $supported;

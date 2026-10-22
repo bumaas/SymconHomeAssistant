@@ -149,6 +149,9 @@ final class HAClimateDefinitions
         self::ATTRIBUTE_SWING_HORIZONTAL_MODE => [self::ATTRIBUTE_SWING_HORIZONTAL_MODES]
     ];
 
+    /** Werte von hvac_action (HA HVACAction); ein unbekannter aktueller Wert wird beim Anzeigen ergänzt. */
+    public const array HVAC_ACTION_OPTIONS = ['off', 'idle', 'heating', 'cooling', 'drying', 'fan', 'preheating', 'defrosting'];
+
     /** @noinspection PhpUnused */
     public const array ALLOWED_ATTRIBUTES = [
         self::ATTRIBUTE_CURRENT_TEMPERATURE,

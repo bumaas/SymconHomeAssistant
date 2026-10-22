@@ -200,7 +200,7 @@ Aktuell unterstützt der MQTT-Discovery-Pfad folgende Komponenten:
 - `binary_sensor`
 - `number`
 - `cover`
-- `climate`
+- `climate` (Solltemperatur, Modus, Preset, Lüfter, Lamellen, Aktion, Raumtemperatur und -feuchte)
 - `switch`
 - `select`
 - `button`

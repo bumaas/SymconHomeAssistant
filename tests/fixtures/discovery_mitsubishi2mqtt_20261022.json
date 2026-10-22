@@ -1,0 +1,327 @@
+{
+    "format": "ha_mqtt_discovery_bundle",
+    "version": 2,
+    "exported_at": "2026-10-22T15:20:12+02:00",
+    "splitter": {
+        "instance_id": 10001,
+        "instance_name": "Home Assistant MQTT Discovery Splitter",
+        "discovery_prefix": "homeassistant",
+        "parent_subscriptions": [
+            "#"
+        ],
+        "subscription_check": "ok"
+    },
+    "session": {
+        "id": "10000-4-1792675074",
+        "active": true,
+        "started_at": "2026-10-22T15:17:54+02:00",
+        "parent_id": 10000
+    },
+    "options": {
+        "include_topic_payloads": true,
+        "include_all_cached_topics": false,
+        "current_session_only": true
+    },
+    "source": {
+        "producer_hint": "",
+        "producer_version": "",
+        "notes": "mitsubishi2mqtt 2025.10.30, Anwenderbundle 22.10.2026, neutralisiert (MAC, BSSID, IP)"
+    },
+    "diagnostics": {
+        "discovery_configs": {
+            "total": 10,
+            "current_session": 10,
+            "stale": 0
+        },
+        "referenced_topic_payloads": {
+            "referenced": 11,
+            "current_session": 3,
+            "stale": 0,
+            "missing": 8,
+            "extra_cached": 0,
+            "unsubscribed": 0,
+            "by_kind": {
+                "availability": {
+                    "referenced": 1,
+                    "current_session": 1,
+                    "stale": 0,
+                    "missing": 0
+                },
+                "command": {
+                    "referenced": 2,
+                    "current_session": 0,
+                    "stale": 0,
+                    "missing": 2
+                },
+                "state": {
+                    "referenced": 8,
+                    "current_session": 2,
+                    "stale": 0,
+                    "missing": 6
+                }
+            }
+        }
+    },
+    "referenced_topics": [
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/availability",
+            "kinds": [
+                "availability"
+            ],
+            "primary_kind": "availability",
+            "status": "current",
+            "is_current_session": true,
+            "has_payload": true,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/fan/set",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/mode/set",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/power/set",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/state",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "current",
+            "is_current_session": true,
+            "has_payload": true,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/system/info",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "current",
+            "is_current_session": true,
+            "has_payload": true,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/system/opt/rqt",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/system/set",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/temp/set",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/vane/set",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/wide-vane/set",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        }
+    ],
+    "extra_cached_topics": [],
+    "discovery_configs": [
+        {
+            "topic": "homeassistant/binary_sensor/klimaanlage-buero/connection_state/config",
+            "payload": "{\"icon\":\"mdi:check-network\",\"name\":\"Connection state\",\"unique_id\":\"AABBCC000001_connection_state\",\"val_tpl\":\"{{ value_json.connection_state }}\",\"dev_cla\":\"connectivity\",\"payload_on\":\"online\",\"payload_off\":\"offline\",\"stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/system/info\",\"ent_cat\":\"diagnostic\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/button/klimaanlage-buero/restart/config",
+            "payload": "{\"icon\":\"mdi:restart\",\"name\":\"Restart\",\"unique_id\":\"AABBCC000001_restart\",\"dev_cla\":\"restart\",\"payload_press\":\"restart\",\"command_topic\":\"mitsubishi2mqtt/klimaanlage-buero/system/set\",\"ent_cat\":\"config\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/climate/klimaanlage-buero/config",
+            "payload": "{\"name\":null,\"unique_id\":\"AABBCC000001\",\"modes\":[\"heat_cool\",\"cool\",\"dry\",\"heat\",\"fan_only\",\"off\"],\"mode_cmd_t\":\"mitsubishi2mqtt/klimaanlage-buero/mode/set\",\"mode_stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/state\",\"mode_stat_tpl\":\"{{ value_json.mode if (value_json is defined and value_json.mode is defined and value_json.mode|length) else 'off' }}\",\"temp_cmd_t\":\"mitsubishi2mqtt/klimaanlage-buero/temp/set\",\"temp_stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/state\",\"pow_cmd_t\":\"mitsubishi2mqtt/klimaanlage-buero/power/set\",\"temp_stat_tpl\":\"{% if (value_json is defined and value_json.temperature is defined) %}{% if (value_json.temperature|int >= 16.00 and value_json.temperature|int <= 31.00) %}{{ value_json.temperature }}{% elif (value_json.temperature|int < 16.00) %}16.00{% elif (value_json.temperature|int > 31.00) %}31.00{% endif %}{% else %}22.00{% endif %}\",\"curr_temp_t\":\"mitsubishi2mqtt/klimaanlage-buero/state\",\"curr_temp_tpl\":\"{{ value_json.room_temperature if (value_json is defined and value_json.room_temperature is defined and value_json.room_temperature|int > 1.00) }}\",\"min_temp\":16,\"max_temp\":31,\"temp_step\":\"1\",\"temperature_unit\":\"C\",\"fan_modes\":[\"auto\",\"diffuse\",\"low\",\"medium\",\"middle\",\"high\"],\"fan_mode_cmd_t\":\"mitsubishi2mqtt/klimaanlage-buero/fan/set\",\"fan_mode_stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/state\",\"fan_mode_stat_tpl\":\"{{ value_json.fan if (value_json is defined and value_json.fan is defined and value_json.fan|length) else 'auto' }}\",\"swing_modes\":[\"AUTO\",\"1\",\"2\",\"3\",\"4\",\"5\",\"SWING\"],\"swing_mode_cmd_t\":\"mitsubishi2mqtt/klimaanlage-buero/vane/set\",\"swing_mode_stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/state\",\"swing_mode_stat_tpl\":\"{{ value_json.vane if (value_json is defined and value_json.vane is defined and value_json.vane|length) else 'AUTO' }}\",\"swing_h_modes\":[\"<<\",\"<\",\"|\",\">\",\">>\",\"<>\",\"SWING\"],\"swing_h_mode_cmd_t\":\"mitsubishi2mqtt/klimaanlage-buero/wide-vane/set\",\"swing_h_mode_stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/state\",\"swing_h_mode_stat_tpl\":\"{{ value_json.wideVane if (value_json is defined and value_json.wideVane is defined and value_json.wideVane|length) else 'SWING' }}\",\"action_topic\":\"mitsubishi2mqtt/klimaanlage-buero/state\",\"action_template\":\"{{ value_json.action if (value_json is defined and value_json.action is defined and value_json.action|length) else 'idle' }}\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/klimaanlage-buero/webpanel/config",
+            "payload": "{\"icon\":\"mdi:cog\",\"name\":\"WebPanel\",\"unique_id\":\"AABBCC000001_webpanel\",\"command_template\":\"{\\\"options\\\": {\\\"webpanel\\\": \\\"{{ value }}\\\" } }\",\"command_topic\":\"mitsubishi2mqtt/klimaanlage-buero/system/opt/rqt\",\"options\":[\"On\",\"Off\"],\"state_topic\":\"mitsubishi2mqtt/klimaanlage-buero/system/info\",\"value_template\":\"{{ value_json.webpanel }}\",\"entity_category\":\"config\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/klimaanlage-buero/bssi/config",
+            "payload": "{\"icon\":\"mdi:router-wireless\",\"name\":\"BSSI\",\"unique_id\":\"AABBCC000001_bssi\",\"val_tpl\":\"{{ value_json.bssi }}\",\"stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/system/info\",\"ent_cat\":\"diagnostic\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/klimaanlage-buero/compressor_freq/config",
+            "payload": "{\"icon\":\"mdi:sine-wave\",\"name\":\"Compressor Freq\",\"unique_id\":\"AABBCC000001_compressor_freq\",\"val_tpl\":\"{{ value_json.compressor_freq }}\",\"dev_cla\":\"frequency\",\"unit_of_meas\":\"Hz\",\"stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/state\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/klimaanlage-buero/free_heap/config",
+            "payload": "{\"icon\":\"mdi:memory\",\"name\":\"Free Heap\",\"unique_id\":\"AABBCC000001_free_heap\",\"val_tpl\":\"{{ value_json.free_heap }}\",\"unit_of_meas\":\"%\",\"sug_dsp_prc\":0,\"stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/system/info\",\"ent_cat\":\"diagnostic\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/klimaanlage-buero/room_temperature/config",
+            "payload": "{\"icon\":\"mdi:thermometer\",\"name\":\"Room Temperature\",\"unique_id\":\"AABBCC000001_room_temperature\",\"val_tpl\":\"{{ value_json.room_temperature }}\",\"dev_cla\":\"temperature\",\"unit_of_meas\":\"°C\",\"stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/state\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/klimaanlage-buero/rssi/config",
+            "payload": "{\"icon\":\"mdi:network-strength-1\",\"name\":\"RSSI\",\"unique_id\":\"AABBCC000001_rssi\",\"val_tpl\":\"{{ value_json.rssi }}\",\"unit_of_meas\":\"dBm\",\"stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/system/info\",\"ent_cat\":\"diagnostic\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/klimaanlage-buero/up_time/config",
+            "payload": "{\"icon\":\"mdi:clock\",\"name\":\"Up Time\",\"unique_id\":\"AABBCC000001_up_time\",\"val_tpl\":\"{{ as_datetime(value_json.up_time) }}\",\"dev_cla\":\"timestamp\",\"stat_t\":\"mitsubishi2mqtt/klimaanlage-buero/system/info\",\"ent_cat\":\"diagnostic\",\"dev\":{\"ids\":[\"klimaanlage-buero_AABBCC000001\"],\"cns\":[[\"mac\",\"AABBCC000001\"]],\"name\":\"klimaanlage-buero\",\"sw\":\"Mitsubishi2MQTT 2025.10.30\",\"hw\":\"PLATFORMIO_D1_MINI\",\"mdl\":\"HVAC MITSUBISHI\",\"mf\":\"MITSUBISHI ELECTRIC\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"mitsubishi2mqtt/klimaanlage-buero/availability\",\"pl_avail\":\"online\",\"pl_not_avail\":\"offline\"}",
+            "received_at": 1792675074,
+            "session_id": "10000-4-1792675074",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        }
+    ],
+    "topic_payloads": [
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/availability",
+            "payload": "online",
+            "received_at": 1792675097,
+            "session_id": "10000-4-1792675074",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/state",
+            "payload": "{\"room_temperature\":21.5,\"temperature\":22,\"fan\":\"medium\",\"vane\":\"AUTO\",\"wideVane\":\"|\",\"mode\":\"off\",\"action\":\"off\",\"compressor_freq\":0}",
+            "received_at": 1792675097,
+            "session_id": "10000-4-1792675074",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "mitsubishi2mqtt/klimaanlage-buero/system/info",
+            "payload": "{\"connection_state\":\"online\",\"free_heap\":\"42.00\",\"rssi\":\"-60\",\"bssi\":\"00:00:5E:00:53:01\",\"up_time\":0,\"webpanel\":\"On\"}",
+            "received_at": 1792675187,
+            "session_id": "10000-4-1792675074",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        }
+    ],
+    "stats": {
+        "discovery_config_count": 10,
+        "topic_payload_count": 3
+    }
+}

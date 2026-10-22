@@ -405,6 +405,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $entity = $target['entity'];
+        if ($target['type'] === 'climate_attribute') {
+            $this->handleClimateAttributeRequest((string) $Ident, $entity, $target['attribute'], $Value);
+            return;
+        }
+
         if ($target['type'] === 'light_attribute') {
             $this->handleLightAttributeRequest((string) $Ident, $entity, $target['attribute'], $Value);
             return;
@@ -457,6 +462,44 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS)) {
             $this->emulateOptimisticStatus($Ident, $Value);
+        }
+    }
+
+    // Wie HA (mqtt/climate.py): jeder Kanal sendet nur an sein eigenes Command-Topic, auch der Modus „off“.
+    private function handleClimateAttributeRequest(string $Ident, array $entity, string $attribute, mixed $Value): void
+    {
+        $channel = $entity['climate'][$attribute] ?? null;
+        if (!is_array($channel) || !$this->isClimateChannelWritable($channel)) {
+            $this->debugExpert('RequestAction', 'Klima-Attribut ist nicht schreibbar', ['Ident' => $Ident, 'Attribute' => $attribute], true);
+            return;
+        }
+
+        $value = is_scalar($Value) ? trim((string)$Value) : '';
+        if ($value === '' || ($channel['options'] !== [] && !in_array($value, $channel['options'], true))) {
+            $this->debugExpert('RequestAction', 'Wert nicht unter den angekündigten Optionen', [
+                'Ident' => $Ident,
+                'Value' => $Value,
+                'Options' => $channel['options']
+            ], true);
+            return;
+        }
+
+        $payload = $channel['command_mode'] === 'template' ? $this->renderCommandTemplate($channel['command_template'], $value) : $value;
+        if ($payload === null) {
+            $this->debugExpert('RequestAction', 'Klima-Payload konnte nicht erstellt werden', ['Ident' => $Ident, 'Value' => $Value], true);
+            return;
+        }
+
+        $this->debugExpert('RequestAction', 'Sende Klima-Attribut', [
+            'Ident' => $Ident,
+            'Attribute' => $attribute,
+            'CommandTopic' => $channel['command_topic'],
+            'Payload' => $payload
+        ]);
+        $this->sendMqttMessage($channel['command_topic'], $payload, (int)$entity['qos'], (bool)$entity['retain']);
+
+        if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || $channel['state_topic'] === '') {
+            $this->emulateOptimisticStatus($Ident, $value);
         }
     }
 
@@ -1009,8 +1052,36 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'state_unlocking' => $row['state_unlocking'] ?? null,
             'state_jammed' => $row['state_jammed'] ?? null,
             'options' => $this->normalizeOptions($row['options'] ?? null),
+            'climate' => $component === HAClimateDefinitions::DOMAIN ? $this->normalizeClimateChannels($row['climate'] ?? null) : [],
             'metadata' => $metadata
         ];
+    }
+
+    /** Zusatzkanäle eines Klimageräts (Modus, Lüfter, Lamellen, Aktion, Raumwerte), siehe HAMqttDiscoveryParser. */
+    private function normalizeClimateChannels(mixed $channels): array
+    {
+        $channels = $this->decodeJsonCandidate($channels);
+        if (!is_array($channels)) {
+            return [];
+        }
+
+        $result = [];
+        foreach (array_keys(HAClimateDefinitions::ATTRIBUTE_DEFINITIONS) as $attribute) {
+            $channel = $channels[$attribute] ?? null;
+            if (!is_array($channel)) {
+                continue;
+            }
+            $result[$attribute] = [
+                'state_topic' => trim((string)($channel['state_topic'] ?? ''), '/'),
+                'value_template' => $this->normalizeTemplate($channel['value_template'] ?? null),
+                'command_topic' => $this->normalizeNullableString($channel['command_topic'] ?? null) ?? '',
+                'command_template' => $this->normalizeTemplate($channel['command_template'] ?? null),
+                'command_mode' => $this->normalizeNullableString($channel['command_mode'] ?? null) ?? 'none',
+                'options' => $this->normalizeOptions($channel['options'] ?? null)
+            ];
+        }
+
+        return $result;
     }
 
     private function normalizeMetadata(mixed $metadata): array
@@ -1428,10 +1499,81 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
             if ((string)($entity['component'] ?? '') === HALockDefinitions::DOMAIN) {
                 $idents = array_merge($idents, $this->maintainLockActionVariable($entity, $basePosition));
+                continue;
+            }
+
+            if ((string)($entity['component'] ?? '') === HAClimateDefinitions::DOMAIN) {
+                $idents = array_merge($idents, $this->maintainClimateAttributeVariables($entity, $basePosition));
             }
         }
 
         return $idents;
+    }
+
+    // Variablen und Darstellung wie im Bridge-Device (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS,
+    // gemeinsame Optionsdarstellung), damit beide Familien gleich heißen und sich gleich bedienen.
+    private function maintainClimateAttributeVariables(array $entity, int $basePosition): array
+    {
+        $idents = [];
+        $offset = 0;
+        foreach (HAClimateDefinitions::ATTRIBUTE_DEFINITIONS as $attribute => $meta) {
+            $offset++;
+            $channel = $entity['climate'][$attribute] ?? null;
+            if (!is_array($channel)) {
+                continue;
+            }
+
+            $ident = $this->buildClimateAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), $attribute);
+            $variableType = (int)$meta['type'];
+            $writable = $this->isClimateChannelWritable($channel);
+            $this->recreateVariableIfTypeChanged($ident, $variableType);
+            $this->MaintainVariable(
+                $ident,
+                $this->Translate((string)$meta['caption']),
+                $variableType,
+                $this->buildClimateAttributePresentation($attribute, $channel, $entity, $writable),
+                $basePosition + $offset,
+                true
+            );
+
+            if ($writable) {
+                $this->EnableAction($ident);
+            } else {
+                $this->DisableAction($ident);
+            }
+            $idents[] = $ident;
+        }
+
+        return $idents;
+    }
+
+    private function buildClimateAttributePresentation(string $attribute, array $channel, array $entity, bool $writable): array
+    {
+        $options = $attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION ? HAClimateDefinitions::HVAC_ACTION_OPTIONS : $channel['options'];
+        $presentation = $this->buildSharedOptionPresentation(
+            $options,
+            $writable,
+            fn(string $value): string => $this->Translate($this->getClimateOptionCaption($value))
+        );
+        if ($presentation !== null) {
+            return $presentation;
+        }
+
+        return match ($attribute) {
+            HAClimateDefinitions::ATTRIBUTE_CURRENT_TEMPERATURE => $this->buildValuePresentation(1, $this->resolveClimatePresentationSuffix($entity['metadata'])),
+            HAClimateDefinitions::ATTRIBUTE_CURRENT_HUMIDITY => $this->buildValuePresentation(0, '%'),
+            default => $this->buildValuePresentation(null, '')
+        };
+    }
+
+    private function isClimateChannelWritable(array $channel): bool
+    {
+        return $channel['command_topic'] !== '' && in_array($channel['command_mode'], ['payload', 'template'], true);
+    }
+
+    private function buildClimateAttributeIdent(string $entityIdentPrefix, string $attribute): string
+    {
+        return $this->buildSharedAttributeIdentFromPrefix($entityIdentPrefix, $attribute);
     }
 
     private function determineVariableType(array $entity, array $cachedTopics): int
@@ -1782,12 +1924,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function resolveClimatePresentationSuffix(array $metadata): string
     {
+        // temperature_unit der MQTT-Discovery kennt nur „C“ und „F“ (HA mqtt/climate.py).
         $unit = trim((string)($metadata['unit'] ?? ''));
-        if ($unit !== '') {
-            return $unit;
-        }
-
-        return '°C';
+        return match (strtoupper($unit)) {
+            '', 'C' => '°C',
+            'F' => '°F',
+            default => $unit
+        };
     }
 
     private function resolveNumberPresentationSuffix(array $metadata): string
@@ -2855,7 +2998,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
-            foreach ([$entity['state_topic'], $entity['latest_version_topic'], $entity['json_attributes_topic']] as $topic) {
+            foreach ([$entity['state_topic'], $entity['latest_version_topic'], $entity['json_attributes_topic'], ...array_column($entity['climate'], 'state_topic')] as $topic) {
                 if ($topic !== '') {
                     $topics[$topic] = true;
                 }
@@ -2884,7 +3027,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'warnings' => [],
             'state' => [],
             'attributes' => [],
-            'availability' => []
+            'availability' => [],
+            'climate' => []
         ];
 
         foreach ($entities as $entity) {
@@ -2929,6 +3073,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 $index['attributes'][$attributesTopic][$entityKey] = true;
             }
 
+            foreach (($entity['climate'] ?? []) as $channel) {
+                $channelTopic = trim((string)($channel['state_topic'] ?? ''), '/');
+                if ($channelTopic !== '') {
+                    $index['topics'][$channelTopic] = true;
+                    $index['climate'][$channelTopic][$entityKey] = true;
+                }
+            }
+
             foreach (($entity['availability']['entries'] ?? []) as $entry) {
                 $topic = trim((string)($entry['topic'] ?? ''), '/');
                 if ($topic === '') {
@@ -2942,7 +3094,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $index['topics'] = array_keys($index['topics']);
         sort($index['topics'], SORT_STRING);
 
-        foreach (['warnings', 'state', 'attributes', 'availability'] as $bucket) {
+        foreach (['warnings', 'state', 'attributes', 'availability', 'climate'] as $bucket) {
             ksort($index[$bucket], SORT_STRING);
             foreach ($index[$bucket] as $topic => $entityLookup) {
                 $keys = array_keys($entityLookup);
@@ -2997,7 +3149,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'warnings' => $normalizeBucket($decoded['warnings'] ?? []),
             'state' => $normalizeBucket($decoded['state'] ?? []),
             'attributes' => $normalizeBucket($decoded['attributes'] ?? []),
-            'availability' => $normalizeBucket($decoded['availability'] ?? [])
+            'availability' => $normalizeBucket($decoded['availability'] ?? []),
+            'climate' => $normalizeBucket($decoded['climate'] ?? [])
         ];
     }
 
@@ -3166,6 +3319,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             }
 
             $this->applyAttributesPayload($entity, $payload);
+        }
+
+        foreach (($topicIndex['climate'][$topic] ?? []) as $entityKey) {
+            $entity = $entityLookup[$entityKey] ?? null;
+            if (is_array($entity)) {
+                $this->applyClimateChannelPayload($entity, $topic, $payload);
+            }
         }
 
         $availabilityKeys = $topicIndex['availability'][$topic] ?? [];
@@ -3357,6 +3517,34 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $this->setReceivedValue($ident, $castValue);
+    }
+
+    // Mehrere Kanäle teilen sich oft ein Topic (mitsubishi2mqtt: alles auf …/state); jeder liest sein Feld.
+    private function applyClimateChannelPayload(array $entity, string $topic, string $payload): void
+    {
+        foreach ($entity['climate'] as $attribute => $channel) {
+            if ($channel['state_topic'] !== $topic) {
+                continue;
+            }
+
+            $ident = $this->buildClimateAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), $attribute);
+            $variableId = @$this->GetIDForIdent($ident);
+            if ($variableId === false) {
+                continue;
+            }
+
+            $value = $channel['value_template'] === null
+                ? $this->extractRawPayloadValue($payload)
+                : $this->extractTemplateValue($channel['value_template'], $payload);
+            if ($value === null || is_array($value) || $this->isIndeterminateStateValue($value)) {
+                continue;
+            }
+
+            $castValue = $this->castSensorValue($value, IPS_GetVariable($variableId)['VariableType']);
+            if ($castValue !== null) {
+                $this->setReceivedValue($ident, $castValue);
+            }
+        }
     }
 
     private function applyAttributesPayload(array $entity, string $payload): void
@@ -3821,7 +4009,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $template = $entity['value_template'];
         if ($template === null || !($template['supported'] ?? false)) {
-            return $this->normalizeComponentStateValue($entity, $this->extractRawPayloadValue($payload));
+            $raw = $this->extractRawPayloadValue($payload);
+            // Ein Template, das wir nicht verstehen, auf ein JSON-Objekt angewandt: Was HA daraus macht,
+            // wissen wir nicht. Das ganze JSON in die Variable zu schreiben ist sicher falsch
+            // (mitsubishi2mqtt „Up Time“: {{ as_datetime(value_json.up_time) }}).
+            if ($template !== null && is_array($raw)) {
+                return null;
+            }
+            return $this->normalizeComponentStateValue($entity, $raw);
         }
 
         $kind = (string)($template['kind'] ?? '');
@@ -3836,18 +4031,40 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 return null;
             }
 
-            $value = $decoded;
-            foreach (($template['path'] ?? []) as $segment) {
-                if (!is_array($value) || !array_key_exists($segment, $value)) {
-                    return null;
-                }
-                $value = $value[$segment];
+            $value = $this->resolveTemplateJsonPath($template, $decoded);
+            if ($value === null) {
+                return null;
             }
 
             return $this->normalizeComponentStateValue($entity, $this->applyTemplateFilters($value, $template['filters'] ?? []));
         }
 
         return $this->normalizeComponentStateValue($entity, $this->extractRawPayloadValue($payload));
+    }
+
+    // Feld nach Pfad; fehlt es oder ist es leer, gilt der Rückfallwert des Templates (… else 'off').
+    private function resolveTemplateJsonPath(array $template, mixed $decoded): mixed
+    {
+        $default = $template['default'] ?? null;
+        $value = $decoded;
+        foreach (($template['path'] ?? []) as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return $default;
+            }
+            $value = $value[$segment];
+        }
+
+        return ($value === null || $value === '') && $default !== null ? $default : $value;
+    }
+
+    // Wie extractValueFromTemplate, aber ein nicht unterstütztes Template liefert null statt der Rohdaten.
+    private function extractTemplateValue(array $template, string $payload): mixed
+    {
+        if (!($template['supported'] ?? false)) {
+            return null;
+        }
+
+        return $this->extractValueFromTemplate($template, $payload);
     }
 
     private function extractRawPayloadValue(string $payload): mixed
@@ -4190,12 +4407,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return $payload;
         }
 
-        $value = $decoded;
-        foreach (($template['path'] ?? []) as $segment) {
-            if (!is_array($value) || !array_key_exists($segment, $value)) {
-                return null;
-            }
-            $value = $value[$segment];
+        $value = $this->resolveTemplateJsonPath($template, $decoded);
+        if ($value === null) {
+            return null;
         }
 
         return $this->applyTemplateFilters($value, $template['filters'] ?? []);
@@ -4855,6 +5069,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         foreach ($entities as $lightEntity) {
+            if ((string)($lightEntity['component'] ?? '') === HAClimateDefinitions::DOMAIN) {
+                $identPrefix = (string)($lightEntity['ident_prefix'] ?? $lightEntity['ident']);
+                foreach (array_keys($lightEntity['climate']) as $attribute) {
+                    if ($this->buildClimateAttributeIdent($identPrefix, $attribute) === $ident) {
+                        return [
+                            'type' => 'climate_attribute',
+                            'entity' => $lightEntity,
+                            'attribute' => $attribute
+                        ];
+                    }
+                }
+                continue;
+            }
+
             if ((string)($lightEntity['component'] ?? '') === HALockDefinitions::DOMAIN) {
                 $identPrefix = (string)($lightEntity['ident_prefix'] ?? $lightEntity['ident']);
                 if ($this->buildLockActionIdent($identPrefix) === $ident) {

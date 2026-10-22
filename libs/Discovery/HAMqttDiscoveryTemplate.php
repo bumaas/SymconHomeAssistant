@@ -7,6 +7,9 @@ final class HAMqttDiscoveryTemplate
     /** @var string[] */
     private const array SUPPORTED_FILTERS = ['lower', 'upper', 'trim'];
 
+    /** Zugriff auf ein JSON-Feld: .feld, ["feld"], ['feld'] oder [0], beliebig verkettet. */
+    private const string JSON_ACCESSOR = '((?:\.\w+|\[(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\'|\d+)])+)';
+
     public static function parseValueTemplate(?string $template): ?array
     {
         if (!is_string($template)) {
@@ -51,6 +54,11 @@ final class HAMqttDiscoveryTemplate
             ];
         }
 
+        $conditional = self::parseConditionalJsonTemplate($raw);
+        if ($conditional !== null) {
+            return $conditional + ['raw' => $raw];
+        }
+
         return [
             'kind'      => 'raw_template',
             'path'      => [],
@@ -89,6 +97,62 @@ final class HAMqttDiscoveryTemplate
             'supported' => false,
             'raw'       => $raw
         ];
+    }
+
+    /**
+     * Bedingte Templates, die am Ende genau ein JSON-Feld ausgeben (mitsubishi2mqtt u. a.):
+     *   {{ value_json.mode if (…) else 'off' }}   → Feld mode, Rückfallwert „off“
+     *   {{ value_json.room_temperature if (…) }}   → Feld room_temperature, ohne Rückfallwert
+     *   {% if … %}{{ value_json.temperature }}{% elif … %}16.00{% endif %} → Feld temperature
+     * Die Bedingung selbst wertet das Modul nicht aus. Beim Block bleiben Begrenzungen wie 16.00 außen
+     * vor: gilt der Wert, steht er im Feld. Der Rückfallwert greift, wenn das Feld fehlt oder leer ist
+     * (so prüfen die Producer mit `is defined` und `|length`).
+     */
+    private static function parseConditionalJsonTemplate(string $raw): ?array
+    {
+        $literal = '(\'(?:[^\'\\\\]|\\\\.)*\'|"(?:[^"\\\\]|\\\\.)*"|-?\d+(?:\.\d+)?)';
+        if (preg_match('/^{{\s*value_json' . self::JSON_ACCESSOR . '\s+if\s+.+?(?:\s+else\s+' . $literal . ')?\s*}}$/s', $raw, $matches) === 1) {
+            $path = self::parseJsonAccessorPath($matches[1]);
+            if ($path === []) {
+                return null;
+            }
+            $default = isset($matches[2]) && $matches[2] !== '' ? self::parseLiteral($matches[2]) : null;
+            return ['kind' => 'json_path', 'path' => $path, 'filters' => [], 'supported' => true, 'default' => $default];
+        }
+
+        if (!str_starts_with($raw, '{%')) {
+            return null;
+        }
+
+        // Block: Steueranweisungen entfernen; übrig bleiben Ausgaben {{ … }} und Text dazwischen.
+        $outputs = preg_split('/{%.*?%}/s', $raw);
+        $path = null;
+        foreach ($outputs ?: [] as $piece) {
+            foreach (preg_split('/({{.*?}})/s', $piece, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY) ?: [] as $part) {
+                $part = trim($part);
+                if ($part === '' || is_numeric($part)) {
+                    continue;
+                }
+                if (preg_match('/^{{\s*value_json' . self::JSON_ACCESSOR . '\s*}}$/', $part, $matches) !== 1) {
+                    return null;
+                }
+                $candidate = self::parseJsonAccessorPath($matches[1]);
+                if ($candidate === [] || ($path !== null && $candidate !== $path)) {
+                    return null;
+                }
+                $path = $candidate;
+            }
+        }
+
+        return $path === null ? null : ['kind' => 'json_path', 'path' => $path, 'filters' => [], 'supported' => true, 'default' => null];
+    }
+
+    private static function parseLiteral(string $literal): string
+    {
+        if ($literal[0] === '\'' || $literal[0] === '"') {
+            return stripcslashes(substr($literal, 1, -1));
+        }
+        return $literal;
     }
 
     private static function parseJsonAccessorPath(string $path): array

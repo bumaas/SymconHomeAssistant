@@ -347,6 +347,31 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   erreichbar (die 202-Warnung meldet es schon); deshalb wird der Status vor der Erreichbarkeit bestimmt.
   Test: `tests/check-discovery-not-announced.php`.
 
+## MQTT Discovery: Klimageräte, Kurzformen, Templates (1.7 build 211)
+
+- Anlass: MarekG (t/142973 #376, PN 144746, 22.10.2026), Mitsubishi mit mitsubishi2mqtt. Hauptvariable
+  „0 C“, nie aktualisiert, ohne Aktion; Modus und Lüfter fehlten. Fixture `discovery_mitsubishi2mqtt_20261022.json`.
+- **Kurzformen** stehen vollständig in `libs/Discovery/HAMqttDiscoveryAbbreviations.php`, erzeugt aus HA Core
+  `mqtt/abbreviations.py` (nicht von Hand pflegen, bei Bedarf neu erzeugen). Vorher kannte der Parser nur die
+  allgemeinen (`stat_t`, `cmd_t` …); `temp_cmd_t` usw. fielen still durch.
+- **Klimakanäle:** `HAMqttDiscoveryParser::CLIMATE_CHANNELS` liefert je Attribut State-/Command-Topic, Template
+  und Optionen (Vorgabelisten und Feature-Regeln aus HA `mqtt/climate.py`), durchgereicht als Zeilenschlüssel
+  `climate`. Das Device legt dafür Variablen mit den Attributnamen aus `HAClimateDefinitions::ATTRIBUTE_DEFINITIONS`
+  an (wie die Bridge) und verteilt Meldungen über den eigenen Index-Bucket `climate`. Wie in HA sendet jeder
+  Kanal nur an sein Topic; `power_command_topic` gehört in HA zu `turn_on`/`turn_off`, nicht zum Modus, und
+  ist deshalb nicht abgebildet. Zielfeuchte und Bereichs-Solltemperatur (`temperature_low/high_*`) fehlen noch.
+- **Optionsdarstellung** (`buildSharedOptionPresentation`, `getClimateOptionCaption`) liegt im
+  `HASharedPresentationTrait` und gilt für beide Familien; Übersetzung reicht der Aufrufer als Callback herein.
+  Neue Beschriftungen gehören in die `locale.json` von Device **und** MQTT Discovery Device.
+- **Templates:** `parseConditionalJsonTemplate` erkennt `{{ value_json.X if … else 'Y' }}` (Rückfallwert Y bei
+  fehlendem oder leerem Feld, Schlüssel `default`) und `{% if %}`-Blöcke, die nur ein Feld und Zahlen
+  ausgeben. Die Bedingung wird nicht ausgewertet. Ein nicht unterstütztes Template auf einem JSON-Objekt
+  schreibt nichts mehr (vorher das ganze JSON, „Up Time“).
+- `temperature_unit` `C`/`F` wird zu `°C`/`°F`. Der Splitter zählt jedes `…command_topic`/`…cmd_t` als
+  `command` (vorher nur `cmd_t`, `bri_cmd_t`, `rgb_cmd_t`).
+- Test: `tests/check-discovery-climate.php`, bedingte Fälle in `check-mqtt-discovery-template-parser.php`;
+  der `DiscoveryDeviceHarness` schneidet MQTT-Sendungen mit (`$mqttSendungen`).
+
 ## Nachkommastellen (build 201, Blindtest-Befund 8)
 
 - HA führt die Anzeigegenauigkeit (`suggested_display_precision` der Integration, `display_precision` des

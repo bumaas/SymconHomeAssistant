@@ -23,6 +23,7 @@ require_once __DIR__ . '/Config/HAEntityConfigLoader.php';
 require_once __DIR__ . '/Config/HAEntityNormalization.php';
 require_once __DIR__ . '/Config/HAEntityConfigBuilder.php';
 require_once __DIR__ . '/Config/HAEntityGrouping.php';
+require_once __DIR__ . '/Discovery/HAMqttDiscoveryAbbreviations.php';
 require_once __DIR__ . '/Discovery/HAMqttDiscoveryTemplate.php';
 require_once __DIR__ . '/Discovery/HAMqttDiscoveryParser.php';
 require_once __DIR__ . '/Discovery/HAMqttDiscoveryGrouping.php';

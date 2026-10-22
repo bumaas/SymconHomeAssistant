@@ -1244,7 +1244,7 @@ trait HAPresentationTrait
             }
         }
         if ($attribute === HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION) {
-            $optionsRaw = ['off', 'idle', 'heating', 'cooling', 'drying', 'fan', 'preheating', 'defrosting'];
+            $optionsRaw = HAClimateDefinitions::HVAC_ACTION_OPTIONS;
             $current = $attributes[HAClimateDefinitions::ATTRIBUTE_HVAC_ACTION] ?? null;
             if (is_string($current) && trim($current) !== '') {
                 $optionsRaw[] = trim($current);
@@ -1294,92 +1294,11 @@ trait HAPresentationTrait
     // Beschriftungen (z. B. climate hvac_action -> "Heizen"/"Kühlen").
     protected function buildOptionPresentation(array|string|null $options, bool $writable, ?callable $captionResolver = null): ?array
     {
-        $normalized = HASelectDefinitions::normalizeOptions($options);
-        if ($normalized === []) {
-            return null;
-        }
-
-        $formatted = [];
-        foreach ($normalized as $value) {
-            $text = is_scalar($value) ? (string)$value : '';
-            if ($text === '') {
-                continue;
-            }
-            $caption = $captionResolver !== null ? (string)$captionResolver($text) : $text;
-            $option = [
-                'Value'      => $text,
-                'Caption'    => $this->translate($caption),
-                'IconActive' => false,
-                'IconValue'  => ''
-            ];
-            if ($writable) {
-                $option['Color'] = -1;
-            } else {
-                $option['ColorActive'] = false;
-                $option['ColorValue'] = -1;
-            }
-            $formatted[] = $option;
-        }
-
-        if ($formatted === []) {
-            return null;
-        }
-
-        return $this->filterPresentation([
-            'PRESENTATION' => $writable ? VARIABLE_PRESENTATION_ENUMERATION : VARIABLE_PRESENTATION_VALUE_PRESENTATION,
-            'OPTIONS'      => json_encode($formatted, JSON_THROW_ON_ERROR)
-        ]);
-    }
-
-    private function getClimateOptionCaption(string $value): string
-    {
-        $normalized = strtolower(trim($value));
-        if ($normalized === '') {
-            return $value;
-        }
-
-        $map = [
-            'heat' => 'Heating',
-            'cool' => 'Cooling',
-            'heat_cool' => 'Heat/Cool',
-            'dry' => 'Dry (mode)',
-            'fan_only' => 'Fan Only',
-            'auto' => 'Auto',
-            'off' => 'Off',
-            'on' => 'On',
-            'none' => 'None',
-            'eco' => 'Eco',
-            'boost' => 'Boost',
-            'comfort' => 'Comfort',
-            'away' => 'Away',
-            'home' => 'Home',
-            'sleep' => 'Sleep',
-            'activity' => 'Activity',
-            'idle' => 'Idle',
-            'heating' => 'Heating',
-            'cooling' => 'Cooling',
-            'drying' => 'Drying',
-            'fan' => 'Fan',
-            'preheating' => 'Preheating',
-            'defrosting' => 'Defrosting',
-            'low' => 'Low',
-            'low' . 'mid' => 'Low-Middle',
-            'high' . 'mid' => 'Middle-High',
-            'high' => 'High',
-            'up' => 'Up',
-            'down' => 'Down',
-            'left' => 'Left',
-            'right' => 'Right',
-            'mid' => 'Middle',
-            'middle' => 'Middle',
-            'left' . 'mid' => 'Middle-Left',
-            'right' . 'mid' => 'Middle-Right',
-            'up' . 'mid' => 'Upper-Middle',
-            'down' . 'mid' => 'Lower-Middle',
-            'swing' => 'Swing'
-        ];
-
-        return $map[$normalized] ?? $value;
+        return $this->buildSharedOptionPresentation(
+            $options,
+            $writable,
+            fn(string $text): string => $this->translate($captionResolver !== null ? (string)$captionResolver($text) : $text)
+        );
     }
 
     private function getClimateSliderPresentation(array $attributes): ?array

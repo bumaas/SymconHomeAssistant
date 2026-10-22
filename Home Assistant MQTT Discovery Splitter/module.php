@@ -3037,10 +3037,15 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function determineReferencedRuntimeTopicKind(string $currentKey): string
     {
+        // Befehls-Topics enden in Lang- und Kurzform gleich (mode_command_topic / mode_cmd_t, pow_cmd_t, …);
+        // als state gezählt erschienen sie in der Bundle-Diagnose als „fehlende Zustandsmeldung“.
+        if (str_ends_with($currentKey, 'command_topic') || str_ends_with($currentKey, 'cmd_t')) {
+            return 'command';
+        }
+
         /** @noinspection SpellCheckingInspection */
         return match ($currentKey) {
             'availability_topic', 'avty_t' => 'availability',
-            'command_topic', 'cmd_t', 'bri_cmd_t', 'rgb_cmd_t' => 'command',
             'json_attributes_topic', 'json_attr_t' => 'attributes',
             default => 'state'
         };
