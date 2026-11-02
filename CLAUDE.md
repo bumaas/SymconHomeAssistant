@@ -508,7 +508,9 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
 - Der MQTT Discovery Configurator läuft über `DiscoveryConfiguratorHarness` (Splitter-Antwort
   `$splitterAntwort`, aktiver Parent `$parentAktiv`). Properties gesetzter Instanzen sieht
   `IPS_GetProperty` im Stub erst nach `ApplyChanges` (vorher stehen sie als „Pending“).
-  Test: `check-discovery-configurator-orphans.php` (verwaiste und doppelte Instanzen, build 215).
+  Test: `check-discovery-configurator-orphans.php` (verwaiste und doppelte Instanzen, build 215; seit build 225
+  auch Instanzen ohne `DeviceID` als eigene Zeile, und bei ausgeblendeten Bridges keine ihrer Instanzen, vorher
+  erschien die zweite als „doppelt“ ohne Original).
   Der HA-Konfigurator läuft über `ConfiguratorHarness`. Einen unpassenden Splitter lässt der Stub
   nicht verbinden („Dataflow is incompatible“), der Fall „falsches Gateway“ ist nicht testbar.
 - Konfiguratoren zeigen einen fehlenden oder inaktiven Splitter als Label im Aktionsbereich

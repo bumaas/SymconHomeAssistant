@@ -24,6 +24,7 @@
       "Read and write": "Lesen und Schreiben",
       "none": "keine",
       "Duplicate device ID": "Doppelte Geräte-ID",
+      "No device ID configured": "Keine Geräte-ID eingetragen",
       "Not found in MQTT discovery": "In MQTT Discovery nicht gefunden",
       "No gateway connected. Select a Home Assistant MQTT Discovery Splitter as gateway.": "Kein Gateway verbunden. Über „Gateway ändern“ einen Home Assistant MQTT Discovery Splitter auswählen.",
       "The gateway is not a Home Assistant MQTT Discovery Splitter. Change the gateway to a Home Assistant MQTT Discovery Splitter.": "Das Gateway ist kein Home Assistant MQTT Discovery Splitter. Über „Gateway ändern“ einen Home Assistant MQTT Discovery Splitter auswählen.",

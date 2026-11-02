@@ -16,7 +16,7 @@ Liest MQTT-Discovery-Konfigurationen direkt aus einer MQTT-Discovery-Quelle übe
 - Zeigt MQTT-Discovery-Geräte aus klassischen und Device-Discovery-Exports im Configurator an.
 - Zeigt zusätzlich eine Diagnose-Summary für nicht unterstützte oder parserseitig übersprungene Discovery-Einträge.
 - Legt daraus `Home Assistant MQTT Discovery Device` Instanzen an.
-- Listet jede Device-Instanz am eigenen Splitter, auch wenn ihr Gerät nicht mehr angekündigt wird. Sie steht dann als „In MQTT Discovery nicht gefunden“ in der Liste und lässt sich dort löschen. Eine zweite Instanz mit derselben Geräte-ID erscheint als „Doppelte Geräte-ID“. Ausgeblendete Bridges bleiben ausgeblendet.
+- Listet jede Device-Instanz am eigenen Splitter, auch wenn ihr Gerät nicht mehr angekündigt wird. Sie steht dann als „In MQTT Discovery nicht gefunden“ in der Liste und lässt sich dort löschen. Eine zweite Instanz mit derselben Geräte-ID erscheint als „Doppelte Geräte-ID“, eine Instanz ohne Geräte-ID als „Keine Geräte-ID eingetragen“. Ausgeblendete Bridges bleiben samt allen ihren Instanzen ausgeblendet.
 - Übergibt an Discovery-Devices nur noch stabile Basisdaten:
   - `DeviceID`
   - Symcon-Instanzname

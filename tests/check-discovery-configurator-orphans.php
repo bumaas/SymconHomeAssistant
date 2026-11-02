@@ -15,7 +15,8 @@ declare(strict_types=1);
  *
  * Jetzt: Instanzen ohne Gerät im Zwischenspeicher stehen als „Not found in MQTT discovery“ in der
  * Liste, weitere Instanzen derselben Geräte-ID als „Duplicate device ID“. Instanzen an einem anderen
- * Splitter bleiben ausgeblendet, ebenso Bridge-Instanzen, wenn der Anwender Bridges ausblendet.
+ * Splitter bleiben ausgeblendet, ebenso alle Bridge-Instanzen, wenn der Anwender Bridges ausblendet.
+ * Eigene Instanzen ohne Geräte-ID stehen als „No device ID configured“ in der Liste (build 225).
  *
  * Fixture: echtes Discovery-Bundle tests/fixtures/ha_mqtt_discovery_bundle_ebusd.json.
  */
@@ -88,6 +89,8 @@ $aDoppelt = geraeteInstanz($splitter->id(), GERAET_A, 'Gerät A (zweite Instanz)
 $b = geraeteInstanz($splitter->id(), GERAET_B, 'Gerät B');
 $bFremd = geraeteInstanz($fremderSplitter->id(), GERAET_B, 'Gerät B am anderen Splitter');
 $bridge = geraeteInstanz($splitter->id(), BRIDGE, 'Bridge');
+$bridgeDoppelt = geraeteInstanz($splitter->id(), BRIDGE, 'Bridge (zweite Instanz)');
+$ohneId = geraeteInstanz($splitter->id(), '', 'Von Hand angelegt');
 
 // 1. Gerät B wird nicht mehr angekündigt.
 splitterAntwort($ohneB);
@@ -124,5 +127,26 @@ $z = zeilen($k);
 pruefe(zeilenFuer($z, $bridge) === [], 'Bridges ausgeblendet: Bridge-Instanz erscheint nicht als „nicht gefunden“',
     json_encode(zeilenFuer($z, $bridge)));
 pruefe(count(zeilenFuer($z, $b)) === 1, 'Bridges ausgeblendet: verwaiste Instanz bleibt sichtbar');
+// Code-Review 02.11.2026: Bis build 224 erschien die erste Bridge-Instanz nicht, die zweite aber als
+// „Duplicate device ID“, also ein Duplikat ohne Original.
+pruefe(zeilenFuer($z, $bridgeDoppelt) === [], 'Bridges ausgeblendet: auch die zweite Bridge-Instanz erscheint nicht',
+    json_encode(zeilenFuer($z, $bridgeDoppelt)));
+
+// 3. Eine eigene Instanz ohne Geräte-ID (von Hand angelegt, noch nicht eingerichtet) steht in der Liste,
+// in beiden Einstellungen. Bis build 224 übersprang buildExistingDeviceInstanceMap sie ganz.
+foreach ([false, true] as $zeigeBridges) {
+    $k->SetProperty('ShowBridgeDevices', $zeigeBridges);
+    $k->ApplyChanges();
+    $zOhneId = zeilenFuer(zeilen($k), $ohneId);
+    $text = $zeigeBridges ? 'Bridges sichtbar' : 'Bridges ausgeblendet';
+    pruefe(count($zOhneId) === 1, $text . ': Instanz ohne Geräte-ID steht in der Liste', json_encode($zOhneId));
+    pruefe(($zOhneId[0]['Summary'] ?? '') === 'No device ID configured', $text . ': Zeile sagt „keine Geräte-ID“',
+        (string)($zOhneId[0]['Summary'] ?? ''));
+    pruefe(($zOhneId[0]['name'] ?? '') === 'Von Hand angelegt' && !isset($zOhneId[0]['create']),
+        $text . ': Name der Instanz, nichts zum Anlegen', json_encode($zOhneId));
+}
+$zBridgeSichtbar = zeilenFuer(zeilen($k), $bridgeDoppelt);
+pruefe(count($zBridgeSichtbar) === 1 && ($zBridgeSichtbar[0]['Summary'] ?? '') === 'Duplicate device ID',
+    'Bridges sichtbar: zweite Bridge-Instanz als „doppelt“', json_encode($zBridgeSichtbar));
 
 ergebnis();
