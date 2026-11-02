@@ -813,6 +813,10 @@ trait HADeviceCoreTrait
             return;
         }
 
+        if ($this->handleObsoleteVariablesAction((string)$Ident)) {
+            return;
+        }
+
         if ($this->handleMediaRefreshAction((string)$Ident)) {
             return;
         }

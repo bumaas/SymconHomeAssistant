@@ -29,6 +29,7 @@ Laufzeitmodul für Geräte, die ihre Struktur und Laufzeitdaten über Home Assis
 - Kann auch manuell angelegt werden und lädt seine Entities dann über `DeviceID` selbst aus dem Discovery-Splitter.
 - Persistiert keine eigene `DeviceConfig` mehr. Die Laufzeit arbeitet mit `DeviceID` und einer aufgelösten Cache-Definition aus dem Splitter.
 - Die `Entity Selection` im Formular erlaubt es, einzelne Discovery-Entities gezielt zu aktivieren oder zu deaktivieren.
+- Variablen, die das Modul nicht mehr versorgt (Entität abgewählt oder nicht mehr angekündigt), verlieren ihre Aktion und behalten Name und Position. Das Meldungsprotokoll nennt jede einmal, das Formular zählt sie auf, der Knopf **„Veraltete Variablen löschen“** löscht sie nach einer Rückfrage. Name und Position der Bildvorschau setzt das Modul nur beim Anlegen, auch ein neues Bild ändert sie nicht.
 
 ## Voraussetzungen
 

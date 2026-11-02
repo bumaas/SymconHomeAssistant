@@ -212,10 +212,19 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 ## Veraltete Variablen (Device)
 
-- Was das Modul nicht mehr versorgt, wird nicht gelöscht, sondern „(veraltet)": Zusatz am Namen,
-  Aktion weg (`markVariableAsLegacy`). **Löschen ist Sache des Anwenders** — kein Löschknopf, keine
-  Automatik (Abstimmung Burkhard 03.10.2026; Archivdaten und Verweise gehören dem Anwender). Entscheidend ist allein der Ident, nie der Name — vom
-  Anwender geänderte Namen behalten ihren Text.
+- Was das Modul nicht mehr versorgt, löscht es nicht von sich aus: `markVariableAsLegacy`
+  (`libs/HALegacyVariableMigration.php`) nimmt nur die Aktion weg und führt den Ident im Attribut
+  `ObsoleteVariables`; das Log nennt ihn einmal (`KL_MESSAGE`). **Name und Position bleiben**
+  (Store-Review Punkt 11, build 221; bis build 220 „(veraltet)" am Namen und Rückbenennung bei
+  Rückkehr). Das Formular zählt die Variablen auf, der Knopf „Veraltete Variablen löschen“ löscht nach
+  Rückfrage (`confirm`, Aktion `DeleteObsoleteVariables`). Das ersetzt die Abstimmung vom 03.10.2026
+  („kein Löschknopf“), Entscheidung Burkhard 02.11.2026, Muster Roborock 2.6 build 112. Gilt für
+  Device, Entity und MQTT Discovery Device. Entscheidend ist allein der Ident, nie der Name.
+- **Rückkehr:** Das zentrale `MaintainVariable` (`HASharedPresentationTrait`) nimmt jeden Ident aus
+  der Liste, den das Modul wieder pflegt oder löscht — auch Attributvariablen aus dem heißen Pfad. Sonst
+  böte der Löschknopf eine lebende Variable an. Wer den Rückkehr-Zustand vor `MaintainVariable` braucht
+  (Aktion wieder setzen), fragt vorher `isObsoleteIdent()`. Das Attribut wird in `Create()` vor dem
+  Merkmal registriert und nur mit `@` gelesen (Reload-Fenster).
 - `cleanupManagedEntityObjects()` (Device `module.php`) läuft bei jedem `ApplyChanges` und ordnet
   jede Variable per Longest-Prefix dem Präfix einer Entität zu: aktiv → bleibt, nur altes/inaktives
   Präfix → veraltet. Variablen ohne Ident oder außerhalb jedes Entitäts-Namensraums bleiben tabu.
@@ -234,9 +243,12 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   nicht dem Zusammenführen der Attribute. Ist die neue Konfiguration einmal geschrieben, ist der
   Vorstand weg — ein späteres `ApplyChanges` holt das nicht nach.
 - Tests: `tests/check-legacy-idents.php` (Konfiguration und Variablen vom nuc, Fixture
-  `legacy_idents_20261003.json`), `tests/check-removed-entities.php` (Fixture
-  `removed_entities_ccu3_20261003.json`). Das Entity-Modul hat einen eigenen Pfad
-  (`cleanupRenamedSharedEntityObjects`), am nuc ohne Doppelgänger.
+  `legacy_idents_20261003.json`, auch Formular und Löschen), `tests/check-removed-entities.php` (Fixture
+  `removed_entities_ccu3_20261003.json`, auch Rückkehr), `tests/check-obsolete-variables-entity.php`.
+  Das Entity-Modul hat einen eigenen Pfad (`cleanupRenamedSharedEntityObjects`), am nuc ohne Doppelgänger.
+- **Medienobjekte** (Vorschau, Stream, Cover, Discovery-Bild): Name und Position nur beim Anlegen;
+  `ensureManagedMediaObject` reicht `$created` an den Meta-Callback (build 221). Vorher bei jeder
+  Pflege, beim Discovery-Bild bei jedem Bild-Update. Test: `tests/check-media-object-meta.php`.
 
 ## Mediaplayer-Kachel: Profile sind Absicht
 
@@ -345,7 +357,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   gingen auf 202 und warnten (Blindtest-Befund 4). Bei 0 urteilt das Gerät nicht.
 - **`cleanupObsoleteVariables()` kennt nur Entitäts-Idents** — jede Variable, die nicht
   `maintainEntityVariables` pflegt, muss dort ausdrücklich als aktiv übergeben werden, sonst wird sie
-  beim nächsten `ApplyChanges` „(veraltet)" (so bei `reachable` im Test gefunden). Aber nur, solange sie
+  beim nächsten `ApplyChanges` veraltet (so bei `reachable` im Test gefunden). Aber nur, solange sie
   versorgt wird: `reachable` nur bei `hasAvailabilityEntities()` (build 205, Code-Review) — kündigt sich
   ein Gerät ohne availability-Topic neu an, wird sie veraltet statt mit dem letzten Wert stehen zu bleiben.
 - Test: `tests/check-discovery-reachability.php` (Fixture `discovery_availability_20261003.json`).

@@ -134,6 +134,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION, '{}');
         $this->RegisterAttributeString(self::ATTR_STATE_WARNINGS, '{}');
         $this->RegisterAttributeBoolean(self::ATTR_NOT_ANNOUNCED_WARNED, false);
+        // Veraltete Variablen (HALegacyVariableMigrationTrait); vor dem Merkmal registrieren.
+        $this->RegisterAttributeString('ObsoleteVariables', '[]');
         // Zuletzt: Merkmal „Create() durchgelaufen" für das Reload-Fenster, siehe isInstanceCreated().
         $this->RegisterAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX, '{}');
     }
@@ -376,6 +378,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function RequestAction($Ident, $Value): void
     {
+        if ($this->isInstanceCreated() && $this->handleObsoleteVariablesAction((string)$Ident)) {
+            return;
+        }
         if ($Ident === self::TIMER_DEFERRED_APPLY) {
             // ApplyChanges prüft die Kernel-Bereitschaft selbst; hier nur das Reload-Fenster.
             if ($this->isInstanceCreated()) {
@@ -597,6 +602,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 'caption' => $runtimeState['message']
             ];
         }
+        $form['actions'] = array_merge($this->buildObsoleteVariablesFormElements(), $form['actions'] ?? []);
 
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
@@ -2932,22 +2938,21 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 return;
             }
 
-            $this->syncImagePreviewMediaMeta($objectId, $name, $basePosition, $extension);
+            $this->syncImagePreviewMediaFile($objectId, $extension);
             return;
         }
 
+        // Name und Position nur beim Anlegen, danach gehören sie dem Anwender (Store-Review Punkt 11).
         $mediaId = IPS_CreateMedia(MEDIATYPE_IMAGE);
         IPS_SetParent($mediaId, $this->InstanceID);
         IPS_SetIdent($mediaId, $ident);
-        $this->syncImagePreviewMediaMeta($mediaId, $name, $basePosition, $extension);
-    }
-
-    private function syncImagePreviewMediaMeta(int $mediaId, string $name, int $basePosition, string $extension): void
-    {
         IPS_SetName($mediaId, $name);
         IPS_SetPosition($mediaId, $basePosition + 20);
-        IPS_SetParent($mediaId, $this->InstanceID);
+        $this->syncImagePreviewMediaFile($mediaId, $extension);
+    }
 
+    private function syncImagePreviewMediaFile(int $mediaId, string $extension): void
+    {
         $ident = (string)(IPS_GetObject($mediaId)['ObjectIdent'] ?? '');
         if ($ident === '') {
             return;
@@ -3630,7 +3635,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
 
         $extension = $this->resolveImagePreviewExtension($contentType, $payload);
-        $this->syncImagePreviewMediaMeta($mediaId, $this->getImagePreviewMediaName($entity), $this->getEntityBasePosition($entity), $extension);
+        $this->syncImagePreviewMediaFile($mediaId, $extension);
         IPS_SetMediaContent($mediaId, base64_encode($payload));
 
         $timestamp = $receivedAt > 0 ? $receivedAt : time();

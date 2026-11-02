@@ -89,7 +89,7 @@ melde($g, VERFUEGBAR, $offline);
 neueAusfuehrung($g)->ApplyChanges();
 pruefe(wert($g) === false && logTypen($g) === [KL_WARNING], 'Wiederholung und Neustart: bleibt aus, keine zweite Warnung', logTexte($g));
 $name = IPS_GetName((int)IPS_GetObjectIDByIdent(REACHABLE, $g->id()));
-pruefe(!str_contains($name, '(') && $name !== '', 'Neustart: Variable gilt nicht als veraltet', $name);
+pruefe(!str_contains($name, '(') && $name !== '' && !in_array(REACHABLE, veraltetListe($g), true), 'Neustart: Variable gilt nicht als veraltet', $name);
 
 // 5. Gerät wieder online → erreichbar, Meldung im Log.
 melde($g, VERFUEGBAR, $online);
@@ -114,12 +114,34 @@ neueAusfuehrung($h)->ApplyChanges();
 pruefe(@IPS_GetObjectIDByIdent(REACHABLE, $h->id()) === false, 'Ohne availability-Topic: keine Variable');
 
 // 8. Das Gerät von oben kündigt sich ohne availability-Topic neu an (Firmware, geänderte Bridge-
-//    Einstellung): „Erreichbar" wird wie jede nicht mehr versorgte Variable „(veraltet)" — sonst bliebe
-//    sie mit dem letzten Wert stehen (Code-Review 04.10.2026).
+//    Einstellung): „Erreichbar" wird wie jede nicht mehr versorgte Variable veraltet — sonst bliebe
+//    sie mit dem letzten Wert stehen (Code-Review 04.10.2026). Der Name bleibt (Store-Review Punkt 11).
+$nameVorher = IPS_GetName((int)IPS_GetObjectIDByIdent(REACHABLE, $g->id()));
 neueAusfuehrung($g)->ApplyChanges();
 $name = IPS_GetName((int)IPS_GetObjectIDByIdent(REACHABLE, $g->id()));
-pruefe(str_contains($name, '('), 'Availability entfallen: „Erreichbar" gilt als veraltet', $name);
+pruefe(in_array(REACHABLE, veraltetListe($g), true), 'Availability entfallen: „Erreichbar" gilt als veraltet', json_encode(veraltetListe($g)));
+pruefe($name === $nameVorher, 'Availability entfallen: Name bleibt', $name);
+
+// 9. Formular nennt sie mit Löschknopf; Löschen entfernt nur sie.
+$form = json_decode(neueAusfuehrung($g)->GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
+$knopf = array_values(array_filter($form['actions'] ?? [], static fn(array $e): bool => ($e['name'] ?? '') === 'DeleteObsoleteVariables'))[0] ?? null;
+pruefe($knopf !== null && ($knopf['visible'] ?? true) && ($knopf['confirm'] ?? '') !== '', 'Discovery: Löschknopf mit Rückfrage sichtbar', json_encode($knopf, JSON_UNESCAPED_UNICODE));
+$anzahl = count(IPS_GetChildrenIDs($g->id()));
+$g = neueAusfuehrung($g);
+$g->RequestAction('DeleteObsoleteVariables', true);
+pruefe(@IPS_GetObjectIDByIdent(REACHABLE, $g->id()) === false && count(IPS_GetChildrenIDs($g->id())) === $anzahl - 1,
+    'Discovery: Löschen entfernt genau die veraltete Variable');
 
 DiscoveryDeviceHarness::$splitterAntwort = null;
 DiscoveryDeviceHarness::$parentAktiv = false;
 ergebnis();
+
+/** @return list<string> Idents in der Liste veralteter Variablen */
+function veraltetListe(DiscoveryDeviceHarness $g): array
+{
+    try {
+        return json_decode($g->attribut('ObsoleteVariables'), true, 512, JSON_THROW_ON_ERROR);
+    } catch (Exception) {
+        return []; // Stand vor build 221: Attribut gibt es nicht
+    }
+}

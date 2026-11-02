@@ -117,6 +117,8 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->registerStateCacheFlushTimer();
         $this->registerReachabilityTimer();
 
+        // Veraltete Variablen (HALegacyVariableMigrationTrait); vor dem Merkmal registrieren.
+        $this->RegisterAttributeString('ObsoleteVariables', '[]');
         // Zuletzt: Merkmal „Create() durchgelaufen" für das Reload-Fenster, siehe isInstanceCreated().
         $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
     }
@@ -391,6 +393,10 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
+        if ($this->handleObsoleteVariablesAction($Ident)) {
+            return;
+        }
+
         if ($this->handleMediaRefreshAction($Ident)) {
             return;
         }
@@ -570,6 +576,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->applyCurrentDiagnosticsToForm($form, $values);
         $this->applyBundleVisibilityToForm($form);
         $this->applyBundleDownloadFilenameToForm($form);
+        $form['actions'] = array_merge($this->buildObsoleteVariablesFormElements(), $form['actions'] ?? []);
         $this->debugExpert(__FUNCTION__, 'Form:', $form);
 
         return json_encode($form, JSON_THROW_ON_ERROR);

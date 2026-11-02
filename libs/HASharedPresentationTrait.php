@@ -33,6 +33,11 @@ trait HASharedPresentationTrait
         if ($created && $Keep && method_exists($this, 'scopeCreatedEntityVariableName')) {
             $this->scopeCreatedEntityVariableName($Ident, $Name);
         }
+        // Ein Ident, den das Modul wieder pflegt (oder löscht), ist nicht mehr veraltet; sonst böte
+        // der Löschknopf eine lebende Variable an (HALegacyVariableMigrationTrait, Store-Review Punkt 11).
+        if (method_exists($this, 'forgetObsoleteIdent')) {
+            $this->forgetObsoleteIdent($Ident);
+        }
         return $created;
     }
 

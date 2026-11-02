@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 trait HAMediaObjectsTrait
 {
+    /**
+     * Legt ein Medienobjekt an oder pflegt das vorhandene. $syncMeta bekommt $created: Name und Position
+     * setzt es nur beim Anlegen, danach gehören sie dem Anwender (Store-Review Punkt 11; bis build 220
+     * bei jeder Pflege neu gesetzt).
+     *
+     * @param callable(int, bool): void $syncMeta
+     */
     protected function ensureManagedMediaObject(
         string $ident,
         int $mediaType,
@@ -17,14 +24,14 @@ trait HAMediaObjectsTrait
                 $this->debugExpert($debugCategory, 'Ident belegt, kein Medienobjekt', ['Ident' => $ident, 'ObjectType' => $object['ObjectType'] ?? null]);
                 return false;
             }
-            $syncMeta($objectId);
+            $syncMeta($objectId, false);
             return true;
         }
 
         $mediaId = IPS_CreateMedia($mediaType);
         IPS_SetParent($mediaId, $this->InstanceID);
         IPS_SetIdent($mediaId, $ident);
-        $syncMeta($mediaId);
+        $syncMeta($mediaId, true);
         return true;
     }
 
@@ -121,17 +128,18 @@ trait HAMediaObjectsTrait
             $ident,
             MEDIATYPE_IMAGE,
             $debugCategory,
-            function (int $mediaId) use ($basePosition, $name, $filePrefix): void {
-                $this->syncEntityPreviewMeta($mediaId, $basePosition, $name, $filePrefix);
+            function (int $mediaId, bool $created) use ($basePosition, $name, $filePrefix): void {
+                $this->syncEntityPreviewMeta($mediaId, $basePosition, $name, $filePrefix, $created);
             }
         );
     }
 
-    private function syncEntityPreviewMeta(int $mediaId, int $basePosition, string $name, string $filePrefix): void
+    private function syncEntityPreviewMeta(int $mediaId, int $basePosition, string $name, string $filePrefix, bool $created): void
     {
-        IPS_SetName($mediaId, $name);
-        IPS_SetPosition($mediaId, $basePosition + 20);
-        IPS_SetParent($mediaId, $this->InstanceID);
+        if ($created) {
+            IPS_SetName($mediaId, $name);
+            IPS_SetPosition($mediaId, $basePosition + 20);
+        }
         $ident = IPS_GetObject($mediaId)['ObjectIdent'] ?? '';
         if (is_string($ident) && $ident !== '') {
             $this->ensureEntityPreviewMediaFileDefault($mediaId, $ident, $filePrefix);
@@ -454,18 +462,18 @@ trait HAMediaObjectsTrait
             $ident,
             MEDIATYPE_IMAGE,
             'MediaCover',
-            function (int $mediaId) use ($basePosition): void {
-                $this->syncMediaPlayerCoverMeta($mediaId, $basePosition);
+            function (int $mediaId, bool $created) use ($basePosition): void {
+                $this->syncMediaPlayerCoverMeta($mediaId, $basePosition, $created);
             }
         );
     }
 
-    private function syncMediaPlayerCoverMeta(int $mediaId, int $basePosition): void
+    private function syncMediaPlayerCoverMeta(int $mediaId, int $basePosition, bool $created): void
     {
-        IPS_SetName($mediaId, 'Cover');
-        $position = $this->getMediaPlayerCoverPosition($basePosition);
-        IPS_SetPosition($mediaId, $position);
-        IPS_SetParent($mediaId, $this->InstanceID);
+        if ($created) {
+            IPS_SetName($mediaId, 'Cover');
+            IPS_SetPosition($mediaId, $this->getMediaPlayerCoverPosition($basePosition));
+        }
         $ident = IPS_GetObject($mediaId)['ObjectIdent'] ?? '';
         if (is_string($ident) && $ident !== '') {
             $this->ensureMediaPlayerCoverMediaFileDefault($mediaId, $ident);

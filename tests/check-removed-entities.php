@@ -5,7 +5,8 @@ declare(strict_types=1);
 /**
  * Prüft am ECHTEN Modul (Home Assistant Device, Bundle-Modus) über den offiziellen Kernel-Stub, dass
  * die Variablen einer in Home Assistant entfernten Entität beim Aktualisieren der Konfiguration
- * „(veraltet)" werden.
+ * veraltet werden (ohne Aktion, in der Liste veralteter Variablen; Name bleibt, Store-Review Punkt 11)
+ * und wieder aktiv werden, wenn die Entität zurückkehrt.
  *
  * processEntities() kannte die bisherigen Entitäten nur aus $this->entities. Unter der Rust-Edition
  * beginnt jeder Aufruf (HA_UpdateConfiguration, ApplyChanges) in einer frischen PHP-Ausführung, das Feld
@@ -22,7 +23,15 @@ require_once __DIR__ . '/device-harness.php';
 
 error_reporting(E_ALL);
 
-const ZUSATZ = ' (veraltet)';
+/** @return list<string> Idents in der Liste veralteter Variablen */
+function veraltetListe(DeviceHarness $g): array
+{
+    try {
+        return json_decode($g->attribut('ObsoleteVariables'), true, 512, JSON_THROW_ON_ERROR);
+    } catch (Exception) {
+        return []; // Stand vor build 221: Attribut gibt es nicht
+    }
+}
 
 /** @return array<string, array{name:string, aktion:bool}> je Ident */
 function bestand(DeviceHarness $g): array
@@ -74,11 +83,12 @@ file_put_contents($datei, json_encode($fixture['konfiguration_nachher'], JSON_TH
 neueAusfuehrung($g)->UpdateConfiguration();
 $nachher = bestand($g);
 
-// 1. Die Variablen der entfernten Entitäten sind gekennzeichnet und nicht mehr schaltbar.
+// 1. Die Variablen der entfernten Entitäten sind veraltet: Name unverändert, ohne Aktion, in der Liste.
+$liste = veraltetListe($g);
 foreach ($entferntIdents as $ident) {
     $n = $nachher[$ident] ?? null;
-    pruefe($n !== null && str_ends_with($n['name'], ZUSATZ) && !$n['aktion'],
-        sprintf('%s „%s" → gekennzeichnet, ohne Aktion', $ident, $vorher[$ident]['name'] ?? '?'),
+    pruefe($n !== null && $n['name'] === ($vorher[$ident]['name'] ?? null) && !$n['aktion'] && in_array($ident, $liste, true),
+        sprintf('%s „%s" → veraltet, Name unverändert, ohne Aktion', $ident, $vorher[$ident]['name'] ?? '?'),
         json_encode($n, JSON_UNESCAPED_UNICODE));
 }
 
@@ -93,13 +103,25 @@ foreach ($uebrige as $ident => $v) {
 pruefe($veraendert === [], sprintf('%d übrige Variablen unverändert', count($uebrige)), implode('; ', $veraendert));
 
 // 3. Kein Name kommt unter den aktiven Variablen doppelt vor.
-$aktiveNamen = array_column(array_filter($nachher, static fn(array $v): bool => !str_ends_with($v['name'], ZUSATZ)), 'name');
+$aktiveNamen = array_column(array_diff_key($nachher, array_flip($liste)), 'name');
 $doppelt = array_keys(array_filter(array_count_values($aktiveNamen), static fn(int $n): bool => $n > 1));
 pruefe($doppelt === [], 'kein Name doppelt unter den aktiven Variablen', implode(', ', $doppelt));
 
 // 4. Ein späteres ApplyChanges (Kernel-Neustart) ändert nichts mehr.
 neueAusfuehrung($g)->ApplyChanges();
 pruefe(bestand($g) === $nachher, 'ApplyChanges danach ändert nichts mehr');
+
+// 5. Die Entitäten kehren in HA zurück: Die Variablen sind wieder schaltbar wie vorher, ihr Name bleibt,
+//    und sie stehen nicht mehr in der Liste (sonst böte der Löschknopf lebende Variablen an).
+file_put_contents($datei, json_encode($fixture['konfiguration_vorher'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+neueAusfuehrung($g)->UpdateConfiguration();
+$zurueck = bestand($g);
+$liste = veraltetListe($g);
+foreach ($entferntIdents as $ident) {
+    pruefe(($zurueck[$ident] ?? null) === ($vorher[$ident] ?? null) && !in_array($ident, $liste, true),
+        sprintf('%s zurück: wie vorher, nicht mehr veraltet', $ident), json_encode($zurueck[$ident] ?? null, JSON_UNESCAPED_UNICODE));
+}
+pruefe($liste === [], 'Nach der Rückkehr ist die Liste leer', json_encode($liste));
 
 @unlink($datei);
 ergebnis();

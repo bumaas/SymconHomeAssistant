@@ -96,6 +96,8 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $this->registerStateCacheFlushTimer();
         $this->registerReachabilityTimer();
 
+        // Veraltete Variablen (HALegacyVariableMigrationTrait); vor dem Merkmal registrieren.
+        $this->RegisterAttributeString('ObsoleteVariables', '[]');
         // Zuletzt: Merkmal „Create() durchgelaufen" für das Reload-Fenster, siehe isInstanceCreated().
         $this->RegisterAttributeString(self::ATTR_RESOLVED_CONFIG, '[]');
     }
@@ -174,6 +176,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
         $this->applyResolvedConfigToForm($form);
         $this->applyCurrentDiagnosticsToForm($form);
+        $form['actions'] = array_merge($this->buildObsoleteVariablesFormElements(), $form['actions'] ?? []);
 
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }

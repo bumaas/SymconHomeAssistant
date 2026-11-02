@@ -89,18 +89,13 @@ trait HAStandardAttributeMaintenanceTrait
         $ident = $this->getAttributeVariableIdent($entityId, $attribute);
         $existingId = @$this->GetIDForIdent($ident);
         $exists = $existingId !== false;
-        $wasLegacy = $exists && str_ends_with(
-            trim((string)(IPS_GetObject((int)$existingId)['ObjectName'] ?? '')),
-            $this->getLegacyNameSuffix()
-        );
+        // Vor MaintainVariable lesen: Das zentrale MaintainVariable nimmt den Ident aus der Liste.
+        $wasLegacy = $exists && $this->isObsoleteIdent($ident);
         $name = $this->Translate((string)($meta['caption'] ?? $attribute));
         $presentation = $buildPresentation($attribute, $attributes, $meta);
         $position = $resolvePosition($attribute, $basePosition);
 
         $this->MaintainVariable($ident, $name, (int)$meta['type'], $presentation, $position, true);
-        if ($wasLegacy) {
-            IPS_SetName($this->GetIDForIdent($ident), $name);
-        }
 
         if ($applyActionState !== null && ($applyActionStateOnExisting || !$exists || $wasLegacy)) {
             $applyActionState($attribute, $attributes, $ident, $presentation);

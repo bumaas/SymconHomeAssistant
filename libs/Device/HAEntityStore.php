@@ -457,16 +457,7 @@ trait HAEntityStoreTrait
 
         $ident = $this->getSharedEntityMainIdent($entityId);
         $type = $this->getVariableType($domain, $entity['attributes'] ?? []);
-        // Altnamen wandern nur im vollen Pfad (ApplyChanges läuft nach jedem Update ohnehin); der
-        // heiße Pfad spart sich dafür GetIDForIdent und IPS_GetObject je Attributmeldung.
-        $wasLegacy = false;
-        if ($initializeDescriptorValue) {
-            $existingId = @$this->GetIDForIdent($ident);
-            $wasLegacy = $existingId !== false && str_ends_with(
-                trim((string)(IPS_GetObject((int)$existingId)['ObjectName'] ?? '')),
-                $this->getLegacyNameSuffix()
-            );
-        }
+
         $presentation = $this->getEntityPresentation($domain, $entity, $type);
         $position = $this->getEntityMainVariablePosition($entity, $domain);
         $name = $this->getEntityVariableName($domain, $entity);
@@ -474,10 +465,9 @@ trait HAEntityStoreTrait
         // IPSModuleStrict: true = die Variable wurde erstellt — neu, oder bei einem Typwechsel
         // (z. B. number: step 1 → 0.5) unter neuer ID ohne Aktion. Beides zählt als neu, auch im
         // heißen Pfad; ein Vorher/Nachher-Vergleich der ID kostete je Meldung einen Kernel-Aufruf.
+        // Eine zuvor veraltete Variable fällt hier aus der Liste (zentrales MaintainVariable); ihr Name
+        // gehört dem Anwender und bleibt (Store-Review Punkt 11). Die Aktion gleicht der volle Pfad unten ab.
         $exists = !$this->MaintainVariable($ident, $name, $type, $presentation, $position, true);
-        if ($wasLegacy) {
-            IPS_SetName($this->GetIDForIdent($ident), $name);
-        }
         if ($initializeDescriptorValue) {
             $descriptor = $this->describeEntityMainVariable($entity);
             $this->initializeVariableDescriptorValue($ident, $descriptor, $exists);
@@ -489,7 +479,7 @@ trait HAEntityStoreTrait
         // Kosten: ein Enable/DisableAction je schreibbarer Hauptvariable und ApplyChanges. Vorher
         // nachzusehen, ob die Aktion fehlt (IPS_GetVariable), kostete ebenso einen Aufruf und zöge
         // eine geänderte Schreibbarkeit nicht nach (Code-Review build 167, Befund 7: bewusst so).
-        if (!$exists || $wasLegacy || $initializeDescriptorValue || $this->shouldApplyDomainActionStateOnExisting($domain)) {
+        if (!$exists || $initializeDescriptorValue || $this->shouldApplyDomainActionStateOnExisting($domain)) {
             $this->applyDomainActionState($domain, $ident, $entity);
         }
         // Die Domain-Extra-Maintenance iteriert alle Attribut-Definitionen der Domain und ist damit

@@ -409,7 +409,11 @@
       "Light": "Licht",
       "Event": "Ereignis",
       "recording": "Aufnahme",
-      "streaming": "Streaming"
+      "streaming": "Streaming",
+      "The variable \"%s\" (ident %s) is no longer updated by the module. It can be deleted in the configuration form.": "Die Variable „%s“ (Ident %s) versorgt das Modul nicht mehr. Sie kann im Konfigurationsformular gelöscht werden.",
+      "No longer updated by the module and can be deleted: %s": "Vom Modul nicht mehr versorgt, kann gelöscht werden: %s",
+      "Delete obsolete variables": "Veraltete Variablen löschen",
+      "The listed variables and their logged values will be deleted. Continue?": "Die genannten Variablen werden samt ihrer geloggten Werte gelöscht. Fortfahren?"
     }
   }
 }

@@ -400,12 +400,15 @@ trait HADomainAttributeMaintenanceTrait
             $ident,
             MEDIATYPE_STREAM,
             'CameraStream',
-            function (int $mediaId) use ($basePosition): void {
-                $this->syncCameraStreamMeta($mediaId, $basePosition);
+            function (int $mediaId, bool $created) use ($basePosition): void {
+                if ($created) {
+                    $this->syncCameraStreamMeta($mediaId, $basePosition);
+                }
             }
         );
     }
 
+    /** Name und Position nur beim Anlegen (Store-Review Punkt 11). */
     private function syncCameraStreamMeta(int $mediaId, int $basePosition): void
     {
         $ident = IPS_GetObject($mediaId)['ObjectIdent'] ?? '';
@@ -417,7 +420,6 @@ trait HADomainAttributeMaintenanceTrait
         $name = $resolvedEntityId !== null ? $this->getCameraStreamMediaName($resolvedEntityId) : $this->Translate('Stream');
         IPS_SetName($mediaId, $name);
         IPS_SetPosition($mediaId, $basePosition + 21);
-        IPS_SetParent($mediaId, $this->InstanceID);
     }
 
     private function updateCameraStreamMedia(string $entityId, string $url): void
