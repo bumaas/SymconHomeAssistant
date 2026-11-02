@@ -49,10 +49,7 @@ Stellt ein einzelnes Gerät aus einer bestehenden Home-Assistant-Installation in
 
 - `HA_ExportConfigBundleDataUrl($id)`
   Gibt die aktuell aufgelöste Gerätekonfiguration (`ResolvedConfig`) als base64-encodierte Data-URL zurück. Wird intern vom Download-Button im Formular aufgerufen. Kann auch direkt per Skript aufgerufen werden.
-- `HA_ActivateBundleMode($id, $BundlePath)`
-  Schaltet die Instanz in den Bundle-Modus und lädt die Konfiguration aus der angegebenen Datei.
-- `HA_ActivateMqttMode($id)`
-  Schaltet die Instanz zurück in den Live-Modus (Home Assistant REST API).
+
 
 ## 5. Konfiguration
 
@@ -84,22 +81,24 @@ Der Bundle-Modus ist für Entwicklung, Tests und Support gedacht. Er ersetzt den
 
 ### Bundle-Modus aktivieren
 
-Der Bundle-Modus wird ausschließlich per Skript aktiviert:
+Im Formular unter **Bundle** die Datenquelle auf `Bundle file` stellen, den Pfad eintragen und übernehmen. Per Skript geht es über die Properties der Instanz:
 
 ```php
-// Absoluter Pfad:
-HA_ActivateBundleMode($id, '/var/lib/symcon/ha_device_config_bundle.json');
-
-// Dateiname (relativ): wird gegen <modulpfad>/tests/fixtures aufgelöst:
-HA_ActivateBundleMode($id, 'mein_geraet.json');
+IPS_SetProperty($id, 'SourceMode', 'bundle');
+// Absoluter Pfad oder Dateiname; ein Dateiname wird gegen <modulpfad>/tests/fixtures aufgelöst:
+IPS_SetProperty($id, 'BundlePath', '/var/lib/symcon/ha_device_config_bundle.json');
+IPS_ApplyChanges($id);
 ```
 
 `$id` ist die Instanz-ID der Device-Instanz. Die Konfiguration wird sofort aus der angegebenen Datei geladen. Ein aktiver Home-Assistant-Parent ist nicht erforderlich.
 
 ### Bundle-Modus deaktivieren
 
+Datenquelle wieder auf `Home Assistant (REST API)` stellen, per Skript:
+
 ```php
-HA_ActivateMqttMode($id);
+IPS_SetProperty($id, 'SourceMode', 'mqtt');
+IPS_ApplyChanges($id);
 ```
 
 Die Instanz lädt die Konfiguration wieder per REST-API aus Home Assistant.

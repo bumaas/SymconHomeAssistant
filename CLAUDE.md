@@ -104,7 +104,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `SourceMode` (jede Meldung liest es über `isBundleMode`), Device mit Merkmal Attribut
   `TopicProcessingIndex` (jede Meldung liest es in `getRuntimeProcessingContext`). Beide werden in
   `Create()` als Letztes registriert. **Jedes Merkmal-Memo verwirft `ApplyChanges` vorher**
-  (`ActivateBundleMode` ändert `SourceMode` und ruft `IPS_ApplyChanges`), das Device zusätzlich
+  (der Anwender kann `SourceMode` im Formular oder per Skript geändert haben), das Device zusätzlich
   `writeTopicProcessingIndex()`.
 - **Regel für neue Module/Registrierungen:** Das Merkmal bleibt die letzte Registrierung in
   `Create()`; ein neuer Einstiegspunkt (öffentliche Funktion, Timer-Ziel, `MessageSink`-Zweig)

@@ -139,7 +139,10 @@ pruefe($g->status() === IS_ACTIVE, 'Sitzungsbeginn unbekannt: Status bleibt 102'
 //    verschwunden gemeldet). Der Splitter meldet deshalb keinen Sitzungsbeginn, das Gerät urteilt nicht.
 $bundleSplitter = neueFensterInstanz(DiscoverySplitterHarness::class);
 // Echtes v2-Bundle (Zigbee2MQTT, siehe tests/fixtures/README.md); das ebusd-Bundle ist v1 und wird abgelehnt.
-$bundleSplitter->ActivateBundleMode(__DIR__ . '/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json');
+// Umschalten wie ein Anwenderskript (die Modulfunktion HAMD_ActivateBundleMode entfiel mit build 218, Store-Punkt 13).
+IPS_SetProperty($bundleSplitter->id(), 'SourceMode', 'bundle');
+IPS_SetProperty($bundleSplitter->id(), 'BundlePath', __DIR__ . '/fixtures/ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json');
+IPS_ApplyChanges($bundleSplitter->id());
 // ApplyChanges bricht im Testrahmen vor dem Laden ab (kein Parent); das Laden selbst wie dort.
 $bundleSplitter->rufe('applyBundleMode');
 $bundleSplitter = neueAusfuehrung($bundleSplitter);

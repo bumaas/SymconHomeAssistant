@@ -699,21 +699,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         return $dataUrl;
     }
 
-    /** @noinspection PhpUnused */
-    public function ActivateBundleMode(string $BundlePath): void
-    {
-        IPS_SetProperty($this->InstanceID, self::PROP_SOURCE_MODE, 'bundle');
-        IPS_SetProperty($this->InstanceID, self::PROP_BUNDLE_PATH, $BundlePath);
-        IPS_ApplyChanges($this->InstanceID);
-    }
-
-    /** @noinspection PhpUnused */
-    public function ActivateMqttMode(): void
-    {
-        IPS_SetProperty($this->InstanceID, self::PROP_SOURCE_MODE, 'mqtt');
-        IPS_ApplyChanges($this->InstanceID);
-    }
-
     private function isBundleMode(): bool
     {
         return strtolower(trim($this->ReadPropertyString(self::PROP_SOURCE_MODE))) === 'bundle';

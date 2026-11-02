@@ -92,8 +92,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     // 01.10.2026: trim(false)). Jeder Einstiegspunkt prüft deshalb zuerst hier und tut im Fenster
     // nichts; Create() und ApplyChanges folgen ohnehin. Merkmal ist SourceMode, weil Create() es als
     // Letztes registriert; jede Meldung liest es ohnehin (isBundleMode), die Prüfung kostet also
-    // keinen Kernel-Aufruf. ApplyChanges verwirft das Memo vorher (ActivateBundleMode ändert die
-    // Property und ruft IPS_ApplyChanges).
+    // keinen Kernel-Aufruf. ApplyChanges verwirft das Memo vorher (der Anwender kann SourceMode im
+    // Formular oder per Skript geändert haben).
     private string|false|null $sourceModeMemo = null;
 
     private function isInstanceCreated(): bool
@@ -827,23 +827,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         }
 
         $this->replayCachedTopicPayloadsToChildren();
-    }
-
-    /** @noinspection PhpUnused */
-    public function ActivateBundleMode(string $BundlePath, bool $CurrentSessionOnly = false, bool $ReplayTopicsOnApply = false): void
-    {
-        IPS_SetProperty($this->InstanceID, 'SourceMode', self::SOURCE_MODE_BUNDLE);
-        IPS_SetProperty($this->InstanceID, 'BundlePath', $BundlePath);
-        IPS_SetProperty($this->InstanceID, 'BundleCurrentSessionOnly', $CurrentSessionOnly);
-        IPS_SetProperty($this->InstanceID, 'ReplayTopicsOnApply', $ReplayTopicsOnApply);
-        IPS_ApplyChanges($this->InstanceID);
-    }
-
-    /** @noinspection PhpUnused */
-    public function ActivateMqttMode(): void
-    {
-        IPS_SetProperty($this->InstanceID, 'SourceMode', self::SOURCE_MODE_MQTT);
-        IPS_ApplyChanges($this->InstanceID);
     }
 
     public function ForwardData(string $JSONString): string

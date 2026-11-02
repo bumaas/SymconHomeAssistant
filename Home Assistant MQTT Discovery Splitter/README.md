@@ -99,20 +99,26 @@ Empfohlene Verwendung:
 
 ## Bundle-Modus aktivieren
 
-Der Bundle-Modus wird ausschließlich per Skript aktiviert:
+Im Formular unter **Bundle** die Datenquelle auf `Bundle file` stellen, Pfad und Optionen eintragen und übernehmen. Per Skript geht es über die Properties der Instanz:
 
 ```php
-HAMD_ActivateBundleMode($id, '/var/lib/symcon/ha_mqtt_discovery_bundle.json');
-// oder mit optionalen Parametern:
-HAMD_ActivateBundleMode($id, 'my_fixture.json', currentSessionOnly: true, replayOnApply: true);
+IPS_SetProperty($id, 'SourceMode', 'bundle');
+IPS_SetProperty($id, 'BundlePath', '/var/lib/symcon/ha_mqtt_discovery_bundle.json');
+// optional: nur Einträge der aktuellen Session, zwischengespeicherte Topics bei jedem Übernehmen erneut abspielen
+IPS_SetProperty($id, 'BundleCurrentSessionOnly', true);
+IPS_SetProperty($id, 'ReplayTopicsOnApply', true);
+IPS_ApplyChanges($id);
 ```
 
 `$id` ist die Instanz-ID des Discovery Splitters. Relative Pfade werden gegen `<modulpfad>/tests/fixtures` aufgelöst. Ein MQTT-Parent ist im Bundle-Modus nicht erforderlich.
 
 ## Bundle-Modus deaktivieren
 
+Datenquelle wieder auf `Home Assistant (MQTT)` stellen, per Skript:
+
 ```php
-HAMD_ActivateMqttMode($id);
+IPS_SetProperty($id, 'SourceMode', 'mqtt');
+IPS_ApplyChanges($id);
 ```
 
 Der Splitter empfängt Discovery-Daten wieder live vom MQTT-Parent.
