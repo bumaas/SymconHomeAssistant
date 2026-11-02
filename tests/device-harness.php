@@ -405,6 +405,14 @@ final class EntityHarness extends HomeAssistantEntity
 trait FensterRahmenTrait
 {
     public bool $attributeRegistriert = true;
+    /** Aufrufe von ApplyChanges je Rahmenklasse (statische Trait-Felder gelten je verwendender Klasse). */
+    public static int $uebernahmen = 0;
+
+    public function ApplyChanges(): void
+    {
+        self::$uebernahmen++;
+        parent::ApplyChanges();
+    }
 
     public function id(): int
     {

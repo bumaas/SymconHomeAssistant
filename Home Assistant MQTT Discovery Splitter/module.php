@@ -71,7 +71,9 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $this->RegisterPropertyInteger('TopicStatisticsIntervalMinutes', 15);
         $this->RegisterPropertyInteger('OutputBufferSize', 10);
 
-        $this->RegisterTimer(self::TIMER_DEFERRED_APPLY, 0, 'IPS_ApplyChanges($_IPS["TARGET"]);');
+        // Verzögerte Übernahme über RequestAction wie Device/Entity (HADeviceCore), nicht per
+        // IPS_ApplyChanges auf die eigene Instanz (Store-Review Punkt 13, build 220).
+        $this->RegisterTimer(self::TIMER_DEFERRED_APPLY, 0, 'IPS_RequestAction($_IPS["TARGET"], "' . self::TIMER_DEFERRED_APPLY . '", "");');
         $this->RegisterTimer(self::TIMER_DIAGNOSTICS_REFRESH, 0, 'HAMD_RefreshDiscoveryDiagnostics($_IPS["TARGET"]);');
         $this->RegisterTimer(self::TIMER_TOPIC_STATS, 0, 'HAMD_DumpTopicStatistics($_IPS["TARGET"]);');
         $this->RegisterAttributeString('LastMQTTMessage', '');
@@ -245,6 +247,18 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         ];
 
         return json_encode($parents, JSON_THROW_ON_ERROR);
+    }
+
+    public function RequestAction(string $Ident, mixed $Value): void
+    {
+        if ($Ident !== self::TIMER_DEFERRED_APPLY) {
+            return;
+        }
+        // ApplyChanges prüft die Kernel-Bereitschaft selbst; hier nur das Reload-Fenster.
+        if ($this->isInstanceCreated()) {
+            $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, 0);
+            $this->ApplyChanges();
+        }
     }
 
     public function GetConfigurationForm(): string

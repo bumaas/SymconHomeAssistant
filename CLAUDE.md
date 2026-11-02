@@ -106,6 +106,10 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `Create()` als Letztes registriert. **Jedes Merkmal-Memo verwirft `ApplyChanges` vorher**
   (der Anwender kann `SourceMode` im Formular oder per Skript geändert haben), das Device zusätzlich
   `writeTopicProcessingIndex()`.
+- **Verzögerte Übernahme** (build 220): Der Timer `DeferredApply` ruft in allen vier Modulen mit
+  Laufzeitlogik `IPS_RequestAction(…, "DeferredApply", "")`, `RequestAction` prüft das Reload-Fenster und
+  ruft `ApplyChanges()` selbst. Nie `IPS_ApplyChanges` auf die eigene Instanz (Store-Review Punkt 13); bis
+  build 219 taten das MQTT Discovery Device und Splitter. Test: `check-deferred-apply.php`.
 - **Regel für neue Module/Registrierungen:** Das Merkmal bleibt die letzte Registrierung in
   `Create()`; ein neuer Einstiegspunkt (öffentliche Funktion, Timer-Ziel, `MessageSink`-Zweig)
   prüft zuerst `isInstanceCreated()`.
@@ -302,7 +306,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Jetzt kennzeichnet `markNotAnnounced()` den Rückfall samt `SessionStartedAt` aus der Splitter-Antwort
   (`buildDiscoveryResponse`); `evaluateAnnouncementStatus()` setzt 202 + eine Warnung, wenn die Sitzung
   seit `NOT_ANNOUNCED_GRACE_S` (600 s) läuft, sonst 102 mit Nachprüfung nach Ablauf. Nachgeprüft wird
-  über den Timer `DeferredApply` (ruft `IPS_ApplyChanges`) — eine neue Ankündigung löst sonst kein
+  über den Timer `DeferredApply` (ruft `ApplyChanges` über `RequestAction`) — eine neue Ankündigung löst sonst kein
   `ApplyChanges` aus. Die Kennzeichen werden nicht mit der Definition gespeichert.
 - **Keine Antwort ist kein Befund** (build 205, Code-Review): Ist der Parent inaktiv oder antwortet der
   Splitter nicht, kennzeichnet `markAnnouncementUnknown()` die Definition mit `announced = null`;

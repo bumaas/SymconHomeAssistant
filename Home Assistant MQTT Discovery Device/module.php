@@ -118,7 +118,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->RegisterMessage($this->InstanceID, FM_CONNECT);
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
         $this->registerParentStatusTracking();
-        $this->RegisterTimer(self::TIMER_DEFERRED_APPLY, 0, 'IPS_ApplyChanges($_IPS["TARGET"]);');
+        // Verzögerte Übernahme über RequestAction wie Device/Entity (HADeviceCore), nicht per
+        // IPS_ApplyChanges auf die eigene Instanz (Store-Review Punkt 13, build 220).
+        $this->RegisterTimer(self::TIMER_DEFERRED_APPLY, 0, 'IPS_RequestAction($_IPS["TARGET"], "' . self::TIMER_DEFERRED_APPLY . '", "");');
 
         $this->RegisterPropertyString(self::PROP_DEVICE_ID, '');
         $this->RegisterPropertyString(self::PROP_ENTITY_SELECTION, '[]');
@@ -374,6 +376,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function RequestAction($Ident, $Value): void
     {
+        if ($Ident === self::TIMER_DEFERRED_APPLY) {
+            // ApplyChanges prüft die Kernel-Bereitschaft selbst; hier nur das Reload-Fenster.
+            if ($this->isInstanceCreated()) {
+                $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, 0);
+                $this->ApplyChanges();
+            }
+            return;
+        }
         if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated()) {
             return;
         }
