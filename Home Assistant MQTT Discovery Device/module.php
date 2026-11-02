@@ -378,7 +378,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function RequestAction($Ident, $Value): void
     {
-        if ($this->isInstanceCreated() && $this->handleObsoleteVariablesAction((string)$Ident)) {
+        if ($this->isInstanceCreated() && $this->handleObsoleteVariablesAction((string)$Ident, $Value)) {
             return;
         }
         if ($Ident === self::TIMER_DEFERRED_APPLY) {

@@ -813,7 +813,7 @@ trait HADeviceCoreTrait
             return;
         }
 
-        if ($this->handleObsoleteVariablesAction((string)$Ident)) {
+        if ($this->handleObsoleteVariablesAction((string)$Ident, $Value)) {
             return;
         }
 

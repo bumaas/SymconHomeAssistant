@@ -93,8 +93,9 @@ pruefe(!(formAktionen(neueAusfuehrung($e))['DeleteObsoleteVariables']['visible']
 
 // 5. Löschen: erneut veraltet, dann gelöscht; die lebende Variable bleibt.
 neueAusfuehrung($e)->rufe('markVariableAsLegacy', $alt);
+$knopf = formAktionen(neueAusfuehrung($e))['DeleteObsoleteVariables'] ?? null;
 $e = neueAusfuehrung($e);
-$e->RequestAction('DeleteObsoleteVariables', true);
+drueckeKnopf($e, $knopf);
 pruefe($e->variablenId('sensor_test_temperatur_alt') === null, 'Löschen entfernt die veraltete Variable');
 pruefe($e->variablenId('sensor_test_temperatur_lebt') !== null, 'Löschen lässt die lebende Variable stehen');
 pruefe(veraltetListe($e) === [], 'Liste nach dem Löschen leer');
@@ -104,5 +105,36 @@ $lebt = (int)$e->variablenId('sensor_test_temperatur_lebt');
 neueAusfuehrung($e)->rufe('markVariableAsLegacy', $lebt);
 IPS_DeleteVariable($lebt);
 pruefe(!(formAktionen(neueAusfuehrung($e))['DeleteObsoleteVariables']['visible'] ?? false), 'Von Hand gelöscht: kein Löschknopf mehr');
+
+// 7. Gelöscht wird nur, was das Formular angezeigt hat (Code-Review 02.11.2026). Das Formular ist offen
+// und nennt „Gezeigt"; bevor der Anwender klickt, kennzeichnet ein ApplyChanges im Hintergrund
+// „Später". Bis build 223 löschte der Knopf die Liste zum Zeitpunkt des Klicks, also beide.
+$ids = [];
+foreach (['sensor_test_temperatur_gezeigt' => 'Gezeigt', 'sensor_test_temperatur_spaeter' => 'Später'] as $ident => $name) {
+    $ids[$ident] = IPS_CreateVariable(VARIABLETYPE_FLOAT);
+    IPS_SetParent($ids[$ident], $e->id());
+    IPS_SetIdent($ids[$ident], $ident);
+    IPS_SetName($ids[$ident], $name);
+}
+neueAusfuehrung($e)->rufe('markVariableAsLegacy', $ids['sensor_test_temperatur_gezeigt']);
+$aktionen = formAktionen(neueAusfuehrung($e));
+pruefe(!str_contains((string)($aktionen['ObsoleteVariablesHint']['caption'] ?? ''), 'Später'), 'Offenes Formular nennt nur „Gezeigt“');
+neueAusfuehrung($e)->rufe('markVariableAsLegacy', $ids['sensor_test_temperatur_spaeter']);
+$e = neueAusfuehrung($e);
+drueckeKnopf($e, $aktionen['DeleteObsoleteVariables'] ?? null);
+pruefe($e->variablenId('sensor_test_temperatur_gezeigt') === null, 'Angezeigte Variable gelöscht');
+pruefe($e->variablenId('sensor_test_temperatur_spaeter') !== null, 'Nicht angezeigte Variable bleibt stehen');
+pruefe(veraltetListe($e) === ['sensor_test_temperatur_spaeter'], 'Nicht angezeigte Variable bleibt in der Liste', json_encode(veraltetListe($e)));
+$aktionen = formAktionen(neueAusfuehrung($e));
+pruefe(str_contains((string)($aktionen['ObsoleteVariablesHint']['caption'] ?? ''), '"Später"') && ($aktionen['DeleteObsoleteVariables']['visible'] ?? false),
+    'Formular bietet sie danach an', json_encode($aktionen['ObsoleteVariablesHint'] ?? null, JSON_UNESCAPED_UNICODE));
+
+// 8. Wird eine angezeigte Variable vor dem Klick wieder gepflegt, bleibt sie stehen.
+neueAusfuehrung($e)->rufe('markVariableAsLegacy', $ids['sensor_test_temperatur_spaeter']);
+$knopf = formAktionen(neueAusfuehrung($e))['DeleteObsoleteVariables'] ?? null;
+neueAusfuehrung($e)->rufe('MaintainVariable', 'sensor_test_temperatur_spaeter', 'Später', VARIABLETYPE_FLOAT, '', 0, true);
+$e = neueAusfuehrung($e);
+drueckeKnopf($e, $knopf);
+pruefe($e->variablenId('sensor_test_temperatur_spaeter') !== null, 'Vor dem Klick wieder gepflegt: bleibt stehen');
 
 ergebnis();

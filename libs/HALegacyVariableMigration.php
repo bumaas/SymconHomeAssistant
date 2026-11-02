@@ -84,10 +84,19 @@ trait HALegacyVariableMigrationTrait
         return $found;
     }
 
-    /** @return list<array> Hinweis und Löschknopf für den Aktionsbereich des Formulars */
+    /**
+     * Hinweis und Löschknopf für den Aktionsbereich des Formulars. Der Knopf trägt die angezeigten Idents
+     * als Wert: Gelöscht wird nur, was der Anwender gesehen und bestätigt hat, auch wenn ein ApplyChanges
+     * im Hintergrund inzwischen weitere Variablen gekennzeichnet hat (Code-Review 02.11.2026).
+     *
+     * @return list<array>
+     */
     private function buildObsoleteVariablesFormElements(): array
     {
-        $names = array_map(static fn(int $id): string => '"' . IPS_GetName($id) . '"', $this->getObsoleteVariables());
+        $variables = $this->getObsoleteVariables();
+        $names = array_map(static fn(int $id): string => '"' . IPS_GetName($id) . '"', $variables);
+        // Idents bestehen aus Buchstaben, Ziffern und _, im JSON also kein ' und kein \.
+        $shown = json_encode(array_keys($variables), JSON_THROW_ON_ERROR);
         return [
             [
                 'type'    => 'Label',
@@ -100,25 +109,40 @@ trait HALegacyVariableMigrationTrait
                 'name'    => 'DeleteObsoleteVariables',
                 'caption' => $this->Translate('Delete obsolete variables'),
                 'confirm' => $this->Translate('The listed variables and their logged values will be deleted. Continue?'),
-                'onClick' => 'IPS_RequestAction($id, "DeleteObsoleteVariables", true);',
+                'onClick' => 'IPS_RequestAction($id, "DeleteObsoleteVariables", \'' . $shown . '\');',
                 'visible' => $names !== []
             ]
         ];
     }
 
-    /** RequestAction-Zweig; true = behandelt. */
-    private function handleObsoleteVariablesAction(string $ident): bool
+    /**
+     * RequestAction-Zweig; true = behandelt. $value ist die JSON-Liste der Idents, die das Formular
+     * angezeigt hat. Gelöscht wird nur, was davon jetzt noch veraltet ist; ein inzwischen wieder
+     * gepflegter Ident ist nicht mehr in der Liste und bleibt. Ein anderer Wert (etwa true aus einem
+     * Formular, das vor build 224 geöffnet wurde) löscht nichts, das Formular wird neu geladen.
+     */
+    private function handleObsoleteVariablesAction(string $ident, mixed $value = null): bool
     {
         if ($ident !== 'DeleteObsoleteVariables') {
             return false;
         }
-        if ($this->readObsoleteIdents() === null) {
+        $obsolete = $this->readObsoleteIdents();
+        if ($obsolete === null) {
             return true; // Reload-Fenster
         }
-        foreach (array_keys($this->getObsoleteVariables()) as $obsoleteIdent) {
-            $this->UnregisterVariable($obsoleteIdent);
+        $shown = is_string($value) ? json_decode($value, true) : null;
+        $shown = is_array($shown) ? array_filter($shown, 'is_string') : [];
+        $delete = array_values(array_intersect($obsolete, $shown));
+        foreach ($delete as $obsoleteIdent) {
+            if (@$this->GetIDForIdent($obsoleteIdent) !== false) {
+                $this->UnregisterVariable($obsoleteIdent);
+            }
         }
-        $this->writeObsoleteIdents([]);
+        // Bleiben: noch veraltet, nicht angezeigt und als Variable vorhanden (von Hand gelöschte fallen heraus).
+        $remaining = array_values(array_diff(array_intersect($obsolete, array_keys($this->getObsoleteVariables())), $delete));
+        if ($remaining !== $obsolete) {
+            $this->writeObsoleteIdents($remaining);
+        }
         $this->ReloadForm();
         return true;
     }

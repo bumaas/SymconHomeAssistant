@@ -206,7 +206,7 @@ foreach ($fixture['instanzen'] as $instanz) {
 
     // 7. Löschen entfernt genau die veralteten Variablen; danach ist das Formular ohne Hinweis.
     $g = neueAusfuehrung($g);
-    $g->RequestAction('DeleteObsoleteVariables', true);
+    drueckeKnopf($g, $knopf);
     $danach = bestand($g);
     pruefe(array_intersect_key($danach, array_flip($erwartetVeraltet)) === [], $name . ': Löschen entfernt die veralteten Variablen');
     pruefe($danach === array_diff_key($nachher, array_flip($erwartetVeraltet)), $name . ': Löschen lässt alle übrigen Variablen stehen');

@@ -765,6 +765,27 @@ function neueAusfuehrung(IPSModuleStrict $alt): IPSModuleStrict
     return $neu;
 }
 
+/**
+ * Löst einen Formularknopf aus wie die Konsole: führt dessen onClick
+ * `IPS_RequestAction($id, "<Ident>", <Wert>);` an der Instanz aus. Der Wert ist true oder ein Text in
+ * einfachen Anführungszeichen. Anderes gilt als Testfehler (Ausnahme), damit ein umgebauter Knopf nicht
+ * unbemerkt etwas anderes auslöst.
+ */
+function drueckeKnopf(IPSModuleStrict $modul, ?array $knopf): void
+{
+    $onClick = trim((string)($knopf['onClick'] ?? ''));
+    if (preg_match('/^IPS_RequestAction\(\$id,\s*["\']([A-Za-z0-9_]+)["\'],\s*(.+)\);$/s', $onClick, $treffer) !== 1) {
+        throw new RuntimeException('Knopf ohne IPS_RequestAction: ' . $onClick);
+    }
+    $roh = trim($treffer[2]);
+    $wert = match (true) {
+        $roh === 'true' => true,
+        preg_match("/^'((?:[^'\\\\]|\\\\.)*)'$/s", $roh, $text) === 1 => strtr($text[1], ['\\\\' => '\\', "\\'" => "'"]),
+        default => throw new RuntimeException('Knopfwert nicht verstanden: ' . $roh),
+    };
+    $modul->RequestAction($treffer[1], $wert);
+}
+
 /** MQTT-Meldung des Splitters, wie sie ReceiveData() erreicht. */
 function mqttMeldung(string $topic, string $payload): string
 {

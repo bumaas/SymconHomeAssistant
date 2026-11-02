@@ -128,7 +128,7 @@ $knopf = array_values(array_filter($form['actions'] ?? [], static fn(array $e): 
 pruefe($knopf !== null && ($knopf['visible'] ?? true) && ($knopf['confirm'] ?? '') !== '', 'Discovery: Löschknopf mit Rückfrage sichtbar', json_encode($knopf, JSON_UNESCAPED_UNICODE));
 $anzahl = count(IPS_GetChildrenIDs($g->id()));
 $g = neueAusfuehrung($g);
-$g->RequestAction('DeleteObsoleteVariables', true);
+drueckeKnopf($g, $knopf);
 pruefe(@IPS_GetObjectIDByIdent(REACHABLE, $g->id()) === false && count(IPS_GetChildrenIDs($g->id())) === $anzahl - 1,
     'Discovery: Löschen entfernt genau die veraltete Variable');
 

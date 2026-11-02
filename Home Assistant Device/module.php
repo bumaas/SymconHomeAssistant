@@ -393,7 +393,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             return;
         }
 
-        if ($this->handleObsoleteVariablesAction($Ident)) {
+        if ($this->handleObsoleteVariablesAction($Ident, $Value)) {
             return;
         }
 

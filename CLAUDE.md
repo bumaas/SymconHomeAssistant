@@ -222,6 +222,12 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Rückfrage (`confirm`, Aktion `DeleteObsoleteVariables`). Das ersetzt die Abstimmung vom 03.10.2026
   („kein Löschknopf“), Entscheidung Burkhard 02.11.2026, Muster Roborock 2.6 build 112. Gilt für
   Device, Entity und MQTT Discovery Device. Entscheidend ist allein der Ident, nie der Name.
+- **Gelöscht wird nur, was das Formular gezeigt hat** (build 224, Code-Review 02.11.2026): Der Knopf trägt die
+  angezeigten Idents als JSON-Wert, `handleObsoleteVariablesAction` löscht die Schnittmenge mit der aktuellen
+  Liste. Bis build 223 löschte er die Liste zum Zeitpunkt des Klicks, auch Variablen, die ein ApplyChanges im
+  Hintergrund nach dem Öffnen gekennzeichnet hatte. Ein anderer Wert (`true` aus einem alten Formular) löscht
+  nichts. Von Hand gelöschte Variablen fallen dabei aus der Liste. Tests drücken Knöpfe über
+  `drueckeKnopf()` (device-harness), also mit dem Wert aus `onClick`.
 - **Rückkehr:** Das zentrale `MaintainVariable` (`HASharedPresentationTrait`) nimmt jeden Ident aus
   der Liste, den das Modul wieder pflegt oder löscht — auch Attributvariablen aus dem heißen Pfad. Sonst
   böte der Löschknopf eine lebende Variable an. Wer den Rückkehr-Zustand vor `MaintainVariable` braucht
