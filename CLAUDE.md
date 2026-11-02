@@ -471,6 +471,13 @@ Definitionsklasse je HA-Domäne), `Device/` (Laufzeitlogik der Device-Module), `
   so neun Texte, dem Splitter einer (Store-Review Punkt 2, 02.11.2026). libs-Texte, die kein Modul
   einbindet, bleiben ein Hinweis.
 
+## Dokumentation
+
+- `README.md` (deutsch) und `README.en.md` (englische Übersicht) verweisen aufeinander; die englische
+  Store-Lokalisierung verlinkt `README.en.md`. Die Modul-READMEs gibt es nur deutsch (Entscheidung Burkhard
+  02.11.2026, Store-Review Punkte 2/14: eine Übersicht statt neun Übersetzungen). Was die Übersicht
+  berührt (Einrichtung, Verhalten für Anwender, Fehlersuche), in beiden Fassungen nachziehen.
+
 ## Tests
 
 Alle Check-Skripte (`tests/check*.php`) sind versioniert; Fixtures nur nach

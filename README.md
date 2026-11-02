@@ -2,6 +2,8 @@
 [![Checks](https://github.com/bumaas/SymconHomeAssistant/actions/workflows/check.yml/badge.svg)](https://github.com/bumaas/SymconHomeAssistant/actions/workflows/check.yml)
 # Home Assistant
 
+[English version](README.en.md)
+
 Mit diesem Modul lassen sich Geräte, Entitäten und Dienste aus dem Home-Assistant-Umfeld komfortabel in Symcon nutzen.
 
 Das Modul unterstützt dafür zwei klar getrennte Anwendungsfälle:
