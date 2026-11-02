@@ -211,7 +211,7 @@
               "type": "Button",
               "name": "ButtonReloadBundle",
               "caption": "Reload bundle",
-              "onClick": "IPS_ApplyChanges($id);"
+              "onClick": "IPS_RequestAction($id, 'DeferredApply', '');"
             },
             {
               "type": "Button",

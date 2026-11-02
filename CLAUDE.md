@@ -109,7 +109,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - **Verzögerte Übernahme** (build 220): Der Timer `DeferredApply` ruft in allen vier Modulen mit
   Laufzeitlogik `IPS_RequestAction(…, "DeferredApply", "")`, `RequestAction` prüft das Reload-Fenster und
   ruft `ApplyChanges()` selbst. Nie `IPS_ApplyChanges` auf die eigene Instanz (Store-Review Punkt 13); bis
-  build 219 taten das MQTT Discovery Device und Splitter. Test: `check-deferred-apply.php`.
+  build 219 taten das MQTT Discovery Device und Splitter. Der Knopf „Reload bundle“ des Discovery-Splitters
+  geht seit build 223 über denselben Ident (vorher `IPS_ApplyChanges($id)` in der form.json). Test:
+  `check-deferred-apply.php`, prüft auch alle form.json.
 - **Regel für neue Module/Registrierungen:** Das Merkmal bleibt die letzte Registrierung in
   `Create()`; ein neuer Einstiegspunkt (öffentliche Funktion, Timer-Ziel, `MessageSink`-Zweig)
   prüft zuerst `isInstanceCreated()`.
