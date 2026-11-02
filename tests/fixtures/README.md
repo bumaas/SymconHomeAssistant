@@ -212,6 +212,14 @@ inaktiv, also ohne `source`). Die `source_list` ist auf Sender und Räume gekür
 gestrichenen Playlists tragen Vornamen. Grundlage von `check-current-source.php`; die
 `source`-Meldungen dort folgen dem statestream-Format, sind aber kein Mitschnitt.
 
+## Mediaplayer an zweiter Stelle (`media_cover_wintergarten_20261102.json`)
+
+Konfiguration (`HA_ExportConfigBundleDataUrl`) der Device-Instanz „Wintergarten (Musik Assistant)“ am nuc
+(02.11.2026, 1.8 build 225): ein Taster, dann `media_player.wintergarten_2` (Music Assistant an einem Sonos
+Play:5). Der Player ist also nicht die erste Entität, sein Cover liegt am nuc auf Position 170. `active_queue`
+enthielt die MAC-Adresse des Sonos und ist durch einen Platzhalter ersetzt; Titel, Interpret und Album sind
+öffentliche Musikdaten. Grundlage von `check-media-cover-position.php`.
+
 ## Gleichnamige Variablen (`naming_collisions_20261003.json`)
 
 Konfiguration (`HA_ExportConfigBundleDataUrl`) dreier Device-Instanzen am nuc (03.10.2026,

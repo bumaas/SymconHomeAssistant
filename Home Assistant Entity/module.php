@@ -286,7 +286,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             $configuredEntities[] = $row;
         }
 
-        return $this->applySharedEntityIdents($configuredEntities);
+        return $this->assignEntityPositionBases($this->applySharedEntityIdents($configuredEntities));
     }
 
     private function isWriteable(string $domain): bool

@@ -494,7 +494,10 @@ trait HAMediaObjectsTrait
         $ident = $this->buildSharedSuffixIdent($entityId, self::MEDIA_PLAYER_COVER_SUFFIX);
         $mediaId = $this->resolveManagedMediaId(
             $ident,
-            fn(): bool => $this->ensureMediaPlayerCoverMedia($entityId, 0)
+            // Position wie im vollen Pfad: Seit build 221 setzt nur das Anlegen sie, mit 0 läge das Cover
+            // dauerhaft vor den Variablen des Players (Code-Review 02.11.2026). position_base kommt im
+            // heißen Pfad aus dem Konfigurations-Cache (assignEntityPositionBases).
+            fn(): bool => $this->ensureMediaPlayerCoverMedia($entityId, $this->getEntityPosition($entityId))
         );
         if ($mediaId === false) {
             return;

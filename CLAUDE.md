@@ -257,6 +257,14 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - **Medienobjekte** (Vorschau, Stream, Cover, Discovery-Bild): Name und Position nur beim Anlegen;
   `ensureManagedMediaObject` reicht `$created` an den Meta-Callback (build 221). Vorher bei jeder
   Pflege, beim Discovery-Bild bei jedem Bild-Update. Test: `tests/check-media-object-meta.php`.
+- **Position im heißen Pfad** (build 226, Code-Review 02.11.2026): Weil das Modul die Position nur noch beim
+  Anlegen setzt, muss jeder Pfad, der anlegt, sie richtig kennen. `position_base` errechnet
+  `assignEntityPositionBases()` (Device: Blöcke je Domäne, Entity: Zehnerschritte) im vollen Pfad und beim
+  Aufbau des Konfigurations-Caches; die rehydrierte Entität trägt sie also auch im heißen Pfad. Bis build 225
+  fehlte sie dort, `getEntityPosition()` lieferte 10, das Cover kam mit Basis 0: Bei einem Player, der nicht
+  die erste Entität ist, lagen Cover und neu angelegte Attributvariablen vor den Variablen des Players. Neue
+  Felder im Cache verlangen einen neuen `CONFIGURED_ENTITIES_CACHE_MARKER` (jetzt `b226`). Test:
+  `tests/check-media-cover-position.php` (Fixture `media_cover_wintergarten_20261102.json`).
 
 ## Mediaplayer-Kachel: Profile sind Absicht
 

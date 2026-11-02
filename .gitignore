@@ -41,6 +41,7 @@ tests/fixtures/*
 !tests/fixtures/ha_startphase_20261020.json
 !tests/fixtures/discovery_mitsubishi2mqtt_20261022.json
 !tests/fixtures/discovery_cover_set_position_20260514.json
+!tests/fixtures/media_cover_wintergarten_20261102.json
 
 # Claude Code (persönliche Dateien)
 CLAUDE.local.md

@@ -1,0 +1,81 @@
+[
+    {
+        "entity_id": "button.wintergarten_aktuellen_titel_favorisieren",
+        "domain": "button",
+        "name": "Wintergarten Aktuellen Titel favorisieren",
+        "attributes": {
+            "friendly_name": "Wintergarten Aktuellen Titel favorisieren",
+            "supported_features": 0
+        },
+        "device_name": "Wintergarten",
+        "device_manufacturer": "Sonos",
+        "device_model": "Sonos Play:5",
+        "device_id": "de7a82c377d091f5fdd0df5c5056a44d",
+        "area": "Wintergarten",
+        "create_var": true,
+        "device": "Wintergarten"
+    },
+    {
+        "entity_id": "media_player.wintergarten_2",
+        "domain": "media_player",
+        "name": "Wintergarten",
+        "attributes": {
+            "source_list": [
+                "Music Assistant Queue"
+            ],
+            "group_members": [],
+            "volume_level": 0.2,
+            "is_volume_muted": false,
+            "media_content_id": "library://track/19817",
+            "media_content_type": "music",
+            "media_duration": 204,
+            "media_position": 0,
+            "media_position_updated_at": "2026-10-18T14:20:45.755945+00:00",
+            "media_title": "Ulili È (Hawaii Set)",
+            "media_artist": "Acoustic Guitar Night",
+            "media_album_name": "Acoustic Energy",
+            "app_id": "music_assistant",
+            "source": "Music Assistant Queue",
+            "shuffle": false,
+            "repeat": "off",
+            "entity_picture_local": null,
+            "mass_player_type": "player",
+            "active_queue": "RINCON_000000000000001400",
+            "device_class": "speaker",
+            "icon": "mdi:speaker",
+            "friendly_name": "Wintergarten",
+            "supported_features": 8322623,
+            "media_image_url": "None",
+            "current_source": "Music Assistant Queue",
+            "supported_features_list": [
+                "Media player feature: Browse Media",
+                "Media player feature: Clear Playlist",
+                "Media player feature: Grouping",
+                "Media player feature: Media Announce",
+                "Media player feature: Media Enqueue",
+                "Media player feature: Next Track",
+                "Media player feature: Pause",
+                "Media player feature: Play",
+                "Media player feature: Play Media",
+                "Media player feature: Previous Track",
+                "Media player feature: Repeat Set",
+                "Media player feature: Search Media",
+                "Media player feature: Seek",
+                "Media player feature: Select Source",
+                "Media player feature: Shuffle Set",
+                "Media player feature: Stop",
+                "Media player feature: Volume Mute",
+                "Media player feature: Volume Set",
+                "Media player feature: Volume Step"
+            ]
+        },
+        "device_name": "Wintergarten",
+        "device_manufacturer": "Sonos",
+        "device_model": "Sonos Play:5",
+        "device_id": "de7a82c377d091f5fdd0df5c5056a44d",
+        "area": "Wintergarten",
+        "create_var": true,
+        "device": "Wintergarten",
+        "device_class": "speaker"
+    }
+]

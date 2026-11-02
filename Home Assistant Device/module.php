@@ -679,7 +679,28 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             $configuredEntities[] = $row;
         }
 
-        return $this->applySharedEntityIdents($configuredEntities);
+        return $this->assignEntityPositionBases($this->applySharedEntityIdents($configuredEntities));
+    }
+
+    /**
+     * Basisposition je Entität: Blöcke je Domäne ab 0 (HADomainCatalog::getPositionBlockSize), damit die
+     * Attributvariablen einer Entität zwischen ihr und der nächsten Platz haben.
+     *
+     * @param list<array> $entities aktive Entitäten in Konfigurationsreihenfolge
+     * @return list<array>
+     */
+    protected function assignEntityPositionBases(array $entities): array
+    {
+        $running = 0;
+        foreach ($entities as $i => $entity) {
+            $domain = (string)($entity['domain'] ?? '');
+            if ($domain === '') {
+                continue;
+            }
+            $entities[$i]['position_base'] = $running;
+            $running += HADomainCatalog::getPositionBlockSize($domain);
+        }
+        return $entities;
     }
 
     public function ExportConfigBundleDataUrl(): string
@@ -1038,7 +1059,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         $this->topicMapping = [];
         $this->rebuildSharedEntityIdentIndexes();
         $filterTopics = [];
-        $runningPosition = 0;
         $activeEntityIds = [];
         $inactiveEntityIds = [];
         $activeEntities = [];
@@ -1059,7 +1079,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         }
 
         // Idents für aktive Entitäten neu berechnen (korrekte aktuelle Zuweisung ohne inaktive)
-        $activeEntities = $this->applySharedEntityIdents($activeEntities);
+        $activeEntities = $this->assignEntityPositionBases($this->applySharedEntityIdents($activeEntities));
         foreach ($activeEntities as $entity) {
             $entityId = (string)($entity['entity_id'] ?? '');
             if ($entityId === '') {
@@ -1067,9 +1087,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
 
             $activeEntityIds[] = $entityId;
-            $basePosition            = $runningPosition;
-            $runningPosition         += HADomainCatalog::getPositionBlockSize($entity['domain'] ?? '');
-            $entity['position_base'] = $basePosition;
             $entity                  = $this->mergePreviousEntityAttributes($entity, $previousEntities, $entityId);
             $this->entities[$entityId] = $entity;
             if ($this->hasSharedManagedIdentChanged($cleanupPrevious[$entityId] ?? null, $entity)) {

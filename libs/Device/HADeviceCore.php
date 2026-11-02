@@ -1094,7 +1094,6 @@ trait HADeviceCoreTrait
         $this->topicMapping    = [];
         $this->rebuildSharedEntityIdentIndexes();
         $filterTopics          = [];
-        $positionIndex         = 0;
         $this->hasMultipleStatusEntities = $this->countStatusEntities($configData) > 1;
         $entities = [];
         $renamedEntityIds = [];
@@ -1112,11 +1111,8 @@ trait HADeviceCoreTrait
             $entities[] = $entity;
         }
 
-        $entities = $this->applySharedEntityIdents($entities);
+        $entities = $this->assignEntityPositionBases($this->applySharedEntityIdents($entities));
         foreach ($entities as $entity) {
-            $positionIndex++;
-            $basePosition                                = $positionIndex * 10;
-            $entity['position_base']                     = $basePosition;
             if (isset($previousEntities[$entity['entity_id']]['attributes'])
                 && is_array($previousEntities[$entity['entity_id']]['attributes'])) {
                 $existingAttributes = $previousEntities[$entity['entity_id']]['attributes'];
@@ -1195,6 +1191,29 @@ trait HADeviceCoreTrait
 
         return ($previousIdent !== '' && $previousIdent !== $currentIdent)
             || ($previousPrefix !== '' && $previousPrefix !== $currentPrefix);
+    }
+
+    /**
+     * Basisposition je Entität (position_base): Entity-Modul in Zehnerschritten. Das Device überschreibt
+     * das mit den Blockgrößen je Domäne. Läuft im vollen Pfad (processEntities) und beim Aufbau des
+     * Konfigurations-Caches, damit auch der heiße Pfad die Position kennt: Ohne sie legte er Cover und
+     * Attributvariablen mit der Vorgabe 10 an, und seit build 221 korrigiert das kein ApplyChanges mehr
+     * (Code-Review 02.11.2026). Entitäten ohne Domäne bekommen keine Position.
+     *
+     * @param list<array> $entities aktive Entitäten in Konfigurationsreihenfolge
+     * @return list<array>
+     */
+    protected function assignEntityPositionBases(array $entities): array
+    {
+        $index = 0;
+        foreach ($entities as $i => $entity) {
+            if ((string)($entity['domain'] ?? '') === '') {
+                continue;
+            }
+            $index++;
+            $entities[$i]['position_base'] = $index * 10;
+        }
+        return $entities;
     }
 
     protected function normalizeActiveConfiguredEntity(array $row): ?array
