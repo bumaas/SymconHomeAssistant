@@ -157,7 +157,16 @@
       "on": "An",
       "playing": "Wiedergabe",
       "paused": "Pausiert",
-      "buffering": "Puffert"
+      "buffering": "Puffert",
+      "Power": "Ein/Aus",
+      "Playback": "Wiedergabe",
+      "Play": "Wiedergabe",
+      "Next Track": "Nächster Titel",
+      "Previous Track": "Vorheriger Titel",
+      "Image": "Bild",
+      "Preview": "Vorschau",
+      "Stream": "Stream",
+      "Unavailable entities JSON": "Nicht verfügbare Entitäten (JSON)"
     }
   }
 }

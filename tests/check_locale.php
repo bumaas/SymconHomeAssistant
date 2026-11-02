@@ -10,13 +10,20 @@ declare(strict_types=1);
  *    braucht ebenfalls einen de-Schlüssel.
  *  - Verwaiste de-Schlüssel werden nur gemeldet, nicht als Fehler gewertet
  *    (dynamische Nutzung wie zusammengesetzte Captions ist möglich).
- *  - Translate-Texte aus libs/ (gemeinsame Traits) werden nur als Hinweis gemeldet,
- *    wenn sie in KEINER locale.json vorkommen: welche Module einen Trait-Text zur
- *    Laufzeit wirklich ausgeben, ist statisch nicht sauber bestimmbar.
+ *  - Jeder Translate('...')-Text aus einem Trait, den die Modulklasse (auch mittelbar)
+ *    einbindet, braucht einen de-Schlüssel in der locale.json DIESES Moduls. Welche Traits
+ *    das sind, liefert Reflection am Kernel-Stub (tests/stubs). Bis build 213 galt ein
+ *    libs-Text schon als übersetzt, wenn er in irgendeiner locale.json stand; dem Entity-Modul
+ *    fehlten so neun Texte, die nur das Device übersetzte (Store-Review Punkt 2, 02.11.2026).
+ *  - Translate-Texte aus libs/, die kein Modul einbindet, werden nur als Hinweis gemeldet,
+ *    wenn sie in KEINER locale.json vorkommen.
  *
- * Exit-Code 1 bei fehlenden Übersetzungen (für die CI), sonst 0.
+ * Schlusszeile „N Prüfungen, M Fehler“ (eine Prüfung je Modul und Text), Exit-Code 1 bei
+ * fehlenden Übersetzungen (für die CI), sonst 0.
  * Aufruf: php tests/check_locale.php
  */
+
+require_once __DIR__ . '/stubs/autoload.php';
 
 $moduleDirs = [
     'Home Assistant Configurator',
@@ -31,7 +38,13 @@ $moduleDirs = [
 $root = dirname(__DIR__);
 $fail = false;
 
-$allDeKeys = [];
+$allDeKeys  = [];
+$pruefungen = 0;
+$fehler     = 0;
+
+foreach ($moduleDirs as $moduleDir) {
+    require_once $root . '/' . $moduleDir . '/module.php';
+}
 
 foreach ($moduleDirs as $moduleDir) {
     $dir = $root . '/' . $moduleDir;
@@ -62,6 +75,11 @@ foreach ($moduleDirs as $moduleDir) {
     // 2) Translate-Aufrufe aus module.php und aus den Skripten in form.json (z. B. onClick)
     $translateTexts = collectTranslateTexts($modulePhp . "\n" . $formRaw);
 
+    // 3) Translate-Aufrufe aus allen Traits, die die Modulklasse einbindet
+    $traitTexts = collectTraitTranslateTexts($dir . '/module.php', $modulePhp);
+    $translateTexts += $traitTexts;
+    unset($translateTexts['']);
+
     // Fehlend: form.json-Text ohne de-Schlüssel
     $missingForm = [];
     foreach ($formTexts as $text => $paths) {
@@ -90,7 +108,7 @@ foreach ($moduleDirs as $moduleDir) {
 
     echo 'form.json Texte (unique): ' . count($formTexts) . "\n";
     echo 'locale de-Schlüssel:      ' . count($deKeys) . "\n";
-    echo 'Translate-Texte:          ' . count($translateTexts) . "\n";
+    echo 'Translate-Texte:          ' . count($translateTexts) . ' (davon aus Traits ' . count($traitTexts) . ")\n";
     echo 'Sprachen in locale.json:  ' . implode(', ', array_keys($locale['translations'] ?? [])) . "\n\n";
 
     echo 'FEHLENDE ÜBERSETZUNGEN (form.json -> kein de-Schlüssel): ' . count($missingForm) . "\n";
@@ -107,6 +125,8 @@ foreach ($moduleDirs as $moduleDir) {
     }
     echo "\n";
 
+    $pruefungen += count($formTexts) + count($translateTexts);
+    $fehler += count($missingForm) + count($missingPhp);
     if ($missingForm !== [] || $missingPhp !== []) {
         $fail = true;
     }
@@ -126,10 +146,12 @@ echo "\n";
 
 if ($fail) {
     echo "FEHLER: Es fehlen Übersetzungen (siehe oben).\n";
+    echo "$pruefungen Prüfungen, $fehler Fehler\n";
     exit(1);
 }
 
 echo "OK: Alle Texte sind übersetzt.\n";
+echo "$pruefungen Prüfungen, $fehler Fehler\n";
 
 function collectFormTexts(array $node, string $path, array &$formTexts): void
 {
@@ -142,6 +164,39 @@ function collectFormTexts(array $node, string $path, array &$formTexts): void
             collectFormTexts($v, $p, $formTexts);
         }
     }
+}
+
+/**
+ * Translate-Texte aus allen Traits der Modulklasse (rekursiv, auch Traits in Traits).
+ * Gelesen wird nur der Quelltext des Traits selbst (Start- bis Endzeile), nicht die ganze Datei.
+ *
+ * @return array<string, true>
+ */
+function collectTraitTranslateTexts(string $moduleFile, string $modulePhp): array
+{
+    if (!preg_match('/^\s*(?:final\s+)?class\s+(\w+)\s+extends/m', $modulePhp, $m)) {
+        return [];
+    }
+    $class = new ReflectionClass($m[1]);
+    if (realpath((string) $class->getFileName()) !== realpath($moduleFile)) {
+        throw new RuntimeException('Klasse ' . $m[1] . ' stammt nicht aus ' . $moduleFile);
+    }
+    $code  = '';
+    $seen  = [];
+    $stack = array_values($class->getTraits());
+    while ($stack !== []) {
+        $trait = array_pop($stack);
+        if (isset($seen[$trait->getName()])) {
+            continue;
+        }
+        $seen[$trait->getName()] = true;
+        $lines = file((string) $trait->getFileName());
+        $code .= implode('', array_slice($lines, $trait->getStartLine() - 1, $trait->getEndLine() - $trait->getStartLine() + 1)) . "\n";
+        foreach ($trait->getTraits() as $inner) {
+            $stack[] = $inner;
+        }
+    }
+    return collectTranslateTexts($code);
 }
 
 function collectLibsSources(string $libsDir): string

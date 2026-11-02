@@ -444,8 +444,11 @@ Definitionsklasse je HA-Domäne), `Device/` (Laufzeitlogik der Device-Module), `
 - Englische `form.json`-Texte sind zugleich Übersetzungsschlüssel; `locale.json` (de) je Modul.
 - `Translate()`-Texte aus `libs/`-Traits müssen in der `locale.json` jedes Moduls stehen,
   das sie zur Laufzeit ausgibt.
-- Prüfung: `php tests/check_locale.php` (läuft auch in der CI; libs-Texte werden nur als
-  Hinweis gemeldet, wenn sie in keiner locale.json vorkommen).
+- Prüfung: `php tests/check_locale.php` (läuft auch in der CI). Seit build 214 prüft er je Modul
+  auch die Texte aller Traits, die die Modulklasse einbindet (Reflection am Kernel-Stub). Vorher galt
+  ein libs-Text als übersetzt, sobald er in irgendeiner locale.json stand; dem Entity-Modul fehlten
+  so neun Texte, dem Splitter einer (Store-Review Punkt 2, 02.11.2026). libs-Texte, die kein Modul
+  einbindet, bleiben ein Hinweis.
 
 ## Tests
 

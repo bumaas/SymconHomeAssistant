@@ -78,7 +78,8 @@
       "Received domains: %s": "Empfangene Domänen: %s",
       "Summary: everything looks good.": "Fazit: alles in Ordnung.",
       "Summary: %d error(s), %d warning(s).": "Fazit: %d Fehler, %d Warnung(en).",
-      "More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).": "Weitere Hilfe: README Abschnitt 7 (Fehlersuche) und MQTT Explorer (https://mqtt-explorer.com/)."
+      "More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).": "Weitere Hilfe: README Abschnitt 7 (Fehlersuche) und MQTT Explorer (https://mqtt-explorer.com/).",
+      "Last REST fetch: %s": "Letzter REST-Abruf: %s"
     }
   }
 }
