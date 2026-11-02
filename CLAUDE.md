@@ -333,6 +333,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Werte, Verfügbarkeit und „nicht angekündigt" zeigen dann den Stand des Bundles, nicht die Gegenwart.
   Befunde an Geräten unter einem Bundle-Splitter sind keine Befunde über die Anlage — vorher den Modus
   prüfen (`HAMD_RunSelfTest`: „Quelle: Bundle"). Fixtures daraus sind Anwenderdaten: neutralisieren.
+  Die Diagnose im Formular zeigt die Quelle erst seit build 219: Bis dahin übersprang
+  `RefreshDiscoveryDiagnostics` den Bundle-Modus, das Formular behielt die Platzhalter der form.json
+  („Quelle: MQTT“, „Bundle: nicht aktiv“). Test: `check-discovery-splitter-diagnostics-bundle.php`.
   Seit build 204 meldet der Splitter im Bundle-Modus `SessionStartedAt = 0` (`buildDiscoveryResponse`):
   Der Sitzungsbeginn des Bundles ließ die 10-Minuten-Frist sofort ablaufen, Geräte außerhalb des Bundles
   gingen auf 202 und warnten (Blindtest-Befund 4). Bei 0 urteilt das Gerät nicht.

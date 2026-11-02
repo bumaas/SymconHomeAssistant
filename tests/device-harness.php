@@ -555,6 +555,14 @@ final class DiscoverySplitterHarness extends HomeAssistantMQTTDiscoverySplitter
     public const string MODULE_ID = HAIds::MODULE_MQTT_DISCOVERY_SPLITTER;
     public const string MODULE_NAME = 'Home Assistant MQTT Discovery Splitter';
     public const int MODULE_TYPE = MODULETYPE_SPLITTER;
+    /** @var array<string, mixed> zuletzt per UpdateFormField gesetzte Werte, Schlüssel „Feld.Parameter" */
+    public static array $formularFelder = [];
+
+    protected function UpdateFormField(string $Field, string $Parameter, mixed $Value): bool
+    {
+        self::$formularFelder[$Field . '.' . $Parameter] = $Value;
+        return parent::UpdateFormField($Field, $Parameter, $Value);
+    }
 
     protected function readSourceModeProperty(): string|false
     {

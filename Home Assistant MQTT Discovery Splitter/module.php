@@ -289,10 +289,8 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
-        if ($this->isBundleMode()) {
-            $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
-            return;
-        }
+        // Auch im Bundle-Modus: Bis build 218 kehrte der Refresh hier zurück, das Formular zeigte dann
+        // dauerhaft die Platzhalter der form.json („Quelle: MQTT“, „Bundle: nicht aktiv“).
         if (!$this->ReadAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY)) {
             return;
         }
