@@ -26,7 +26,10 @@
       "Loaded Home Assistant entities/resolved/devices: %d/%d/%d": "Geladene Home-Assistant-Entitäten/aufgelöst/Geräte: %d/%d/%d",
       "Unsupported Home Assistant domains: none": "Nicht unterstützte Home-Assistant-Domänen: keine",
       "Unsupported Home Assistant domains: %s": "Nicht unterstützte Home-Assistant-Domänen: %s",
-      "none": "keine"
+      "none": "keine",
+      "No gateway connected. Select a Home Assistant Splitter as gateway.": "Kein Gateway verbunden. Über „Gateway ändern“ einen Home Assistant Splitter auswählen.",
+      "The gateway is not a Home Assistant Splitter. Change the gateway to a Home Assistant Splitter.": "Das Gateway ist kein Home Assistant Splitter. Über „Gateway ändern“ einen Home Assistant Splitter auswählen.",
+      "The Home Assistant Splitter is not active. The list shows the last known state.": "Der Home Assistant Splitter ist nicht aktiv. Die Liste zeigt den zuletzt bekannten Stand."
     }
   }
 }

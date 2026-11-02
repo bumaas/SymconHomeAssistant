@@ -43,12 +43,13 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
 
         $parentState = $this->getDiscoveryParentRuntimeState();
         if ($parentState !== 'active') {
-            $message = match ($parentState) {
-                'missing' => 'Kein Parent verbunden',
-                'inactive' => 'Home Assistant MQTT Discovery Splitter Parent ist nicht aktiv',
-                default => 'Parent ist nicht Home Assistant MQTT Discovery Splitter'
+            $hint = match ($parentState) {
+                'missing' => 'No gateway connected. Select a Home Assistant MQTT Discovery Splitter as gateway.',
+                'inactive' => 'The Home Assistant MQTT Discovery Splitter is not active. Check the splitter and its MQTT client.',
+                default => 'The gateway is not a Home Assistant MQTT Discovery Splitter. Change the gateway to a Home Assistant MQTT Discovery Splitter.'
             };
-            $this->debugExpert(__FUNCTION__, $message);
+            $this->debugExpert(__FUNCTION__, $hint);
+            $form['actions'][] = ['type' => 'Label', 'caption' => $this->Translate($hint)];
             return $this->encodeForm($form);
         }
 

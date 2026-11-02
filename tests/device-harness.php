@@ -27,6 +27,7 @@ require_once dirname(__DIR__) . '/Home Assistant Splitter/module.php';
 require_once dirname(__DIR__) . '/Home Assistant MQTT Discovery Splitter/module.php';
 require_once dirname(__DIR__) . '/Home Assistant MQTT Discovery Device/module.php';
 require_once dirname(__DIR__) . '/Home Assistant MQTT Discovery Configurator/module.php';
+require_once dirname(__DIR__) . '/Home Assistant Configurator/module.php';
 
 // ---------------------------------------------------------------------------
 // Zähl-Registry: Arbeit statt Zeit messen
@@ -643,14 +644,31 @@ final class DiscoveryConfiguratorHarness extends HomeAssistantMQTTDiscoveryConfi
     }
 }
 
+final class ConfiguratorHarness extends HomeAssistantConfigurator
+{
+    use FensterRahmenTrait;
+
+    public const string MODULE_ID = HAIds::MODULE_CONFIGURATOR;
+    public const string MODULE_NAME = 'Home Assistant Configurator';
+    public const int MODULE_TYPE = MODULETYPE_CONFIGURATOR;
+
+    /** Parent gilt als aktiv, ohne einen Splitter mit Broker aufzubauen. */
+    public static bool $parentAktiv = false;
+
+    protected function HasActiveParent(): bool
+    {
+        return self::$parentAktiv || parent::HasActiveParent();
+    }
+}
+
 /**
  * Legt eine Instanz eines Moduls ohne eigenen Rahmen im Kernel-Stub an (ohne Parent).
  *
- * @template T of SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness|DiscoveryConfiguratorHarness
+ * @template T of SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness|DiscoveryConfiguratorHarness|ConfiguratorHarness
  * @param class-string<T> $klasse
  * @return T
  */
-function neueFensterInstanz(string $klasse): SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness|DiscoveryConfiguratorHarness
+function neueFensterInstanz(string $klasse): SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness|DiscoveryConfiguratorHarness|ConfiguratorHarness
 {
     $id = IPS\ObjectManager::registerObject(OBJECTTYPE_INSTANCE);
     IPS\InstanceManager::createInstance($id, [

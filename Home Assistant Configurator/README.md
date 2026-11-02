@@ -30,6 +30,8 @@ Lädt Geräte und Entitäten aus einer bestehenden Home-Assistant-Installation u
 - Bestehende Home-Assistant-Installation als Quelle.
 - `HAUrl` und `HAToken` im Splitter gesetzt.
 
+Fehlt der Splitter, nennt das Formular die Ursache. Ist er nicht aktiv, steht ein Hinweis über der Liste, und die Liste zeigt den zuletzt bekannten Stand.
+
 ## 3. Installation
 
 - In Symcon `Instanz hinzufügen` und `Home Assistant Configurator` auswählen.

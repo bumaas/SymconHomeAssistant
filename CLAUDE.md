@@ -473,6 +473,13 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
   `$splitterAntwort`, aktiver Parent `$parentAktiv`). Properties gesetzter Instanzen sieht
   `IPS_GetProperty` im Stub erst nach `ApplyChanges` (vorher stehen sie als „Pending“).
   Test: `check-discovery-configurator-orphans.php` (verwaiste und doppelte Instanzen, build 215).
+  Der HA-Konfigurator läuft über `ConfiguratorHarness`. Einen unpassenden Splitter lässt der Stub
+  nicht verbinden („Dataflow is incompatible“), der Fall „falsches Gateway“ ist nicht testbar.
+- Konfiguratoren zeigen einen fehlenden oder inaktiven Splitter als Label im Aktionsbereich
+  (build 216, Store-Review Punkt 3). Der HA-Konfigurator zeigt bei inaktivem Splitter weiter die
+  Liste, weil der REST-Weg auch ohne MQTT gehen kann. Die Hinweise laufen über eine Variable durch
+  `Translate()`; ihre Übersetzung prüft deshalb `check-configurator-parent-hint.php`, nicht
+  `check_locale.php`.
 - Hilfsskripte, die keine Tests sind (z. B. Fixture-Extraktion), gehören nach `tools/`
   (nicht versioniert), nicht nach `tests/`.
 - Offen: Die übrigen Laufzeit-Checks tragen noch eigene Attrappen. Umstellung auf den

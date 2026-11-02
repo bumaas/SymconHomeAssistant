@@ -67,12 +67,24 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $this->logPerformanceMarker(__FUNCTION__, 'start');
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
 
-        if (!$this->hasCompatibleSplitterParent()) {
-            $this->debugExpert(__FUNCTION__, 'Parent ist nicht Home Assistant Splitter');
+        $parentState = $this->determineParentRuntimeState([HAIds::MODULE_SPLITTER]);
+        if ($parentState === 'missing' || $parentState === 'invalid') {
+            $hint = $parentState === 'missing'
+                ? 'No gateway connected. Select a Home Assistant Splitter as gateway.'
+                : 'The gateway is not a Home Assistant Splitter. Change the gateway to a Home Assistant Splitter.';
+            $this->debugExpert(__FUNCTION__, $hint);
+            $form['actions'][] = ['type' => 'Label', 'caption' => $this->Translate($hint)];
             $this->logPerformanceSample(__FUNCTION__, $startedAt, [
-                'Result' => 'parent_invalid'
+                'Result' => 'parent_' . $parentState
             ], true);
             return json_encode($form, JSON_THROW_ON_ERROR);
+        }
+        if ($parentState === 'inactive') {
+            // REST kann trotzdem gehen (der Splitter ist auch ohne MQTT inaktiv): Liste weiter zeigen.
+            $form['actions'][] = [
+                'type' => 'Label',
+                'caption' => $this->Translate('The Home Assistant Splitter is not active. The list shows the last known state.')
+            ];
         }
 
         $this->scheduleCacheRefreshIfIdle();

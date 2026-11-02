@@ -30,6 +30,8 @@ Liest MQTT-Discovery-Konfigurationen direkt aus einer MQTT-Discovery-Quelle übe
 - Im Live-Betrieb muss der MQTT Client den Discovery-Prefix abonnieren, zum Beispiel `homeassistant/#` oder `#`.
 - Discovery-Topics müssen im Splitter-Cache angekommen sein.
 
+Fehlt der Splitter oder ist er nicht aktiv, nennt das Formular die Ursache statt der Liste.
+
 ## Konfiguration
 
 - `ShowBridgeDevices`: blendet technische Bridge-Devices im Configurator optional ein oder aus.
