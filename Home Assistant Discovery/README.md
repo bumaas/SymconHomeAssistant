@@ -24,7 +24,7 @@ Findet bestehende Home-Assistant-Installationen im Netzwerk per mDNS (Service `_
 
 ## 2. Voraussetzungen
 
-- DNS-SD Control (mDNS) in Symcon.
+- DNS-SD Control (mDNS) in Symcon. Diese Kerninstanz bringt Symcon selbst mit. Fehlt sie, zeigt die Discovery einen Hinweis im Formular und sucht nicht.
 - Bestehende Home-Assistant-Installation im selben Netzwerk, mDNS aktiv.
 
 ## 3. Installation

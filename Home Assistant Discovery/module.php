@@ -71,11 +71,19 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     {
         $this->debugExpert('Discovery', 'Starting search process...');
 
+        $mdnsID = $this->getMdnsInstance();
+        if ($mdnsID === 0) {
+            $this->debugExpert('Discovery', 'No DNS-SD Control instance found, search skipped');
+            $this->UpdateFormField('mdnsMissing', 'visible', true);
+            $this->stopSearch();
+            return;
+        }
+
         // 1. Bereits erstellte Konfiguratoren laden
         $existingConfigurators = IPS_GetInstanceListByModuleID(HAIds::MODULE_CONFIGURATOR);
 
         // 2. Netzwerk nach neuen Servern scannen
-        $foundServers = $this->scanNetworkForServers();
+        $foundServers = $this->scanNetworkForServers($mdnsID);
 
         // 3. Ergebnisse abgleichen (Gefundene vs. Existierende)
         $formValues = $this->mapServersToForm($foundServers, $existingConfigurators);
@@ -99,10 +107,8 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     /**
      * Führt mDNS Browsing und Resolving durch
      */
-    private function scanNetworkForServers(): array
+    private function scanNetworkForServers(int $mdnsID): array
     {
-        $mdnsID = $this->getMdnsInstance();
-
         // Phase 1: Browsing
         ZC_QueryServiceType($mdnsID, self::DISCOVERY_SEARCHTARGET, '');
         $this->debugExpert('mDNS', 'Browsing... waiting 2s');
@@ -364,33 +370,20 @@ class HomeAssistantDiscovery extends IPSModuleStrict
     }
 
     /**
-     * Helper: mDNS Instanz ID holen oder erstellen
+     * DNS-SD Control ist eine Kerninstanz und wird als vorhanden vorausgesetzt. Die Discovery
+     * legt sie nie selbst an (Store-Review Punkte 6 und 13); fehlt sie, liefert die Methode 0
+     * und das Formular zeigt einen Hinweis.
      */
     private function getMdnsInstance(): int
     {
-        $ids = IPS_GetInstanceListByModuleID(HAIds::MODULE_MDNS);
-        if (count($ids) > 0) {
-            return $ids[0];
-        }
-
-        // Fehlerbehandlung: Prüfen, ob die Erstellung erfolgreich war
-        $id = IPS_CreateInstance(HAIds::MODULE_MDNS);
-        if ($id === 0) {
-            throw new RuntimeException(
-                $this->Translate('Could not create DNS-SD Control instance. Please check the license limit or whether the module is available.')
-            );
-        }
-
-        IPS_SetName($id, 'DNS-SD Control');
-        IPS_ApplyChanges($id);
-        return $id;
+        return IPS_GetInstanceListByModuleID(HAIds::MODULE_MDNS)[0] ?? 0;
     }
 
     public function GetConfigurationForm(): string
     {
         $searchActive = json_decode($this->GetBuffer(self::BUFFER_SEARCHACTIVE), false, 512, JSON_THROW_ON_ERROR);
 
-        if (!$searchActive) {
+        if (!$searchActive && $this->getMdnsInstance() !== 0) {
             $this->SetBuffer(self::BUFFER_SEARCHACTIVE, json_encode(true, JSON_THROW_ON_ERROR));
             $this->SetTimerInterval(self::TIMER_LOAD, self::SEARCH_START_DELAY_MS);
         }
@@ -421,15 +414,22 @@ class HomeAssistantDiscovery extends IPSModuleStrict
 
     private function formActions(): array
     {
-        $devices = json_decode($this->GetBuffer(self::BUFFER_SERVERS), false, 512, JSON_THROW_ON_ERROR);
+        $devices     = json_decode($this->GetBuffer(self::BUFFER_SERVERS), false, 512, JSON_THROW_ON_ERROR);
+        $mdnsMissing = $this->getMdnsInstance() === 0;
 
         return [
+            [
+                'name'    => 'mdnsMissing',
+                'type'    => 'Label',
+                'caption' => $this->Translate('No DNS-SD Control instance found. The search needs this core instance of Symcon.'),
+                'visible' => $mdnsMissing
+            ],
             [
                 'name'          => 'searchingInfo',
                 'type'          => 'ProgressBar',
                 'caption'       => $this->Translate('Searching for Home Assistant instances via mDNS (wait 2s)...'),
                 'indeterminate' => true,
-                'visible'       => count($devices) === 0
+                'visible'       => !$mdnsMissing && count($devices) === 0
             ],
             [
                 'name'     => 'configurator',

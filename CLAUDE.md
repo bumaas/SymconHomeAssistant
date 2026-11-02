@@ -435,7 +435,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 ## libs/
 
 Gemeinsame Traits/Klassen; `libs/HACommonIncludes.php` bindet alles ein und wird von allen
-Modulen außer `Home Assistant Discovery` verwendet. Unterordner: `Domains/` (eine
+Modulen außer `Home Assistant Discovery` verwendet. Die Discovery setzt die Kerninstanz DNS-SD Control
+voraus und legt sie nie selbst an (build 217, Store-Review Punkte 6/13); fehlt sie, zeigt sie den
+Hinweis `mdnsMissing` und sucht nicht (Test `tests/check-discovery-dnssd.php`). Unterordner: `Domains/` (eine
 Definitionsklasse je HA-Domäne), `Device/` (Laufzeitlogik der Device-Module), `Config/`,
 `Discovery/` (MQTT-Discovery-Parser/Runtime).
 
