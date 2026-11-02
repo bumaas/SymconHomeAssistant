@@ -22,7 +22,9 @@
       "Read only": "Nur lesen",
       "Write only": "Nur schreiben",
       "Read and write": "Lesen und Schreiben",
-      "none": "keine"
+      "none": "keine",
+      "Duplicate device ID": "Doppelte Geräte-ID",
+      "Not found in MQTT discovery": "In MQTT Discovery nicht gefunden"
     }
   }
 }

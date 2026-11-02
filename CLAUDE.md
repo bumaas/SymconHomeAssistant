@@ -469,6 +469,10 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
   zeichnet REST- und MQTT-Sendungen auf. Das globale `IPS_GetObject()` des Stubs lässt sich
   nicht mitzählen. Umgestellt: `check-action-contract`, `check-configured-entities-cache`,
   `check-reachability`, `check-reload-window`.
+- Der MQTT Discovery Configurator läuft über `DiscoveryConfiguratorHarness` (Splitter-Antwort
+  `$splitterAntwort`, aktiver Parent `$parentAktiv`). Properties gesetzter Instanzen sieht
+  `IPS_GetProperty` im Stub erst nach `ApplyChanges` (vorher stehen sie als „Pending“).
+  Test: `check-discovery-configurator-orphans.php` (verwaiste und doppelte Instanzen, build 215).
 - Hilfsskripte, die keine Tests sind (z. B. Fixture-Extraktion), gehören nach `tools/`
   (nicht versioniert), nicht nach `tests/`.
 - Offen: Die übrigen Laufzeit-Checks tragen noch eigene Attrappen. Umstellung auf den

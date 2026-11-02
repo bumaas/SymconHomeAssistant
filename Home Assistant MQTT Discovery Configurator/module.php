@@ -56,7 +56,7 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         $analysis = $this->analyzeDiscoveryRecords($records);
         $groups = $analysis['groups'];
         $diagnostics = $analysis['diagnostics'];
-        $values = $this->prepareConfiguratorValues($groups);
+        $values = $this->prepareConfiguratorValues($groups, $analysis['known_device_ids']);
 
         if ($records === []) {
             $form['actions'][] = [
@@ -141,6 +141,14 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         $diagnostics = is_array($analysis['diagnostics'] ?? null) ? $analysis['diagnostics'] : [];
         $groups = $this->grouping->groupEntitiesToDevices($entities);
 
+        // Alle angekündigten Geräte, auch ausgeblendete Bridges: Deren Instanzen sind nicht „nicht gefunden“.
+        $knownDeviceIds = [];
+        foreach ($groups as $group) {
+            if (is_array($group)) {
+                $knownDeviceIds[(string)($this->grouping->buildDeviceConfig($group)['device_id'] ?? '')] = true;
+            }
+        }
+
         if (!$this->ReadPropertyBoolean('ShowBridgeDevices')) {
             $groups = array_values(array_filter($groups, static function (array $group): bool {
                 return !($group['is_bridge_device'] ?? false);
@@ -151,7 +159,8 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
 
         return [
             'groups' => $groups,
-            'diagnostics' => $diagnostics
+            'diagnostics' => $diagnostics,
+            'known_device_ids' => $knownDeviceIds
         ];
     }
 
@@ -200,7 +209,10 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         ]);
     }
 
-    private function prepareConfiguratorValues(array $groups): array
+    /**
+     * @param array<string, true> $knownDeviceIds Geräte-IDs aller angekündigten Geräte (auch ausgeblendete)
+     */
+    private function prepareConfiguratorValues(array $groups, array $knownDeviceIds): array
     {
         $instance = IPS_GetInstance($this->InstanceID);
         $configuratorParentId = (int)($instance['ConnectionID'] ?? 0);
@@ -215,7 +227,38 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
             $values[] = $this->buildConfiguratorRow($group, $mappedInstances);
         }
 
+        // Eigene Instanzen, deren Gerät nicht (mehr) angekündigt ist, und weitere Instanzen derselben
+        // Geräte-ID: Der Anwender soll jede Instanz seines Splitters hier sehen und löschen können.
+        foreach ($mappedInstances as $deviceId => $instanceIds) {
+            $deviceId = (string)$deviceId;
+            if (isset($knownDeviceIds[$deviceId])) {
+                $extra = array_slice($instanceIds, 1);
+                $summary = $this->Translate('Duplicate device ID');
+            } else {
+                $extra = $instanceIds;
+                $summary = $this->Translate('Not found in MQTT discovery');
+            }
+            foreach ($extra as $instanceId) {
+                $values[] = $this->buildInstanceStatusRow($instanceId, $deviceId, $summary);
+            }
+        }
+
         return $values;
+    }
+
+    private function buildInstanceStatusRow(int $instanceId, string $deviceId, string $summary): array
+    {
+        return [
+            'instanceID' => $instanceId,
+            'Type' => $this->Translate('Device'),
+            'name' => IPS_GetName($instanceId),
+            'Manufacturer' => '',
+            'Model' => '',
+            'DeviceID' => $deviceId,
+            'EntityCount' => '',
+            'Summary' => $summary,
+            'group' => ''
+        ];
     }
 
     private function buildConfiguratorRow(array $group, array $mappedInstances): array

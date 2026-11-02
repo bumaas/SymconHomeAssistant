@@ -26,6 +26,7 @@ require_once dirname(__DIR__) . '/Home Assistant Entity/module.php';
 require_once dirname(__DIR__) . '/Home Assistant Splitter/module.php';
 require_once dirname(__DIR__) . '/Home Assistant MQTT Discovery Splitter/module.php';
 require_once dirname(__DIR__) . '/Home Assistant MQTT Discovery Device/module.php';
+require_once dirname(__DIR__) . '/Home Assistant MQTT Discovery Configurator/module.php';
 
 // ---------------------------------------------------------------------------
 // Zähl-Registry: Arbeit statt Zeit messen
@@ -613,14 +614,43 @@ final class DiscoveryDeviceHarness extends HomeAssistantMQTTDiscoveryDevice
     }
 }
 
+final class DiscoveryConfiguratorHarness extends HomeAssistantMQTTDiscoveryConfigurator
+{
+    use FensterRahmenTrait;
+
+    public const string MODULE_ID = HAIds::MODULE_MQTT_DISCOVERY_CONFIGURATOR;
+    public const string MODULE_NAME = 'Home Assistant MQTT Discovery Configurator';
+    public const int MODULE_TYPE = MODULETYPE_CONFIGURATOR;
+
+    /** Antwort des Discovery-Splitters auf GetDiscoveryConfigs (null = Stub fragen). */
+    public static ?array $splitterAntwort = null;
+
+    /** Parent gilt als aktiv, ohne einen Splitter mit Broker aufzubauen. */
+    public static bool $parentAktiv = false;
+
+    protected function SendDataToParent(string $Data): string
+    {
+        $anfrage = json_decode($Data, true);
+        if (self::$splitterAntwort !== null && ($anfrage['DiscoveryAction'] ?? '') === 'GetDiscoveryConfigs') {
+            return json_encode(self::$splitterAntwort, JSON_THROW_ON_ERROR);
+        }
+        return parent::SendDataToParent($Data);
+    }
+
+    protected function HasActiveParent(): bool
+    {
+        return self::$parentAktiv || parent::HasActiveParent();
+    }
+}
+
 /**
  * Legt eine Instanz eines Moduls ohne eigenen Rahmen im Kernel-Stub an (ohne Parent).
  *
- * @template T of SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness
+ * @template T of SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness|DiscoveryConfiguratorHarness
  * @param class-string<T> $klasse
  * @return T
  */
-function neueFensterInstanz(string $klasse): SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness
+function neueFensterInstanz(string $klasse): SplitterHarness|DiscoverySplitterHarness|DiscoveryDeviceHarness|DiscoveryConfiguratorHarness
 {
     $id = IPS\ObjectManager::registerObject(OBJECTTYPE_INSTANCE);
     IPS\InstanceManager::createInstance($id, [
