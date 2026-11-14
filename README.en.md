@@ -60,7 +60,7 @@ MQTT Discovery:
 Classic bridge:
 
 - A running Home Assistant installation with `mqtt_statestream` enabled.
-- An MQTT Client instance in Symcon connected to the same broker.
+- An MQTT Client instance in Symcon connected to the same broker. From Home Assistant 2027.1 on, the Symcon MQTT Server no longer works as the broker for Home Assistant (see FAQ).
 - A Long-Lived Access Token from Home Assistant (Profile > Security > Long-Lived Access Tokens).
 - For the Home Assistant Discovery module: the core instance DNS-SD Control, which Symcon provides itself.
 
@@ -144,6 +144,8 @@ If the load stays high even without device instances and only drops a few minute
 **Can I use both ways at the same time?** Yes. The two module families are independent.
 
 **Why does MQTT Discovery need an MQTT Client and not just the MQTT Server?** The splitter builds its cache from the retained discovery messages, and those are only delivered to a subscribing client when it connects. The Symcon MQTT Server can still be the broker; the MQTT Client then points to it.
+
+**Home Assistant reports "MQTT protocol migration failed". What now?** From version 2027.1 on, Home Assistant requires a broker with MQTT 5 and announces this as a repair beforehand. According to its documentation, the Symcon MQTT Server speaks MQTT 3.1 and 3.1.1, so Home Assistant loses the connection with that update. Use a broker that speaks both, for example the Mosquitto add-on in Home Assistant: Home Assistant connects with MQTT 5, the MQTT Client in Symcon keeps using 3.1.1. Section 4 describes the MQTT Client with its user; then point `mqtt_statestream` and the MQTT integration in Home Assistant to the new broker.
 
 ## Donations
 

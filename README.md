@@ -98,7 +98,7 @@ Typische Module in diesem Pfad:
 ### Für die klassische Bridge
 
 - bestehende Home-Assistant-Installation
-- MQTT Client oder MQTT Server in Symcon
+- MQTT Client oder MQTT Server in Symcon. Als Broker für Home Assistant taugt der MQTT Server von Symcon ab Home Assistant 2027.1 nicht mehr (siehe FAQ).
 - `mqtt_statestream` in Home Assistant aktiv
 - passender Long-Lived Access Token für den Zugriff auf Home Assistant
 - Optional mDNS/DNS-SD für das Modul `Home Assistant Discovery`
@@ -314,6 +314,12 @@ Ja. Die Modulgruppen sind absichtlich getrennt und können parallel genutzt werd
 Der MQTT-Discovery-Pfad baut seinen Discovery-Cache aus den retained `homeassistant/.../config` Topics auf. Dafür braucht der Splitter einen abonnierenden MQTT Client als Parent, der die Discovery- und Runtime-Topics aktiv vom Broker empfängt und bei einem Reconnect erneut als retained Replay bekommt. Genau darauf basiert auch die Funktion `MQTT-IO reconnecten`.
 
 Der Symcon MQTT Server kann dabei weiterhin der Broker sein. Für den Discovery-Pfad wird dann zusätzlich ein MQTT Client verwendet, dessen IO direkt auf den lokalen MQTT Server zeigen kann, z. B. `127.0.0.1:1028`.
+
+### Home Assistant meldet „MQTT-Protokoll-Migration fehlgeschlagen“. Was tun?
+
+Home Assistant verlangt ab Version 2027.1 einen Broker mit MQTT 5 und meldet das vorher als Reparatur. Der MQTT Server von Symcon spricht laut Dokumentation MQTT 3.1 und 3.1.1. Wer ihn als Broker für Home Assistant nutzt, verliert mit diesem Update die Verbindung.
+
+Abhilfe ist ein Broker, der beide Versionen spricht, etwa das Mosquitto-Add-on in Home Assistant. Home Assistant verbindet sich dann mit MQTT 5, der MQTT Client in Symcon wie bisher mit 3.1.1. Die Einrichtung des MQTT Clients samt Benutzer steht in Abschnitt 4.1; danach `mqtt_statestream` und die Integration MQTT in Home Assistant auf den neuen Broker umstellen.
 
 ### Spenden
 
