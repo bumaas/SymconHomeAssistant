@@ -113,7 +113,7 @@ MQTT Discovery: `sensor`, `binary_sensor`, `number`, `cover`, `climate`, `switch
 
 ## 7. Troubleshooting
 
-Both splitters have a **Run self-test** button. It checks the usual causes (parent active, REST and token, base topic or discovery prefix, MQTT credentials, incoming data, subscriptions, discovery cache) and shows a checklist with hints. It is the quickest first step.
+Both splitters have a **Run self-test** button. It checks the usual causes (parent active, REST and token, base topic or discovery prefix, MQTT credentials, incoming `mqtt_statestream` data, subscriptions, discovery cache) and shows a checklist with hints. It is the quickest first step.
 
 To watch the MQTT traffic, the free [MQTT Explorer](https://mqtt-explorer.com/) helps: connect it to the same broker and check whether topics like `<MQTT Base Topic>/switch/<entity>/state` or `homeassistant/.../config` arrive at all.
 
@@ -121,7 +121,7 @@ Classic bridge:
 
 - **MQTT Client shows an error although IP and port are right:** the MQTT credentials are almost always missing (see 4.1).
 - **Values in Symcon differ from Home Assistant:** states only come via `mqtt_statestream`. Check that it is enabled and that `base_topic` matches **MQTT Base Topic**. Use an MQTT Client as parent so that the retained values arrive on connect, and subscribe to `<base_topic>/#`, not `#`.
-- **Whole domains are missing** (for example all `binary_sensor`): an `include`/`exclude` filter of `mqtt_statestream` hides them. The self-test lists the domains that actually arrive.
+- **Whole domains are missing** (for example all `binary_sensor`): an `include`/`exclude` filter of `mqtt_statestream` hides them. The self-test lists the domains that actually arrive. Only `mqtt_statestream` messages count; discovery configs of other devices and the Home Assistant birth message, which share the `homeassistant` prefix, do not.
 - **Switching does nothing:** commands go via REST, so **HA URL** and the token must be valid. The splitter's diagnostics show REST errors and timeouts.
 - **"Device not found in Home Assistant"** (entity: "Entity not found"): the module asked a running Home Assistant and got no entities, so the device was deleted or renamed there. It checks again every five minutes. While Home Assistant is still starting, an empty answer does not count; the configuration is kept and the module asks again after 30 seconds.
 

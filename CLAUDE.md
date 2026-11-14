@@ -421,6 +421,20 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Test: `tests/check-discovery-climate.php`, bedingte Fälle in `check-mqtt-discovery-template-parser.php`;
   der `DiscoveryDeviceHarness` schneidet MQTT-Sendungen mit (`$mqttSendungen`).
 
+## Selbsttest zählt nur statestream (build 228)
+
+- „MQTT-Daten empfangen“ und „Empfangene Domänen“ im Selbsttest des Splitters zählen nur
+  statestream-Topics (`getStatestreamDomain`: genau `<base>/<domain>/<object_id>/<attribut>`, nicht `…/config`).
+  Bis build 227 zählte jedes Topic unter dem Base-Topic. Mit dem Standard `homeassistant` liegen dort auch
+  Discovery-Konfigurationen anderer Geräte und die Startmeldung `homeassistant/status`: alsk1 (t/142973 #381,
+  14.11.2026) hatte `base_topic: homeassistant_stream` in HA, der Selbsttest meldete „Empfangene Domänen:
+  sensor, status, switch“ und „alles in Ordnung“, es kam aber kein einziger Wert an.
+- Gemessen wird über den Buffer `LastStatestreamEpoch` (Kernel-Neustart leert ihn, der retained Replay füllt
+  ihn sofort). Das Attribut `LastMQTTMessage` (Diagnose „Letzte MQTT-Nachricht“) und die Zugangsdaten-Prüfung
+  sehen weiter jede Meldung: Ein Broker, der anonym etwas liefert, akzeptiert anonym, auch ohne statestream.
+- Test: `tests/check-selftest-foreign-topics.php` (Fixture `selftest_fremde_topics_20261114.json`, Topics aus
+  schon versionierten echten Mitschnitten).
+
 ## Nachkommastellen (build 201, Blindtest-Befund 8)
 
 - HA führt die Anzeigegenauigkeit (`suggested_display_precision` der Integration, `display_precision` des
