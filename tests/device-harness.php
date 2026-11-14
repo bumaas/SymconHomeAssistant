@@ -448,6 +448,15 @@ trait FensterRahmenTrait
     /** @var array<int, array<string, true>> je Instanz-ID die gesetzten Buffer */
     private static array $fensterPuffer = [];
 
+    /** GetBuffer-Aufrufe des Moduls je Rahmenklasse (Kosten im heißen Pfad). */
+    public static int $pufferLesungen = 0;
+
+    protected function GetBuffer(string $Name): string
+    {
+        self::$pufferLesungen++;
+        return parent::GetBuffer($Name);
+    }
+
     protected function SetBuffer(string $Name, string $Data): bool
     {
         self::$fensterPuffer[$this->InstanceID][$Name] = true;

@@ -39,7 +39,7 @@ $empfange = static function (array $meldung) use ($splitter): void {
     ], JSON_THROW_ON_ERROR));
 };
 
-// ---- Teil 1: nur fremde Meldungen unter dem Base-Topic (Alex' Lage) ----
+// ---- Teil 1: nur fremde Meldungen unter dem Base-Topic (die Lage von alsk1) ----
 foreach ($fixture['fremde_meldungen'] as $meldung) {
     $empfange($meldung);
 }
@@ -51,8 +51,9 @@ pruefe(
     $bericht
 );
 pruefe(
-    str_contains($bericht, 'No MQTT data received yet'),
-    'Ohne statestream warnt der Selbsttest mit dem Hinweis auf mqtt_statestream und base_topic',
+    str_contains($bericht, 'MQTT messages arrive, but none from mqtt_statestream')
+    && !str_contains($bericht, 'No MQTT data received yet'),
+    'Ohne statestream sagt der Selbsttest, dass Meldungen ankommen, aber keine von mqtt_statestream',
     $bericht
 );
 pruefe(
@@ -122,7 +123,7 @@ foreach ($fixture['linktap_meldungen'] as $meldung) {
 $bericht = neueAusfuehrung($zweiter)->RunSelfTest();
 
 pruefe(
-    !str_contains($bericht, 'MQTT data received (') && str_contains($bericht, 'No MQTT data received yet'),
+    !str_contains($bericht, 'MQTT data received (') && str_contains($bericht, 'none from mqtt_statestream'),
     'Topics eines fremden Geräts in der Form von statestream zählen nicht als empfangene Daten',
     $bericht
 );
@@ -157,6 +158,76 @@ $bericht = neueAusfuehrung($zweiter)->RunSelfTest();
 pruefe(
     !str_contains($bericht, 'MQTT data received (') && str_contains($bericht, 'Received domains: none yet'),
     'Das zurückkommende eigene set-Topic zählt nicht als Meldung von statestream',
+    $bericht
+);
+
+// ---- Teil 5: Kosten im heißen Pfad ----
+// Eine statestream-Meldung einer bekannten Domäne liest höchstens zwei Buffer (letzte Meldung überhaupt,
+// Stand des statestream). Bis build 230 waren es drei, einer davon nur für den Selbsttest.
+$empfange($fixture['statestream_meldungen'][0]);
+SplitterHarness::$pufferLesungen = 0;
+$empfange($fixture['statestream_meldungen'][0]);
+pruefe(
+    SplitterHarness::$pufferLesungen <= 2,
+    'Eine statestream-Meldung liest höchstens zwei Buffer',
+    SplitterHarness::$pufferLesungen . ' GetBuffer'
+);
+
+// ---- Teil 6: statestream schweigt, andere Meldungen kommen weiter ----
+// Der letzte statestream-Empfang ist alt, eine Discovery-Konfiguration kommt gerade an: Die Verbindung steht.
+$alt = time() - 1000;
+$splitter->pufferVerwerfen();
+$splitter->attributSetzen('LastStatestreamMessage', $alt . '|homeassistant');
+$empfange($fixture['fremde_meldungen'][1]);
+$bericht = neueAusfuehrung($splitter)->RunSelfTest();
+
+pruefe(
+    str_contains($bericht, 'other MQTT messages still arrive') && !str_contains($bericht, 'connection may be broken'),
+    'Schweigt nur der statestream, meldet der Selbsttest keine unterbrochene Verbindung',
+    $bericht
+);
+
+// ---- Teil 7: Übernehmen ohne und mit geändertem Base-Topic ----
+foreach ($fixture['statestream_meldungen'] as $meldung) {
+    $empfange($meldung);
+}
+$splitter->ApplyChanges();
+$bericht = neueAusfuehrung($splitter)->RunSelfTest();
+pruefe(
+    str_contains($bericht, 'MQTT data received (') && str_contains($bericht, 'light'),
+    'Übernehmen ohne Änderung am Base-Topic behält Empfang und Domänen',
+    $bericht
+);
+
+// Das Abo im MQTT Client bleibt homeassistant/#, unter dem neuen Base-Topic kommt nichts an.
+$splitter->SetProperty('MQTTBaseTopic', 'homeassistant_stream');
+$splitter->ApplyChanges();
+$bericht = neueAusfuehrung($splitter)->RunSelfTest();
+pruefe(
+    !str_contains($bericht, 'MQTT data received ('),
+    'Nach geändertem Base-Topic gilt der Empfang unter dem alten nicht mehr',
+    $bericht
+);
+pruefe(
+    str_contains($bericht, 'Received domains: none yet'),
+    'Nach geändertem Base-Topic sind die Domänen des alten vergessen',
+    $bericht
+);
+
+// ---- Teil 8: Leerraum im Base-Topic ----
+// Empfangsfilter und Kinder kürzen das Base-Topic mit trim(); die Werte kommen an, der Selbsttest muss es auch sehen.
+$dritter = neueFensterInstanz(SplitterHarness::class);
+$dritter->SetProperty('HAUrl', 'http://127.0.0.1:9');
+$dritter->SetProperty('HAToken', 'test');
+$dritter->SetProperty('MQTTBaseTopic', 'homeassistant ');
+$dritter->ApplyChanges();
+foreach ($fixture['statestream_meldungen'] as $meldung) {
+    $empfangeAn($dritter, $meldung['topic'], $meldung['payload']);
+}
+$bericht = neueAusfuehrung($dritter)->RunSelfTest();
+pruefe(
+    str_contains($bericht, 'MQTT data received (') && str_contains($bericht, 'Only one domain is delivering data: light'),
+    'Ein Base-Topic mit Leerzeichen am Ende zählt statestream trotzdem',
     $bericht
 );
 

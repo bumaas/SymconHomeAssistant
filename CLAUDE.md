@@ -435,7 +435,17 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   „Empfangene Domänen“ nennt damit nur noch Domänen, die das Modul verarbeitet (kein `automation`, `person`, `sun`).
   Bekannte Lücke: ein fremdes Gerät, das unter einer HA-Domäne in derselben Form sendet
   (`homeassistant/binary_sensor/garden/state` aus der HA-Doku); dafür gibt es keinen Mitschnitt.
-- Gemessen wird über den Buffer `LastStatestreamEpoch` (alle 5 s) und das Attribut `LastStatestreamMessage`
+- Seit build 231 (Code-Review 14.11.2026, Befunde 3 bis 8) liegt der Stand in einem Buffer `StatestreamSeen`
+  (`<epoch>|<persistiert>|<domäne>|…`, `recordStatestreamMessage()`): eine Meldung liest zwei Buffer statt drei.
+  Das Attribut trägt `<epoch>|<base_topic>`; stellt der Anwender `MQTTBaseTopic` um, vergisst `ApplyChanges` Empfang
+  und Domänen des alten (`forgetStatestreamOfOtherBaseTopic()`, nur bei einem Wechsel, weil `ApplyChanges` auch bei
+  jedem Kernel-Start läuft). Topics zerlegt allein `topicPartsBelowBase()` (Selbsttest, REST-Quittung,
+  Laufzeitmessung); vorher drei Zerlegungen mit eigenen Regeln, ein Base-Topic mit Leerzeichen am Ende lieferte
+  Werte, der Selbsttest sah aber nichts.
+- Kommt außerhalb des statestream gerade etwas an (`LastMQTTMessage` jünger als 300 s), sagt der Selbsttest
+  „MQTT-Meldungen kommen an, aber keine von mqtt_statestream“ bzw. „andere MQTT-Meldungen kommen weiter an“ statt
+  „Verbindung evtl. unterbrochen“. Das ist der Fall alsk1 beim Namen genannt.
+- Gemessen wird über den Buffer (alle 5 s) und das Attribut `LastStatestreamMessage`
   (alle 60 s, mit `@` gelesen und geschrieben). Bis build 229 nur der Buffer: Nach einem Modul-Update bleibt der
   MQTT Client verbunden, es gibt keinen retained Replay, und der Selbsttest einer laufenden Anlage warnte bis zur
   nächsten Zustandsänderung „Noch keine MQTT-Daten empfangen“. Das Attribut `LastMQTTMessage` (Diagnose „Letzte

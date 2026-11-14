@@ -220,9 +220,9 @@ $s->attributeRegistriert = true;
 $abbruch = splitterImFenster($s, static fn($m) => $m->ReceiveData($splitterMeldung('homeassistant/sensor/temperatur/state', '22.5')));
 pruefe($abbruch === null, 'Splitter nach Create(): Meldung wird ohne Fehler verarbeitet', (string)$abbruch);
 pruefe(
-    str_contains($s->puffer('SeenDomains'), 'sensor'),
+    str_contains($s->puffer('StatestreamSeen'), 'sensor'),
     'Splitter nach Create(): die Domäne der Meldung wird erfasst',
-    $s->puffer('SeenDomains')
+    $s->puffer('StatestreamSeen')
 );
 
 // ---- Teil 7 und 8: MQTT Discovery Splitter und Device ----

@@ -1,14 +1,15 @@
 {
     "anlass": "alsk1, t/142973 #381/#382 (14.11.2026): statestream mit base_topic homeassistant_stream, Splitter mit homeassistant, Abo homeassistant/#. Der Selbsttest meldete trotzdem „MQTT-Daten empfangen (vor 3s)“ und „Empfangene Domänen: sensor, status, switch“, Fazit „alles in Ordnung“; die Werte kamen nie an.",
-    "selbsttest_alex": [
+    "selbsttest_alsk1": [
         "✓ MQTT-Daten empfangen (vor 3s)",
         "✓ Parent-Subscription deckt das Base-Topic ab",
         "✓ Empfangene Domänen: sensor, status, switch",
         "Fazit: alles in Ordnung."
     ],
     "quellen": {
-        "homeassistant/status": "Startmeldung von HA (Birth-Message, Standard-Topic und -Payload); die Domäne „status“ in Alex' Selbsttest stammt daher",
-        "config-Topics": "echte Discovery-Konfigurationen aus ha_mqtt_discovery_bundle_ebusd.json und discovery_mitsubishi2mqtt_20261022.json (Topics, Payload hier unerheblich)",
+        "hinweis": "Kein Mitschnitt von alsk1: Aus seinem Fall liegt nur die Ausgabe des Selbsttests vor (oben, aus dem Forum). Die Topics sind aus den folgenden Quellen zusammengestellt. Ob bei ihm auch fremde Topics in der Form von statestream lagen, zeigt diese Fixture nicht.",
+        "homeassistant/status": "Startmeldung von HA, nicht mitgeschnitten: Topic und Payload sind die Vorgabe der MQTT-Integration (birth_message). Die Domäne „status“ im Selbsttest von alsk1 belegt, dass sie bei ihm ankam",
+        "config-Topics": "echte Topics von Discovery-Konfigurationen aus ha_mqtt_discovery_bundle_ebusd.json und discovery_mitsubishi2mqtt_20261022.json. Der Splitter wertet den Payload nicht aus, er ist hier durch {} ersetzt",
         "statestream": "hue_aurelle_statestream_20261019.txt (nuc, mqtt_statestream mit base_topic homeassistant)",
         "linktap": "state_topic und command_topic eines LinkTap-Gateways aus dem Discovery-Bundle eines Anwenders (13.05.2026); das Gateway legt seine eigenen Topics unter homeassistant/linktap/ ab, in derselben Form wie statestream. Seriennummer ersetzt, Payloads waren nicht aufgezeichnet und sind hier unerheblich"
     },

@@ -47,23 +47,20 @@ class HomeAssistantSplitter extends IPSModuleStrict
     private const string BUFFER_LAST_MQTT_TOUCH    = 'LastMqttTouchEpoch';
     private const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
 
-    // Selbsttest: Zeitpunkt (Epoch) der letzten statestream-Meldung, gedrosselt wie BUFFER_LAST_MQTT_TOUCH;
-    // hinter einem `|` steht, wann er zuletzt ins Attribut ging. Das Attribut hält ihn über Neustart und
-    // Neuladen: Einen retained Replay gibt es nur, wenn sich der MQTT Client neu verbindet, nicht nach einem
-    // Modul-Update und nicht mit dem MQTT Server als Parent.
-    private const string BUFFER_LAST_STATESTREAM    = 'LastStatestreamEpoch';
+    // Selbsttest: Stand des statestream in einem Buffer, `<epoch>|<persistiert>|<domäne>|<domäne>…`: Zeitpunkt
+    // der letzten Meldung (gedrosselt wie BUFFER_LAST_MQTT_TOUCH), wann er zuletzt ins Attribut ging, und die
+    // HA-Domänen, die seit dem letzten (Re-)Start geliefert haben (zeigt include/exclude-Filter von
+    // mqtt_statestream). Ein Buffer, weil ihn jede Meldung liest; als Delimited-String, damit der heiße Pfad mit
+    // einem str_contains auskommt und nur bei neuer Domäne oder nach Ablauf der Drossel schreibt.
+    // Das Attribut (`<epoch>|<base_topic>`) hält den Zeitpunkt über Neustart und Neuladen: Einen retained
+    // Replay gibt es nur, wenn sich der MQTT Client neu verbindet, nicht nach einem Modul-Update und nicht mit
+    // dem MQTT Server als Parent. Das Base-Topic steht dabei, damit ApplyChanges einen Wechsel erkennt.
+    private const string BUFFER_STATESTREAM         = 'StatestreamSeen';
     private const string ATTRIBUTE_LAST_STATESTREAM = 'LastStatestreamMessage';
     private const int LAST_STATESTREAM_PERSIST_SEC  = 60;
 
     // Selbsttest: ab welchem Alter (Sekunden) der letzte MQTT-Empfang als "veraltet" gilt.
     private const int SELFTEST_MQTT_RECENCY_SEC = 300;
-
-    // Selbsttest: welche HA-Domänen seit dem letzten (Re-)Start tatsächlich Daten geliefert haben.
-    // Reine Diagnose für den Fall, dass mqtt_statestream via include/exclude ganze Domänen ausblendet.
-    // MUSS im Buffer liegen (ReceiveData läuft in getrennten PHP-Ausführungen); als Delimited-String,
-    // damit der Hot-Path pro Message nur einen str_contains-Check macht und selten (nur bei neuer
-    // Domäne) schreibt statt JSON zu (de)serialisieren.
-    private const string BUFFER_SEEN_DOMAINS = 'SeenDomains';
 
     // Performance-Dauermessung (gated über EnablePerformanceLog): aggregiert die Samples je Scope in
     // einem Fenster (count/sum/max/slow) und schreibt periodisch eine Zusammenfassung ins Symcon-Log —
@@ -244,6 +241,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
     {
         parent::ApplyChanges();
         $this->baseTopicMemo = null; // eine neue Konfiguration kann ein anderes Base-Topic tragen
+        $this->topicPartsMemo = null;
         if (!$this->isInstanceCreated()) {
             return;
         }
@@ -259,6 +257,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         // IM_CHANGESTATUS.
         $this->SetStatus(201);
         $baseTopic = trim($this->getBaseTopicProperty());
+        $this->forgetStatestreamOfOtherBaseTopic();
 
         // Nur Topics unterhalb des Base-Topics annehmen: Ein breit abonnierender MQTT Client (z. B. '#')
         // reicht sonst den gesamten Broker-Verkehr herein, und jede fremde Nachricht kostet eine
@@ -399,8 +398,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
             // die meldeten „Daten empfangen“, obwohl vom statestream nichts ankam (alsk1, t/142973 #381,
             // 14.11.2026). „Letzte MQTT-Nachricht“ und die Zugangsdaten-Prüfung sehen weiter jede Meldung.
             $statestreamDomain = $this->getStatestreamDomain($topic);
-            if ($statestreamDomain !== '' && $this->recordSeenDomain($statestreamDomain)) {
-                $this->touchLastStatestreamMessage();
+            if ($statestreamDomain !== '') {
+                $this->recordStatestreamMessage($statestreamDomain);
             }
             if (str_ends_with($topic, '/state')) {
                 $state = $this->decodePayload((string)($data['Payload'] ?? ''));
@@ -562,15 +561,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return;
         }
 
-        $t = trim($topic, '/');
-        $base = trim($this->getBaseTopicProperty(), '/');
-        if ($base !== '') {
-            if (!str_starts_with($t, $base . '/')) {
-                return;
-            }
-            $t = substr($t, strlen($base) + 1);
-        }
-        if (!str_starts_with($t, 'event/') || !str_ends_with($t, '/state')) {
+        $parts = $this->topicPartsBelowBase($topic);
+        if (($parts[0] ?? '') !== 'event' || end($parts) !== 'state') {
             return;
         }
 
@@ -679,38 +671,104 @@ class HomeAssistantSplitter extends IPSModuleStrict
     // Kein statestream sind die Startmeldung `<base>/status`, Discovery-Konfigurationen (`…/config`, auch mit
     // node_id eine Ebene tiefer), Befehle (`…/set`, der eigene nach abgelehntem REST-Aufruf und die fremder
     // Geräte) und alles außerhalb des Base-Topics. Ob die Domäne eine von Home Assistant ist, prüft
-    // recordSeenDomain().
+    // recordStatestreamMessage().
     private function getStatestreamDomain(string $topic): string
     {
-        $base = trim($this->getBaseTopicProperty(), '/');
-        $t = trim($topic, '/');
-        if ($base === '' || !str_starts_with($t, $base . '/')) {
-            return '';
-        }
-        $parts = explode('/', substr($t, strlen($base) + 1));
+        $parts = $this->topicPartsBelowBase($topic);
         if (count($parts) !== 3 || $parts[2] === 'config' || $parts[2] === 'set' || in_array('', $parts, true)) {
             return '';
         }
         return $parts[0];
     }
 
-    // Always-on, Hot-Path-schonend: merkt sich die distinkten HA-Domänen, die seit dem letzten (Re-)Start
-    // statestream-Daten geliefert haben. Schreibt nur, wenn eine Domäne neu ist. Dient dem Selbsttest, um
-    // statestream-include/exclude-Filter sichtbar zu machen.
-    // Liefert false für eine Domäne, die das Modul nicht kennt: Fremde Geräte legen eigene Topics in derselben
-    // Form unter `homeassistant/` ab (LinkTap: `homeassistant/linktap/<id>/state`), die sind kein statestream.
-    // Der Katalog wird nur gefragt, solange die Domäne noch nicht im Buffer steht.
-    private function recordSeenDomain(string $domain): bool
+    // Das Base-Topic, wie es Empfangsfilter und Kinder verwenden: ohne Leerraum und ohne Schrägstriche am Rand.
+    private function getNormalizedBaseTopic(): string
     {
-        $buf = $this->GetBuffer(self::BUFFER_SEEN_DOMAINS);
-        if (str_contains('|' . $buf . '|', '|' . $domain . '|')) {
-            return true;
+        return trim(trim($this->getBaseTopicProperty()), '/');
+    }
+
+    /** @var array{0: string, 1: list<string>}|null zuletzt zerlegtes Topic; eine Meldung fragt mehrfach */
+    private ?array $topicPartsMemo = null;
+
+    /**
+     * Die Segmente eines Topics hinter dem Base-Topic (`<domain>`, `<object_id>`, …), [] außerhalb davon.
+     * Die eine Zerlegung für Selbsttest, REST-Quittung und Laufzeitmessung; bis build 230 zerlegte jede Stelle
+     * selbst, mit eigenen Regeln für Leerraum im Base-Topic.
+     *
+     * @return list<string>
+     */
+    private function topicPartsBelowBase(string $topic): array
+    {
+        if ($this->topicPartsMemo !== null && $this->topicPartsMemo[0] === $topic) {
+            return $this->topicPartsMemo[1];
         }
-        if (!HADomainCatalog::isDomainSupported($domain)) {
-            return false;
+        $base = $this->getNormalizedBaseTopic();
+        $t = trim($topic, '/');
+        $parts = $base !== '' && str_starts_with($t, $base . '/') ? explode('/', substr($t, strlen($base) + 1)) : [];
+        $this->topicPartsMemo = [$topic, $parts];
+        return $parts;
+    }
+
+    // Always-on, Hot-Path-schonend: hält für den Selbsttest fest, wann zuletzt eine statestream-Meldung kam und
+    // welche HA-Domänen seit dem letzten (Re-)Start geliefert haben (Aufbau siehe BUFFER_STATESTREAM). Liest
+    // einen Buffer je Meldung und schreibt nur bei neuer Domäne oder nach LAST_MQTT_LABEL_THROTTLE_SEC; das
+    // Attribut höchstens alle LAST_STATESTREAM_PERSIST_SEC, mit @, weil es eine Bestandsinstanz erst nach dem
+    // Neuladen kennt (Reload-Fenster).
+    // Eine Domäne, die das Modul nicht kennt, zählt nicht: Fremde Geräte legen eigene Topics in derselben Form
+    // unter `homeassistant/` ab (LinkTap: `homeassistant/linktap/<id>/state`), die sind kein statestream. Der
+    // Katalog wird nur gefragt, solange die Domäne noch nicht im Buffer steht.
+    private function recordStatestreamMessage(string $domain): void
+    {
+        $buf = $this->GetBuffer(self::BUFFER_STATESTREAM);
+        $known = str_contains($buf . '|', '|' . $domain . '|');
+        if (!$known && !HADomainCatalog::isDomainSupported($domain)) {
+            return;
         }
-        $this->SetBuffer(self::BUFFER_SEEN_DOMAINS, $buf === '' ? $domain : $buf . '|' . $domain);
-        return true;
+        $now = time();
+        if ($known && $now - (int)$buf < self::LAST_MQTT_LABEL_THROTTLE_SEC) {
+            return;
+        }
+        $parts = explode('|', $buf);
+        $persisted = (int)($parts[1] ?? 0);
+        if ($now - $persisted >= self::LAST_STATESTREAM_PERSIST_SEC) {
+            @$this->WriteAttributeString(self::ATTRIBUTE_LAST_STATESTREAM, $now . '|' . $this->getNormalizedBaseTopic());
+            $persisted = $now;
+        }
+        $domains = array_slice($parts, 2);
+        if (!$known) {
+            $domains[] = $domain;
+        }
+        $this->SetBuffer(self::BUFFER_STATESTREAM, implode('|', [$now, $persisted, ...$domains]));
+    }
+
+    /**
+     * Stand des statestream für den Selbsttest. Nach Neustart oder Neuladen ist der Buffer leer, dann gilt der
+     * Zeitpunkt aus dem Attribut, sofern er unter dem heutigen Base-Topic entstand.
+     *
+     * @return array{epoch: int, domains: list<string>}
+     */
+    private function readStatestreamState(): array
+    {
+        $parts = explode('|', $this->GetBuffer(self::BUFFER_STATESTREAM));
+        $epoch = (int)$parts[0];
+        $stored = explode('|', (string)@$this->ReadAttributeString(self::ATTRIBUTE_LAST_STATESTREAM), 2);
+        if (($stored[1] ?? '') === $this->getNormalizedBaseTopic()) {
+            $epoch = max($epoch, (int)$stored[0]);
+        }
+        return ['epoch' => $epoch, 'domains' => array_slice($parts, 2)];
+    }
+
+    // Empfang und Domänen gelten für das Base-Topic, unter dem sie ankamen. Stellt der Anwender MQTTBaseTopic um,
+    // meldete der Selbsttest sonst noch fünf Minuten „Daten empfangen“ und bis zum Neustart die alten Domänen.
+    // Nur bei einem Wechsel: ApplyChanges läuft auch bei jedem Kernel-Start und Statuswechsel des Parents.
+    private function forgetStatestreamOfOtherBaseTopic(): void
+    {
+        $stored = (string)@$this->ReadAttributeString(self::ATTRIBUTE_LAST_STATESTREAM);
+        if ($stored === '' || (explode('|', $stored, 2)[1] ?? '') === $this->getNormalizedBaseTopic()) {
+            return;
+        }
+        $this->SetBuffer(self::BUFFER_STATESTREAM, '');
+        @$this->WriteAttributeString(self::ATTRIBUTE_LAST_STATESTREAM, '');
     }
 
     private function loadTopicStatsCounts(): array
@@ -756,24 +814,6 @@ class HomeAssistantSplitter extends IPSModuleStrict
         // Kopfzeile + Top-Geräte + Bytes-Spitzenreiter zusätzlich als eine kompakte Zeile ins persistente
         // Symcon-Log (auswertbar ohne Debugfenster, z. B. aus einer eingesandten Logdatei) — analog Performance-Fenster.
         $this->LogMessage(HATopicStatistics::formatLogLine($aggregate, $elapsed), KL_NOTIFY);
-    }
-
-    // Merkt sich den Zeitpunkt der letzten statestream-Meldung für den Selbsttest: im Buffer höchstens alle
-    // LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, im Attribut höchstens alle LAST_STATESTREAM_PERSIST_SEC. Das
-    // Attribut mit @: Eine Bestandsinstanz kennt es erst nach dem Neuladen (Reload-Fenster).
-    private function touchLastStatestreamMessage(): void
-    {
-        $now = time();
-        $buf = $this->GetBuffer(self::BUFFER_LAST_STATESTREAM);
-        if ($now - (int)$buf < self::LAST_MQTT_LABEL_THROTTLE_SEC) {
-            return;
-        }
-        $persisted = (int)(explode('|', $buf)[1] ?? 0);
-        if ($now - $persisted >= self::LAST_STATESTREAM_PERSIST_SEC) {
-            @$this->WriteAttributeString(self::ATTRIBUTE_LAST_STATESTREAM, (string)$now);
-            $persisted = $now;
-        }
-        $this->SetBuffer(self::BUFFER_LAST_STATESTREAM, $now . '|' . $persisted);
     }
 
     // Schreibt das LastMQTTMessage-Attribut höchstens alle LAST_MQTT_LABEL_THROTTLE_SEC Sekunden, damit die
@@ -1519,7 +1559,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             return [[
                 'warn',
                 $this->Translate('Parent type: MQTT Server'),
-                $this->Translate('An MQTT Client receives the retained replay on connect (immediate full initial state). MQTT Server works too but without that replay.')
+                $this->Translate('An MQTT Client receives the retained replay on connect (immediate full initial state). MQTT Server works too but without that replay. From Home Assistant 2027.1 on, Home Assistant requires MQTT 5 and can no longer use the Symcon MQTT Server as its broker (see README, FAQ).')
             ]];
         }
         return [];
@@ -1621,12 +1661,24 @@ class HomeAssistantSplitter extends IPSModuleStrict
      */
     private function selfTestMqttRecency(): array
     {
-        // Nach Neustart oder Neuladen ist der Buffer leer, dann gilt der Stand des Attributs.
-        $lastEpoch = max(
-            (int)$this->GetBuffer(self::BUFFER_LAST_STATESTREAM),
-            (int)@$this->ReadAttributeString(self::ATTRIBUTE_LAST_STATESTREAM)
-        );
+        $lastEpoch = $this->readStatestreamState()['epoch'];
+        // Kommt außerhalb des statestream gerade etwas an, steht die Verbindung. Dann liegt es am statestream
+        // selbst (abgeschaltet, anderes base_topic) und der Selbsttest sagt das, statt eine unterbrochene
+        // Verbindung zu vermuten (alsk1: „Letzte MQTT-Nachricht“ frisch, vom statestream nichts).
+        $lastAny = (int)strtotime($this->ReadAttributeString('LastMQTTMessage'));
+        $anyAge = time() - $lastAny;
+        $othersArrive = $lastAny > 0 && $anyAge >= 0 && $anyAge <= self::SELFTEST_MQTT_RECENCY_SEC;
         $ageHint = $this->Translate('mqtt_statestream is event-driven, so occasional gaps are normal. A stale value right after Apply usually means a broken connection (wrong MQTT user/password, subscription or base_topic).');
+        if ($lastEpoch === 0 && $othersArrive) {
+            return [[
+                'warn',
+                $this->Translate('MQTT messages arrive, but none from mqtt_statestream'),
+                sprintf(
+                    $this->Translate('The connection works. Check in Home Assistant that mqtt_statestream is enabled and that its base_topic is "%s" (MQTTBaseTopic).'),
+                    $this->getNormalizedBaseTopic()
+                )
+            ]];
+        }
         if ($lastEpoch === 0) {
             return [[
                 'warn',
@@ -1638,6 +1690,13 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $age = time() - $lastEpoch;
         if ($age >= 0 && $age <= self::SELFTEST_MQTT_RECENCY_SEC) {
             return [['ok', sprintf($this->Translate('MQTT data received (%ds ago)'), $age)]];
+        }
+        if ($othersArrive) {
+            return [[
+                'warn',
+                sprintf($this->Translate('Last mqtt_statestream data at %s (%s ago), other MQTT messages still arrive'), $lastMqtt, $this->formatAge($age)),
+                $this->Translate('The connection works. mqtt_statestream only reports changes, so gaps are normal. If values stay missing, check mqtt_statestream and its base_topic in Home Assistant.')
+            ]];
         }
         return [[
             'warn',
@@ -1685,8 +1744,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
      */
     private function selfTestSeenDomains(): array
     {
-        $seenRaw = $this->GetBuffer(self::BUFFER_SEEN_DOMAINS);
-        $seen = $seenRaw === '' ? [] : explode('|', $seenRaw);
+        $seen = $this->readStatestreamState()['domains'];
         sort($seen, SORT_STRING);
         if ($seen === []) {
             return [['•', $this->Translate('Received domains: none yet (since last restart)')]];
@@ -1907,29 +1965,11 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     private function extractEntityIdFromTopic(string $topic): string
     {
-        $baseTopic = trim($this->getBaseTopicProperty());
-        if ($baseTopic === '' || $topic === '') {
+        $parts = $this->topicPartsBelowBase($topic);
+        if (count($parts) < 2 || $parts[0] === '' || $parts[1] === '') {
             return '';
         }
-
-        $parts = explode('/', trim($topic, '/'));
-        $baseParts = explode('/', trim($baseTopic, '/'));
-        if (count($parts) < count($baseParts) + 2) {
-            return '';
-        }
-
-        for ($i = 0, $iMax = count($baseParts); $i < $iMax; $i++) {
-            if ($parts[$i] !== $baseParts[$i]) {
-                return '';
-            }
-        }
-
-        $domain = $parts[count($baseParts)] ?? '';
-        $entity = $parts[count($baseParts) + 1] ?? '';
-        if ($domain === '' || $entity === '') {
-            return '';
-        }
-        return $domain . '.' . $entity;
+        return $parts[0] . '.' . $parts[1];
     }
 
     private function updateFormFieldSafe(string $name, string $property, mixed $value): void
