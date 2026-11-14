@@ -445,6 +445,23 @@ trait FensterRahmenTrait
         return parent::GetBuffer($name);
     }
 
+    /** @var array<int, array<string, true>> je Instanz-ID die gesetzten Buffer */
+    private static array $fensterPuffer = [];
+
+    protected function SetBuffer(string $Name, string $Data): bool
+    {
+        self::$fensterPuffer[$this->InstanceID][$Name] = true;
+        return parent::SetBuffer($Name, $Data);
+    }
+
+    /** Kernel-Neustart oder Neuladen: Alle Instanz-Buffer sind weg, Attribute bleiben. */
+    public function pufferVerwerfen(): void
+    {
+        foreach (array_keys(self::$fensterPuffer[$this->InstanceID] ?? []) as $name) {
+            parent::SetBuffer($name, '');
+        }
+    }
+
     public function timer(string $ident): int
     {
         return parent::GetTimerInterval($ident);

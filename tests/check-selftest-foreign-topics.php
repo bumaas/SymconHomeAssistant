@@ -79,4 +79,85 @@ pruefe(
     $bericht
 );
 
+// ---- Teil 3: Neustart ohne Replay (Modul-Update, MQTT Server als Parent) ----
+// Die Buffer sind weg, die Verbindung steht noch, bis zur nächsten Zustandsänderung kommt nichts. Bis build 229
+// lag der Zeitpunkt nur im Buffer: Eine laufende Anlage meldete direkt nach dem Update „Noch keine MQTT-Daten“.
+$splitter->pufferVerwerfen();
+$bericht = neueAusfuehrung($splitter)->RunSelfTest();
+
+pruefe(
+    str_contains($bericht, 'MQTT data received ('),
+    'Nach einem Neustart ohne neue Meldung kennt der Selbsttest den letzten statestream-Empfang noch',
+    $bericht
+);
+pruefe(
+    !str_contains($bericht, 'No MQTT data received yet'),
+    'Nach einem Neustart warnt der Selbsttest nicht „Noch keine MQTT-Daten empfangen“',
+    $bericht
+);
+
+// ---- Teil 4: fremde Topics in der Form von statestream ----
+// Ein LinkTap-Gateway legt Zustand und Befehle unter homeassistant/linktap/<id>/state bzw. …/set ab: drei
+// Segmente, kein „config“. „linktap“ ist keine Domäne von Home Assistant.
+$zweiter = neueFensterInstanz(SplitterHarness::class);
+$zweiter->SetProperty('HAUrl', 'http://127.0.0.1:9');
+$zweiter->SetProperty('HAToken', 'test');
+$zweiter->SetProperty('MQTTBaseTopic', 'homeassistant');
+$zweiter->ApplyChanges();
+
+$empfangeAn = static function (SplitterHarness $ziel, string $topic, string $payload): void {
+    neueAusfuehrung($ziel)->ReceiveData(json_encode([
+        'DataID'           => HAIds::DATA_MQTT_RX,
+        'PacketType'       => 3,
+        'QualityOfService' => 0,
+        'Retain'           => false,
+        'Topic'            => $topic,
+        'Payload'          => bin2hex($payload),
+    ], JSON_THROW_ON_ERROR));
+};
+
+foreach ($fixture['linktap_meldungen'] as $meldung) {
+    $empfangeAn($zweiter, $meldung['topic'], $meldung['payload']);
+}
+$bericht = neueAusfuehrung($zweiter)->RunSelfTest();
+
+pruefe(
+    !str_contains($bericht, 'MQTT data received (') && str_contains($bericht, 'No MQTT data received yet'),
+    'Topics eines fremden Geräts in der Form von statestream zählen nicht als empfangene Daten',
+    $bericht
+);
+pruefe(
+    str_contains($bericht, 'Received domains: none yet'),
+    '„linktap“ erscheint nicht als empfangene Domäne',
+    $bericht
+);
+
+// Der eigene Befehl: Lehnt HA den REST-Aufruf ab, reicht der Splitter das set-Topic an MQTT weiter. Über das
+// Abo <base>/# kommt es zurück und ist ebenfalls keine Meldung von statestream. Das Topic erzeugt der Splitter
+// hier selbst (Entität aus rest_set_select_20261015.json).
+$befehle = json_decode((string)file_get_contents(__DIR__ . '/fixtures/rest_set_select_20261015.json'), true, 512, JSON_THROW_ON_ERROR);
+[$domain, $objekt] = explode('.', (string)$befehle['zustaende'][0]['entity_id'], 2);
+SplitterHarness::$mqttWeiterleitungen = [];
+SplitterHarness::$haAntwort = static fn(string $url, mixed $daten): array => ['response' => '400: Bad Request', 'httpCode' => 400];
+neueAusfuehrung($zweiter)->ForwardData(json_encode([
+    'DataID'           => HAIds::DATA_DEVICE_TO_SPLITTER,
+    'PacketType'       => 3,
+    'QualityOfService' => 0,
+    'Retain'           => false,
+    'Topic'            => 'homeassistant/' . $domain . '/' . $objekt . '/set',
+    'Payload'          => bin2hex('x'),
+], JSON_THROW_ON_ERROR));
+SplitterHarness::$haAntwort = null;
+$setTopic = SplitterHarness::$mqttWeiterleitungen[0] ?? '';
+pruefe(str_ends_with($setTopic, '/' . $objekt . '/set'), 'Vorbedingung: Der abgelehnte Befehl geht als set-Topic an MQTT', $setTopic);
+
+$empfangeAn($zweiter, $setTopic, 'x');
+$bericht = neueAusfuehrung($zweiter)->RunSelfTest();
+
+pruefe(
+    !str_contains($bericht, 'MQTT data received (') && str_contains($bericht, 'Received domains: none yet'),
+    'Das zurückkommende eigene set-Topic zählt nicht als Meldung von statestream',
+    $bericht
+);
+
 ergebnis();

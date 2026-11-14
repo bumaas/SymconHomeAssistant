@@ -9,8 +9,27 @@
     "quellen": {
         "homeassistant/status": "Startmeldung von HA (Birth-Message, Standard-Topic und -Payload); die Domäne „status“ in Alex' Selbsttest stammt daher",
         "config-Topics": "echte Discovery-Konfigurationen aus ha_mqtt_discovery_bundle_ebusd.json und discovery_mitsubishi2mqtt_20261022.json (Topics, Payload hier unerheblich)",
-        "statestream": "hue_aurelle_statestream_20261019.txt (nuc, mqtt_statestream mit base_topic homeassistant)"
+        "statestream": "hue_aurelle_statestream_20261019.txt (nuc, mqtt_statestream mit base_topic homeassistant)",
+        "linktap": "state_topic und command_topic eines LinkTap-Gateways aus dem Discovery-Bundle eines Anwenders (13.05.2026); das Gateway legt seine eigenen Topics unter homeassistant/linktap/ ab, in derselben Form wie statestream. Seriennummer ersetzt, Payloads waren nicht aufgezeichnet und sind hier unerheblich"
     },
+    "linktap_meldungen": [
+        {
+            "topic": "homeassistant/linktap/1A2B3C4D5E6F7A8B/state",
+            "payload": ""
+        },
+        {
+            "topic": "homeassistant/linktap/1A2B3C4D5E6F7A8B_water_switch/state",
+            "payload": ""
+        },
+        {
+            "topic": "homeassistant/linktap/1A2B3C4D5E6F7A8B_water_switch/set",
+            "payload": ""
+        },
+        {
+            "topic": "homeassistant/linktap/1A2B3C4D5E6F7A8B_fall_alarm/state",
+            "payload": ""
+        }
+    ],
     "fremde_meldungen": [
         {
             "topic": "homeassistant/status",

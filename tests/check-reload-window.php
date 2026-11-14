@@ -280,7 +280,6 @@ pruefe($abbruch === null, 'Discovery-Device nach Create(): Meldung wird ohne Feh
 // danach entladen. Wen das Entladen mitten in ApplyChanges traf, endete mit einem Fatal
 // (Translate() → false; 17:39 #54477, 18:02 #49151, 18:06 #54477). Ein Parent auf 105 ist unser
 // eigener Splitter im Reload — das Kind wird im selben Reload neu angelegt, ApplyChanges folgt.
-// Hinweis: Der Stub führt IS_NOTCREATED als 201, laut Befehlsreferenz (IPS_GetInstance) ist es 105.
 
 $deferredGeplant = static fn(IPSModuleStrict $m): bool => $m->timer(HADeviceConstants::TIMER_DEFERRED_APPLY) > 0;
 $parentMeldet = static function (IPSModuleStrict $m, int $status): void {

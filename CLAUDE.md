@@ -121,10 +121,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Entladen mittendrin traf, endete mit einem Fatal (`Translate()` → false; bei drei Reloads
   dreimal). Jetzt ignorieren Device, Entity und MQTT Discovery Device den Parent-Status 105
   (`isRelevantParentStatusChange()`); die Splitter nicht, ihr Parent ist der MQTT Client des Kerns.
-- **Stub-Fehler:** `tests/stubs` (SymconStubs `bf2950f`) definiert `IS_NOTCREATED` als **201** —
-  Befehlsreferenz (`IPS_GetInstance`) und beide Anlagen sagen 105. In Tests fällt es damit auf
-  unseren Status 201 („Parent nicht aktiv"): Ein Test, der einem Kind den Parent-Status 201
-  meldet, sähe das Kind fälschlich nicht reagieren.
+- **Stub:** Seit build 227 (SymconStubs `be1e942`) definiert `tests/stubs` `IS_NOTCREATED` als 105, wie
+  Befehlsreferenz (`IPS_GetInstance`) und beide Anlagen. Bis `bf2950f` stand dort 201 und fiel in Tests auf
+  unseren Status 201 („Parent nicht aktiv“); Umgehungen dafür sind nicht mehr nötig.
 - Test: `tests/check-reload-window.php`; der Harness stellt das Fenster mit
   `$attributeRegistriert = false` nach: Jeder Attributzugriff warnt, ResolvedConfig liefert über
   die Naht `readResolvedConfigAttribute()` false (der Stub deklariert `ReadAttributeString` als
@@ -429,11 +428,22 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Discovery-Konfigurationen anderer Geräte und die Startmeldung `homeassistant/status`: alsk1 (t/142973 #381,
   14.11.2026) hatte `base_topic: homeassistant_stream` in HA, der Selbsttest meldete „Empfangene Domänen:
   sensor, status, switch“ und „alles in Ordnung“, es kam aber kein einziger Wert an.
-- Gemessen wird über den Buffer `LastStatestreamEpoch` (Kernel-Neustart leert ihn, der retained Replay füllt
-  ihn sofort). Das Attribut `LastMQTTMessage` (Diagnose „Letzte MQTT-Nachricht“) und die Zugangsdaten-Prüfung
-  sehen weiter jede Meldung: Ein Broker, der anonym etwas liefert, akzeptiert anonym, auch ohne statestream.
+- Die Form allein reicht nicht (build 230, Code-Review 14.11.2026): Ein LinkTap-Gateway legt eigene Topics als
+  `homeassistant/linktap/<id>/state` und `…/set` ab. Als statestream zählt deshalb nur eine Domäne, die das Modul
+  kennt (`HADomainCatalog::isDomainSupported`, gefragt in `recordSeenDomain()` nur, solange die Domäne noch nicht
+  im Buffer steht), und nie ein `…/set` (der eigene Befehl nach abgelehntem REST-Aufruf kommt über das Abo zurück).
+  „Empfangene Domänen“ nennt damit nur noch Domänen, die das Modul verarbeitet (kein `automation`, `person`, `sun`).
+  Bekannte Lücke: ein fremdes Gerät, das unter einer HA-Domäne in derselben Form sendet
+  (`homeassistant/binary_sensor/garden/state` aus der HA-Doku); dafür gibt es keinen Mitschnitt.
+- Gemessen wird über den Buffer `LastStatestreamEpoch` (alle 5 s) und das Attribut `LastStatestreamMessage`
+  (alle 60 s, mit `@` gelesen und geschrieben). Bis build 229 nur der Buffer: Nach einem Modul-Update bleibt der
+  MQTT Client verbunden, es gibt keinen retained Replay, und der Selbsttest einer laufenden Anlage warnte bis zur
+  nächsten Zustandsänderung „Noch keine MQTT-Daten empfangen“. Das Attribut `LastMQTTMessage` (Diagnose „Letzte
+  MQTT-Nachricht“) und die Zugangsdaten-Prüfung sehen weiter jede Meldung: Ein Broker, der anonym etwas liefert,
+  akzeptiert anonym, auch ohne statestream.
 - Test: `tests/check-selftest-foreign-topics.php` (Fixture `selftest_fremde_topics_20261114.json`, Topics aus
-  schon versionierten echten Mitschnitten).
+  echten Mitschnitten; LinkTap aus einem Anwender-Bundle, Seriennummer ersetzt). Der `FensterRahmenTrait` kennt
+  dafür `pufferVerwerfen()`.
 
 ## Nachkommastellen (build 201, Blindtest-Befund 8)
 
@@ -520,7 +530,7 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
   „N Prüfungen, M Fehler" (Exit 0/1) — das Format liest `rotgruen.php` für den
   Rot/Grün-Nachweis. Neue Tests genauso aufbauen.
 - Neue Tests an Device oder Entity laufen über `tests/device-harness.php`: das echte Modul am
-  offiziellen Kernel-Stub (`symcon/SymconStubs`, Submodul `tests/stubs`, gepinnt auf `bf2950f`).
+  offiziellen Kernel-Stub (`symcon/SymconStubs`, Submodul `tests/stubs`, gepinnt auf `be1e942`).
   `neuesGeraet()`/`neueEntitaet()` legen Instanzen an, `neueAusfuehrung()` liefert ein frisches
   Modul-Objekt mit dem Kernel-Zustand des alten (der Stub hält Properties, Attribute, Buffer und
   Timer im Objekt, Symcon im Kernel), `KernelZaehler` zählt Kernel-Aufrufe, `HaSendungen`
@@ -557,4 +567,4 @@ Details in `tests/fixtures/README.md`). Laufzeit-Checks: `php tests/check-*.php`
   dazu gehört auch die Doku-Sperrklinke `tests/check-readme.php`), zuletzt die statischen MCP-Regeln
   über die Action `bumaas/symcon-mcp-check@v1` (öffentliches Repo — aus einem privaten können öffentliche Repos keine Action laden; Befunde als
   Anmerkungen, scheitert nur an Fehlern — die Warnungen sind offene Punkte aus `mcp-tauglichkeit.md`).
-- Version/Build: siehe globale CLAUDE.md, Abschnitt „Symcon: Build-/Versionspflege in Modul-Repos".
+- Version/Build: siehe globale CLAUDE.md, Abschnitt „Build, Version und Store-Freigabe“.
