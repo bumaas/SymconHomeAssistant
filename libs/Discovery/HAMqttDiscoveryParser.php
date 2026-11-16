@@ -19,6 +19,7 @@ final class HAMqttDiscoveryParser
         HACoverDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
         HASelectDefinitions::DOMAIN,
+        HATextDefinitions::DOMAIN,
         HAButtonDefinitions::DOMAIN,
         HALightDefinitions::DOMAIN
     ];

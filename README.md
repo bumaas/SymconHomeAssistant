@@ -205,6 +205,7 @@ Aktuell unterstützt der MQTT-Discovery-Pfad folgende Komponenten:
 - `climate` (Solltemperatur, Modus, Preset, Lüfter, Lamellen, Aktion, Raumtemperatur und -feuchte)
 - `switch`
 - `select`
+- `text` (Textvariable, schaltbar über das Befehls-Topic; Länge und Muster prüft das Modul nicht)
 - `button`
 - `light`
 - `image`

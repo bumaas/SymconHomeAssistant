@@ -43,6 +43,7 @@ tests/fixtures/*
 !tests/fixtures/discovery_cover_set_position_20260514.json
 !tests/fixtures/media_cover_wintergarten_20261102.json
 !tests/fixtures/selftest_fremde_topics_20261114.json
+!tests/fixtures/discovery_ems_esp_20261116.json
 
 # Claude Code (persönliche Dateien)
 CLAUDE.local.md

@@ -101,7 +101,7 @@ Keep `publish_timestamps: false`. With `true`, Home Assistant sends `last_change
 
 Classic bridge: `light`, `switch`, `binary_sensor`, `sensor`, `number` and `input_number`, `input_text`, `datetime`, `input_datetime`, `select`, `climate`, `lock`, `button`, `input_button` are fully supported. `cover`, `valve`, `event`, `fan`, `humidifier`, `vacuum`, `lawn_mower`, `media_player`, `camera`, `image`, `device_tracker` and `update` are supported with their main states, attributes and actions. Details per domain are in the German README of [Home Assistant Device](Home%20Assistant%20Device/README.md).
 
-MQTT Discovery: `sensor`, `binary_sensor`, `number`, `cover`, `climate`, `switch`, `select`, `button`, `light`, `image`, `device_tracker`, `lock` and `update`, plus simple Zigbee2MQTT `device_automation` triggers. Short forms of the discovery keys (`stat_t`, `temp_cmd_t` …) are understood, as are templates that read a field from the JSON payload.
+MQTT Discovery: `sensor`, `binary_sensor`, `number`, `cover`, `climate`, `switch`, `select`, `text`, `button`, `light`, `image`, `device_tracker`, `lock` and `update`, plus simple Zigbee2MQTT `device_automation` triggers. Short forms of the discovery keys (`stat_t`, `temp_cmd_t` …) are understood, as are templates that read a field from the JSON payload.
 
 ## 6. Working with the instances
 

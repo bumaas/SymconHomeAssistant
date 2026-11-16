@@ -51,6 +51,7 @@ require_once __DIR__ . '/Domains/HAUpdateDefinitions.php';
 require_once __DIR__ . '/Domains/HAButtonDefinitions.php';
 require_once __DIR__ . '/Domains/HAInputButtonDefinitions.php';
 require_once __DIR__ . '/Domains/HAInputTextDefinitions.php';
+require_once __DIR__ . '/Domains/HATextDefinitions.php';
 require_once __DIR__ . '/Domains/HADateTimeDefinitions.php';
 require_once __DIR__ . '/Domains/HAInputDateTimeDefinitions.php';
 require_once __DIR__ . '/Domains/HAFanDefinitions.php';

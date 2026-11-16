@@ -437,6 +437,17 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Test: `tests/check-discovery-climate.php`, bedingte Fälle in `check-mqtt-discovery-template-parser.php`;
   der `DiscoveryDeviceHarness` schneidet MQTT-Sendungen mit (`$mqttSendungen`).
 
+## MQTT Discovery: Komponente `text` (1.9 build 235)
+
+- Anlass: Boui (t/142973 #386, PN 144956, 16.11.2026), EMS-ESP 3.9.1 kündigt Schaltzeiten, Urlaubs- und
+  Feiertage, Wartungsdatum und Reglerzeit als `text` an. Parser und Device kannten die Komponente nicht.
+- `HATextDefinitions` (nur DOMAIN und Variablentyp String) steht in den `SUPPORTED_COMPONENTS` von Parser und
+  Device. Lesen läuft über den allgemeinen Pfad (`castSensorValue` auf String), Schreiben über
+  `buildCommandPayload`: der Text unverändert, auch leer (HA: `min` = 0 als Vorgabe), mit `command_template`,
+  falls angekündigt. Länge (`min`/`max`) und `pattern` prüft das Modul nicht, wie beim `input_text` der Bridge.
+- Die klassische Bridge kennt die HA-Domäne `text` weiterhin nicht (nur `input_text`).
+- Test: `tests/check-discovery-text.php` (Fixture `discovery_ems_esp_20261116.json`).
+
 ## Selbsttest zählt nur statestream (build 228)
 
 - „MQTT-Daten empfangen“ und „Empfangene Domänen“ im Selbsttest des Splitters zählen nur

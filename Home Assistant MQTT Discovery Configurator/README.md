@@ -9,7 +9,7 @@ Liest MQTT-Discovery-Konfigurationen direkt aus einer MQTT-Discovery-Quelle übe
 
 - Liest gecachte `homeassistant/.../config` Topics aus dem Splitter.
 - Benötigt keine bestehende Home-Assistant-Installation; Grundlage sind die publizierten Discovery-Payloads.
-- Parst MQTT-Discovery für `sensor`, `binary_sensor`, `number`, `image`, `device_tracker`, `update`, `lock`, `cover`, `climate`, `switch`, `select`, `button` und `light`.
+- Parst MQTT-Discovery für `sensor`, `binary_sensor`, `number`, `image`, `device_tracker`, `update`, `lock`, `cover`, `climate`, `switch`, `select`, `text`, `button` und `light`.
 - Unterstützt sowohl klassische Component-Topics wie `homeassistant/sensor/.../config` als auch HA-Device-Discovery über `homeassistant/device/.../config`.
 - Reduziert `device_automation` Trigger aus Zigbee2MQTT auf lesbare Event-Kandidaten im Discovery-Modell.
 - Gruppiert Entities über `device.identifiers`.
@@ -45,4 +45,4 @@ Fehlt der Splitter oder ist er nicht aktiv, nennt das Formular die Ursache statt
 
 ## Hinweis
 
-Der Configurator ist bewusst vom klassischen Home-Assistant-Configurator getrennt. Er arbeitet direkt auf MQTT-Discovery-Daten und ist auf den aktuellen MQTT-Discovery-Kernpfad für `sensor`, `binary_sensor`, `number`, `image`, `device_tracker`, `update`, `lock`, `cover`, `climate`, `switch`, `select`, `button`, `light` und einfache `device_automation`-Trigger begrenzt. Weitere Discovery-Komponenten können später über dasselbe Transportmodell folgen.
+Der Configurator ist bewusst vom klassischen Home-Assistant-Configurator getrennt. Er arbeitet direkt auf MQTT-Discovery-Daten und ist auf den aktuellen MQTT-Discovery-Kernpfad für `sensor`, `binary_sensor`, `number`, `image`, `device_tracker`, `update`, `lock`, `cover`, `climate`, `switch`, `select`, `text`, `button`, `light` und einfache `device_automation`-Trigger begrenzt. Weitere Discovery-Komponenten können später über dasselbe Transportmodell folgen.

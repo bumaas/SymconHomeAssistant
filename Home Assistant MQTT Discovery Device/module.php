@@ -85,6 +85,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         HACoverDefinitions::DOMAIN,
         HASwitchDefinitions::DOMAIN,
         HASelectDefinitions::DOMAIN,
+        HATextDefinitions::DOMAIN,
         HAButtonDefinitions::DOMAIN,
         HAEventDefinitions::DOMAIN,
         HALightDefinitions::DOMAIN
@@ -1626,6 +1627,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             HABinarySensorDefinitions::DOMAIN, HASwitchDefinitions::DOMAIN, HALightDefinitions::DOMAIN, HAUpdateDefinitions::DOMAIN => VARIABLETYPE_BOOLEAN,
             HASelectDefinitions::DOMAIN, HAButtonDefinitions::DOMAIN, HAEventDefinitions::DOMAIN => VARIABLETYPE_INTEGER,
             HAClimateDefinitions::DOMAIN => HAClimateDefinitions::VARIABLE_TYPE,
+            HATextDefinitions::DOMAIN => HATextDefinitions::VARIABLE_TYPE,
             HAImageDefinitions::DOMAIN => HAImageDefinitions::VARIABLE_TYPE,
             HALockDefinitions::DOMAIN => HALockDefinitions::VARIABLE_TYPE,
             HACoverDefinitions::DOMAIN => $this->determineCoverVariableType($entity, $cachedTopics),
@@ -4488,6 +4490,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($component === HAClimateDefinitions::DOMAIN) {
             return in_array($entity['command_mode'], ['payload', 'template'], true);
         }
+        if ($component === HATextDefinitions::DOMAIN) {
+            return in_array($entity['command_mode'], ['payload', 'template'], true);
+        }
         if ($component === HANumberDefinitions::DOMAIN) {
             return in_array($entity['command_mode'], ['payload', 'template'], true);
         }
@@ -4546,6 +4551,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 $entity,
                 $this->formatNumberCommandPayload($value, is_array($entity['metadata'] ?? null) ? $entity['metadata'] : [])
             );
+        }
+
+        // Der Text geht unverändert hinaus, auch leer (HA: min = 0 als Vorgabe).
+        if ($entity['component'] === HATextDefinitions::DOMAIN) {
+            return $this->applyCommandTemplateIfNeeded($entity, is_scalar($value) ? (string)$value : null);
         }
 
         return null;

@@ -1,0 +1,2591 @@
+{
+    "format": "ha_mqtt_discovery_bundle",
+    "version": 2,
+    "exported_at": "2026-11-16T16:54:28+01:00",
+    "splitter": {
+        "instance_id": 10000,
+        "instance_name": "Home Assistant MQTT Discovery Splitter",
+        "discovery_prefix": "homeassistant",
+        "parent_subscriptions": [
+            "homeassistant/#",
+            "ems-esp/#"
+        ],
+        "subscription_check": "gap"
+    },
+    "session": {
+        "id": "10001-2-1794818627",
+        "active": true,
+        "started_at": "2026-11-16T09:43:47+01:00",
+        "parent_id": 10001
+    },
+    "options": {
+        "include_topic_payloads": true,
+        "include_all_cached_topics": false,
+        "current_session_only": false
+    },
+    "source": {
+        "producer_hint": "",
+        "producer_version": "",
+        "notes": "Bundle von Boui (Forum t/142973 #386, PN 144956, 16.11.2026), EMS-ESP v3.9.1, Buderus Logano + RC35. Von ihm auf EMS-ESP gefiltert; ems-esp/info (Netzwerkdaten) beim Anlegen der Fixture entfernt. Instanz-IDs durch Platzhalter ersetzt (Splitter 10000, MQTT Client 10001)."
+    },
+    "diagnostics": {
+        "discovery_configs": {
+            "total": 149,
+            "current_session": 149,
+            "stale": 0
+        },
+        "referenced_topic_payloads": {
+            "referenced": 90,
+            "current_session": 5,
+            "stale": 0,
+            "missing": 85,
+            "extra_cached": 0,
+            "unsubscribed": 0,
+            "by_kind": {
+                "command": {
+                    "referenced": 85,
+                    "current_session": 0,
+                    "stale": 0,
+                    "missing": 85
+                },
+                "state": {
+                    "referenced": 5,
+                    "current_session": 5,
+                    "stale": 0,
+                    "missing": 0
+                }
+            }
+        }
+    },
+    "referenced_topics": [
+        {
+            "topic": "ems-esp/boiler/boil2hystoff",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/boil2hyston",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/boilhystoff",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/boilhyston",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/burnmaxpower",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/burnminperiod",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/chimneysweeper",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/activated",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/chargeoptimization",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/circ",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/circmode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/circpump",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/comfort",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/disinfecting",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/disinfectiontemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/flowtempoffset",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/hyston",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/onetime",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/dhw/seltemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/heatingactivated",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/heatingoff",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/heatingtemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/maintenance",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/maintenancedate",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/maintenancetime",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/nompower",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/pumpdelay",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/pumpmode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/pumpmodmax",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/pumpmodmin",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/pumpontemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/reset",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/selburnpow",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler/selflowtemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/boiler_data",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "current",
+            "is_current_session": true,
+            "has_payload": true,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/heartbeat",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "current",
+            "is_current_session": true,
+            "has_payload": true,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/info",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "current",
+            "is_current_session": true,
+            "has_payload": true,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/status",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "current",
+            "is_current_session": true,
+            "has_payload": true,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/building",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/damping",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/datetime",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/circmode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/circprog",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/circswitchtime",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/disinfectday",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/disinfecthour",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/disinfecting",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/holidays",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/maxtemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/mode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/onetimekey",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/progmode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/switchtime",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/dhw/vacations",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/control",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/controlmode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/daytemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/designtemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/dhwprio",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/flowtempoffset",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/heatingtype",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/holidays",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/holidaytemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/maxflowtemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/minflowtemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/mode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/nighttemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/nofrostmode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/nofrosttemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/noreducetemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/offsettemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/party",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/pause",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/program",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/reducemode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/reducetemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/remotetemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/roominfluence",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/seltemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/summertemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/switchonoptimization",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/switchtime1",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/switchtime2",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/tempautotemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/vacations",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/vacreducemode",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/hc1/vacreducetemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/intoffset",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat/minexttemp",
+            "kinds": [
+                "command"
+            ],
+            "primary_kind": "command",
+            "status": "missing",
+            "is_current_session": false,
+            "has_payload": false,
+            "subscription_covered": true
+        },
+        {
+            "topic": "ems-esp/thermostat_data",
+            "kinds": [
+                "state"
+            ],
+            "primary_kind": "state",
+            "status": "current",
+            "is_current_session": true,
+            "has_payload": true,
+            "subscription_covered": true
+        }
+    ],
+    "extra_cached_topics": [],
+    "discovery_configs": [
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_fanwork/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_fan\",\"def_ent_id\":\"binary_sensor.boiler_fan\",\"name\":\"Gebläse\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['fanwork'] if value_json['fanwork'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818703,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_heatingactive/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_heating_active\",\"def_ent_id\":\"binary_sensor.boiler_heating_active\",\"name\":\"Heizen aktiv\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['heatingactive'] if value_json['heatingactive'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818701,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_heatingpump/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_heating_pump\",\"def_ent_id\":\"binary_sensor.boiler_heating_pump\",\"name\":\"Heizungspumpe\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['heatingpump'] if value_json['heatingpump'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818705,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_ignwork/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_ignition\",\"def_ent_id\":\"binary_sensor.boiler_ignition\",\"name\":\"Zündung\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['ignwork'] if value_json['ignwork'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818703,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_oilpreheat/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_oil_preheating\",\"def_ent_id\":\"binary_sensor.boiler_oil_preheating\",\"name\":\"Ölvorwärmung\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['oilpreheat'] if value_json['oilpreheat'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818703,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_tapwateractive/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_tapwater_active\",\"def_ent_id\":\"binary_sensor.boiler_tapwater_active\",\"name\":\"Warmwasser aktiv\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['tapwateractive'] if value_json['tapwateractive'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818701,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_ww3wayvalve/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_3-way_valve_active\",\"def_ent_id\":\"binary_sensor.boiler_dhw_3-way_valve_active\",\"name\":\"WWK 3-Wege-Ventil aktiv\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['3wayvalve'] if value_json.dhw is defined and value_json['dhw']['3wayvalve'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818713,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_wwactive/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_active\",\"def_ent_id\":\"binary_sensor.boiler_dhw_active\",\"name\":\"WWK Aktiv\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['active'] if value_json.dhw is defined and value_json['dhw']['active'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818713,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_wwchargepump/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_charge_pump\",\"def_ent_id\":\"binary_sensor.boiler_dhw_charge_pump\",\"name\":\"WWK Ladepumpe\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['chargepump'] if value_json.dhw is defined and value_json['dhw']['chargepump'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818714,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_wwcharging/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_charging\",\"def_ent_id\":\"binary_sensor.boiler_dhw_charging\",\"name\":\"WWK Laden\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['charging'] if value_json.dhw is defined and value_json['dhw']['charging'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818713,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_wwrecharging/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_recharging\",\"def_ent_id\":\"binary_sensor.boiler_dhw_recharging\",\"name\":\"WWK Nachladen\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['recharging'] if value_json.dhw is defined and value_json['dhw']['recharging'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818713,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/boiler_wwtempok/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_temperature_ok\",\"def_ent_id\":\"binary_sensor.boiler_dhw_temperature_ok\",\"name\":\"WWK Temperatur ok\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['tempok'] if value_json.dhw is defined and value_json['dhw']['tempok'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818713,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/system_status/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_status\",\"def_ent_id\":\"binary_sensor.system_status\",\"stat_t\":\"~/status\",\"name\":\"System status\",\"pl_on\":\"online\",\"pl_off\":\"offline\",\"stat_cla\":\"measurement\",\"dev_cla\":\"connectivity\",\"ent_cat\":\"diagnostic\",\"dev\":{\"name\":\"ems-esp\",\"sw\":\"v3.9.1\",\"mf\":\"EMS-ESP\",\"mdl\":\"EMS-ESP\",\"cu\":\"http://ems-esp\",\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818697,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/binary_sensor/ems-esp/thermostat_hc1_holidaymode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_holiday_mode\",\"def_ent_id\":\"binary_sensor.thermostat_hc1_holiday_mode\",\"name\":\"HK1 Urlaubsbetrieb\",\"stat_t\":\"~/thermostat_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['hc1']['holidaymode'] if value_json.hc1 is defined and value_json['hc1']['holidaymode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818720,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/climate/ems-esp/thermostat_hc1/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1\",\"def_ent_id\":\"climate.thermostat_hc1\",\"name\":\"hc1\",\"mode_stat_t\":\"~/thermostat_data\",\"mode_stat_tpl\":\"{%if value_json.hc1 is undefined or value_json.hc1.mode is undefined%}None{%elif value_json.hc1.mode=='Manuell'%}heat{%elif value_json.hc1.mode=='Tag'%}heat{%elif value_json.hc1.mode=='Heizen'%}heat{%elif value_json.hc1.mode=='Nacht'%}off{%elif value_json.hc1.mode=='Eco'%}off{%elif value_json.hc1.mode=='aus'%}off{%else%}auto{%endif%}\",\"temp_cmd_t\":\"~/thermostat/hc1/seltemp\",\"temp_stat_t\":\"~/thermostat_data\",\"temp_stat_tpl\":\"{{value_json.hc1.seltemp if value_json.hc1 is defined and value_json.hc1.seltemp is defined else 'None'}}\",\"curr_temp_t\":\"~/thermostat_data\",\"curr_temp_tpl\":\"{{value_json.hc1.currtemp if value_json.hc1 is defined and value_json.hc1.currtemp is defined else 'None'}}\",\"min_temp\":\"5\",\"max_temp\":\"30\",\"temp_step\":\"0.5\",\"mode_cmd_t\":\"~/thermostat/hc1/mode\",\"act_t\":\"~/boiler_data\",\"act_tpl\":\"{% if value_json.hpactivity=='cooling'%}cooling{%elif value_json.heatingactive=='an'%}heating{%else%}idle{%endif%}\",\"modes\":[\"auto\",\"heat\",\"off\"],\"dev\":{\"ids\":[\"ems-esp-thermostat\"]},\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\"}",
+            "received_at": 1794818717,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_boil2hystoff/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_hysteresis_stage_2_off_temperature\",\"def_ent_id\":\"number.boiler_hysteresis_stage_2_off_temperature\",\"cmd_t\":\"~/boiler/boil2hystoff\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":20,\"name\":\"Ausschaltdifferenz Stufe 2\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['boil2hystoff'] if value_json['boil2hystoff'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818704,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_boil2hyston/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_hysteresis_stage_2_on_temperature\",\"def_ent_id\":\"number.boiler_hysteresis_stage_2_on_temperature\",\"cmd_t\":\"~/boiler/boil2hyston\",\"mode\":\"box\",\"step\":1,\"min\":-20,\"max\":0,\"name\":\"Einschaltdifferenz Stufe 2\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['boil2hyston'] if value_json['boil2hyston'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818704,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_boilhystoff/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_hysteresis_off_temperature\",\"def_ent_id\":\"number.boiler_hysteresis_off_temperature\",\"cmd_t\":\"~/boiler/boilhystoff\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":20,\"name\":\"Ausschaltdifferenz\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['boilhystoff'] if value_json['boilhystoff'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818704,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_boilhyston/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_hysteresis_on_temperature\",\"def_ent_id\":\"number.boiler_hysteresis_on_temperature\",\"cmd_t\":\"~/boiler/boilhyston\",\"mode\":\"box\",\"step\":1,\"min\":-20,\"max\":0,\"name\":\"Einschaltdifferenz\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['boilhyston'] if value_json['boilhyston'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818704,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_burnmaxpower/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_burner_max_power\",\"def_ent_id\":\"number.boiler_burner_max_power\",\"cmd_t\":\"~/boiler/burnmaxpower\",\"mode\":\"box\",\"step\":1,\"min\":100,\"max\":100,\"name\":\"Maximale Brennerleistung\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['burnmaxpower'] if value_json['burnmaxpower'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"%\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818703,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_burnminperiod/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_burner_min_period\",\"def_ent_id\":\"number.boiler_burner_min_period\",\"cmd_t\":\"~/boiler/burnminperiod\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":120,\"name\":\"Antipendelzeit\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['burnminperiod'] if value_json['burnminperiod'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"min\",\"stat_cla\":\"measurement\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818703,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_heatingtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_heating_temperature\",\"def_ent_id\":\"number.boiler_heating_temperature\",\"cmd_t\":\"~/boiler/heatingtemp\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":90,\"name\":\"Heiztemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['heatingtemp'] if value_json['heatingtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818705,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_maintenancetime/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_time_to_next_maintenance\",\"def_ent_id\":\"number.boiler_time_to_next_maintenance\",\"cmd_t\":\"~/boiler/maintenancetime\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":31999,\"name\":\"Wartung in\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['maintenancetime'] if value_json['maintenancetime'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"h\",\"stat_cla\":\"measurement\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818709,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_nompower/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_nominal_power\",\"def_ent_id\":\"number.boiler_nominal_power\",\"cmd_t\":\"~/boiler/nompower\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":254,\"name\":\"Brennerleistung\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['nompower'] if value_json['nompower'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"kW\",\"stat_cla\":\"measurement\",\"dev_cla\":\"power\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818714,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_pumpdelay/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_pump_delay\",\"def_ent_id\":\"number.boiler_pump_delay\",\"cmd_t\":\"~/boiler/pumpdelay\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":60,\"name\":\"Pumpennachlaufzeit\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['pumpdelay'] if value_json['pumpdelay'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"min\",\"stat_cla\":\"measurement\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818706,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_pumpmodmax/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_boiler_pump_max_power\",\"def_ent_id\":\"number.boiler_boiler_pump_max_power\",\"cmd_t\":\"~/boiler/pumpmodmax\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":100,\"name\":\"Maximale Kesselpumpenleistung\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['pumpmodmax'] if value_json['pumpmodmax'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"%\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818705,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_pumpmodmin/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_boiler_pump_min_power\",\"def_ent_id\":\"number.boiler_boiler_pump_min_power\",\"cmd_t\":\"~/boiler/pumpmodmin\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":100,\"name\":\"Minimale Kesselpumpenleistung\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['pumpmodmin'] if value_json['pumpmodmin'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"%\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818705,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_pumpontemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_pump_logic_temperature\",\"def_ent_id\":\"number.boiler_pump_logic_temperature\",\"cmd_t\":\"~/boiler/pumpontemp\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":60,\"name\":\"Pumpenlogiktemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['pumpontemp'] if value_json['pumpontemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818706,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_selburnpow/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_burner_selected_max_power\",\"def_ent_id\":\"number.boiler_burner_selected_max_power\",\"cmd_t\":\"~/boiler/selburnpow\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":100,\"name\":\"Eingestellte maximale Brennerleistung\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['selburnpow'] if value_json['selburnpow'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"%\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818706,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_selflowtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_selected_flow_temperature\",\"def_ent_id\":\"number.boiler_selected_flow_temperature\",\"cmd_t\":\"~/boiler/selflowtemp\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":90,\"name\":\"Gewählte Vorlauftemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['selflowtemp'] if value_json['selflowtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818702,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_wwdisinfectiontemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_disinfection_temperature\",\"def_ent_id\":\"number.boiler_dhw_disinfection_temperature\",\"cmd_t\":\"~/boiler/dhw/disinfectiontemp\",\"mode\":\"box\",\"step\":1,\"min\":60,\"max\":80,\"name\":\"WWK Desinfektionstemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['disinfectiontemp'] if value_json.dhw is defined and value_json['dhw']['disinfectiontemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818711,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_wwflowtempoffset/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_flow_temperature_offset\",\"def_ent_id\":\"number.boiler_dhw_flow_temperature_offset\",\"cmd_t\":\"~/boiler/dhw/flowtempoffset\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":100,\"name\":\"WWK Anhebung Vorlauftemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['flowtempoffset'] if value_json.dhw is defined and value_json['dhw']['flowtempoffset'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818710,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_wwhyston/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_hysteresis_on_temperature\",\"def_ent_id\":\"number.boiler_dhw_hysteresis_on_temperature\",\"cmd_t\":\"~/boiler/dhw/hyston\",\"mode\":\"box\",\"step\":1,\"min\":-126,\"max\":126,\"name\":\"WWK Einschalttemperaturdifferenz\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['hyston'] if value_json.dhw is defined and value_json['dhw']['hyston'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818711,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/boiler_wwseltemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_selected_temperature\",\"def_ent_id\":\"number.boiler_dhw_selected_temperature\",\"cmd_t\":\"~/boiler/dhw/seltemp\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":254,\"name\":\"WWK Gewählte Temperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['seltemp'] if value_json.dhw is defined and value_json['dhw']['seltemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818709,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_daytemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_day_temperature\",\"def_ent_id\":\"number.thermostat_hc1_day_temperature\",\"cmd_t\":\"~/thermostat/hc1/daytemp\",\"mode\":\"box\",\"step\":0.5,\"min\":10,\"max\":30,\"name\":\"HK1 Tagestemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['daytemp'] if value_json.hc1 is defined and value_json['hc1']['daytemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818718,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_designtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_design_temperature\",\"def_ent_id\":\"number.thermostat_hc1_design_temperature\",\"cmd_t\":\"~/thermostat/hc1/designtemp\",\"mode\":\"box\",\"step\":1,\"min\":30,\"max\":90,\"name\":\"HK1 Auslegungstemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['designtemp'] if value_json.hc1 is defined and value_json['hc1']['designtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818718,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_flowtempoffset/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_flow_temperature_offset_for_mixer\",\"def_ent_id\":\"number.thermostat_hc1_flow_temperature_offset_for_mixer\",\"cmd_t\":\"~/thermostat/hc1/flowtempoffset\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":20,\"name\":\"HK1 Anhebung Vorlauftemperatur Mischer\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['flowtempoffset'] if value_json.hc1 is defined and value_json['hc1']['flowtempoffset'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818721,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_holidaytemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_holiday_temperature\",\"def_ent_id\":\"number.thermostat_hc1_holiday_temperature\",\"cmd_t\":\"~/thermostat/hc1/holidaytemp\",\"mode\":\"box\",\"step\":0.5,\"min\":5,\"max\":30,\"name\":\"HK1 Urlaubstemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['holidaytemp'] if value_json.hc1 is defined and value_json['hc1']['holidaytemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818719,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_maxflowtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_max_flow_temperature\",\"def_ent_id\":\"number.thermostat_hc1_max_flow_temperature\",\"cmd_t\":\"~/thermostat/hc1/maxflowtemp\",\"mode\":\"box\",\"step\":1,\"min\":30,\"max\":90,\"name\":\"HK1 Max. Vorlauftemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['maxflowtemp'] if value_json.hc1 is defined and value_json['hc1']['maxflowtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818721,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_minflowtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_min_flow_temperature\",\"def_ent_id\":\"number.thermostat_hc1_min_flow_temperature\",\"cmd_t\":\"~/thermostat/hc1/minflowtemp\",\"mode\":\"box\",\"step\":1,\"min\":5,\"max\":70,\"name\":\"HK1 Min. Vorlauftemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['minflowtemp'] if value_json.hc1 is defined and value_json['hc1']['minflowtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818720,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_nighttemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_night_temperature\",\"def_ent_id\":\"number.thermostat_hc1_night_temperature\",\"cmd_t\":\"~/thermostat/hc1/nighttemp\",\"mode\":\"box\",\"step\":0.5,\"min\":10,\"max\":30,\"name\":\"HK1 Nachttemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['nighttemp'] if value_json.hc1 is defined and value_json['hc1']['nighttemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818718,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_nofrosttemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_nofrost_temperature\",\"def_ent_id\":\"number.thermostat_hc1_nofrost_temperature\",\"cmd_t\":\"~/thermostat/hc1/nofrosttemp\",\"mode\":\"box\",\"step\":1,\"min\":-20,\"max\":10,\"name\":\"HK1 Frostschutztemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['nofrosttemp'] if value_json.hc1 is defined and value_json['hc1']['nofrosttemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818720,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_noreducetemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_no_reduce_below_temperature\",\"def_ent_id\":\"number.thermostat_hc1_no_reduce_below_temperature\",\"cmd_t\":\"~/thermostat/hc1/noreducetemp\",\"mode\":\"box\",\"step\":1,\"min\":-31,\"max\":10,\"name\":\"HK1 Durchheizen unter\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['noreducetemp'] if value_json.hc1 is defined and value_json['hc1']['noreducetemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818723,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_offsettemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_offset_temperature\",\"def_ent_id\":\"number.thermostat_hc1_offset_temperature\",\"cmd_t\":\"~/thermostat/hc1/offsettemp\",\"mode\":\"box\",\"step\":0.5,\"min\":-5,\"max\":5,\"name\":\"HK1 Temperaturanhebung\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['offsettemp'] if value_json.hc1 is defined and value_json['hc1']['offsettemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818719,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_party/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_party_time\",\"def_ent_id\":\"number.thermostat_hc1_party_time\",\"cmd_t\":\"~/thermostat/hc1/party\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":99,\"name\":\"HK1 Partyzeit\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['party'] if value_json.hc1 is defined and value_json['hc1']['party'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"h\",\"stat_cla\":\"measurement\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818723,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_pause/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_pause_time\",\"def_ent_id\":\"number.thermostat_hc1_pause_time\",\"cmd_t\":\"~/thermostat/hc1/pause\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":99,\"name\":\"HK1 Pausenzeit\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['pause'] if value_json.hc1 is defined and value_json['hc1']['pause'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"h\",\"stat_cla\":\"measurement\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818722,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_reducetemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_off/reduce_switch_temperature\",\"def_ent_id\":\"number.thermostat_hc1_off/reduce_switch_temperature\",\"cmd_t\":\"~/thermostat/hc1/reducetemp\",\"mode\":\"box\",\"step\":1,\"min\":-20,\"max\":10,\"name\":\"HK1 Absenkmodus unter\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['reducetemp'] if value_json.hc1 is defined and value_json['hc1']['reducetemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818723,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_remotetemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_room_temperature_from_remote\",\"def_ent_id\":\"number.thermostat_hc1_room_temperature_from_remote\",\"cmd_t\":\"~/thermostat/hc1/remotetemp\",\"mode\":\"box\",\"step\":0.1,\"min\":-1,\"max\":101,\"name\":\"HK1 Raumtemperatur Remote\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818724,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_roominfluence/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_room_influence\",\"def_ent_id\":\"number.thermostat_hc1_room_influence\",\"cmd_t\":\"~/thermostat/hc1/roominfluence\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":10,\"name\":\"HK1 Raumeinfluss\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['roominfluence'] if value_json.hc1 is defined and value_json['hc1']['roominfluence'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818720,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_seltemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_selected_room_temperature\",\"def_ent_id\":\"number.thermostat_hc1_selected_room_temperature\",\"cmd_t\":\"~/thermostat/hc1/seltemp\",\"mode\":\"box\",\"step\":0.5,\"min\":0,\"max\":30,\"name\":\"HK1 Gewählte Raumtemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['seltemp'] if value_json.hc1 is defined and value_json['hc1']['seltemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818717,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_summertemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_summer_temperature\",\"def_ent_id\":\"number.thermostat_hc1_summer_temperature\",\"cmd_t\":\"~/thermostat/hc1/summertemp\",\"mode\":\"box\",\"step\":1,\"min\":9,\"max\":25,\"name\":\"HK1 Sommertemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['summertemp'] if value_json.hc1 is defined and value_json['hc1']['summertemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818719,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_tempautotemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_temporary_set_temperature_automode\",\"def_ent_id\":\"number.thermostat_hc1_temporary_set_temperature_automode\",\"cmd_t\":\"~/thermostat/hc1/tempautotemp\",\"mode\":\"box\",\"step\":0.5,\"min\":0,\"max\":30,\"name\":\"HK1 Temporäre Solltemperatur Automatikmodus\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['tempautotemp'] if value_json.hc1 is defined and value_json['hc1']['tempautotemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818723,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_hc1_vacreducetemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_vacations_off/reduce_switch_temperature\",\"def_ent_id\":\"number.thermostat_hc1_vacations_off/reduce_switch_temperature\",\"cmd_t\":\"~/thermostat/hc1/vacreducetemp\",\"mode\":\"box\",\"step\":1,\"min\":-20,\"max\":10,\"name\":\"HK1 Urlaub Absenkmodus unter\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['vacreducetemp'] if value_json.hc1 is defined and value_json['hc1']['vacreducetemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818723,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_intoffset/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_internal_temperature_offset\",\"def_ent_id\":\"number.thermostat_internal_temperature_offset\",\"cmd_t\":\"~/thermostat/intoffset\",\"mode\":\"box\",\"step\":0.1,\"min\":-5,\"max\":5,\"name\":\"Korrektur interner Temperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['intoffset'] if value_json['intoffset'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818715,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_minexttemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_minimal_external_temperature\",\"def_ent_id\":\"number.thermostat_minimal_external_temperature\",\"cmd_t\":\"~/thermostat/minexttemp\",\"mode\":\"box\",\"step\":1,\"min\":-30,\"max\":0,\"name\":\"Min. Außentemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['minexttemp'] if value_json['minexttemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818716,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_wwdisinfecthour/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_disinfection_hour\",\"def_ent_id\":\"number.thermostat_dhw_disinfection_hour\",\"cmd_t\":\"~/thermostat/dhw/disinfecthour\",\"mode\":\"box\",\"step\":1,\"min\":0,\"max\":23,\"name\":\"WWK Desinfektionsstunde\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['disinfecthour'] if value_json.dhw is defined and value_json['dhw']['disinfecthour'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818726,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/number/ems-esp/thermostat_wwmaxtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_maximum_temperature\",\"def_ent_id\":\"number.thermostat_dhw_maximum_temperature\",\"cmd_t\":\"~/thermostat/dhw/maxtemp\",\"mode\":\"box\",\"step\":1,\"min\":60,\"max\":80,\"name\":\"WWK Maximale Temperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['maxtemp'] if value_json.dhw is defined and value_json['dhw']['maxtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818726,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/boiler_chimneysweeper/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_chimney_sweeper\",\"def_ent_id\":\"select.boiler_chimney_sweeper\",\"cmd_t\":\"~/boiler/chimneysweeper\",\"ops\":[\"aus\",\"an\"],\"name\":\"Schornsteinfeger\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818701,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/boiler_maintenance/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_maintenance_scheduled\",\"def_ent_id\":\"select.boiler_maintenance_scheduled\",\"cmd_t\":\"~/boiler/maintenance\",\"ops\":[\"aus\",\"Zeit\",\"Datum\",\"Manuell\"],\"name\":\"Wartungsplan\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['maintenance'] if value_json['maintenance'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818708,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/boiler_pumpmode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_boiler_pump_mode\",\"def_ent_id\":\"select.boiler_boiler_pump_mode\",\"cmd_t\":\"~/boiler/pumpmode\",\"ops\":[\"proportional\",\"deltaP-1\",\"deltaP-2\",\"deltaP-3\",\"deltaP-4\"],\"name\":\"Kesselpumpenmodus\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['pumpmode'] if value_json['pumpmode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818705,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/boiler_reset/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_reset\",\"def_ent_id\":\"select.boiler_reset\",\"cmd_t\":\"~/boiler/reset\",\"ops\":[\"-\",\"Wartung\",\"Fehler\",\"Fehlerspeicher\",\"Meldung\",\"WP Fehler\",\"Brennerstarts\",\"werkseinst.\"],\"name\":\"Reset\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"],\"name\":\"ems-esp Boiler\",\"mf\":\"\",\"mdl\":\"Logano GB1*5, Logamatic MC10\",\"sw\":\"DeviceID 0x08, ProductID 72, Version 02.07\",\"via_device\":\"ems-esp\"}}",
+            "received_at": 1794818700,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/boiler_wwcircmode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_circulation_pump_mode\",\"def_ent_id\":\"select.boiler_dhw_circulation_pump_mode\",\"cmd_t\":\"~/boiler/dhw/circmode\",\"ops\":[\"aus\",\"1x3min\",\"2x3min\",\"3x3min\",\"4x3min\",\"5x3min\",\"6x3min\",\"kontinuierlich\"],\"name\":\"WWK Zirkulationspumpenmodus\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['circmode'] if value_json.dhw is defined and value_json['dhw']['circmode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818711,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/boiler_wwcomfort/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_comfort\",\"def_ent_id\":\"select.boiler_dhw_comfort\",\"cmd_t\":\"~/boiler/dhw/comfort\",\"ops\":[\"Heiß\",\"Eco\",\"Intelligent\"],\"name\":\"WWK Komfort\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['comfort'] if value_json.dhw is defined and value_json['dhw']['comfort'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818709,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_building/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_building_type\",\"def_ent_id\":\"select.thermostat_building_type\",\"cmd_t\":\"~/thermostat/building\",\"ops\":[\"Leicht\",\"Mittel\",\"Schwer\"],\"name\":\"Gebäudetyp\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['building'] if value_json['building'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818717,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_hc1_control/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_control_device\",\"def_ent_id\":\"select.thermostat_hc1_control_device\",\"cmd_t\":\"~/thermostat/hc1/control\",\"ops\":[\"aus\",\"RC20\",\"RC3x\"],\"name\":\"HK1 Fernsteuerung\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['control'] if value_json.hc1 is defined and value_json['hc1']['control'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818722,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_hc1_controlmode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_control_mode\",\"def_ent_id\":\"select.thermostat_hc1_control_mode\",\"cmd_t\":\"~/thermostat/hc1/controlmode\",\"ops\":[\"Außen\",\"Raum\"],\"name\":\"HK1 Steuermodus\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['controlmode'] if value_json.hc1 is defined and value_json['hc1']['controlmode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818721,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_hc1_heatingtype/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_heating_type\",\"def_ent_id\":\"select.thermostat_hc1_heating_type\",\"cmd_t\":\"~/thermostat/hc1/heatingtype\",\"ops\":[\"aus\",\"Heizkörper\",\"Konvektor\",\"Fussboden\"],\"name\":\"HK1 Heizungstyp\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['heatingtype'] if value_json.hc1 is defined and value_json['hc1']['heatingtype'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818721,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_hc1_mode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_operating_mode\",\"def_ent_id\":\"select.thermostat_hc1_operating_mode\",\"cmd_t\":\"~/thermostat/hc1/mode\",\"ops\":[\"Nacht\",\"Tag\",\"auto\"],\"name\":\"HK1 Betriebsart\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['mode'] if value_json.hc1 is defined and value_json['hc1']['mode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818718,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_hc1_nofrostmode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_nofrost_mode\",\"def_ent_id\":\"select.thermostat_hc1_nofrost_mode\",\"cmd_t\":\"~/thermostat/hc1/nofrostmode\",\"ops\":[\"aus\",\"Außen\",\"Raum\"],\"name\":\"HK1 Frostschutzmodus\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['nofrostmode'] if value_json.hc1 is defined and value_json['hc1']['nofrostmode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818720,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_hc1_program/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_program\",\"def_ent_id\":\"select.thermostat_hc1_program\",\"cmd_t\":\"~/thermostat/hc1/program\",\"ops\":[\"Eigen 1\",\"Familie\",\"Morgens\",\"Abends\",\"Vormittag\",\"Nachmittag\",\"Mittag\",\"Einzeln\",\"Senioren\",\"Neu\",\"Eigen 2\"],\"name\":\"HK1 Programm\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['program'] if value_json.hc1 is defined and value_json['hc1']['program'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818722,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_hc1_reducemode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_reduce_mode\",\"def_ent_id\":\"select.thermostat_hc1_reduce_mode\",\"cmd_t\":\"~/thermostat/hc1/reducemode\",\"ops\":[\"Frostschutz\",\"reduziert\",\"Raum\",\"Außen\"],\"name\":\"HK1 Absenkmodus\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['reducemode'] if value_json.hc1 is defined and value_json['hc1']['reducemode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818721,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_hc1_vacreducemode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_vacations_reduce_mode\",\"def_ent_id\":\"select.thermostat_hc1_vacations_reduce_mode\",\"cmd_t\":\"~/thermostat/hc1/vacreducemode\",\"ops\":[\"Frostschutz\",\"reduziert\",\"Raum\",\"Außen\"],\"name\":\"HK1 Urlaub Absenkmodus\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['vacreducemode'] if value_json.hc1 is defined and value_json['hc1']['vacreducemode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818724,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_wwcircmode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_circulation_pump_mode\",\"def_ent_id\":\"select.thermostat_dhw_circulation_pump_mode\",\"cmd_t\":\"~/thermostat/dhw/circmode\",\"ops\":[\"aus\",\"an\",\"auto\"],\"name\":\"WWK Zirkulationspumpenmodus\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['circmode'] if value_json.dhw is defined and value_json['dhw']['circmode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818725,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_wwcircprog/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_circulation_program\",\"def_ent_id\":\"select.thermostat_dhw_circulation_program\",\"cmd_t\":\"~/thermostat/dhw/circprog\",\"ops\":[\"Standardprog.\",\"Eigenprog.\"],\"name\":\"WWK Zirkulationsprogramm\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['circprog'] if value_json.dhw is defined and value_json['dhw']['circprog'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818725,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_wwdisinfectday/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_disinfection_day\",\"def_ent_id\":\"select.thermostat_dhw_disinfection_day\",\"cmd_t\":\"~/thermostat/dhw/disinfectday\",\"ops\":[\"Mo\",\"Di\",\"Mi\",\"Do\",\"Fr\",\"Sa\",\"So\",\"Alle\"],\"name\":\"WWK Desinfektionstag\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['disinfectday'] if value_json.dhw is defined and value_json['dhw']['disinfectday'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818726,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_wwmode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_operating_mode\",\"def_ent_id\":\"select.thermostat_dhw_operating_mode\",\"cmd_t\":\"~/thermostat/dhw/mode\",\"ops\":[\"aus\",\"an\",\"auto\"],\"name\":\"WWK Betriebsart\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['mode'] if value_json.dhw is defined and value_json['dhw']['mode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818725,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/select/ems-esp/thermostat_wwprogmode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_program\",\"def_ent_id\":\"select.thermostat_dhw_program\",\"cmd_t\":\"~/thermostat/dhw/progmode\",\"ops\":[\"Standardprog.\",\"Eigenprog.\"],\"name\":\"WWK Programmmodus\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['progmode'] if value_json.dhw is defined and value_json['dhw']['progmode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818725,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_boiltemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_actual_boiler_temperature\",\"def_ent_id\":\"sensor.boiler_actual_boiler_temperature\",\"name\":\"Kesseltemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['boiltemp'] if value_json['boiltemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818702,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_burnstarts/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_burner_starts\",\"def_ent_id\":\"sensor.boiler_burner_starts\",\"name\":\"Brennerstarts\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['burnstarts'] if value_json['burnstarts'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"stat_cla\":\"total_increasing\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818706,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_burnworkmin/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_total_burner_operating_time\",\"def_ent_id\":\"sensor.boiler_total_burner_operating_time\",\"name\":\"Brennerlaufzeit\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['burnworkmin'] if value_json['burnworkmin'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"min\",\"stat_cla\":\"total_increasing\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818707,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_curburnpow/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_burner_current_power\",\"def_ent_id\":\"sensor.boiler_burner_current_power\",\"name\":\"Aktuelle Brennerleistung\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['curburnpow'] if value_json['curburnpow'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"%\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818706,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_curflowtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_current_flow_temperature\",\"def_ent_id\":\"sensor.boiler_current_flow_temperature\",\"name\":\"Aktuelle Vorlauftemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['curflowtemp'] if value_json['curflowtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818702,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_heatingpumpmod/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_heating_pump_modulation\",\"def_ent_id\":\"sensor.boiler_heating_pump_modulation\",\"name\":\"Modulation Heizungspumpe\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['heatingpumpmod'] if value_json['heatingpumpmod'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"%\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818702,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_heatstarts/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_burner_starts_heating\",\"def_ent_id\":\"sensor.boiler_burner_starts_heating\",\"name\":\"Brennerstarts Heizen\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['heatstarts'] if value_json['heatstarts'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"stat_cla\":\"total_increasing\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818707,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_heatworkmin/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_total_heat_operating_time\",\"def_ent_id\":\"sensor.boiler_total_heat_operating_time\",\"name\":\"Heizlaufzeit\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['heatworkmin'] if value_json['heatworkmin'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"min\",\"stat_cla\":\"total_increasing\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818707,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_lastcode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_last_error_code\",\"def_ent_id\":\"sensor.boiler_last_error_code\",\"name\":\"Letzter Fehler\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['lastcode'] if value_json['lastcode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818708,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_maintenancemessage/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_maintenance_message\",\"def_ent_id\":\"sensor.boiler_maintenance_message\",\"name\":\"Wartungsmeldung\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['maintenancemessage'] if value_json['maintenancemessage'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818708,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_nrgheat/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_energy_heating\",\"def_ent_id\":\"sensor.boiler_energy_heating\",\"name\":\"Energie Heizen\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['nrgheat'] if value_json['nrgheat'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"kWh\",\"stat_cla\":\"total\",\"dev_cla\":\"energy\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818714,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_nrgtotal/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_total_energy\",\"def_ent_id\":\"sensor.boiler_total_energy\",\"name\":\"Gesamtenergie\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['nrgtotal'] if value_json['nrgtotal'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"kWh\",\"stat_cla\":\"total\",\"dev_cla\":\"energy\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818714,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_nrgww/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_energy\",\"def_ent_id\":\"sensor.boiler_dhw_energy\",\"name\":\"WWK Energie\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['nrg'] if value_json.dhw is defined and value_json['dhw']['nrg'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"kWh\",\"stat_cla\":\"total\",\"dev_cla\":\"energy\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818715,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_outdoortemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_outside_temperature\",\"def_ent_id\":\"sensor.boiler_outside_temperature\",\"name\":\"Außentemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['outdoortemp'] if value_json['outdoortemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818702,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_servicecode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_service_code\",\"def_ent_id\":\"sensor.boiler_service_code\",\"name\":\"Statusmeldung\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['servicecode'] if value_json['servicecode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818708,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_servicecodenumber/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_service_code_number\",\"def_ent_id\":\"sensor.boiler_service_code_number\",\"name\":\"Statusmeldungsnummer\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['servicecodenumber'] if value_json['servicecodenumber'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818708,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_ubauptime/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_total_uba_operating_time\",\"def_ent_id\":\"sensor.boiler_total_uba_operating_time\",\"name\":\"Anlagengesamtlaufzeit\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['ubauptime'] if value_json['ubauptime'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"min\",\"stat_cla\":\"total_increasing\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818707,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_wwchargetype/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_charging_type\",\"def_ent_id\":\"sensor.boiler_dhw_charging_type\",\"name\":\"WWK Speicherladungstyp\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['chargetype'] if value_json.dhw is defined and value_json['dhw']['chargetype'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818710,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_wwcurflow/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_current_tap_water_flow\",\"def_ent_id\":\"sensor.boiler_dhw_current_tap_water_flow\",\"name\":\"WWK Aktueller Durchfluss\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['curflow'] if value_json.dhw is defined and value_json['dhw']['curflow'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"L/min\",\"stat_cla\":\"measurement\",\"dev_cla\":\"volume_flow_rate\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818712,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_wwcurtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_current_intern_temperature\",\"def_ent_id\":\"sensor.boiler_dhw_current_intern_temperature\",\"name\":\"WWK Aktuelle interne Temperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['curtemp'] if value_json.dhw is defined and value_json['dhw']['curtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818711,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_wwsettemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_set_temperature\",\"def_ent_id\":\"sensor.boiler_dhw_set_temperature\",\"name\":\"WWK Solltemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['settemp'] if value_json.dhw is defined and value_json['dhw']['settemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818709,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_wwstarts/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_starts\",\"def_ent_id\":\"sensor.boiler_dhw_starts\",\"name\":\"WWK Anzahl Starts\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['starts'] if value_json.dhw is defined and value_json['dhw']['starts'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"stat_cla\":\"total_increasing\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818714,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_wwstoragetemp1/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_storage_intern_temperature\",\"def_ent_id\":\"sensor.boiler_dhw_storage_intern_temperature\",\"name\":\"WWK Interne Speichertemperatur\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['storagetemp1'] if value_json.dhw is defined and value_json['dhw']['storagetemp1'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818712,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_wwtype/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_type\",\"def_ent_id\":\"sensor.boiler_dhw_type\",\"name\":\"WWK Typ\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['type'] if value_json.dhw is defined and value_json['dhw']['type'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818709,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/boiler_wwworkm/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_active_time\",\"def_ent_id\":\"sensor.boiler_dhw_active_time\",\"name\":\"WWK Aktive Zeit\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['dhw']['workm'] if value_json.dhw is defined and value_json['dhw']['workm'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"min\",\"stat_cla\":\"total_increasing\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818714,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_bootTime/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_uptime\",\"def_ent_id\":\"sensor.system_uptime\",\"name\":\"Uptime\",\"stat_t\":\"~/info\",\"val_tpl\":\"{{value_json['bootTime'] if value_json['bootTime'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"dev_cla\":\"uptime\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818700,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_bus_status/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_ems_bus\",\"def_ent_id\":\"sensor.system_ems_bus\",\"name\":\"EMS Bus\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['bus_status'] if value_json['bus_status'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818698,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_freemem/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_free_memory\",\"def_ent_id\":\"sensor.system_free_memory\",\"name\":\"Free memory\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['freemem'] if value_json['freemem'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"unit_of_meas\":\"kB\",\"dev_cla\":\"data_size\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818698,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_max_alloc/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_max_alloc\",\"def_ent_id\":\"sensor.system_max_alloc\",\"name\":\"Max alloc\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['max_alloc'] if value_json['max_alloc'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"unit_of_meas\":\"kB\",\"dev_cla\":\"data_size\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818698,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_mqttfails/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_mqtt_fails\",\"def_ent_id\":\"sensor.system_mqtt_fails\",\"name\":\"MQTT fails\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['mqttfails'] if value_json['mqttfails'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818698,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_rssi/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_rssi\",\"def_ent_id\":\"sensor.system_rssi\",\"name\":\"RSSI\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['rssi'] if value_json['rssi'] is defined else 0}}\",\"avty\":[{\"t\":\"~/heartbeat\",\"val_tpl\":\"{{'online' if value_json['rssi'] is defined else 'offline'}}\"},{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"unit_of_meas\":\"dBm\",\"stat_cla\":\"measurement\",\"dev_cla\":\"signal_strength\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.8.6\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818630,
+            "session_id": "10001-2-1794818627",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_rxfails/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_rx_fails\",\"def_ent_id\":\"sensor.system_rx_fails\",\"name\":\"Rx fails\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['rxfails'] if value_json['rxfails'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818699,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_rxreceived/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_rx_received\",\"def_ent_id\":\"sensor.system_rx_received\",\"name\":\"Rx received\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['rxreceived'] if value_json['rxreceived'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818698,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_txfails/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_tx_fails\",\"def_ent_id\":\"sensor.system_tx_fails\",\"name\":\"Tx fails\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['txfails'] if value_json['txfails'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818699,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_txreads/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_tx_reads\",\"def_ent_id\":\"sensor.system_tx_reads\",\"name\":\"Tx reads\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['txreads'] if value_json['txreads'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818699,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_txwrites/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_tx_writes\",\"def_ent_id\":\"sensor.system_tx_writes\",\"name\":\"Tx writes\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['txwrites'] if value_json['txwrites'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818699,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_uptime/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_uptime\",\"def_ent_id\":\"sensor.system_uptime\",\"name\":\"Uptime\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['uptime'] if value_json['uptime'] is defined else 0}}\",\"avty\":[{\"t\":\"~/heartbeat\",\"val_tpl\":\"{{'online' if value_json['uptime'] is defined else 'offline'}}\"},{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.8.6\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818629,
+            "session_id": "10001-2-1794818627",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_uptime_sec/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_uptime_(sec)\",\"def_ent_id\":\"sensor.system_uptime_(sec)\",\"name\":\"Uptime (sec)\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['uptime_sec'] if value_json['uptime_sec'] is defined else 0}}\",\"avty\":[{\"t\":\"~/heartbeat\",\"val_tpl\":\"{{'online' if value_json['uptime_sec'] is defined else 'offline'}}\"},{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"unit_of_meas\":\"s\",\"stat_cla\":\"measurement\",\"dev_cla\":\"duration\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.8.6\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818629,
+            "session_id": "10001-2-1794818627",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_version/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_version\",\"def_ent_id\":\"sensor.system_version\",\"name\":\"Version\",\"stat_t\":\"~/info\",\"val_tpl\":\"{{value_json['version'] if value_json['version'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818699,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_wifireconnects/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_wifi_reconnects\",\"def_ent_id\":\"sensor.system_wifi_reconnects\",\"name\":\"WiFi reconnects\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['wifireconnects'] if value_json['wifireconnects'] is defined else 0}}\",\"avty\":[{\"t\":\"~/heartbeat\",\"val_tpl\":\"{{'online' if value_json['wifireconnects'] is defined else 'offline'}}\"},{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.8.6\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818657,
+            "session_id": "10001-2-1794818627",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/system_wifistrength/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"system_signal\",\"def_ent_id\":\"sensor.system_signal\",\"name\":\"Signal\",\"stat_t\":\"~/heartbeat\",\"val_tpl\":\"{{value_json['wifistrength'] if value_json['wifistrength'] is defined else 0}}\",\"avty\":[{\"t\":\"~/heartbeat\",\"val_tpl\":\"{{'online' if value_json['wifistrength'] is defined else 'offline'}}\"},{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"ent_cat\":\"diagnostic\",\"unit_of_meas\":\"%\",\"stat_cla\":\"measurement\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.8.6\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp\"]}}",
+            "received_at": 1794818668,
+            "session_id": "10001-2-1794818627",
+            "retained": true,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/thermostat_dampedoutdoortemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_damped_outdoor_temperature\",\"def_ent_id\":\"sensor.thermostat_damped_outdoor_temperature\",\"name\":\"Gedämpfte Außentemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dampedoutdoortemp'] if value_json['dampedoutdoortemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818716,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/thermostat_hc1_currtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_current_room_temperature\",\"def_ent_id\":\"sensor.thermostat_hc1_current_room_temperature\",\"name\":\"HK1 Aktuelle Raumtemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['currtemp'] if value_json.hc1 is defined and value_json['hc1']['currtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818717,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/thermostat_hc1_modetype/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_mode_type\",\"def_ent_id\":\"sensor.thermostat_hc1_mode_type\",\"name\":\"HK1 Modustyp\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['modetype'] if value_json.hc1 is defined and value_json['hc1']['modetype'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818718,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/thermostat_hc1_summermode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_summer_mode\",\"def_ent_id\":\"sensor.thermostat_hc1_summer_mode\",\"name\":\"HK1 Sommerbetrieb\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['summermode'] if value_json.hc1 is defined and value_json['hc1']['summermode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818719,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/thermostat_hc1_targetflowtemp/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_target_flow_temperature\",\"def_ent_id\":\"sensor.thermostat_hc1_target_flow_temperature\",\"name\":\"HK1 Berechnete Vorlauftemperatur\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['targetflowtemp'] if value_json.hc1 is defined and value_json['hc1']['targetflowtemp'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818719,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/thermostat_inttemp1/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_temperature_sensor_1\",\"def_ent_id\":\"sensor.thermostat_temperature_sensor_1\",\"name\":\"Temperatursensor 1\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['inttemp1'] if value_json['inttemp1'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818716,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/thermostat_inttemp2/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_temperature_sensor_2\",\"def_ent_id\":\"sensor.thermostat_temperature_sensor_2\",\"name\":\"Temperatursensor 2\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['inttemp2'] if value_json['inttemp2'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"unit_of_meas\":\"°C\",\"stat_cla\":\"measurement\",\"dev_cla\":\"temperature\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818716,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/sensor/ems-esp/thermostat_lastcode/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_last_error_code\",\"def_ent_id\":\"sensor.thermostat_last_error_code\",\"name\":\"Letzter Fehler\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['lastcode'] if value_json['lastcode'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"],\"name\":\"ems-esp Thermostat\",\"mf\":\"\",\"mdl\":\"RC35\",\"sw\":\"DeviceID 0x10, ProductID 86, Version 01.06\",\"via_device\":\"ems-esp\"}}",
+            "received_at": 1794818715,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/boiler_heatingactivated/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_heating_activated\",\"def_ent_id\":\"switch.boiler_heating_activated\",\"cmd_t\":\"~/boiler/heatingactivated\",\"name\":\"Heizbetrieb aktiviert\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['heatingactivated'] if value_json['heatingactivated'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818704,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/boiler_heatingoff/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_force_heating_off\",\"def_ent_id\":\"switch.boiler_force_heating_off\",\"cmd_t\":\"~/boiler/heatingoff\",\"name\":\"Heizen abschalten\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['heatingoff'] if value_json['heatingoff'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818701,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/boiler_wwactivated/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_activated\",\"def_ent_id\":\"switch.boiler_dhw_activated\",\"cmd_t\":\"~/boiler/dhw/activated\",\"name\":\"WWK Aktiviert\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['activated'] if value_json.dhw is defined and value_json['dhw']['activated'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818712,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/boiler_wwchargeoptimization/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_charge_optimization\",\"def_ent_id\":\"switch.boiler_dhw_charge_optimization\",\"cmd_t\":\"~/boiler/dhw/chargeoptimization\",\"name\":\"WWK Ladungsoptimierung\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['chargeoptimization'] if value_json.dhw is defined and value_json['dhw']['chargeoptimization'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818710,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/boiler_wwcirc/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_circulation_active\",\"def_ent_id\":\"switch.boiler_dhw_circulation_active\",\"cmd_t\":\"~/boiler/dhw/circ\",\"name\":\"WWK Zirkulation aktiv\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['circ'] if value_json.dhw is defined and value_json['dhw']['circ'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818711,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/boiler_wwcircpump/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_circulation_pump_available\",\"def_ent_id\":\"switch.boiler_dhw_circulation_pump_available\",\"cmd_t\":\"~/boiler/dhw/circpump\",\"name\":\"WWK Zirkulationspumpe vorhanden\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['circpump'] if value_json.dhw is defined and value_json['dhw']['circpump'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818710,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/boiler_wwdisinfecting/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_disinfecting\",\"def_ent_id\":\"switch.boiler_dhw_disinfecting\",\"cmd_t\":\"~/boiler/dhw/disinfecting\",\"name\":\"WWK Desinfizieren\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['disinfecting'] if value_json.dhw is defined and value_json['dhw']['disinfecting'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818712,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/boiler_wwonetime/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_dhw_one_time_charging\",\"def_ent_id\":\"switch.boiler_dhw_one_time_charging\",\"cmd_t\":\"~/boiler/dhw/onetime\",\"name\":\"WWK Einmalladung\",\"stat_t\":\"~/boiler_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['onetime'] if value_json.dhw is defined and value_json['dhw']['onetime'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818712,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/thermostat_damping/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_damping_outdoor_temperature\",\"def_ent_id\":\"switch.thermostat_damping_outdoor_temperature\",\"cmd_t\":\"~/thermostat/damping\",\"name\":\"Dämpfung der Außentemperatur\",\"stat_t\":\"~/thermostat_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['damping'] if value_json['damping'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818716,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/thermostat_hc1_dhwprio/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_dhw_priority\",\"def_ent_id\":\"switch.thermostat_hc1_dhw_priority\",\"cmd_t\":\"~/thermostat/hc1/dhwprio\",\"name\":\"HK1 WW-Vorrang\",\"stat_t\":\"~/thermostat_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['hc1']['dhwprio'] if value_json.hc1 is defined and value_json['hc1']['dhwprio'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818724,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/thermostat_hc1_switchonoptimization/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_switch-on_optimization\",\"def_ent_id\":\"switch.thermostat_hc1_switch-on_optimization\",\"cmd_t\":\"~/thermostat/hc1/switchonoptimization\",\"name\":\"HK1 Einschaltoptimierung\",\"stat_t\":\"~/thermostat_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['hc1']['switchonoptimization'] if value_json.hc1 is defined and value_json['hc1']['switchonoptimization'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818724,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/thermostat_wwdisinfecting/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_disinfecting\",\"def_ent_id\":\"switch.thermostat_dhw_disinfecting\",\"cmd_t\":\"~/thermostat/dhw/disinfecting\",\"name\":\"WWK Desinfizieren\",\"stat_t\":\"~/thermostat_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['disinfecting'] if value_json.dhw is defined and value_json['dhw']['disinfecting'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818726,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/switch/ems-esp/thermostat_wwonetimekey/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_one_time_key_function\",\"def_ent_id\":\"switch.thermostat_dhw_one_time_key_function\",\"cmd_t\":\"~/thermostat/dhw/onetimekey\",\"name\":\"WWK Einmalladungstaste\",\"stat_t\":\"~/thermostat_data\",\"pl_on\":\"an\",\"pl_off\":\"aus\",\"val_tpl\":\"{{value_json['dhw']['onetimekey'] if value_json.dhw is defined and value_json['dhw']['onetimekey'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818726,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/boiler_maintenancedate/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"boiler_next_maintenance_date\",\"def_ent_id\":\"text.boiler_next_maintenance_date\",\"cmd_t\":\"~/boiler/maintenancedate\",\"name\":\"Wartungsdatum\",\"stat_t\":\"~/boiler_data\",\"val_tpl\":\"{{value_json['maintenancedate'] if value_json['maintenancedate'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-boiler\"]}}",
+            "received_at": 1794818709,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/thermostat_datetime/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_date/time\",\"def_ent_id\":\"text.thermostat_date/time\",\"cmd_t\":\"~/thermostat/datetime\",\"name\":\"Datum/Zeit\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['datetime'] if value_json['datetime'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818715,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/thermostat_hc1_holidays/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_holiday_dates\",\"def_ent_id\":\"text.thermostat_hc1_holiday_dates\",\"cmd_t\":\"~/thermostat/hc1/holidays\",\"name\":\"HK1 Feiertage\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['holidays'] if value_json.hc1 is defined and value_json['hc1']['holidays'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818722,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/thermostat_hc1_switchtime1/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_own1_program_switchtime\",\"def_ent_id\":\"text.thermostat_hc1_own1_program_switchtime\",\"cmd_t\":\"~/thermostat/hc1/switchtime1\",\"name\":\"HK1 Programmschaltzeit Eigen 1\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['switchtime1'] if value_json.hc1 is defined and value_json['hc1']['switchtime1'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818724,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/thermostat_hc1_switchtime2/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_own2_program_switchtime\",\"def_ent_id\":\"text.thermostat_hc1_own2_program_switchtime\",\"cmd_t\":\"~/thermostat/hc1/switchtime2\",\"name\":\"HK1 Programmschaltzeit Eigen 2\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['switchtime2'] if value_json.hc1 is defined and value_json['hc1']['switchtime2'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818725,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/thermostat_hc1_vacations/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_hc1_vacation_dates\",\"def_ent_id\":\"text.thermostat_hc1_vacation_dates\",\"cmd_t\":\"~/thermostat/hc1/vacations\",\"name\":\"HK1 Urlaubstage\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['hc1']['vacations'] if value_json.hc1 is defined and value_json['hc1']['vacations'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818722,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/thermostat_wwcircswitchtime/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_circulation_program_switchtime\",\"def_ent_id\":\"text.thermostat_dhw_circulation_program_switchtime\",\"cmd_t\":\"~/thermostat/dhw/circswitchtime\",\"name\":\"WWK Zirculationsprogramm Schaltzeit\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['circswitchtime'] if value_json.dhw is defined and value_json['dhw']['circswitchtime'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818727,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/thermostat_wwholidays/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_holiday_dates\",\"def_ent_id\":\"text.thermostat_dhw_holiday_dates\",\"cmd_t\":\"~/thermostat/dhw/holidays\",\"name\":\"WWK Feiertage\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['holidays'] if value_json.dhw is defined and value_json['dhw']['holidays'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818727,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/thermostat_wwswitchtime/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_program_switchtime\",\"def_ent_id\":\"text.thermostat_dhw_program_switchtime\",\"cmd_t\":\"~/thermostat/dhw/switchtime\",\"name\":\"WWK Programmschaltzeit\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['switchtime'] if value_json.dhw is defined and value_json['dhw']['switchtime'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818727,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "homeassistant/text/ems-esp/thermostat_wwvacations/config",
+            "payload": "{\"~\":\"ems-esp\",\"uniq_id\":\"thermostat_dhw_vacation_dates\",\"def_ent_id\":\"text.thermostat_dhw_vacation_dates\",\"cmd_t\":\"~/thermostat/dhw/vacations\",\"name\":\"WWK Urlaubstage\",\"stat_t\":\"~/thermostat_data\",\"val_tpl\":\"{{value_json['dhw']['vacations'] if value_json.dhw is defined and value_json['dhw']['vacations'] is defined else 'None'}}\",\"avty\":[{\"t\":\"~/status\"}],\"avty_mode\":\"all\",\"o\":{\"name\":\"EMS-ESP\",\"sw\":\"v3.9.1\",\"url\":\"https://emsesp.org\"},\"dev\":{\"ids\":[\"ems-esp-thermostat\"]}}",
+            "received_at": 1794818727,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        }
+    ],
+    "topic_payloads": [
+        {
+            "topic": "ems-esp/boiler_data",
+            "payload": "{\"reset\":\"\",\"chimneysweeper\":\"\",\"heatingoff\":\"aus\",\"heatingactive\":\"aus\",\"tapwateractive\":\"aus\",\"selflowtemp\":37,\"heatingpumpmod\":100,\"outdoortemp\":9.8,\"curflowtemp\":34.4,\"boiltemp\":34.7,\"fanwork\":\"aus\",\"ignwork\":\"aus\",\"oilpreheat\":\"aus\",\"burnmaxpower\":100,\"burnminperiod\":10,\"boilhyston\":-10,\"boilhystoff\":6,\"boil2hyston\":-8,\"boil2hystoff\":8,\"heatingactivated\":\"an\",\"heatingtemp\":90,\"heatingpump\":\"an\",\"pumpmodmax\":100,\"pumpmodmin\":100,\"pumpmode\":\"deltaP-3\",\"pumpdelay\":30,\"pumpontemp\":47,\"selburnpow\":100,\"curburnpow\":0,\"burnstarts\":113309,\"burnworkmin\":1117630,\"heatworkmin\":571808,\"heatstarts\":89142,\"ubauptime\":8230432,\"lastcode\":\"6A(504) 09.10.2024 15:19 (211 min)\",\"servicecode\":\"0Y\",\"servicecodenumber\":0,\"maintenancemessage\":\"H00\",\"maintenance\":\"aus\",\"maintenancetime\":6000,\"maintenancedate\":\"01.01.2000\",\"nompower\":0,\"nrgtotal\":0,\"nrgheat\":0,\"dhw\":{\"settemp\":10,\"seltemp\":60,\"type\":\"Speicher\",\"comfort\":\"Heiß\",\"flowtempoffset\":15,\"chargeoptimization\":\"an\",\"circpump\":\"aus\",\"chargetype\":\"Ladepumpe\",\"hyston\":-5,\"disinfectiontemp\":70,\"circmode\":\"2x3min\",\"circ\":\"aus\",\"curtemp\":48.4,\"curflow\":0,\"storagetemp1\":48.4,\"activated\":\"an\",\"onetime\":\"aus\",\"disinfecting\":\"aus\",\"charging\":\"aus\",\"recharging\":\"aus\",\"tempok\":\"aus\",\"active\":\"aus\",\"3wayvalve\":\"aus\",\"chargepump\":\"aus\",\"starts\":50227,\"workm\":587006,\"nrg\":0}}",
+            "received_at": 1794844460,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "ems-esp/heartbeat",
+            "payload": "{\"bus_status\":\"connected\",\"uptime\":\"001+00:32:04.351\",\"uptime_sec\":88324,\"rxreceived\":104627,\"rxfails\":3,\"txreads\":17718,\"txwrites\":3,\"txfails\":0,\"mqttcount\":20784,\"mqttfails\":0,\"mqttreconnects\":11,\"apicalls\":0,\"apifails\":0,\"sensorreads\":0,\"sensorfails\":0,\"freemem\":188,\"max_alloc\":108,\"min_free\":131,\"upgradeable\":false}",
+            "received_at": 1794844444,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "ems-esp/status",
+            "payload": "online",
+            "received_at": 1794818700,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        },
+        {
+            "topic": "ems-esp/thermostat_data",
+            "payload": "{\"lastcode\":\"d1(818) 09.10.2024 15:49 (181 min)\",\"datetime\":\"16.11.2026 16:53\",\"intoffset\":0,\"minexttemp\":-12,\"inttemp1\":21,\"inttemp2\":21.6,\"damping\":\"an\",\"dampedoutdoortemp\":10,\"building\":\"Mittel\",\"hc1\":{\"seltemp\":20,\"currtemp\":21,\"haclimate\":\"Raumtemperatur\",\"mode\":\"auto\",\"modetype\":\"Tag\",\"daytemp\":20,\"nighttemp\":18.5,\"designtemp\":65,\"offsettemp\":0,\"holidaytemp\":17,\"targetflowtemp\":37,\"summertemp\":17,\"summermode\":\"Winter\",\"holidaymode\":\"aus\",\"nofrosttemp\":-5,\"nofrostmode\":\"Außen\",\"roominfluence\":0,\"minflowtemp\":5,\"maxflowtemp\":70,\"flowtempoffset\":0,\"heatingtype\":\"Heizkörper\",\"reducemode\":\"Frostschutz\",\"controlmode\":\"Außen\",\"control\":\"RC3x\",\"holidays\":\"01.01.2000-01.01.2000\",\"vacations\":\"01.01.2000-01.01.2000\",\"program\":\"Eigen 1\",\"pause\":0,\"party\":0,\"tempautotemp\":0,\"noreducetemp\":-18,\"reducetemp\":5,\"vacreducetemp\":5,\"vacreducemode\":\"Raum\",\"remotetemp\":null,\"dhwprio\":\"aus\",\"switchonoptimization\":\"aus\",\"switchtime1\":\"00 mo 05:30 on\",\"switchtime2\":\"00 mo 00:00 off\"},\"dhw\":{\"mode\":\"auto\",\"circmode\":\"aus\",\"progmode\":\"Eigenprog.\",\"circprog\":\"Standardprog.\",\"disinfecting\":\"aus\",\"disinfectday\":\"Mi\",\"disinfecthour\":1,\"maxtemp\":60,\"onetimekey\":\"an\",\"switchtime\":\"00 mo 08:30 on\",\"circswitchtime\":\"00 mo 05:30 on\",\"holidays\":\"01.01.2000-01.01.2000\",\"vacations\":\"01.01.2000-01.01.2000\"}}",
+            "received_at": 1794844420,
+            "session_id": "10001-2-1794818627",
+            "retained": false,
+            "qos": 0,
+            "direction": "rx",
+            "is_current_session": true
+        }
+    ],
+    "stats": {
+        "discovery_config_count": 452,
+        "topic_payload_count": 5
+    }
+}

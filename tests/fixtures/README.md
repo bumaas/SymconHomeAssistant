@@ -266,6 +266,15 @@ fast nur in Kurzformen (`temp_cmd_t`, `mode_stat_tpl`, …) mit bedingten Templa
 `…/state`, `…/system/info` und `…/availability`. Grundlage von `check-discovery-climate.php` und den bedingten
 Fällen in `check-mqtt-discovery-template-parser.php`.
 
+## Heizung mit EMS-ESP (`discovery_ems_esp_20261116.json`)
+
+Aus einem **Anwender-Bundle** (Boui, PN im Forum, 16.11.2026), vom Anwender auf EMS-ESP gefiltert und
+`ems-esp/info` maskiert; beim Anlegen `ems-esp/info` ganz entfernt und die Instanz-IDs durch Platzhalter
+ersetzt (Splitter 10000, MQTT Client 10001). 149 Ankündigungen von EMS-ESP v3.9.1 (Buderus-Kessel Logano und
+Regler RC35) in Kurzformen mit `~`-Basis-Topic, darunter zehn `text`, Selects und eine Zahl nur mit
+Befehls-Topic, dazu die Payloads von `ems-esp/boiler_data`, `…/thermostat_data`, `…/heartbeat` und
+`…/status`. Grundlage von `check-discovery-text.php`.
+
 - `discovery_cover_set_position_20260514.json`
   - Quelle: Zigbee2MQTT 2.10.1-dev (Zemismart ZM-AM02), ein Discovery-Record aus dem nuc-Bundle vom 14.05.2026
   - Geräteadressen durch `0x00000000000000a1`/`…b1` ersetzt

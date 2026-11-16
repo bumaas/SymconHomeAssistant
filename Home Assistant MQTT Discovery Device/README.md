@@ -10,7 +10,7 @@ Laufzeitmodul für Geräte, die ihre Struktur und Laufzeitdaten über Home Assis
 - Arbeitet direkt auf MQTT-Discovery-Daten einer MQTT-Discovery-Quelle, nicht auf aus Home Assistant geholten Entitäten.
 - Empfängt MQTT-Nachrichten über den Home Assistant MQTT Discovery Splitter.
 - Wertet `state_topic`, `command_topic` und `availability` quellenneutral für MQTT Discovery aus.
-- Unterstützt aktuell die Komponenten `sensor`, `binary_sensor`, `number`, `image`, `device_tracker`, `update`, `lock`, `cover`, `climate`, `switch`, `select`, `button` und `light`.
+- Unterstützt aktuell die Komponenten `sensor`, `binary_sensor`, `number`, `image`, `device_tracker`, `update`, `lock`, `cover`, `climate`, `switch`, `select`, `text`, `button` und `light`.
 - Kann diese Komponenten sowohl aus klassischen Discovery-Topics `homeassistant/<component>/.../config` als auch aus HA-Device-Discovery `homeassistant/device/.../config` auflösen.
 - Stellt Zigbee2MQTT-`device_automation` Trigger als read-only Event-Zeitstempel pro Trigger-Subtype dar.
 - Behält für Zigbee2MQTT-Trigger einen Root-Topic-JSON-Fallback bei, falls statt des deklarierten Trigger-Topics nur das Runtime-JSON mit Feld wie `action` ankommt.
@@ -66,6 +66,6 @@ Laufzeitmodul für Geräte, die ihre Struktur und Laufzeitdaten über Home Assis
 
 ## Hinweis
 
-Das Modul ist bewusst auf den aktuellen MQTT-Discovery-Kernpfad für `sensor`, `binary_sensor`, `number`, `image`, `device_tracker`, `update`, `lock`, `cover`, `climate`, `switch`, `select`, `button`, `light` und einfache Zigbee2MQTT-Trigger begrenzt. Weitere Discovery-Komponenten können später darauf aufbauen, ohne den klassischen Bridge-Pfad für bestehende Home-Assistant-Installationen zu vermischen.
+Das Modul ist bewusst auf den aktuellen MQTT-Discovery-Kernpfad für `sensor`, `binary_sensor`, `number`, `image`, `device_tracker`, `update`, `lock`, `cover`, `climate`, `switch`, `select`, `text`, `button`, `light` und einfache Zigbee2MQTT-Trigger begrenzt. Weitere Discovery-Komponenten können später darauf aufbauen, ohne den klassischen Bridge-Pfad für bestehende Home-Assistant-Installationen zu vermischen.
 
 Der Zigbee2MQTT-Fallback ist als Kompatibilitätspfad gedacht, nicht als Discovery-Istzustand. Sobald das deklarierte Trigger-Topic selbst geliefert wird, verschwindet die Warnung automatisch und der reguläre Discovery-Pfad greift.
