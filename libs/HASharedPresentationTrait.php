@@ -43,15 +43,34 @@ trait HASharedPresentationTrait
 
     private static function fitPresentationToVariableType(array|string $presentation, int $type): array|string
     {
-        if (!is_array($presentation) || $type !== VARIABLETYPE_INTEGER) {
+        if (!is_array($presentation)) {
             return $presentation;
         }
-        foreach (['MIN', 'MAX'] as $parameter) {
-            if (isset($presentation[$parameter]) && is_float($presentation[$parameter])) {
-                $presentation[$parameter] = (int)round($presentation[$parameter]);
+        if ($type === VARIABLETYPE_INTEGER) {
+            foreach (['MIN', 'MAX'] as $parameter) {
+                if (isset($presentation[$parameter]) && is_float($presentation[$parameter])) {
+                    $presentation[$parameter] = (int)round($presentation[$parameter]);
+                }
             }
         }
-        return $presentation;
+        return self::replaceSliderWithoutRange($presentation);
+    }
+
+    /**
+     * Einen Schieberegler mit MIN >= MAX verwirft der Kernel („Maximum Value must be higher than Minimum
+     * Value“); die Variable stünde dann mit Aktion, aber ohne Darstellung da, und der Testbereich der Konsole
+     * scheitert daran (EMS-ESP „Maximale Brennerleistung“, min = max = 100, nuc 16.11.2026). HA lässt
+     * min = max zu. Deshalb ein Eingabefeld; es kennt nur MULTILINE, PREFIX und SUFFIX.
+     */
+    private static function replaceSliderWithoutRange(array $presentation): array
+    {
+        if (($presentation['PRESENTATION'] ?? '') !== VARIABLE_PRESENTATION_SLIDER
+            || !isset($presentation['MIN'], $presentation['MAX'])
+            || $presentation['MIN'] < $presentation['MAX']) {
+            return $presentation;
+        }
+        return ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_INPUT]
+            + array_intersect_key($presentation, array_flip(['PREFIX', 'SUFFIX']));
     }
 
     private function sharedFilterPresentation(array $presentation): array

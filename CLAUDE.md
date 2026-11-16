@@ -448,6 +448,22 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Die klassische Bridge kennt die HA-Domäne `text` weiterhin nicht (nur `input_text`).
 - Test: `tests/check-discovery-text.php` (Fixture `discovery_ems_esp_20261116.json`).
 
+## Schieberegler ohne Bereich (1.9 build 236)
+
+- HA erlaubt bei `number` min = max (EMS-ESP „Maximale Brennerleistung“ 100/100). Der Kernel verwirft dann
+  den Schieberegler („Maximum Value must be higher than Minimum Value“), die Variable steht mit Aktion, aber
+  ohne Darstellung da. Am nuc nachgestellt (16.11.2026, Bundle-Splitter #54459 mit Bouis Bundle): Jedes
+  „Änderungen übernehmen“ endete mit „Fehler beim Übernehmen der Änderungen … (Code: -32603)“, danach scheiterte
+  der Testbereich der Konsole mit „Uncaught Unexpected presentation when trying to determine minimum“. Boui
+  meldete -32603 mit anderem Text („Parameter type of Value does not match“); dass es dieselbe Ursache ist,
+  ist wahrscheinlich, aber nicht belegt.
+- `fitPresentationToVariableType()` (`HASharedPresentationTrait`, also beide Familien) macht aus einem
+  Schieberegler mit MIN >= MAX ein Eingabefeld (`VALUE_INPUT`, nur PREFIX/SUFFIX übernommen), geprüft nach dem
+  Runden auf Ganzzahlen. Der Kernel-Stub prüft MIN < MAX nicht; deshalb prüft es der Test selbst.
+- Eine Textvariable mit Aktion braucht keine Darstellung: Der Testbereich zeigt sie als Textfeld (nuc,
+  „Wartungsdatum“).
+- Test: `tests/check-slider-min-max.php` (Fixture `discovery_ems_esp_20261116.json`).
+
 ## Selbsttest zählt nur statestream (build 228)
 
 - „MQTT-Daten empfangen“ und „Empfangene Domänen“ im Selbsttest des Splitters zählen nur
