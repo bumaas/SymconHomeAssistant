@@ -197,7 +197,6 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             $this->deferFailedQuery(__FUNCTION__, ['EntityID' => $entityId]);
             return;
         }
-        $this->resetFailedQueries();
         if ($raw === false) {
             if (!$this->confirmNotFound(__FUNCTION__, ['EntityID' => $entityId])) {
                 return;
@@ -205,6 +204,7 @@ class HomeAssistantEntity extends IPSModuleStrict implements HADeviceConstants
             $this->failResolvedEntity(self::STATUS_ENTITY_NOT_FOUND, $entityId, 'Entity nicht in Home Assistant gefunden');
             return;
         }
+        $this->resetFailedQueries();
 
         $resolved = $this->buildResolvedEntityRow($raw, true, true);
         if ($resolved === null) {

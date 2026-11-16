@@ -81,7 +81,12 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   sie neu. Die Entities kamen sofort, ihre Helfer kennt HA schon beim Start.
 - **Gescheiterte Abfrage** (`null`: keine Antwort, HTTP-Fehler, Kernel bricht ab): `deferFailedQuery()` setzt
   ebenfalls 203 und plant die Nachprüfung, zehnmal nach 30 s, danach alle 300 s (Zähler im Buffer
-  `QueryFailures`, `resetFailedQueries()` bei jeder Antwort). Bis build 231 gab es hier gar keine Nachprüfung.
+  `QueryFailures`). Bis build 231 gab es hier gar keine Nachprüfung.
+- **Ein Zähler für beide Fälle** (build 237, Code-Review 16.11.2026 Befund 3): Startphase (`confirmNotFound()`
+  ohne `RUNNING`) und gescheiterte Abfrage laufen über `scheduleHaRecheck()`. Zurückgesetzt wird nur bei einem
+  eindeutigen Befund (Konfiguration geliefert oder HA läuft und meldet „nicht gefunden“), nicht schon bei jeder
+  Antwort, sonst setzte eine leere Antwort der Startphase den Zähler jedes Mal zurück. Bis build 236 prüfte die
+  Startphase ohne Ende alle 30 s nach, obwohl die README fünf Minuten nach zehn Versuchen nennt.
 - Test: `tests/check-ha-startphase.php` (Fixture `ha_startphase_20261020.json`, Teil 3 die Statusfolge vom
   16.11.); läuft über einen echten Splitter als Parent, dessen `performCurl` HA nachstellt
   (`SplitterHarness::$haAntwort`).
@@ -445,6 +450,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Device. Lesen läuft über den allgemeinen Pfad (`castSensorValue` auf String), Schreiben über
   `buildCommandPayload`: der Text unverändert, auch leer (HA: `min` = 0 als Vorgabe), mit `command_template`,
   falls angekündigt. Länge (`min`/`max`) und `pattern` prüft das Modul nicht, wie beim `input_text` der Bridge.
+- Mit „Status emulieren“, `optimistic` oder ohne `state_topic` schreibt `applyOptimisticValue` den gesendeten
+  Text sofort in die Variable (build 237, Code-Review 16.11.2026 Befund 1; vorher fehlte der Zweig, die Variable
+  behielt den alten Text). Eine neue schaltbare Komponente braucht dort immer einen eigenen Zweig.
 - Die klassische Bridge kennt die HA-Domäne `text` weiterhin nicht (nur `input_text`).
 - Test: `tests/check-discovery-text.php` (Fixture `discovery_ems_esp_20261116.json`).
 

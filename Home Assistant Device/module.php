@@ -224,7 +224,6 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 $this->deferFailedQuery(__FUNCTION__, ['DeviceID' => $deviceId]);
                 return;
             }
-            $this->resetFailedQueries();
             if ($configData === []) {
                 if (!$this->confirmNotFound(__FUNCTION__, ['DeviceID' => $deviceId])) {
                     return;
@@ -233,6 +232,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
                 $this->failResolvedConfig(self::STATUS_DEVICE_NOT_FOUND, __FUNCTION__, 'Gerät nicht in Home Assistant gefunden', ['DeviceID' => $deviceId]);
                 return;
             }
+            $this->resetFailedQueries();
         }
 
         $configData = $this->removeSecretAttributes($this->mergeCreateVarSettings($configData, $existingCreateVarMap));

@@ -135,4 +135,22 @@ $s = schalteText($kessel, 'Wartungsdatum', '01.06.2027');
 pruefe($s === [['Topic' => 'ems-esp/boiler/maintenancedate', 'Payload' => '01.06.2027']],
     'Wartungsdatum an ems-esp/boiler/maintenancedate', json_encode($s));
 
+// --- Teil 6: Mit „Status emulieren“ steht der gesendete Text sofort in der Variable, wie bei number oder
+// select (Code-Review 16.11.2026, Befund 1: applyOptimisticValue kannte text nicht, die Variable behielt
+// den alten Text). Die Einstellung ist angenommen, Boui nutzt sie nicht; Topics und Werte aus dem Bundle.
+$kessel->SetProperty('EmulateStatus', true);
+neueAusfuehrung($kessel)->ApplyChanges();
+$s = schalteText($kessel, 'Wartungsdatum', '01.06.2027');
+pruefe($s === [['Topic' => 'ems-esp/boiler/maintenancedate', 'Payload' => '01.06.2027']],
+    'Status emulieren: Wartungsdatum gesendet', json_encode($s));
+$kesselVars = variablenNachName($kessel->id());
+pruefe(isset($kesselVars['Wartungsdatum']) && GetValue($kesselVars['Wartungsdatum']) === '01.06.2027',
+    'Status emulieren: Wartungsdatum steht sofort in der Variable',
+    var_export(isset($kesselVars['Wartungsdatum']) ? GetValue($kesselVars['Wartungsdatum']) : null, true));
+$s = schalteText($kessel, 'Wartungsdatum', '');
+$kesselVars = variablenNachName($kessel->id());
+pruefe(isset($kesselVars['Wartungsdatum']) && GetValue($kesselVars['Wartungsdatum']) === '',
+    'Status emulieren: leerer Text leert die Variable',
+    var_export(isset($kesselVars['Wartungsdatum']) ? GetValue($kesselVars['Wartungsdatum']) : null, true));
+
 ergebnis();

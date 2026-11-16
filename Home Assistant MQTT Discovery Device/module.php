@@ -4941,6 +4941,14 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
+        // Derselbe Text, den buildCommandPayload sendet (auch leer, gleicher Cast).
+        if ($entity['component'] === HATextDefinitions::DOMAIN) {
+            if (is_scalar($value)) {
+                $this->setReceivedValue($ident, (string)$value);
+            }
+            return;
+        }
+
         if ($entity['component'] === HALockDefinitions::DOMAIN) {
             $normalized = $this->normalizeLockStateValue($value, $entity);
             if ($normalized === null) {

@@ -223,8 +223,10 @@ foreach ($neueKinder as $art => $neu) {
     pruefe($warten > 0 && $warten <= 60000, $art . ' 16.11.: gescheiterte Abfrage plant Nachprüfung binnen einer Minute', (string)$warten);
     pruefe($konfigurierteEntitaeten($k) > 0, $art . ' 16.11.: gescheiterte Abfrage verwirft die Konfiguration nicht', (string)$konfigurierteEntitaeten($k));
 
-    // Bleibt HA stumm, wird der Abstand nach einigen schnellen Versuchen größer.
-    for ($i = 1; $i < SCHNELLE_VERSUCHE; $i++) {
+    // Bleibt HA stumm, wird der Abstand nach einigen schnellen Versuchen größer. Die Startphase eben war
+    // schon der erste Versuch, die gescheiterte Abfrage der zweite (ein Zähler für beide, Code-Review
+    // 16.11.2026, Befund 3).
+    for ($i = 2; $i < SCHNELLE_VERSUCHE; $i++) {
         $k = $nachpruefen($k);
     }
     pruefe($k->timer(NACHPRUEFUNG) > 0 && $k->timer(NACHPRUEFUNG) <= 60000, $art . ' 16.11.: ' . SCHNELLE_VERSUCHE . ' schnelle Versuche', (string)$k->timer(NACHPRUEFUNG));
@@ -243,6 +245,48 @@ foreach ($neueKinder as $art => $neu) {
     $k->ApplyChanges();
     $warten = $k->timer(NACHPRUEFUNG);
     pruefe($k->status() === STATUS_HA_NICHT_BEREIT && $warten > 0 && $warten <= 60000, $art . ' 16.11.: neuer Fehlschlag nach Erfolg wieder schnell nachgeprüft', 'Status ' . $k->status() . ', Timer ' . $warten);
+}
+
+// ---- Teil 4: HA bleibt in der Startphase hängen (Code-Review 16.11.2026, Befund 3) ----
+// Bis build 236 prüfte confirmNotFound() ohne Ende alle 30 s nach und zählte die Versuche nicht, obwohl die
+// README für 203 nach zehn Versuchen fünf Minuten verspricht. Angenommener Fall (eine Integration hält HA in
+// NOT_RUNNING); die Antworten sind die des Mitschnitts vom 20.10.2026.
+foreach ($neueKinder as $art => $neu) {
+    $stelleHa('RUNNING', false);
+    $splitterStatus(IS_ACTIVE);
+    $k = $neu();
+    IPS_ConnectInstance($k->id(), $splitter->id());
+    $k = neueAusfuehrung($k);
+    $k->ApplyChanges();
+    pruefe($k->status() === IS_ACTIVE, $art . ' hängt: vorher aktiv', 'Status ' . $k->status());
+
+    $stelleHa('NOT_RUNNING', true);
+    $k = neueAusfuehrung($k);
+    $k->ApplyChanges();
+    for ($i = 1; $i < SCHNELLE_VERSUCHE; $i++) {
+        $k = $nachpruefen($k);
+    }
+    $warten = $k->timer(NACHPRUEFUNG);
+    pruefe($warten > 0 && $warten <= 60000, $art . ' hängt: ' . SCHNELLE_VERSUCHE . ' schnelle Versuche', (string)$warten);
+    // Abwechselnd antwortet /api/config gar nicht: derselbe Zähler.
+    $stelleHa(null, true);
+    $k = $nachpruefen($k);
+    pruefe($k->timer(NACHPRUEFUNG) > 60000, $art . ' hängt: danach Nachprüfung in größerem Abstand', (string)$k->timer(NACHPRUEFUNG));
+    $stelleHa('NOT_RUNNING', true);
+    $k = $nachpruefen($k);
+    pruefe($k->timer(NACHPRUEFUNG) > 60000, $art . ' hängt: der größere Abstand bleibt', (string)$k->timer(NACHPRUEFUNG));
+    pruefe($k->status() === STATUS_HA_NICHT_BEREIT, $art . ' hängt: weiter 203', 'Status ' . $k->status());
+    pruefe($konfigurierteEntitaeten($k) > 0, $art . ' hängt: Konfiguration bleibt', (string)$konfigurierteEntitaeten($k));
+
+    // HA ist oben: aktiv, keine Nachprüfung; ein neuer Start beginnt wieder schnell.
+    $stelleHa('RUNNING', false);
+    $k = $nachpruefen($k);
+    pruefe($k->status() === IS_ACTIVE && $k->timer(NACHPRUEFUNG) === 0, $art . ' hängt: nach dem Start aktiv, keine Nachprüfung', 'Status ' . $k->status() . ', Timer ' . $k->timer(NACHPRUEFUNG));
+    $stelleHa('NOT_RUNNING', true);
+    $k = neueAusfuehrung($k);
+    $k->ApplyChanges();
+    $warten = $k->timer(NACHPRUEFUNG);
+    pruefe($warten > 0 && $warten <= 60000, $art . ' hängt: nächster Neustart wieder schnell nachgeprüft', (string)$warten);
 }
 
 // Formular und Übersetzung kennen 203.
