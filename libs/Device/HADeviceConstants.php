@@ -37,8 +37,10 @@ interface HADeviceConstants
     public const int NOT_FOUND_RECHECK_MS = 300_000;
     // Wartezeit auf Home Assistant (startet noch oder Abfrage gescheitert): eigener Status statt des
     // letzten (am nuc 16.11.2026 stand dort das 201 vom Ausfall, obwohl der Splitter schon 102 war).
-    // Eine gescheiterte Abfrage wird zuerst alle 30 s wiederholt, nach HA_QUERY_FAST_RETRIES Versuchen
-    // im Abstand von NOT_FOUND_RECHECK_MS. Den Zähler hält der Buffer, ein Erfolg setzt ihn zurück.
+    // Startphase und gescheiterte Abfrage teilen einen Zähler (scheduleHaRecheck): zuerst alle 30 s, nach
+    // HA_QUERY_FAST_RETRIES Versuchen im Abstand von NOT_FOUND_RECHECK_MS. Den Zähler hält der Buffer;
+    // zurückgesetzt wird er nur bei einem eindeutigen Befund (Konfiguration geliefert oder HA läuft und
+    // meldet „nicht gefunden“), nicht bei jeder Antwort, sonst prüfte die Startphase ohne Ende alle 30 s.
     public const int STATUS_HA_NOT_READY = 203;
     public const int HA_QUERY_FAST_RETRIES = 10;
     public const string BUFFER_QUERY_FAILURES = 'QueryFailures';
