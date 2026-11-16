@@ -25,12 +25,14 @@ Transportknoten für Geräte oder Dienste, die Home Assistant MQTT Discovery per
 - Im Bundle-Modus: kein MQTT-Parent erforderlich.
 - Eine bestehende Home-Assistant-Installation ist nicht erforderlich.
 - Der MQTT Client muss im Live-Betrieb den Discovery-Prefix abonnieren, z. B. `homeassistant/#` oder `#`.
-- Für Discovery-Device-Runtime müssen über denselben MQTT Client auch die State-Topics der Quelle ankommen, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`.
+- Für Discovery-Device-Runtime müssen über denselben MQTT Client auch die State-Topics der Quelle ankommen, bei Zigbee2MQTT typischerweise `zigbee2mqtt/#`, bei EMS-ESP `ems-esp/#`. Ohne dieses Abo werden die Geräte zwar angelegt, bekommen aber keine Werte.
+- Nach einer Änderung der Abos im MQTT Client einmal `MQTT-IO reconnecten` ausführen. Dann kommen die zurückgehaltenen (retained) Meldungen der neuen Topics sofort an und nicht erst bei der nächsten Änderung.
 
 ## Typische Subscription
 
 - Discovery selbst: `homeassistant/#`
 - Discovery plus Zigbee2MQTT-Runtime: `homeassistant/#` und `zigbee2mqtt/#`
+- Discovery plus EMS-ESP-Runtime: `homeassistant/#` und `ems-esp/#` (das Basis-Topic steht in den MQTT-Einstellungen von EMS-ESP)
 - Ein breiteres `#` funktioniert ebenfalls, ist aber nur dann sinnvoll, wenn der MQTT-Client bewusst für weitere Topics genutzt wird.
 - `MQTTDiscoveryPrefix` selbst bleibt der literale Prefix ohne Wildcards, typischerweise `homeassistant`.
 
