@@ -785,11 +785,37 @@ trait HADeviceCoreTrait
         $running = $this->isHomeAssistantRunning();
         if ($running !== true) {
             $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::HA_STARTING_RECHECK_MS);
+            $this->SetStatus(self::STATUS_HA_NOT_READY);
             $this->debugExpert($context, 'Leere Antwort, Home Assistant ist noch nicht gestartet. Bestehende Konfiguration bleibt erhalten, Nachprüfung geplant.', $debugContext + ['Running' => $running], true);
             return false;
         }
         $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, self::NOT_FOUND_RECHECK_MS);
         return true;
+    }
+
+    /**
+     * Die Abfrage an Home Assistant ist gescheitert (keine Antwort, HTTP-Fehler, Kernel brach die
+     * Weiterleitung ab). Befund unbekannt: Konfiguration bleibt, Status 203, Nachprüfung über den
+     * vorhandenen DeferredApplyTimer (kein neuer Timer, Reload-Fenster). Bis build 231 kehrte
+     * UpdateConfiguration hier ohne Status und ohne Nachprüfung zurück; das Kind blieb auf seinem
+     * letzten Status stehen, bis jemand von Hand übernahm.
+     */
+    private function deferFailedQuery(string $context, array $debugContext): void
+    {
+        $versuche = (int)$this->GetBuffer(self::BUFFER_QUERY_FAILURES) + 1;
+        $this->SetBuffer(self::BUFFER_QUERY_FAILURES, (string)$versuche);
+        $abstand = $versuche <= self::HA_QUERY_FAST_RETRIES ? self::HA_STARTING_RECHECK_MS : self::NOT_FOUND_RECHECK_MS;
+        $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, $abstand);
+        $this->SetStatus(self::STATUS_HA_NOT_READY);
+        $this->debugExpert($context, 'Abfrage an Home Assistant gescheitert. Bestehende Konfiguration bleibt erhalten, Nachprüfung geplant.', $debugContext + ['Versuch' => $versuche, 'AbstandMs' => $abstand], true);
+    }
+
+    /** Home Assistant hat geantwortet: Die nächste gescheiterte Abfrage beginnt wieder mit schnellen Versuchen. */
+    private function resetFailedQueries(): void
+    {
+        if ($this->GetBuffer(self::BUFFER_QUERY_FAILURES) !== '') {
+            $this->SetBuffer(self::BUFFER_QUERY_FAILURES, '');
+        }
     }
 
     protected function handleDeferredApplyAction(string $Ident): bool

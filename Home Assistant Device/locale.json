@@ -4,6 +4,7 @@
       "Information": "Informationen",
       "Resolved Configuration": "Aufgelöste Konfiguration",
       "MQTT base topic missing": "MQTT-Basetopic fehlt",
+      "Home Assistant is starting or not responding, retrying": "Home Assistant startet noch oder antwortet nicht, neuer Versuch folgt",
       "Device Information": "Geräteinformationen",
       "Device Name (HA)": "Gerätename (HA)",
       "Area": "Bereich",

@@ -74,8 +74,17 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `RUNNING` oder keine Antwort → Konfiguration bleibt, Nachprüfung nach 30 s; `RUNNING` → 211/210 wie
   bisher, Nachprüfung alle 300 s. Nachgeprüft wird über den vorhandenen `DeferredApplyTimer`
   (kein neuer Timer, Reload-Fenster).
-- Test: `tests/check-ha-startphase.php` (Fixture `ha_startphase_20261020.json`); läuft über einen echten
-  Splitter als Parent, dessen `performCurl` HA nachstellt (`SplitterHarness::$haAntwort`).
+- **Status in der Wartezeit** (build 232): 203 „Home Assistant startet noch oder antwortet nicht“
+  (`STATUS_HA_NOT_READY` in `HADeviceConstants`). Bis build 231 blieb der letzte Status stehen: nuc 16.11.2026
+  nach Ausfall des HA-Rechners Splitter wieder 102, die Devices aber auf dem 201 vom Ausfall („Kein aktiver
+  Parent“). Es sah nach einem Hänger aus, war aber die 30-s-Nachprüfung; jedes ApplyChanges von Hand startete
+  sie neu. Die Entities kamen sofort, ihre Helfer kennt HA schon beim Start.
+- **Gescheiterte Abfrage** (`null`: keine Antwort, HTTP-Fehler, Kernel bricht ab): `deferFailedQuery()` setzt
+  ebenfalls 203 und plant die Nachprüfung, zehnmal nach 30 s, danach alle 300 s (Zähler im Buffer
+  `QueryFailures`, `resetFailedQueries()` bei jeder Antwort). Bis build 231 gab es hier gar keine Nachprüfung.
+- Test: `tests/check-ha-startphase.php` (Fixture `ha_startphase_20261020.json`, Teil 3 die Statusfolge vom
+  16.11.); läuft über einen echten Splitter als Parent, dessen `performCurl` HA nachstellt
+  (`SplitterHarness::$haAntwort`).
 
 ## Reload-Fenster (Neuladen der Bibliothek, Modul-Update)
 

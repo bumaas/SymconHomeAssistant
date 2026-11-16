@@ -35,6 +35,13 @@ interface HADeviceConstants
     // wird seltener (eine Integration kann nach dem Start fertig werden, ein Gerät zurückkommen).
     public const int HA_STARTING_RECHECK_MS = 30_000;
     public const int NOT_FOUND_RECHECK_MS = 300_000;
+    // Wartezeit auf Home Assistant (startet noch oder Abfrage gescheitert): eigener Status statt des
+    // letzten (am nuc 16.11.2026 stand dort das 201 vom Ausfall, obwohl der Splitter schon 102 war).
+    // Eine gescheiterte Abfrage wird zuerst alle 30 s wiederholt, nach HA_QUERY_FAST_RETRIES Versuchen
+    // im Abstand von NOT_FOUND_RECHECK_MS. Den Zähler hält der Buffer, ein Erfolg setzt ihn zurück.
+    public const int STATUS_HA_NOT_READY = 203;
+    public const int HA_QUERY_FAST_RETRIES = 10;
+    public const string BUFFER_QUERY_FAILURES = 'QueryFailures';
 
     // Entkoppelte Bild-Downloads (Kamera-Preview, Image-Preview, Media-Player-Cover): Auslöser reihen
     // nur einen Auftrag in den Buffer ein (Debounce bündelt Trigger-Salven, z. B. die HA-Token-Rotation),

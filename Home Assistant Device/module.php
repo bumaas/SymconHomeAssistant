@@ -219,11 +219,11 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         } else {
             $configData = $this->resolveDeviceConfigByDeviceId($deviceId);
             if ($configData === null) {
-                // Abfrage fehlgeschlagen (Parent/REST nicht verfügbar): Befund unbekannt,
-                // bestehende Konfiguration und Status nicht verwerfen.
-                $this->debugExpert(__FUNCTION__, 'Entitäten-Abfrage fehlgeschlagen. Bestehende Konfiguration bleibt erhalten.', ['DeviceID' => $deviceId], true);
+                // Abfrage fehlgeschlagen (Parent/REST nicht verfügbar): Befund unbekannt.
+                $this->deferFailedQuery(__FUNCTION__, ['DeviceID' => $deviceId]);
                 return;
             }
+            $this->resetFailedQueries();
             if ($configData === []) {
                 if (!$this->confirmNotFound(__FUNCTION__, ['DeviceID' => $deviceId])) {
                     return;

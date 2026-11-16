@@ -125,6 +125,7 @@ Classic bridge:
 - **Whole domains are missing** (for example all `binary_sensor`): an `include`/`exclude` filter of `mqtt_statestream` hides them. The self-test lists the domains that actually arrive. Only `mqtt_statestream` messages count; discovery configs of other devices and the Home Assistant birth message, which share the `homeassistant` prefix, do not. The list names the domains the module processes.
 - **Switching does nothing:** commands go via REST, so **HA URL** and the token must be valid. The splitter's diagnostics show REST errors and timeouts.
 - **"Device not found in Home Assistant"** (entity: "Entity not found"): the module asked a running Home Assistant and got no entities, so the device was deleted or renamed there. It checks again every five minutes. While Home Assistant is still starting, an empty answer does not count; the configuration is kept and the module asks again after 30 seconds.
+- **"Home Assistant is starting or not responding, retrying"** (device or entity): the splitter is connected, but Home Assistant is still starting or did not answer the query. The instance keeps its configuration and asks again by itself, every 30 seconds at first and every five minutes after ten failed attempts. After a Home Assistant restart there is nothing to do by hand; pressing "Apply" only restarts the wait. If the message persists while Home Assistant is running, the splitter's REST diagnostics show the reason.
 
 MQTT Discovery:
 

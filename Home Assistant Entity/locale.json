@@ -4,6 +4,7 @@
       "Information": "Informationen",
       "Entity Information": "Entitätsinformationen",
       "MQTT base topic missing": "MQTT-Basetopic fehlt",
+      "Home Assistant is starting or not responding, retrying": "Home Assistant startet noch oder antwortet nicht, neuer Versuch folgt",
       "Entity ID": "Entit\u00e4ts-ID",
       "Behavior": "Verhalten",
       "Emulate status (set value immediately)": "Status emulieren (Wert sofort setzen)",

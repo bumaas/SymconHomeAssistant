@@ -262,6 +262,11 @@
       "caption": "MQTT base topic missing"
     },
     {
+      "code": 203,
+      "icon": "error",
+      "caption": "Home Assistant is starting or not responding, retrying"
+    },
+    {
       "code": 210,
       "icon": "error",
       "caption": "No device ID configured"

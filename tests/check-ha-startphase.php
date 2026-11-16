@@ -18,6 +18,14 @@ declare(strict_types=1);
  * schon. Dazu die Vorlagenantwort für dasselbe Gerät im laufenden Betrieb (Gerätename neutralisiert).
  * Die Entity-Vorlage läuft über dieselbe Zustandsliste (`for state in states`), mitgeschnitten ist
  * nur die Gerätevorlage.
+ *
+ * Seit build 232 zeigt das Kind in dieser Wartezeit 203 „Home Assistant startet noch oder antwortet nicht“.
+ * Anlass: nuc 16.11.2026. Nach einem Ausfall des HA-Rechners stand der Splitter um 09:21:22 wieder auf
+ * 102, HA Core startete noch. Die Devices bekamen die leere Liste, planten die Nachprüfung, ließen aber
+ * das 201 „Kein kompatibler oder aktiver Parent“ vom Ausfall stehen; das sah nach einem Hänger aus, und
+ * jedes ApplyChanges von Hand startete die Nachprüfung neu. Die Entities kamen sofort auf 102, sie fanden
+ * ihre Helfer schon in der Startphase. Dazu: Scheiterte die Abfrage ganz (HTTP 0 wie im ersten Schritt des
+ * Mitschnitts), gab es gar keine Nachprüfung, das Kind wäre auf dem alten Status stehen geblieben.
  */
 
 require_once __DIR__ . '/device-harness.php';
@@ -26,6 +34,9 @@ error_reporting(E_ALL);
 
 const STATUS_GERAET_NICHT_GEFUNDEN = 211;
 const STATUS_ENTITAET_NICHT_GEFUNDEN = 210;
+const STATUS_PARENT_FEHLT = 201;
+const STATUS_HA_NICHT_BEREIT = 203;
+const SCHNELLE_VERSUCHE = 10;
 const NACHPRUEFUNG = 'DeferredApplyTimer';
 
 $fixture = json_decode((string)file_get_contents(__DIR__ . '/fixtures/ha_startphase_20261020.json'), true, 512, JSON_THROW_ON_ERROR);
@@ -46,13 +57,18 @@ pruefe($startLeer === ['state' => 'NOT_RUNNING', 'leer' => true], 'Fixture: erst
 pruefe($laufend === ['state' => 'RUNNING', 'leer' => false], 'Fixture: zuletzt RUNNING mit voller Vorlage', json_encode($laufend));
 $configStumm = array_values(array_filter($phasen, static fn(array $p): bool => $p['state'] === null))[0] ?? null;
 pruefe($configStumm !== null, 'Fixture: /api/config antwortete zwischendurch nicht');
+$ganzStumm = array_values(array_filter($fixture['verlauf'], static fn(array $s): bool => $s['vorlage_http'] === 0))[0] ?? null;
+pruefe($ganzStumm !== null && $ganzStumm['config_http'] === 0, 'Fixture: direkt nach dem Neustart antworten weder Vorlage noch /api/config');
 
 /**
  * Stellt HA im gegebenen Zustand nach. $leer = Vorlage liefert eine leere Liste (Startphase oder Gerät
  * gelöscht); $state null = /api/config antwortet nicht (Abbruch wie im Mitschnitt, HTTP 0).
  */
-$stelleHa = static function (?string $state, bool $leer) use ($zeilen): void {
-    SplitterHarness::$haAntwort = static function (string $url, mixed $daten) use ($state, $leer, $zeilen): ?array {
+$stelleHa = static function (?string $state, bool $leer, bool $vorlageStumm = false) use ($zeilen): void {
+    SplitterHarness::$haAntwort = static function (string $url, mixed $daten) use ($state, $leer, $vorlageStumm, $zeilen): ?array {
+        if ($vorlageStumm && str_ends_with($url, '/api/template')) {
+            return ['response' => false, 'httpCode' => 0, 'error' => 'Operation timed out'];
+        }
         if (str_ends_with($url, '/api/config')) {
             return $state === null
                 ? ['response' => false, 'httpCode' => 0, 'error' => 'Operation timed out']
@@ -103,7 +119,7 @@ $stelleHa('NOT_RUNNING', true);
 $g = neueAusfuehrung($g);
 $g->ApplyChanges();
 pruefe($g->status() !== STATUS_GERAET_NICHT_GEFUNDEN, 'Device: leere Antwort in der HA-Startphase ist kein „nicht gefunden"', 'Status ' . $g->status());
-pruefe($g->status() === IS_ACTIVE, 'Device: bleibt in der HA-Startphase aktiv', 'Status ' . $g->status());
+pruefe($g->status() === STATUS_HA_NICHT_BEREIT, 'Device: zeigt in der HA-Startphase 203', 'Status ' . $g->status());
 pruefe($konfigurierteEntitaeten($g) === $anzahl, 'Device: Konfiguration bleibt in der HA-Startphase erhalten', (string)$konfigurierteEntitaeten($g));
 $warten = $g->timer(NACHPRUEFUNG);
 pruefe($warten > 0 && $warten <= 60000, 'Device: Nachprüfung in der HA-Startphase binnen einer Minute geplant', (string)$warten);
@@ -111,7 +127,7 @@ pruefe($warten > 0 && $warten <= 60000, 'Device: Nachprüfung in der HA-Startpha
 // /api/config antwortet nicht, die Vorlage ist leer: Befund unbekannt, nicht „nicht gefunden".
 $stelleHa(null, true);
 $g = $nachpruefen($g);
-pruefe($g->status() === IS_ACTIVE, 'Device: ohne Antwort von /api/config kein „nicht gefunden"', 'Status ' . $g->status());
+pruefe($g->status() === STATUS_HA_NICHT_BEREIT, 'Device: ohne Antwort von /api/config 203, kein „nicht gefunden"', 'Status ' . $g->status());
 pruefe($konfigurierteEntitaeten($g) === $anzahl, 'Device: Konfiguration bleibt ohne Antwort von /api/config erhalten', (string)$konfigurierteEntitaeten($g));
 pruefe($g->timer(NACHPRUEFUNG) > 0, 'Device: ohne Antwort von /api/config wieder Nachprüfung geplant', (string)$g->timer(NACHPRUEFUNG));
 
@@ -149,7 +165,7 @@ pruefe($konfigurierteEntitaeten($e) === 1, 'Entity: konfiguriert', (string)$konf
 $stelleHa('NOT_RUNNING', true);
 $e = neueAusfuehrung($e);
 $e->ApplyChanges();
-pruefe($e->status() === IS_ACTIVE, 'Entity: leere Antwort in der HA-Startphase ist kein „nicht gefunden"', 'Status ' . $e->status());
+pruefe($e->status() === STATUS_HA_NICHT_BEREIT, 'Entity: leere Antwort in der HA-Startphase ist kein „nicht gefunden", sondern 203', 'Status ' . $e->status());
 pruefe($konfigurierteEntitaeten($e) === 1, 'Entity: Konfiguration bleibt in der HA-Startphase erhalten', (string)$konfigurierteEntitaeten($e));
 $warten = $e->timer(NACHPRUEFUNG);
 pruefe($warten > 0 && $warten <= 60000, 'Entity: Nachprüfung in der HA-Startphase binnen einer Minute geplant', (string)$warten);
@@ -167,6 +183,76 @@ pruefe($e->timer(NACHPRUEFUNG) > 60000, 'Entity: bei 210 Nachprüfung in größe
 $stelleHa('RUNNING', false);
 $e = $nachpruefen($e);
 pruefe($e->status() === IS_ACTIVE && $e->timer(NACHPRUEFUNG) === 0, 'Entity: zurückgekehrte Entität wird bei der Nachprüfung wieder aktiv', 'Status ' . $e->status() . ', Timer ' . $e->timer(NACHPRUEFUNG));
+
+// ---- Teil 3: Statusfolge vom 16.11.2026, das Kind kommt von 201 ----
+$splitterStatus = static function (int $status) use ($splitter): void {
+    $splitter->rufe('SetStatus', $status);
+};
+$neueKinder = [
+    'Device' => static fn(): DeviceHarness => neuesGeraet(['DeviceID' => $deviceId], []),
+    'Entity' => static fn(): EntityHarness => neueEntitaet(['EntityID' => $entityId], []),
+];
+
+foreach ($neueKinder as $art => $neu) {
+    $stelleHa('RUNNING', false);
+    $splitterStatus(IS_ACTIVE);
+    $k = $neu();
+    IPS_ConnectInstance($k->id(), $splitter->id());
+    $k = neueAusfuehrung($k);
+    $k->ApplyChanges();
+    pruefe($k->status() === IS_ACTIVE, $art . ' 16.11.: vor dem Ausfall aktiv', 'Status ' . $k->status());
+
+    // HA-Rechner fällt aus: Der Splitter verliert seinen Parent, das Kind geht auf 201.
+    $splitterStatus(STATUS_PARENT_FEHLT);
+    $k = $nachpruefen($k);
+    pruefe($k->status() === STATUS_PARENT_FEHLT, $art . ' 16.11.: während des Ausfalls 201', 'Status ' . $k->status());
+
+    // Splitter wieder 102, HA Core startet noch.
+    $splitterStatus(IS_ACTIVE);
+    $stelleHa('NOT_RUNNING', true);
+    $k = $nachpruefen($k);
+    pruefe($k->status() === STATUS_HA_NICHT_BEREIT, $art . ' 16.11.: Splitter 102, HA startet: 203 statt des alten 201', 'Status ' . $k->status());
+    $warten = $k->timer(NACHPRUEFUNG);
+    pruefe($warten > 0 && $warten <= 60000, $art . ' 16.11.: Nachprüfung binnen einer Minute', (string)$warten);
+
+    // Vorlage und /api/config antworten gar nicht (erster Schritt des Mitschnitts): Abfrage gescheitert.
+    $stelleHa(null, true, true);
+    $k = $nachpruefen($k);
+    pruefe($k->status() === STATUS_HA_NICHT_BEREIT, $art . ' 16.11.: gescheiterte Abfrage zeigt 203', 'Status ' . $k->status());
+    $warten = $k->timer(NACHPRUEFUNG);
+    pruefe($warten > 0 && $warten <= 60000, $art . ' 16.11.: gescheiterte Abfrage plant Nachprüfung binnen einer Minute', (string)$warten);
+    pruefe($konfigurierteEntitaeten($k) > 0, $art . ' 16.11.: gescheiterte Abfrage verwirft die Konfiguration nicht', (string)$konfigurierteEntitaeten($k));
+
+    // Bleibt HA stumm, wird der Abstand nach einigen schnellen Versuchen größer.
+    for ($i = 1; $i < SCHNELLE_VERSUCHE; $i++) {
+        $k = $nachpruefen($k);
+    }
+    pruefe($k->timer(NACHPRUEFUNG) > 0 && $k->timer(NACHPRUEFUNG) <= 60000, $art . ' 16.11.: ' . SCHNELLE_VERSUCHE . ' schnelle Versuche', (string)$k->timer(NACHPRUEFUNG));
+    $k = $nachpruefen($k);
+    pruefe($k->timer(NACHPRUEFUNG) > 60000, $art . ' 16.11.: danach Nachprüfung in größerem Abstand', (string)$k->timer(NACHPRUEFUNG));
+    pruefe($k->status() === STATUS_HA_NICHT_BEREIT, $art . ' 16.11.: weiter 203, solange HA stumm ist', 'Status ' . $k->status());
+
+    // HA ist oben: aktiv, keine Nachprüfung mehr.
+    $stelleHa('RUNNING', false);
+    $k = $nachpruefen($k);
+    pruefe($k->status() === IS_ACTIVE && $k->timer(NACHPRUEFUNG) === 0, $art . ' 16.11.: nach dem HA-Start aktiv, keine weitere Nachprüfung', 'Status ' . $k->status() . ', Timer ' . $k->timer(NACHPRUEFUNG));
+
+    // Ein späterer Fehlschlag beginnt wieder mit schnellen Versuchen.
+    $stelleHa(null, true, true);
+    $k = neueAusfuehrung($k);
+    $k->ApplyChanges();
+    $warten = $k->timer(NACHPRUEFUNG);
+    pruefe($k->status() === STATUS_HA_NICHT_BEREIT && $warten > 0 && $warten <= 60000, $art . ' 16.11.: neuer Fehlschlag nach Erfolg wieder schnell nachgeprüft', 'Status ' . $k->status() . ', Timer ' . $warten);
+}
+
+// Formular und Übersetzung kennen 203.
+foreach (['Home Assistant Device', 'Home Assistant Entity'] as $modul) {
+    $form = json_decode((string)file_get_contents(__DIR__ . '/../' . $modul . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
+    $eintrag = array_values(array_filter($form['status'] ?? [], static fn(array $s): bool => ($s['code'] ?? 0) === STATUS_HA_NICHT_BEREIT))[0] ?? null;
+    pruefe($eintrag !== null, $modul . ': form.json kennt Status 203');
+    $locale = json_decode((string)file_get_contents(__DIR__ . '/../' . $modul . '/locale.json'), true, 512, JSON_THROW_ON_ERROR);
+    pruefe($eintrag !== null && isset($locale['translations']['de'][$eintrag['caption']]), $modul . ': Status 203 übersetzt');
+}
 
 SplitterHarness::$haAntwort = null;
 ergebnis();
