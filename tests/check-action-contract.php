@@ -405,6 +405,26 @@ $arbeit = KernelZaehler::seit($vorher);
 pruefe(($arbeit['GetIDForIdent'] ?? 0) <= 3, 'Heißer Pfad: eine Attributmeldung ohne Typwechsel kostet höchstens 3 GetIDForIdent', json_encode($arbeit));
 pruefe(!isset($arbeit['VariableTypeChanged']) && !isset($arbeit['VariableCreated']), 'Heißer Pfad: die Variable bleibt dieselbe');
 pruefe($geraet->hatAktion($numberIdent), 'Heißer Pfad: die Aktion bleibt bestehen');
+// Code-Review 02.11.2026, Befund 7: Das zentrale MaintainVariable las je Meldung die (fast immer leere)
+// Liste veralteter Variablen, unter Rust ein Kernel-Aufruf mehr je MQTT-Meldung.
+pruefe(!isset($arbeit['ReadAttr:ObsoleteVariables']), 'Heißer Pfad: eine Attributmeldung liest die Liste veralteter Variablen nicht', json_encode($arbeit));
+
+// ---- Teil 12: im heißen Pfad wieder beschrieben, also nicht mehr veraltet ----
+// Seit Befund 7 fasst der heiße Pfad die Liste nicht an. Eine gekennzeichnete Variable, die danach wieder
+// einen Wert bekommt, darf das Formular trotzdem nicht anbieten und der Löschknopf nicht löschen.
+$geraet = neueAusfuehrung($geraet);
+$geraet->rufe('markVariableAsLegacy', (int)$geraet->variablenId($numberIdent));
+$form = json_decode(neueAusfuehrung($geraet)->GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
+$knopfVorher = array_values(array_filter($form['actions'] ?? [], static fn(array $e): bool => ($e['name'] ?? '') === 'DeleteObsoleteVariables'))[0] ?? null;
+pruefe(($knopfVorher['visible'] ?? false) === true, 'Teil 12, Ausgangslage: das Formular bietet die gekennzeichnete Variable an', json_encode($knopfVorher, JSON_UNESCAPED_UNICODE));
+sleep(1); // VariableUpdated zählt in Sekunden: der Wert kommt nach der Kennzeichnung
+melde($geraet, 'input_number/test_zahl/state', '42');
+$form = json_decode(neueAusfuehrung($geraet)->GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
+$knopf = array_values(array_filter($form['actions'] ?? [], static fn(array $e): bool => ($e['name'] ?? '') === 'DeleteObsoleteVariables'))[0] ?? null;
+pruefe(!($knopf['visible'] ?? false), 'Teil 12: nach einem Wert aus dem heißen Pfad bietet das Formular sie nicht mehr an', json_encode($knopf, JSON_UNESCAPED_UNICODE));
+$geraet = neueAusfuehrung($geraet);
+drueckeKnopf($geraet, $knopfVorher);
+pruefe($geraet->variablenId($numberIdent) !== null, 'Teil 12: ein vorher geöffnetes Formular löscht sie nicht');
 @unlink($bundleFile);
 
 // ---- Teil 11: retained Attribut-Topics ohne REST-Antwort legen die Variable nicht neu an ----

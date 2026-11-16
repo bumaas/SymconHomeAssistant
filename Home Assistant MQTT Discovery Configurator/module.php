@@ -149,7 +149,8 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         $knownDeviceIds = [];
         foreach ($groups as $group) {
             if (is_array($group)) {
-                $knownDeviceIds[(string)($this->grouping->buildDeviceConfig($group)['device_id'] ?? '')]
+                // Dieselbe ID, die buildDeviceConfig() liefert; die ganze Konfiguration baut erst die Zeile.
+                $knownDeviceIds[(string)($group['device_id'] ?? '')]
                     = $showBridges || !($group['is_bridge_device'] ?? false);
             }
         }

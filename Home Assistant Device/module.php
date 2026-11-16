@@ -162,6 +162,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        $this->resumeObsoleteBookkeeping();
         // Property-Änderungen (z. B. DeviceName) fließen ins Naming ein — Cache verwerfen. Vor der
         // Prüfung, damit deren Lesezugriff im Memo bleibt.
         $this->invalidateConfiguredEntitiesCache();
@@ -298,6 +299,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
         if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated(__FUNCTION__)) {
             return '';
         }
+        $this->pauseObsoleteBookkeeping();
         $data = $this->decodeJsonArray($JSONString, 'ReceiveData');
         if ($data === null) {
             return '';

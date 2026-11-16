@@ -195,6 +195,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     public function ApplyChanges(): void
     {
+        $this->resumeObsoleteBookkeeping();
         // Übernehmen bringt keine neue Meldung des Geräts: nur geänderte Werte schreiben (setReceivedValue).
         $this->writeOnlyChangedValues = true;
         try {
@@ -326,6 +327,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated()) {
             return '';
         }
+        $this->pauseObsoleteBookkeeping();
         try {
             $data = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
@@ -2958,13 +2960,18 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        $safeIdent = preg_replace('/\W/', '_', $ident) ?? $ident;
-        IPS_SetMediaFile($mediaId, 'media/ha_image_preview_' . $safeIdent . '.' . $extension, false);
+        IPS_SetMediaFile($mediaId, $this->buildImagePreviewMediaFile($ident, $extension), false);
 
         $media = IPS_GetMedia($mediaId);
         if ((int)($media['MediaSize'] ?? 0) === 0) {
             IPS_SetMediaContent($mediaId, 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBA0b9XQAAAABJRU5ErkJggg==');
         }
+    }
+
+    private function buildImagePreviewMediaFile(string $ident, string $extension): string
+    {
+        $safeIdent = preg_replace('/\W/', '_', $ident) ?? $ident;
+        return 'media/ha_image_preview_' . $safeIdent . '.' . $extension;
     }
 
     private function countActiveStatusEntities(array $entities): int
@@ -3634,8 +3641,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        $extension = $this->resolveImagePreviewExtension($contentType, $payload);
-        $this->syncImagePreviewMediaFile($mediaId, $extension);
+        // Je Bildmeldung: Dateipfad nur bei neuer Endung setzen, kein Platzhalter (der Inhalt folgt sofort).
+        // Vorher über syncImagePreviewMediaFile drei Kernel-Aufrufe mehr (Code-Review 02.11.2026, Befund 9).
+        // IPS_GetMedia liefert MediaFile so, wie es gesetzt wurde (am nuc geprüft 16.11.2026).
+        $file = $this->buildImagePreviewMediaFile($mediaIdent, $this->resolveImagePreviewExtension($contentType, $payload));
+        if ((string)(IPS_GetMedia($mediaId)['MediaFile'] ?? '') !== $file) {
+            IPS_SetMediaFile($mediaId, $file, false);
+        }
         IPS_SetMediaContent($mediaId, base64_encode($payload));
 
         $timestamp = $receivedAt > 0 ? $receivedAt : time();

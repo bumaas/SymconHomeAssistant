@@ -665,6 +665,7 @@ trait HADeviceCoreTrait
         if (!$this->isModuleRuntimeReady() || !$this->isInstanceCreated(__FUNCTION__)) {
             return '';
         }
+        $this->pauseObsoleteBookkeeping();
         $this->debugExpert(__FUNCTION__, 'MQTT Payload empfangen', ['Payload' => $JSONString]);
         // Gedrosselt und als Zeitstempel (zuvor landete hier der komplette Message-JSON pro Message
         // im Attribut — Settings-Churn ohne Diagnose-Mehrwert; der Payload steht im Debug darüber).

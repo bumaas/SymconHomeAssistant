@@ -89,8 +89,9 @@ trait HAStandardAttributeMaintenanceTrait
         $ident = $this->getAttributeVariableIdent($entityId, $attribute);
         $existingId = @$this->GetIDForIdent($ident);
         $exists = $existingId !== false;
-        // Vor MaintainVariable lesen: Das zentrale MaintainVariable nimmt den Ident aus der Liste.
-        $wasLegacy = $exists && $this->isObsoleteIdent($ident);
+        // Vor MaintainVariable lesen: Das zentrale MaintainVariable nimmt den Ident aus der Liste. Im heißen
+        // Pfad wird die Liste nicht gelesen (Befund 7); die Aktion stellt dann der nächste volle Pfad her.
+        $wasLegacy = $exists && !$this->isObsoleteBookkeepingPaused() && $this->isObsoleteIdent($ident);
         $name = $this->Translate((string)($meta['caption'] ?? $attribute));
         $presentation = $buildPresentation($attribute, $attributes, $meta);
         $position = $resolvePosition($attribute, $basePosition);

@@ -79,6 +79,19 @@ if ($id !== null) {
     pruefe(IPS_GetName($id) === 'Mein Bild', 'Discovery-Bild: Bild-Update lässt den Namen', IPS_GetName($id));
     pruefe(IPS_GetObject($id)['ObjectPosition'] === 999, 'Discovery-Bild: Bild-Update lässt die Position', (string)IPS_GetObject($id)['ObjectPosition']);
     pruefe(IPS_GetMedia($id)['MediaSize'] > 0, 'Discovery-Bild: Bild-Update schreibt den Inhalt');
+    pruefe(IPS_GetMediaContent($id) === base64_encode($png), 'Discovery-Bild: Bild-Update schreibt genau das gemeldete Bild');
+    pruefe(str_ends_with(IPS_GetMedia($id)['MediaFile'], '.png'), 'Discovery-Bild: PNG liegt in einer .png-Datei', IPS_GetMedia($id)['MediaFile']);
+
+    // Wechselt das Format, wechselt die Dateiendung mit (Code-Review 02.11.2026, Befund 9: der Pfad wird
+    // nur noch bei neuer Endung gesetzt).
+    $jpeg = "\xFF\xD8\xFF\xE0" . str_repeat("\x00", 16) . "\xFF\xD9";
+    neueAusfuehrung($d)->rufe('applyImagePayload', ['metadata' => ['content_type' => 'image/jpeg']] + $entitaet, $jpeg, 1700000060);
+    $datei = IPS_GetMedia($id)['MediaFile'];
+    pruefe(preg_match('/\.jpe?g$/', $datei) === 1, 'Discovery-Bild: JPEG wechselt die Dateiendung', $datei);
+    pruefe(IPS_GetMediaContent($id) === base64_encode($jpeg), 'Discovery-Bild: JPEG-Inhalt geschrieben');
+    neueAusfuehrung($d)->rufe('applyImagePayload', ['metadata' => ['content_type' => 'image/jpeg']] + $entitaet, $jpeg . "\x00", 1700000120);
+    pruefe(IPS_GetMedia($id)['MediaFile'] === $datei, 'Discovery-Bild: gleiches Format behält die Datei', IPS_GetMedia($id)['MediaFile']);
+    pruefe(IPS_GetMediaContent($id) === base64_encode($jpeg . "\x00"), 'Discovery-Bild: zweites JPEG geschrieben');
 }
 
 ergebnis();

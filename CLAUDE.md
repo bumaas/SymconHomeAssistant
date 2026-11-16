@@ -236,11 +236,19 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Hintergrund nach dem Öffnen gekennzeichnet hatte. Ein anderer Wert (`true` aus einem alten Formular) löscht
   nichts. Von Hand gelöschte Variablen fallen dabei aus der Liste. Tests drücken Knöpfe über
   `drueckeKnopf()` (device-harness), also mit dem Wert aus `onClick`.
-- **Rückkehr:** Das zentrale `MaintainVariable` (`HASharedPresentationTrait`) nimmt jeden Ident aus
-  der Liste, den das Modul wieder pflegt oder löscht — auch Attributvariablen aus dem heißen Pfad. Sonst
-  böte der Löschknopf eine lebende Variable an. Wer den Rückkehr-Zustand vor `MaintainVariable` braucht
-  (Aktion wieder setzen), fragt vorher `isObsoleteIdent()`. Das Attribut wird in `Create()` vor dem
-  Merkmal registriert und nur mit `@` gelesen (Reload-Fenster).
+- **Rückkehr:** Das zentrale `MaintainVariable` (`HASharedPresentationTrait`) nimmt im vollen Pfad jeden
+  Ident aus der Liste, den das Modul wieder pflegt oder löscht. Wer den Rückkehr-Zustand vor
+  `MaintainVariable` braucht (Aktion wieder setzen), fragt vorher `isObsoleteIdent()`. Das Attribut wird in
+  `Create()` vor dem Merkmal registriert und nur mit `@` gelesen (Reload-Fenster).
+- **Heißer Pfad** (build 233, Code-Review 02.11.2026 Befund 7): `ReceiveData` ruft
+  `pauseObsoleteBookkeeping()`, `ApplyChanges` `resumeObsoleteBookkeeping()`; dazwischen liest und schreibt
+  niemand die Liste (vorher ein `ReadAttributeString` je MQTT-Meldung). Stattdessen führt die Liste je Ident
+  den Zeitpunkt der Kennzeichnung (`{"ident": unixzeit}`, bis build 232 eine Liste der Idents, die weiter
+  gelesen wird). `getObsoleteVariables()` (Formular und Löschknopf) lässt jede Variable weg, deren
+  `VariableUpdated` danach liegt, und nimmt sie aus der Liste. Das schließt auch eine alte Lücke: Ein neuer
+  Zustand im heißen Pfad läuft über `SetValue`, nicht über `MaintainVariable`; bis build 232 bot der Knopf
+  eine so wieder beschriebene Hauptvariable weiter an und löschte sie samt Archiv
+  (`check-action-contract.php` Teil 12).
 - `cleanupManagedEntityObjects()` (Device `module.php`) läuft bei jedem `ApplyChanges` und ordnet
   jede Variable per Longest-Prefix dem Präfix einer Entität zu: aktiv → bleibt, nur altes/inaktives
   Präfix → veraltet. Variablen ohne Ident oder außerhalb jedes Entitäts-Namensraums bleiben tabu.
@@ -342,7 +350,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Jetzt kennzeichnet `markNotAnnounced()` den Rückfall samt `SessionStartedAt` aus der Splitter-Antwort
   (`buildDiscoveryResponse`); `evaluateAnnouncementStatus()` setzt 202 + eine Warnung, wenn die Sitzung
   seit `NOT_ANNOUNCED_GRACE_S` (600 s) läuft, sonst 102 mit Nachprüfung nach Ablauf. Nachgeprüft wird
-  über den Timer `DeferredApply` (ruft `ApplyChanges` über `RequestAction`) — eine neue Ankündigung löst sonst kein
+  über den Timer `DeferredApply` (ruft `ApplyChanges` über `RequestAction`), denn eine neue Ankündigung löst sonst kein
   `ApplyChanges` aus. Die Kennzeichen werden nicht mit der Definition gespeichert.
 - **Keine Antwort ist kein Befund** (build 205, Code-Review): Ist der Parent inaktiv oder antwortet der
   Splitter nicht, kennzeichnet `markAnnouncementUnknown()` die Definition mit `announced = null`;

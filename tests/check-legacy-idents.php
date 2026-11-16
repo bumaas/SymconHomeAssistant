@@ -34,7 +34,9 @@ error_reporting(E_ALL);
 function veraltetListe(DeviceHarness $g): array
 {
     try {
-        return json_decode($g->attribut('ObsoleteVariables'), true, 512, JSON_THROW_ON_ERROR);
+        // Seit Befund 7 (Code-Review 02.11.2026) Ident => Zeitpunkt der Kennzeichnung, vorher eine Liste.
+        $liste = json_decode($g->attribut('ObsoleteVariables'), true, 512, JSON_THROW_ON_ERROR);
+        return array_is_list($liste) ? $liste : array_keys($liste);
     } catch (Exception) {
         return []; // Stand vor build 221: Attribut gibt es nicht
     }
