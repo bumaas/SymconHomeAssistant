@@ -99,7 +99,7 @@ Keep `publish_timestamps: false`. With `true`, Home Assistant sends `last_change
 
 ## 5. Supported domains and components
 
-Classic bridge: `light`, `switch`, `binary_sensor`, `sensor`, `number` and `input_number`, `input_text`, `datetime`, `input_datetime`, `select`, `climate`, `lock`, `button`, `input_button` are fully supported. `cover`, `valve`, `event`, `fan`, `humidifier`, `vacuum`, `lawn_mower`, `media_player`, `camera`, `image`, `device_tracker` and `update` are supported with their main states, attributes and actions. Details per domain are in the German README of [Home Assistant Device](Home%20Assistant%20Device/README.md).
+Classic bridge: `light`, `switch`, `binary_sensor`, `sensor`, `number` and `input_number`, `input_text`, `datetime`, `input_datetime`, `select`, `climate`, `lock`, `button`, `input_button` are fully supported. `cover`, `valve`, `event`, `fan`, `humidifier`, `vacuum`, `lawn_mower`, `media_player`, `camera`, `image`, `device_tracker` and `update` are supported with their main states, attributes and actions. Details per domain are in the German README of [Home Assistant Device](Home%20Assistant%20Device/README.md). Scripts, scenes and automations (`script`, `scene`, `automation`) are not taken over, nor are integrations that only bring services and no entities to Home Assistant. Call such services with `HA_CallService` on the splitter, see [FAQ](#8-faq).
 
 MQTT Discovery: `sensor`, `binary_sensor`, `number`, `cover`, `climate`, `switch`, `select`, `text`, `button`, `light`, `image`, `device_tracker`, `lock` and `update`, plus simple Zigbee2MQTT `device_automation` triggers. Short forms of the discovery keys (`stat_t`, `temp_cmd_t` …) are understood, as are templates that read a field from the JSON payload.
 
@@ -144,6 +144,14 @@ If the load stays high even without device instances and only drops a few minute
 **Do I need Home Assistant for MQTT Discovery?** No. A device or service that publishes Home Assistant MQTT Discovery messages to your broker is enough.
 
 **Can I use both ways at the same time?** Yes. The two module families are independent.
+
+**How do I call a Home Assistant service that has no variable in Symcon?** With `HA_CallService` on the Home Assistant Splitter. It sends any service call to Home Assistant via the REST API, for example for a script:
+
+```php
+HA_CallService(12345, 'script', 'turn_on', ['entity_id' => 'script.good_night']);
+```
+
+12345 is the splitter ID, followed by domain, service and the call data as an array. Home Assistant shows the data a service expects under Developer tools → Actions; in YAML mode you see the call to copy into the array. The function returns `true` when Home Assistant accepted the call. It does not return a response from the service.
 
 **Why does MQTT Discovery need an MQTT Client and not just the MQTT Server?** The splitter builds its cache from the retained discovery messages, and those are only delivered to a subscribing client when it connects. The Symcon MQTT Server can still be the broker; the MQTT Client then points to it.
 

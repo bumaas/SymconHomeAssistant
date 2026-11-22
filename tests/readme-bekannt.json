@@ -22,7 +22,6 @@
         "funktion:HAMD_DumpTopicStatistics",
         "funktion:HAMD_ExportDiscoveryBundle",
         "funktion:HAMD_RefreshDiscoveryDiagnostics",
-        "funktion:HA_CallService",
         "funktion:HA_CheckRestAcks",
         "funktion:HA_DumpPerformanceStatistics",
         "funktion:HA_DumpTopicStatistics",

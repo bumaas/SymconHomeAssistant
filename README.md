@@ -28,7 +28,7 @@ So kann Symcon entweder mit einer vorhandenen Home-Assistant-Installation zusamm
 
 ### 1.1 Klassische Bridge-Funktionalität
 
-Die klassische Bridge ist der richtige Weg, wenn in Home Assistant bereits Geräte, Entitäten oder Dienste vorhanden sind, die auch in Symcon genutzt werden sollen.
+Die klassische Bridge ist der richtige Weg, wenn in Home Assistant bereits Geräte oder Entitäten vorhanden sind, die auch in Symcon genutzt werden sollen.
 
 - Vorhandene Elemente aus Home Assistant werden in Symcon übernommen.
 - Zustände und zusätzliche Informationen bleiben aktuell.
@@ -194,6 +194,8 @@ Im Bundle-Modus werden aktuell keine Befehle an Geräte gesendet.
 | `button`        | voll      | `press`                                                              |
 | `input_button`  | voll      | `press`                                                              |
 
+Skripte, Szenen und Automationen (`script`, `scene`, `automation`) übernimmt die Bridge nicht, ebenso wenig Integrationen, die in Home Assistant nur Dienste und keine Entitäten mitbringen. Solche Dienste ruft man mit `HA_CallService` am Splitter auf, siehe [FAQ](#8-faq).
+
 ### 5.2 MQTT Discovery
 
 Aktuell unterstützt der MQTT-Discovery-Pfad folgende Komponenten:
@@ -311,6 +313,16 @@ Nein. Es reicht ein Gerät oder Dienst, das bzw. der Home Assistant MQTT Discove
 ### Kann ich beide Pfade gleichzeitig betreiben?
 
 Ja. Die Modulgruppen sind absichtlich getrennt und können parallel genutzt werden.
+
+### Wie rufe ich einen Dienst von Home Assistant auf, für den es in Symcon keine Variable gibt?
+
+Mit `HA_CallService` am Home Assistant Splitter. Die Funktion schickt einen beliebigen Dienstaufruf über die REST-API an Home Assistant, etwa für ein Skript:
+
+```php
+HA_CallService(12345, 'script', 'turn_on', ['entity_id' => 'script.gute_nacht']);
+```
+
+12345 ist die ID des Splitters, danach folgen Domain, Dienst und die Daten des Aufrufs als Array. Welche Daten ein Dienst erwartet, zeigt Home Assistant unter Entwicklerwerkzeuge → Aktionen; im YAML-Modus steht dort der Aufruf, den man ins Array überträgt. Die Funktion liefert `true`, wenn Home Assistant den Aufruf angenommen hat. Eine Antwort des Dienstes gibt sie nicht zurück.
 
 ### Warum braucht MQTT Discovery einen MQTT Client und nicht nur den MQTT Server?
 
