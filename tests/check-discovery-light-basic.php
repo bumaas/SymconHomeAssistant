@@ -123,4 +123,94 @@ pruefe($helligkeitId !== null && GetValue($helligkeitId) === 200, 'Leere Meldung
 melde($awtrix, MATRIX . 'stat_t', 'ON');
 pruefe($matrixId !== null && GetValue($matrixId) === true, 'stat_t ON schaltet die Hauptvariable', var_export($matrixId !== null ? GetValue($matrixId) : null, true));
 
+// === Z-Wave JS UI (herbertf, PN 145043, 25.11.2026): Qubino Flush Dimmer Plus. Fixture
+// tests/fixtures/discovery_zwavejs_20261125.json. Der Dimmer meldet Zustand und Helligkeit auf demselben Topic
+// (…/switch_multilevel/endpoint_0/currentValue, JSON mit value 0…99): state_value_template
+// {{ "OFF" if value_json.value == 0 else "ON" }}, brightness_value_template {{ value_json.value }},
+// brightness_scale 99, on_command_type brightness (Einschalten sendet nur die Helligkeit, HA: die zuletzt
+// bekannte oder 255), Ausschalten payload_off (Vorgabe OFF) an command_topic.
+$zwave = json_decode((string)file_get_contents(__DIR__ . '/fixtures/discovery_zwavejs_20261125.json'), true, 512, JSON_THROW_ON_ERROR);
+const DIMMER = 'Z-Wave-JS/Raum/Bild/switch_multilevel/endpoint_0/';
+
+DiscoveryDeviceHarness::$splitterAntwort = [
+    'Items'            => $zwave['discovery_configs'],
+    'Count'            => count($zwave['discovery_configs']),
+    'DiscoveryPrefix'  => 'homeassistant',
+    'SessionStartedAt' => time() - 3600,
+];
+DiscoveryDeviceHarness::$topicPayloadAntwort = ['Items' => $zwave['topic_payloads']];
+$splitter2 = neueFensterInstanz(DiscoverySplitterHarness::class);
+$bild = neueFensterInstanz(DiscoveryDeviceHarness::class);
+IPS_ConnectInstance($bild->id(), $splitter2->id());
+$bild->SetProperty('DeviceID', 'zwavejs2mqtt_0x00000001_node23');
+neueAusfuehrung($bild)->ApplyChanges();
+
+$bildVars = variablenNachIdent($bild->id());
+$bildListe = json_encode(array_map(static fn(int $id): string => IPS_GetName($id), $bildVars), JSON_UNESCAPED_UNICODE);
+$dimmerIdent = array_find(array_keys($bildVars), static fn(string $i): bool => str_starts_with($i, 'light_') && !str_ends_with($i, 'brightness')) ?? '';
+$dimmerId = $bildVars[$dimmerIdent] ?? null;
+$dimmerHelligkeitId = $dimmerId !== null ? helligkeitVon($bild->id(), $dimmerIdent) : null;
+pruefe($dimmerId !== null, 'Z-Wave: Hauptvariable des Dimmers angelegt', $bildListe);
+pruefe($dimmerHelligkeitId !== null, 'Z-Wave: Helligkeitsvariable angelegt', $bildListe);
+
+/** Die echte currentValue-Meldung aus dem Bundle mit anderem Wert. */
+function dimmerMeldung(array $zwave, int $wert): string
+{
+    $roh = array_find($zwave['topic_payloads'], static fn(array $p): bool => $p['topic'] === DIMMER . 'currentValue')['payload'];
+    $json = json_decode($roh, true, 512, JSON_THROW_ON_ERROR);
+    $json['value'] = $wert;
+    return json_encode($json, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+}
+
+$wert = static fn(?int $id): mixed => $id !== null ? GetValue($id) : null;
+
+// --- Teil 6: Zustand über state_value_template, Helligkeit mit Skala 99.
+melde($bild, DIMMER . 'currentValue', dimmerMeldung($zwave, 50));
+pruefe($wert($dimmerId) === true, 'Z-Wave: Wert 50 heißt an', var_export($wert($dimmerId), true));
+pruefe($wert($dimmerHelligkeitId) === 129, 'Z-Wave: Helligkeit 50/99 = 129 von 255', var_export($wert($dimmerHelligkeitId), true));
+melde($bild, DIMMER . 'currentValue', dimmerMeldung($zwave, 0));
+pruefe($wert($dimmerId) === false, 'Z-Wave: Wert 0 heißt aus', var_export($wert($dimmerId), true));
+pruefe($wert($dimmerHelligkeitId) === 129, 'Z-Wave: Helligkeit 0 ignoriert, 129 bleibt', var_export($wert($dimmerHelligkeitId), true));
+melde($bild, DIMMER . 'currentValue', dimmerMeldung($zwave, 99));
+pruefe($wert($dimmerHelligkeitId) === 255, 'Z-Wave: Helligkeit 99/99 = 255', var_export($wert($dimmerHelligkeitId), true));
+
+// --- Teil 7: Schalten wie HA mit on_command_type brightness.
+$dimmerHelligkeitIdent = $dimmerHelligkeitId !== null ? IPS_GetObject($dimmerHelligkeitId)['ObjectIdent'] : '';
+$s = schalte($bild, $dimmerHelligkeitIdent, 128);
+pruefe($s === [['Topic' => DIMMER . 'targetValue/set', 'Payload' => '50']], 'Z-Wave: Helligkeit 128 geht als 50 hinaus', json_encode($s));
+$s = schalte($bild, $dimmerIdent, false);
+pruefe($s === [['Topic' => DIMMER . 'targetValue/set', 'Payload' => 'OFF']], 'Z-Wave: Ausschalten sendet OFF', json_encode($s));
+melde($bild, DIMMER . 'currentValue', dimmerMeldung($zwave, 30));
+$s = schalte($bild, $dimmerIdent, true);
+pruefe($s === [['Topic' => DIMMER . 'targetValue/set', 'Payload' => '30']], 'Z-Wave: Einschalten sendet die letzte Helligkeit (30)', json_encode($s));
+
+// --- Teil 8: Die Spalte „Modus“ zeigt die Fähigkeit, auch bei abgewählten Einträgen (config_switch_67 ist in
+// Z-Wave JS von Haus aus abgewählt, hat aber ein Command-Topic; bis build 240 stand dort „Nur lesen“).
+/** @return array<string, string> entity_key => mode */
+function modusSpalte(DiscoveryDeviceHarness $g): array
+{
+    $ergebnis = [];
+    $suche = static function (mixed $knoten) use (&$suche, &$ergebnis): void {
+        if (!is_array($knoten)) {
+            return;
+        }
+        if (isset($knoten['entity_key'], $knoten['mode']) && is_string($knoten['entity_key'])) {
+            $ergebnis[$knoten['entity_key']] = (string)$knoten['mode'];
+        }
+        foreach ($knoten as $kind) {
+            $suche($kind);
+        }
+    };
+    $suche(json_decode(neueAusfuehrung($g)->GetConfigurationForm(), true));
+    return $ergebnis;
+}
+
+$modus = modusSpalte($bild);
+pruefe(($modus['zwavejs2mqtt_0x00000001_23-112-0-67'] ?? null) === 'Read and write', 'Modus: abgewählter config_switch_67 „Read and write“',
+    var_export($modus['zwavejs2mqtt_0x00000001_23-112-0-67'] ?? null, true));
+pruefe(($modus['zwavejs2mqtt_0x00000001_23-37-0-currentValue'] ?? null) === 'Read and write', 'Modus: angehakter Switch „Read and write“',
+    var_export($modus['zwavejs2mqtt_0x00000001_23-37-0-currentValue'] ?? null, true));
+pruefe(($modus['zwavejs2mqtt_0x00000001_23-50-0-value-66049'] ?? null) === 'Read only', 'Modus: Leistungssensor „Read only“',
+    var_export($modus['zwavejs2mqtt_0x00000001_23-50-0-value-66049'] ?? null, true));
+
 ergebnis();

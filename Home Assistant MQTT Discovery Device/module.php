@@ -575,6 +575,20 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
+        // HA (async_turn_on): Mit on_command_type „brightness“ sendet Einschalten nur die Helligkeit, die zuletzt
+        // bekannte oder 255 (Z-Wave JS UI: targetValue statt ON).
+        if ($this->hasBasicSchemaBrightness($entity) && $entity['light']['on_command_type'] === 'brightness'
+            && $this->coerceBooleanActionValue($Value) === true) {
+            $brightnessIdent = $this->buildLightAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), 'brightness');
+            $brightnessId = @$this->GetIDForIdent($brightnessIdent);
+            $brightness = $brightnessId !== false ? (int)GetValue($brightnessId) : 0;
+            $this->handleBasicSchemaBrightnessRequest($brightnessIdent, $entity, $brightness > 0 ? $brightness : 255);
+            if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || $entity['state_topic'] === '') {
+                $this->applyOptimisticValue($entity, $Value);
+            }
+            return;
+        }
+
         $payload = $this->buildCommandPayload($entity, $Value);
         if ($payload === null) {
             $this->debugExpert('RequestAction', 'Command payload konnte nicht erstellt werden', ['Ident' => $Ident, 'Value' => $Value], true);
@@ -1518,7 +1532,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private function buildEntityAccessModeLabel(array $entity): string
     {
         $hasStateTopic = trim((string)($entity['state_topic'] ?? '')) !== '';
-        $isControllable = $this->isEntityControllable($entity);
+        // Die Spalte zeigt, was die Entität kann, nicht ob sie gerade angehakt ist. isEntityWritable verneint jede
+        // abgewählte (dann gibt es keine Variable); bis build 240 stand dort deshalb „Nur lesen“ (herbertf #397).
+        $isControllable = $this->isEntityControllable(['create_var' => true] + $entity);
 
         if ($isControllable && !$hasStateTopic) {
             return $this->Translate('Write only');

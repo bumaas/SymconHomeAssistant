@@ -115,6 +115,9 @@ final class HAMqttDiscoveryTemplate
                 return $default;
             }
         }
+        if (array_key_exists('then', $template)) {
+            return $template['then'];
+        }
 
         [$found, $value] = self::lookupPath($decoded, $template['path'] ?? []);
         return $found ? $value : null;
@@ -125,6 +128,7 @@ final class HAMqttDiscoveryTemplate
      *   {{ value_json.mode if (…) else 'off' }}   → Feld mode, Rückfallwert „off“
      *   {{ value_json.room_temperature if (…) }}   → Feld room_temperature, ohne Rückfallwert
      *   {% if … %}{{ value_json.temperature }}{% elif … %}16.00{% endif %} → Feld temperature
+     *   {{ "OFF" if value_json.value == 0 else "ON" }} → fester Text, Rückfallwert „ON“
      * Die Bedingung des Ausdrucks wertet resolveJsonPathValue aus; verstanden werden mit `and`
      * verknüpfte Prüfungen `is defined`, `|length` und Vergleiche mit einem Text oder einer Zahl
      * (optional über |int oder |float). Alles andere (or, not, Funktionen, else mit Ausdruck) ist nicht
@@ -133,6 +137,20 @@ final class HAMqttDiscoveryTemplate
      */
     private static function parseConditionalJsonTemplate(string $raw): ?array
     {
+        // Fester Text je nach Bedingung (Z-Wave JS UI: {{ "OFF" if value_json.value == 0 else "ON" }}).
+        if (preg_match('/^{{\s*' . self::LITERAL . '\s+if\s+(.+?)\s+else\s+' . self::LITERAL . '\s*}}$/s', $raw, $matches) === 1) {
+            $guards = self::parseCondition($matches[2]);
+            return [
+                'kind'      => 'json_path',
+                'path'      => [],
+                'filters'   => [],
+                'supported' => $guards !== null,
+                'then'      => (string)self::parseLiteral($matches[1]),
+                'default'   => (string)self::parseLiteral($matches[3]),
+                'guards'    => $guards ?? []
+            ];
+        }
+
         if (preg_match('/^{{\s*value_json' . self::JSON_ACCESSOR . '\s+if\s+(.+?)(?:\s+else\s+' . self::LITERAL . ')?\s*}}$/s', $raw, $matches) === 1) {
             $path = self::parseJsonAccessorPath($matches[1]);
             if ($path === []) {

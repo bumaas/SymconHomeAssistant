@@ -1024,6 +1024,12 @@ final class HAMqttDiscoveryParser
 
     private function resolveComponentValueTemplate(string $component, array $config): ?string
     {
+        // Licht im Standard-Schema: HA liest den Zustand über state_value_template (schema_basic.py).
+        if ($component === HALightDefinitions::DOMAIN && $this->buildLightBasicSchema($config) !== []) {
+            return $this->normalizeNullableString($config['state_value_template'] ?? null)
+                ?? $this->normalizeNullableString($config['value_template'] ?? null);
+        }
+
         return $this->resolveComponentStateConfigValue(
             $component,
             $config,

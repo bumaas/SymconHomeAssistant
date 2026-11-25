@@ -285,6 +285,15 @@ und Instanz-IDs (Splitter 10000, MQTT Client 10001) ersetzt. Das Licht „Matrix
 Standard-Schema über `bri_stat_t`/`bri_cmd_t` an, ohne `payload_on`/`payload_off` und `brightness_scale`.
 Grundlage von `check-discovery-light-basic.php`. Die Namen tragen bewusst kein „light“ (siehe oben).
 
+## Dimmer aus Z-Wave JS UI (`discovery_zwavejs_20261125.json`)
+
+Aus einem **Anwender-Bundle** (herbertf, PN im Forum, 25.11.2026, Gesamt-Cache), **neutralisiert**: nur das Gerät
+„Raum-Bild“ (Qubino Flush Dimmer Plus ZMNHDD, Node 23) mit allen 27 Ankündigungen und den 30 Meldungen seiner
+Topics, auch der Verfügbarkeit von Gateway und Treiber. Raumname (in Gerätenamen und Topics), Home-ID des Z-Wave-Netzes
+(`0x00000001`) und Instanz-IDs (Splitter 10000, MQTT Client 10001) ersetzt. Der Dimmer kündigt sich im
+Standard-Schema mit `state_value_template`, Skala 99 und `on_command_type: brightness` an, dazu abgewählte
+`config_switch`. Grundlage von `check-discovery-light-basic.php` (Teile 6 bis 8).
+
 - `discovery_cover_set_position_20260514.json`
   - Quelle: Zigbee2MQTT 2.10.1-dev (Zemismart ZM-AM02), ein Discovery-Record aus dem nuc-Bundle vom 14.05.2026
   - Geräteadressen durch `0x00000000000000a1`/`…b1` ersetzt

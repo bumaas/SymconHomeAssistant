@@ -469,10 +469,20 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   (0 und leer ignoriert), Befehl Wert / 255 * Skala, mindestens 1, beides mit `PHP_ROUND_HALF_EVEN` wie Python.
   Ohne `brightness_state_topic` zeigt die Variable den gesendeten Wert. Andere Lichtattribute legt das Device im
   Standard-Schema nicht an (`basic_schema` im Attributkontext), sie würden nie versorgt.
-- Offen: Farben und Farbtemperatur über eigene Topics (`rgb_stat_t` usw., AWTRIX hat sie),
-  `state_value_template` statt `value_template` für den Zustand und `on_command_type: brightness` (Einschalten
-  sendet nur die Helligkeit). Z-Wave JS nutzt beides und dazu Skala 99; dafür fehlt noch ein Mitschnitt.
-- Test: `tests/check-discovery-light-basic.php` (Fixture `discovery_awtrix_20260513.json`).
+- **Z-Wave JS UI** (build 241, herbertfs Bundle, PN 145043): Zustand und Helligkeit kommen auf demselben Topic
+  (`…/currentValue`, JSON mit `value` 0…99). Der Zustand läuft über `state_value_template` (Parser nimmt es für
+  Lichter im Standard-Schema vor `value_template`) in der Form `{{ "OFF" if value_json.value == 0 else "ON" }}`;
+  `HAMqttDiscoveryTemplate` versteht dafür festen Text je Bedingung (`then`/`default`, gleiche Bedingungen wie beim
+  Feld-Template). `on_command_type: brightness`: Einschalten sendet wie HA nur die Helligkeit an
+  `brightness_command_topic`, die zuletzt bekannte (die Variable ignoriert 0) oder 255. Ausschalten sendet wie HA
+  `OFF` an `command_topic`, auch bei Z-Wave JS (dort `targetValue/set`).
+- Offen: Farben und Farbtemperatur über eigene Topics (`rgb_stat_t` usw., AWTRIX und die Smart Switch 7 in
+  herbertfs Bundle haben sie).
+- Spalte „Modus“ der Entitätenliste (build 241): `buildEntityAccessModeLabel` prüft mit `create_var = true`. Vorher
+  zeigte jede abgewählte Entität „Nur lesen“, weil `isEntityWritable` sie für die Laufzeit verneint (herbertf #397,
+  `config_switch` sind in Z-Wave JS von Haus aus abgewählt).
+- Test: `tests/check-discovery-light-basic.php` (Fixtures `discovery_awtrix_20260513.json`,
+  `discovery_zwavejs_20261125.json`).
 
 ## Schieberegler ohne Bereich (1.9 build 236)
 
