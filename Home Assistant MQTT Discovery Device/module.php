@@ -488,16 +488,50 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         }
     }
 
-    // Wie HA (schema_basic.py, async_turn_on): Wert 0…255 auf brightness_scale, mindestens 1, an
-    // brightness_command_topic. Ohne brightness_state_topic zeigt HA den gesendeten Wert (optimistisch).
+    // Wie HA: Helligkeit 0 schaltet aus (light/__init__.py, „Zero brightness: Light will be turned off“). Sonst
+    // async_turn_on aus schema_basic.py: on_command_type „first“ sendet payload_on vor der Helligkeit, „last“
+    // (Vorgabe) danach, „brightness“ nur die Helligkeit; das Licht gilt danach optimistisch als an. Bis build 242
+    // ging nur die Helligkeit hinaus (eine ausgeschaltete AWTRIX-Matrix blieb dunkel) und 0 wurde zu 1.
     private function handleBasicSchemaBrightnessRequest(string $Ident, array $entity, mixed $Value): void
     {
-        $light = $entity['light'];
         if (!is_numeric($Value)) {
             $this->debugExpert('RequestAction', 'Helligkeit ist keine Zahl', ['Ident' => $Ident, 'Value' => $Value], true);
             return;
         }
 
+        if ((float)$Value <= 0.0) {
+            $this->handleEntityCommandRequest($entity['ident'], $entity, false);
+            return;
+        }
+
+        $onCommandType = $entity['light']['on_command_type'];
+        if ($onCommandType === 'first') {
+            $this->sendBasicSchemaOn($entity);
+        }
+        $this->sendBasicSchemaBrightness($Ident, $entity, $Value);
+        if ($onCommandType === 'last') {
+            $this->sendBasicSchemaOn($entity);
+        }
+
+        if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || $entity['state_topic'] === '') {
+            $this->applyOptimisticValue($entity, true);
+        }
+    }
+
+    private function sendBasicSchemaOn(array $entity): void
+    {
+        if ($entity['command_topic'] === '') {
+            return;
+        }
+        $this->debugExpert('RequestAction', 'Sende Einschalten', ['EntityKey' => $entity['entity_key'], 'CommandTopic' => $entity['command_topic']]);
+        $this->sendMqttMessage($entity['command_topic'], $entity['light']['payload_on'], (int)$entity['qos'], (bool)$entity['retain']);
+    }
+
+    // Wie HA (schema_basic.py, async_turn_on): Wert 1…255 auf brightness_scale, mindestens 1, an
+    // brightness_command_topic. Ohne brightness_state_topic zeigt HA den gesendeten Wert (optimistisch).
+    private function sendBasicSchemaBrightness(string $Ident, array $entity, int|float|string $Value): void
+    {
+        $light = $entity['light'];
         $scale = $light['brightness_scale'];
         $deviceValue = (string)max(1, (int)min(round((float)$Value / 255 * $scale, 0, PHP_ROUND_HALF_EVEN), $scale));
         $payload = $light['brightness_command_template'] === null
@@ -582,7 +616,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $brightnessIdent = $this->buildLightAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), 'brightness');
             $brightnessId = @$this->GetIDForIdent($brightnessIdent);
             $brightness = $brightnessId !== false ? (int)GetValue($brightnessId) : 0;
-            $this->handleBasicSchemaBrightnessRequest($brightnessIdent, $entity, $brightness > 0 ? $brightness : 255);
+            $this->sendBasicSchemaBrightness($brightnessIdent, $entity, $brightness > 0 ? $brightness : 255);
             if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || $entity['state_topic'] === '') {
                 $this->applyOptimisticValue($entity, $Value);
             }

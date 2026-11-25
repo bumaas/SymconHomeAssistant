@@ -101,12 +101,19 @@ pruefe($s === [['Topic' => MATRIX . 'cmd_t', 'Payload' => 'ON']], 'Einschalten: 
 $s = schalte($awtrix, $matrixIdent, false);
 pruefe($s === [['Topic' => MATRIX . 'cmd_t', 'Payload' => 'OFF']], 'Ausschalten: OFF an cmd_t', json_encode($s));
 
-// --- Teil 4: Helligkeit geht an bri_cmd_t (Skala 255, also unverändert), 0 wird wie in HA zu 1.
+// --- Teil 4: Helligkeit geht an bri_cmd_t (Skala 255, also unverändert). Wie HA (schema_basic.py, async_turn_on)
+// folgt bei on_command_type „last“ (Vorgabe, AWTRIX kündigt keinen an) payload_on an cmd_t, sonst bliebe eine
+// ausgeschaltete Matrix dunkel. Helligkeit 0 schaltet wie in HA aus (light/__init__.py: „Zero brightness: Light
+// will be turned off“); bis build 242 ging sie als 1 hinaus und das Licht blieb gedimmt an.
 $helligkeitIdent = $helligkeitId !== null ? IPS_GetObject($helligkeitId)['ObjectIdent'] : '';
 $s = schalte($awtrix, $helligkeitIdent, 128);
-pruefe($s === [['Topic' => MATRIX . 'bri_cmd_t', 'Payload' => '128']], 'Helligkeit 128 an bri_cmd_t', json_encode($s));
+pruefe($s === [['Topic' => MATRIX . 'bri_cmd_t', 'Payload' => '128'], ['Topic' => MATRIX . 'cmd_t', 'Payload' => 'ON']],
+    'Helligkeit 128 an bri_cmd_t, danach ON an cmd_t', json_encode($s));
+$s = schalte($awtrix, $helligkeitIdent, 1);
+pruefe($s === [['Topic' => MATRIX . 'bri_cmd_t', 'Payload' => '1'], ['Topic' => MATRIX . 'cmd_t', 'Payload' => 'ON']],
+    'Helligkeit 1 bleibt 1', json_encode($s));
 $s = schalte($awtrix, $helligkeitIdent, 0);
-pruefe($s === [['Topic' => MATRIX . 'bri_cmd_t', 'Payload' => '1']], 'Helligkeit 0 geht als 1 hinaus', json_encode($s));
+pruefe($s === [['Topic' => MATRIX . 'cmd_t', 'Payload' => 'OFF']], 'Helligkeit 0 schaltet aus (OFF an cmd_t)', json_encode($s));
 
 // --- Teil 5: Neue Helligkeitsmeldungen; 0 und leer ignoriert HA, der letzte Wert bleibt stehen.
 function melde(DiscoveryDeviceHarness $g, string $topic, string $payload): void
@@ -183,6 +190,8 @@ pruefe($s === [['Topic' => DIMMER . 'targetValue/set', 'Payload' => 'OFF']], 'Z-
 melde($bild, DIMMER . 'currentValue', dimmerMeldung($zwave, 30));
 $s = schalte($bild, $dimmerIdent, true);
 pruefe($s === [['Topic' => DIMMER . 'targetValue/set', 'Payload' => '30']], 'Z-Wave: Einschalten sendet die letzte Helligkeit (30)', json_encode($s));
+$s = schalte($bild, $dimmerHelligkeitIdent, 0);
+pruefe($s === [['Topic' => DIMMER . 'targetValue/set', 'Payload' => 'OFF']], 'Z-Wave: Helligkeit 0 sendet OFF statt 1', json_encode($s));
 
 // --- Teil 8: Die Spalte „Modus“ zeigt die Fähigkeit, auch bei abgewählten Einträgen (config_switch_67 ist in
 // Z-Wave JS von Haus aus abgewählt, hat aber ein Command-Topic; bis build 240 stand dort „Nur lesen“).
@@ -212,5 +221,53 @@ pruefe(($modus['zwavejs2mqtt_0x00000001_23-37-0-currentValue'] ?? null) === 'Rea
     var_export($modus['zwavejs2mqtt_0x00000001_23-37-0-currentValue'] ?? null, true));
 pruefe(($modus['zwavejs2mqtt_0x00000001_23-50-0-value-66049'] ?? null) === 'Read only', 'Modus: Leistungssensor „Read only“',
     var_export($modus['zwavejs2mqtt_0x00000001_23-50-0-value-66049'] ?? null, true));
+
+/** Eine weitere AWTRIX-Instanz an eigenem Splitter, wahlweise mit „Status emulieren“. */
+function awtrixInstanz(array $bundle, bool $emulieren): DiscoveryDeviceHarness
+{
+    DiscoveryDeviceHarness::$splitterAntwort = [
+        'Items'            => $bundle['discovery_configs'],
+        'Count'            => count($bundle['discovery_configs']),
+        'DiscoveryPrefix'  => 'homeassistant',
+        'SessionStartedAt' => time() - 3600,
+    ];
+    DiscoveryDeviceHarness::$topicPayloadAntwort = ['Items' => $bundle['topic_payloads']];
+    $splitter = neueFensterInstanz(DiscoverySplitterHarness::class);
+    $geraet = neueFensterInstanz(DiscoveryDeviceHarness::class);
+    IPS_ConnectInstance($geraet->id(), $splitter->id());
+    $geraet->SetProperty('DeviceID', 'aabbcc000001');
+    $geraet->SetProperty('EmulateStatus', $emulieren);
+    neueAusfuehrung($geraet)->ApplyChanges();
+    return $geraet;
+}
+
+// --- Teil 9: Mit „Status emulieren“ gilt das Licht nach einer Helligkeit wie in HA (async_turn_on, optimistisch)
+// als an. Helligkeit 0 schaltet aus, die Helligkeit bleibt dabei wie in HA stehen.
+$emuliert = awtrixInstanz($bundle, true);
+$eVars = variablenNachIdent($emuliert->id());
+$eMatrix = $eVars[$matrixIdent] ?? null;
+$eHelligkeit = $eVars[$helligkeitIdent] ?? null;
+pruefe($wert($eMatrix) === false, 'Emuliert: Matrix zu Beginn aus', var_export($wert($eMatrix), true));
+schalte($emuliert, $helligkeitIdent, 100);
+pruefe($wert($eMatrix) === true, 'Emuliert: Helligkeit 100 schaltet die Hauptvariable ein', var_export($wert($eMatrix), true));
+pruefe($wert($eHelligkeit) === 100, 'Emuliert: Helligkeit 100', var_export($wert($eHelligkeit), true));
+schalte($emuliert, $helligkeitIdent, 0);
+pruefe($wert($eMatrix) === false, 'Emuliert: Helligkeit 0 schaltet die Hauptvariable aus', var_export($wert($eMatrix), true));
+pruefe($wert($eHelligkeit) === 100, 'Emuliert: Helligkeit bleibt bei 0 auf 100', var_export($wert($eHelligkeit), true));
+
+// --- Teil 10 (angenommen, kein Mitschnitt): on_command_type „first“ sendet payload_on vor der Helligkeit. Die
+// Ankündigung ist die der AWTRIX-Matrix, nur mit on_cmd_type first.
+$bundleFirst = $bundle;
+foreach ($bundleFirst['discovery_configs'] as &$eintrag) {
+    if (str_ends_with($eintrag['topic'], '/000001_mat/config')) {
+        $eintrag['payload'] = json_encode(['on_cmd_type' => 'first'] + json_decode($eintrag['payload'], true, 512, JSON_THROW_ON_ERROR),
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    }
+}
+unset($eintrag);
+$zuerst = awtrixInstanz($bundleFirst, false);
+$s = schalte($zuerst, $helligkeitIdent, 128);
+pruefe($s === [['Topic' => MATRIX . 'cmd_t', 'Payload' => 'ON'], ['Topic' => MATRIX . 'bri_cmd_t', 'Payload' => '128']],
+    'first: ON an cmd_t, danach Helligkeit', json_encode($s));
 
 ergebnis();

@@ -476,6 +476,11 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Feld-Template). `on_command_type: brightness`: Einschalten sendet wie HA nur die Helligkeit an
   `brightness_command_topic`, die zuletzt bekannte (die Variable ignoriert 0) oder 255. Ausschalten sendet wie HA
   `OFF` an `command_topic`, auch bei Z-Wave JS (dort `targetValue/set`).
+- **Helligkeit stellen** (build 243, Code-Review 25.11.2026 Befunde 1 und 2): Wie HA `async_turn_on` schickt der
+  Regler bei `on_command_type` `first` vorher `payload_on`, bei `last` (Vorgabe) danach, bei `brightness` nur die
+  Helligkeit. Danach gilt das Licht optimistisch als an (Status emulieren, `optimistic`, ohne `state_topic`).
+  Helligkeit 0 schaltet aus wie in HA (`light/__init__.py`), die Helligkeitsvariable bleibt dabei stehen. Bis
+  build 242 ging nur die Helligkeit hinaus (eine ausgeschaltete AWTRIX-Matrix blieb dunkel), und 0 wurde zu 1.
 - Offen: Farben und Farbtemperatur über eigene Topics (`rgb_stat_t` usw., AWTRIX und die Smart Switch 7 in
   herbertfs Bundle haben sie).
 - Spalte „Modus“ der Entitätenliste (build 241): `buildEntityAccessModeLabel` prüft mit `create_var = true`. Vorher
