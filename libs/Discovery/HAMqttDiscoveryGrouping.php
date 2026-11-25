@@ -113,6 +113,7 @@ final class HAMqttDiscoveryGrouping
                 'command_mode'      => (string)($entity['command']['mode'] ?? 'none'),
                 'availability'      => $entity['availability'] ?? ['mode' => 'latest', 'entries' => []],
                 'climate'           => $entity['climate'] ?? [],
+                'light'             => $entity['light'] ?? [],
                 'payload_on'        => $entity['state']['payload_on'] ?? null,
                 'payload_off'       => $entity['state']['payload_off'] ?? null,
                 'payload_press'     => $entity['state']['payload_press'] ?? null,

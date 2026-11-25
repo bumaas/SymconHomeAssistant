@@ -231,6 +231,7 @@ final class HAMqttDiscoveryParser
         $resolvedCommandTopic = $this->resolveComponentCommandTopic($component, $config);
         $resolvedCommandTemplate = $this->resolveComponentCommandTemplate($component, $config);
         $climateChannels = $component === HAClimateDefinitions::DOMAIN ? $this->buildClimateChannels($config) : [];
+        $lightBasic = $component === HALightDefinitions::DOMAIN ? $this->buildLightBasicSchema($config) : [];
 
         return [
             'source'         => 'mqtt_discovery',
@@ -333,11 +334,43 @@ final class HAMqttDiscoveryParser
             'availability'   => $this->parseAvailability($config),
             'origin'         => $this->parseOrigin($config['origin'] ?? null),
             'climate'        => $climateChannels,
+            'light'          => $lightBasic,
             'raw'            => [
                 'topic'  => $topic,
                 'config' => $config
             ]
         ];
+    }
+
+    /**
+     * Licht im Standard-Schema von HA (mqtt/light/schema_basic.py; `schema` fehlt oder `basic`): Ein/Aus als
+     * payload_on/payload_off, Helligkeit über eigene Topics. Leer für das JSON- und das Template-Schema, die
+     * Zustand und Helligkeit gemeinsam im JSON des State-Topics führen. Vorgaben wie in HA (mqtt/const.py).
+     */
+    private function buildLightBasicSchema(array $config): array
+    {
+        $schema = strtolower($this->normalizeNullableString($config['schema'] ?? null) ?? 'basic');
+        if ($schema !== 'basic' && $schema !== 'default') {
+            return [];
+        }
+
+        $scale = is_numeric($config['brightness_scale'] ?? null) ? (int)$config['brightness_scale'] : 255;
+
+        return [
+            'payload_on'                  => $this->scalarConfigString($config['payload_on'] ?? null) ?? 'ON',
+            'payload_off'                 => $this->scalarConfigString($config['payload_off'] ?? null) ?? 'OFF',
+            'brightness_state_topic'      => $this->normalizeNullableString($config['brightness_state_topic'] ?? null) ?? '',
+            'brightness_value_template'   => HAMqttDiscoveryTemplate::parseValueTemplate($this->normalizeNullableString($config['brightness_value_template'] ?? null)),
+            'brightness_command_topic'    => $this->normalizeNullableString($config['brightness_command_topic'] ?? null) ?? '',
+            'brightness_command_template' => HAMqttDiscoveryTemplate::parseCommandTemplate($this->normalizeNullableString($config['brightness_command_template'] ?? null)),
+            'brightness_scale'            => max(1, $scale),
+            'on_command_type'             => $this->normalizeNullableString($config['on_command_type'] ?? null) ?? 'last'
+        ];
+    }
+
+    private function scalarConfigString(mixed $value): ?string
+    {
+        return is_scalar($value) ? (is_bool($value) ? ($value ? 'true' : 'false') : (string)$value) : null;
     }
 
     /**

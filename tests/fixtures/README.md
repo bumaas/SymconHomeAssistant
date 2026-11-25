@@ -275,6 +275,16 @@ Regler RC35) in Kurzformen mit `~`-Basis-Topic, darunter zehn `text`, Selects un
 Befehls-Topic, dazu die Payloads von `ems-esp/boiler_data`, `…/thermostat_data`, `…/heartbeat` und
 `…/status`. Grundlage von `check-discovery-text.php`.
 
+## Licht im Standard-Schema (`discovery_awtrix_20260513.json`)
+
+Aus einem **Anwender-Bundle** (Export „aktuelle Session“, 13.05.2026, lokal als `echarger.json`), **neutralisiert**:
+nur die AWTRIX 3 „Küche“ (Firmware 0.98) mit allen 25 Ankündigungen und 26 Meldungen; die übrigen Geräte des
+Bundles (LinkTap, go-e, Deye, Wasserzähler, Wordclock, Zigbee-Koordinator) sind entfernt. MAC (`aabbcc000001`,
+Kurzform `000001`), Raumname im Basis-Topic (`awtrix_test`), IP (`192.0.2.10`, auch in `cu` und der IP-Meldung)
+und Instanz-IDs (Splitter 10000, MQTT Client 10001) ersetzt. Das Licht „Matrix“ kündigt die Helligkeit im
+Standard-Schema über `bri_stat_t`/`bri_cmd_t` an, ohne `payload_on`/`payload_off` und `brightness_scale`.
+Grundlage von `check-discovery-light-basic.php`. Die Namen tragen bewusst kein „light“ (siehe oben).
+
 - `discovery_cover_set_position_20260514.json`
   - Quelle: Zigbee2MQTT 2.10.1-dev (Zemismart ZM-AM02), ein Discovery-Record aus dem nuc-Bundle vom 14.05.2026
   - Geräteadressen durch `0x00000000000000a1`/`…b1` ersetzt

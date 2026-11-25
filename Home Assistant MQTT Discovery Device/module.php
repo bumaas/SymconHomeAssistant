@@ -450,6 +450,11 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
+        if ($this->isBasicSchemaLight($entity)) {
+            $this->handleBasicSchemaBrightnessRequest($Ident, $entity, $Value);
+            return;
+        }
+
         $payload = HAMqttDiscoveryLightRuntime::buildAttributeCommandPayload($attribute, $Value);
         if ($payload === null) {
             $this->debugExpert('RequestAction', 'Light-Attributpayload konnte nicht erstellt werden', [
@@ -479,6 +484,39 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         );
 
         if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS)) {
+            $this->emulateOptimisticStatus($Ident, $Value);
+        }
+    }
+
+    // Wie HA (schema_basic.py, async_turn_on): Wert 0…255 auf brightness_scale, mindestens 1, an
+    // brightness_command_topic. Ohne brightness_state_topic zeigt HA den gesendeten Wert (optimistisch).
+    private function handleBasicSchemaBrightnessRequest(string $Ident, array $entity, mixed $Value): void
+    {
+        $light = $entity['light'];
+        if (!is_numeric($Value)) {
+            $this->debugExpert('RequestAction', 'Helligkeit ist keine Zahl', ['Ident' => $Ident, 'Value' => $Value], true);
+            return;
+        }
+
+        $scale = $light['brightness_scale'];
+        $deviceValue = (string)max(1, (int)min(round((float)$Value / 255 * $scale, 0, PHP_ROUND_HALF_EVEN), $scale));
+        $payload = $light['brightness_command_template'] === null
+            ? $deviceValue
+            : $this->renderCommandTemplate($light['brightness_command_template'], $deviceValue);
+        if ($payload === null) {
+            $this->debugExpert('RequestAction', 'Helligkeits-Template nicht unterstützt', ['Ident' => $Ident, 'Value' => $Value], true);
+            return;
+        }
+
+        $this->debugExpert('RequestAction', 'Sende Helligkeit', [
+            'Ident' => $Ident,
+            'EntityKey' => $entity['entity_key'],
+            'CommandTopic' => $light['brightness_command_topic'],
+            'Payload' => $payload
+        ]);
+        $this->sendMqttMessage($light['brightness_command_topic'], $payload, (int)$entity['qos'], (bool)$entity['retain']);
+
+        if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || $light['brightness_state_topic'] === '') {
             $this->emulateOptimisticStatus($Ident, $Value);
         }
     }
@@ -1081,8 +1119,40 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'state_jammed' => $row['state_jammed'] ?? null,
             'options' => $this->normalizeOptions($row['options'] ?? null),
             'climate' => $component === HAClimateDefinitions::DOMAIN ? $this->normalizeClimateChannels($row['climate'] ?? null) : [],
+            'light' => $component === HALightDefinitions::DOMAIN ? $this->normalizeLightBasicSchema($row['light'] ?? null) : [],
             'metadata' => $metadata
         ];
+    }
+
+    /** Licht im Standard-Schema (leer bei JSON- und Template-Schema), siehe HAMqttDiscoveryParser::buildLightBasicSchema. */
+    private function normalizeLightBasicSchema(mixed $light): array
+    {
+        $light = $this->decodeJsonCandidate($light);
+        if (!is_array($light) || $light === []) {
+            return [];
+        }
+
+        return [
+            'payload_on' => $this->scalarToString($light['payload_on'] ?? null) ?? 'ON',
+            'payload_off' => $this->scalarToString($light['payload_off'] ?? null) ?? 'OFF',
+            'brightness_state_topic' => trim((string)($light['brightness_state_topic'] ?? ''), '/'),
+            'brightness_value_template' => $this->normalizeTemplate($light['brightness_value_template'] ?? null),
+            'brightness_command_topic' => $this->normalizeNullableString($light['brightness_command_topic'] ?? null) ?? '',
+            'brightness_command_template' => $this->normalizeTemplate($light['brightness_command_template'] ?? null),
+            'brightness_scale' => max(1, is_numeric($light['brightness_scale'] ?? null) ? (int)$light['brightness_scale'] : 255),
+            'on_command_type' => $this->normalizeNullableString($light['on_command_type'] ?? null) ?? 'last'
+        ];
+    }
+
+    private function isBasicSchemaLight(array $entity): bool
+    {
+        return (string)($entity['component'] ?? '') === HALightDefinitions::DOMAIN && ($entity['light'] ?? []) !== [];
+    }
+
+    /** HA: Helligkeit gibt es im Standard-Schema genau dann, wenn ein brightness_command_topic angekündigt ist. */
+    private function hasBasicSchemaBrightness(array $entity): bool
+    {
+        return $this->isBasicSchemaLight($entity) && $entity['light']['brightness_command_topic'] !== '';
     }
 
     /** Zusatzkanäle eines Klimageräts (Modus, Lüfter, Lamellen, Aktion, Raumwerte), siehe HAMqttDiscoveryParser. */
@@ -2125,6 +2195,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $context['effect_list'] = HASelectDefinitions::normalizeOptions($context['effect_list'] ?? null);
         $context['supported_color_modes'] = HASelectDefinitions::normalizeOptions($context['supported_color_modes'] ?? null);
         $context['supported_features'] = is_numeric($context['supported_features'] ?? null) ? (int) $context['supported_features'] : 0;
+        if ($this->isBasicSchemaLight($entity)) {
+            $context['basic_schema'] = true;
+            $context['brightness'] = $this->hasBasicSchemaBrightness($entity);
+        }
         return $context;
     }
 
@@ -2502,6 +2576,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         // 'brightness' und 'effect' sind in den normalisierten Metadaten (normalizeMetadata) IMMER
         // als Flag vorhanden. Ihr blosses Vorhandensein taugt daher nicht als Fähigkeits-Signal
         // (anders als der REST-Pfad, der rohe HA-Attribute ohne Seeding nutzt) — es zählt der Wert.
+        // Im Standard-Schema versorgt das Modul nur die Helligkeit; Farben über eigene Topics fehlen noch.
+        if ($context['basic_schema'] ?? false) {
+            return $attribute === 'brightness' && $context['brightness'] === true;
+        }
         if ($attribute === 'brightness') {
             $brightness = $context['brightness'] ?? false;
             return $brightness === true || is_numeric($brightness);
@@ -2540,6 +2618,9 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function isLightAttributeWritable(string $attribute, array $context): bool
     {
+        if ($context['basic_schema'] ?? false) {
+            return $attribute === 'brightness' && $context['brightness'] === true;
+        }
         if (!array_key_exists($attribute, HAMqttDiscoveryLightRuntime::ATTRIBUTE_COMMANDS)) {
             return false;
         }
@@ -3048,7 +3129,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 continue;
             }
 
-            foreach ([$entity['state_topic'], $entity['latest_version_topic'], $entity['json_attributes_topic'], ...array_column($entity['climate'], 'state_topic')] as $topic) {
+            foreach ([
+                $entity['state_topic'],
+                $entity['latest_version_topic'],
+                $entity['json_attributes_topic'],
+                $this->getBasicSchemaBrightnessStateTopic($entity),
+                ...array_column($entity['climate'], 'state_topic')
+            ] as $topic) {
                 if ($topic !== '') {
                     $topics[$topic] = true;
                 }
@@ -3078,7 +3165,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'state' => [],
             'attributes' => [],
             'availability' => [],
-            'climate' => []
+            'climate' => [],
+            'light' => []
         ];
 
         foreach ($entities as $entity) {
@@ -3131,6 +3219,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 }
             }
 
+            $brightnessTopic = $this->getBasicSchemaBrightnessStateTopic($entity);
+            if ($brightnessTopic !== '') {
+                $index['topics'][$brightnessTopic] = true;
+                $index['light'][$brightnessTopic][$entityKey] = true;
+            }
+
             foreach (($entity['availability']['entries'] ?? []) as $entry) {
                 $topic = trim((string)($entry['topic'] ?? ''), '/');
                 if ($topic === '') {
@@ -3144,7 +3238,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $index['topics'] = array_keys($index['topics']);
         sort($index['topics'], SORT_STRING);
 
-        foreach (['warnings', 'state', 'attributes', 'availability', 'climate'] as $bucket) {
+        foreach (['warnings', 'state', 'attributes', 'availability', 'climate', 'light'] as $bucket) {
             ksort($index[$bucket], SORT_STRING);
             foreach ($index[$bucket] as $topic => $entityLookup) {
                 $keys = array_keys($entityLookup);
@@ -3200,7 +3294,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             'state' => $normalizeBucket($decoded['state'] ?? []),
             'attributes' => $normalizeBucket($decoded['attributes'] ?? []),
             'availability' => $normalizeBucket($decoded['availability'] ?? []),
-            'climate' => $normalizeBucket($decoded['climate'] ?? [])
+            'climate' => $normalizeBucket($decoded['climate'] ?? []),
+            'light' => $normalizeBucket($decoded['light'] ?? [])
         ];
     }
 
@@ -3375,6 +3470,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $entity = $entityLookup[$entityKey] ?? null;
             if (is_array($entity)) {
                 $this->applyClimateChannelPayload($entity, $topic, $payload);
+            }
+        }
+
+        foreach (($topicIndex['light'][$topic] ?? []) as $entityKey) {
+            $entity = $entityLookup[$entityKey] ?? null;
+            if (is_array($entity)) {
+                $this->applyBasicSchemaBrightnessPayload($entity, $payload);
             }
         }
 
@@ -3609,6 +3711,35 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 $this->setReceivedValue($ident, $castValue);
             }
         }
+    }
+
+    private function getBasicSchemaBrightnessStateTopic(array $entity): string
+    {
+        return $this->hasBasicSchemaBrightness($entity) ? $entity['light']['brightness_state_topic'] : '';
+    }
+
+    // Wie HA (_brightness_received): leere Meldung und 0 ignorieren, sonst Wert / brightness_scale * 255.
+    private function applyBasicSchemaBrightnessPayload(array $entity, string $payload): void
+    {
+        $ident = $this->buildLightAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), 'brightness');
+        if (@$this->GetIDForIdent($ident) === false) {
+            return;
+        }
+
+        $template = $entity['light']['brightness_value_template'];
+        if ($template === null) {
+            $value = trim($payload);
+        } elseif ($template['supported'] ?? false) {
+            $value = $this->extractValueFromTemplate($template, $payload);
+        } else {
+            return;
+        }
+        if (!is_numeric($value) || (float)$value === 0.0) {
+            return;
+        }
+
+        // Python rundet bei ,5 zur geraden Zahl, in PHP PHP_ROUND_HALF_EVEN.
+        $this->setReceivedValue($ident, (int)min(round((float)$value / $entity['light']['brightness_scale'] * 255, 0, PHP_ROUND_HALF_EVEN), 255));
     }
 
     private function applyAttributesPayload(array $entity, string $payload): void
@@ -4524,6 +4655,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             }
 
             return $this->scalarToString($payload);
+        }
+
+        // Standard-Schema: payload_on/payload_off als Klartext (HA-Vorgabe ON/OFF), nur das JSON-Schema schickt JSON.
+        if ($this->isBasicSchemaLight($entity)) {
+            $boolValue = $this->coerceBooleanActionValue($value);
+            return $boolValue === null ? null : ($boolValue ? $entity['light']['payload_on'] : $entity['light']['payload_off']);
         }
 
         if ($entity['component'] === HALightDefinitions::DOMAIN) {

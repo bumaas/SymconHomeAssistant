@@ -456,6 +456,24 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Die klassische Bridge kennt die HA-Domäne `text` weiterhin nicht (nur `input_text`).
 - Test: `tests/check-discovery-text.php` (Fixture `discovery_ems_esp_20261116.json`).
 
+## MQTT Discovery: Licht im Standard-Schema (1.10 build 240)
+
+- Anlass: herbertf (t/142973 #397, 25.11.2026), Dimmer aus Z-Wave JS UI kam nur als Ein/Aus an. Z-Wave JS kündigt
+  Dimmer im Standard-Schema von HA an (`schema` fehlt): Helligkeit über `brightness_state_topic`/
+  `brightness_command_topic`. Der Discovery-Pfad kannte nur das JSON-Schema (`brightness: true`, alles im JSON des
+  State-Topics) und schickte auch Ein/Aus als `{"state":"ON"}`, was ein Gerät im Standard-Schema nicht versteht.
+- Der Parser liefert dafür den Zeilenschlüssel `light` (`buildLightBasicSchema`, leer bei `json` und `template`),
+  durchgereicht wie `climate`. Vorgaben wie HA (`mqtt/const.py`): `ON`/`OFF`, Skala 255, `on_command_type` `last`.
+  Das Device legt die Helligkeit genau dann an, wenn ein `brightness_command_topic` angekündigt ist (HA
+  `schema_basic.py`), liest sie über den Index-Bucket `light` und rechnet wie HA um: Zustand Wert / Skala * 255
+  (0 und leer ignoriert), Befehl Wert / 255 * Skala, mindestens 1, beides mit `PHP_ROUND_HALF_EVEN` wie Python.
+  Ohne `brightness_state_topic` zeigt die Variable den gesendeten Wert. Andere Lichtattribute legt das Device im
+  Standard-Schema nicht an (`basic_schema` im Attributkontext), sie würden nie versorgt.
+- Offen: Farben und Farbtemperatur über eigene Topics (`rgb_stat_t` usw., AWTRIX hat sie),
+  `state_value_template` statt `value_template` für den Zustand und `on_command_type: brightness` (Einschalten
+  sendet nur die Helligkeit). Z-Wave JS nutzt beides und dazu Skala 99; dafür fehlt noch ein Mitschnitt.
+- Test: `tests/check-discovery-light-basic.php` (Fixture `discovery_awtrix_20260513.json`).
+
 ## Schieberegler ohne Bereich (1.9 build 236)
 
 - HA erlaubt bei `number` min = max (EMS-ESP „Maximale Brennerleistung“ 100/100). Der Kernel verwirft dann
