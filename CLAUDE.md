@@ -481,6 +481,11 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Helligkeit. Danach gilt das Licht optimistisch als an (Status emulieren, `optimistic`, ohne `state_topic`).
   Helligkeit 0 schaltet aus wie in HA (`light/__init__.py`), die Helligkeitsvariable bleibt dabei stehen. Bis
   build 242 ging nur die Helligkeit hinaus (eine ausgeschaltete AWTRIX-Matrix blieb dunkel), und 0 wurde zu 1.
+  Eine Helligkeit, die keine Zahl ist, meldet `E_USER_WARNING`; Werte außerhalb von 0…255 begrenzt das Modul wie
+  HA (`vol.Clamp`), statt sie abzulehnen (build 244, Befund 5).
+- Im Standard-Schema liest das Modul kein `brightness` aus dem JSON des State- oder Attribut-Topics
+  (`extractLightAttributesFromPayload` liefert leer, build 244, Befund 3); bis build 243 schrieb die Auswertung des
+  JSON-Schemas den Wert ungeskaliert in dieselbe Variable. Dafür gibt es keinen Mitschnitt, der Test nimmt es an.
 - Offen: Farben und Farbtemperatur über eigene Topics (`rgb_stat_t` usw., AWTRIX und die Smart Switch 7 in
   herbertfs Bundle haben sie).
 - Spalte „Modus“ der Entitätenliste (build 241): `buildEntityAccessModeLabel` prüft mit `create_var = true`. Vorher

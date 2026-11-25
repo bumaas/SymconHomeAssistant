@@ -270,4 +270,33 @@ $s = schalte($zuerst, $helligkeitIdent, 128);
 pruefe($s === [['Topic' => MATRIX . 'cmd_t', 'Payload' => 'ON'], ['Topic' => MATRIX . 'bri_cmd_t', 'Payload' => '128']],
     'first: ON an cmd_t, danach Helligkeit', json_encode($s));
 
+// --- Teil 11 (angenommen, kein Mitschnitt): Im Standard-Schema kommt die Helligkeit nur über brightness_state_topic.
+// Ein `brightness` im JSON des State-Topics liest HA dort nicht; bis build 243 schrieb es die Auswertung des
+// JSON-Schemas ungeskaliert (auch 0) in dieselbe Variable (Code-Review 25.11.2026 Befund 3).
+melde($awtrix, MATRIX . 'bri_stat_t', '200');
+melde($awtrix, MATRIX . 'stat_t', '{"state":"ON","brightness":50}');
+pruefe($wert($helligkeitId) === 200, 'State-JSON mit brightness 50 ändert die Helligkeit nicht', var_export($wert($helligkeitId), true));
+melde($awtrix, MATRIX . 'stat_t', '{"state":"ON","brightness":0}');
+pruefe($wert($helligkeitId) === 200, 'State-JSON mit brightness 0 ändert die Helligkeit nicht', var_export($wert($helligkeitId), true));
+
+// --- Teil 12: Eine Helligkeit, die keine Zahl ist, ist für den Aufrufer ein Fehler (E_USER_WARNING wie
+// rejectInvalidActionValue, Code-Review 25.11.2026 Befund 5); bis build 243 stand sie nur im Debug.
+/** @return array{0: array, 1: ?string} Sendungen und Text der Warnung */
+function schalteUngueltig(DiscoveryDeviceHarness $g, string $ident, mixed $wert): array
+{
+    DiscoveryDeviceHarness::$mqttSendungen = [];
+    $warnung = null;
+    try {
+        neueAusfuehrung($g)->RequestAction($ident, $wert);
+    } catch (ErrorException $e) {
+        $warnung = $e->getSeverity() === E_USER_WARNING ? $e->getMessage() : null;
+    }
+    return [DiscoveryDeviceHarness::$mqttSendungen, $warnung];
+}
+
+[$s, $warnung] = schalteUngueltig($awtrix, $helligkeitIdent, 'hell');
+pruefe($s === [], 'Helligkeit „hell“ wird nicht gesendet', json_encode($s));
+pruefe($warnung !== null && str_contains($warnung, 'hell') && $helligkeitId !== null && str_contains($warnung, IPS_GetName($helligkeitId)),
+    'Helligkeit „hell“: Warnung mit Wert und Variablenname', (string)$warnung);
+
 ergebnis();

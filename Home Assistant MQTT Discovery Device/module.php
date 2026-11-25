@@ -494,8 +494,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     // ging nur die Helligkeit hinaus (eine ausgeschaltete AWTRIX-Matrix blieb dunkel) und 0 wurde zu 1.
     private function handleBasicSchemaBrightnessRequest(string $Ident, array $entity, mixed $Value): void
     {
+        // Keine Zahl ist für den Aufrufer ein Fehler wie bei rejectInvalidActionValue. Außerhalb von 0…255 begrenzt
+        // HA (VALID_BRIGHTNESS, vol.Clamp): unter 0 schaltet aus, über 255 kappt sendBasicSchemaBrightness.
         if (!is_numeric($Value)) {
             $this->debugExpert('RequestAction', 'Helligkeit ist keine Zahl', ['Ident' => $Ident, 'Value' => $Value], true);
+            $variableId = @$this->GetIDForIdent($Ident);
+            trigger_error(sprintf(
+                $this->Translate('Invalid value "%s" for "%s" (allowed: %s)'),
+                is_scalar($Value) ? (is_bool($Value) ? ($Value ? 'true' : 'false') : (string)$Value) : gettype($Value),
+                $variableId !== false ? IPS_GetName($variableId) : $Ident,
+                '0 - 255'
+            ), E_USER_WARNING);
             return;
         }
 
@@ -2183,6 +2192,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
     private function extractLightAttributesFromPayload(array $entity, string $payload): array
     {
+        // Standard-Schema: HA liest die Helligkeit nur aus brightness_state_topic (applyBasicSchemaBrightnessPayload,
+        // skaliert). Bis build 243 schrieb diese Auswertung des JSON-Schemas ein `brightness` aus dem State-JSON
+        // ungeskaliert, auch 0, in dieselbe Variable (Code-Review 25.11.2026 Befund 3).
+        if ($this->isBasicSchemaLight($entity)) {
+            return [];
+        }
+
         $rawValue = $this->extractRawPayloadValue($payload);
         return HAMqttDiscoveryLightRuntime::extractAttributes($rawValue, $entity['metadata'] ?? []);
     }
