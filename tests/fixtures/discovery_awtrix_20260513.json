@@ -25,15 +25,15 @@
     },
     "diagnostics": {
         "discovery_configs": {
-            "total": 25,
-            "current_session": 25,
+            "total": 4,
+            "current_session": 4,
             "stale": 0
         },
         "referenced_topic_payloads": {
-            "referenced": 43,
-            "current_session": 26,
+            "referenced": 19,
+            "current_session": 10,
             "stale": 0,
-            "missing": 17,
+            "missing": 9,
             "extra_cached": 0,
             "by_kind": {
                 "availability": {
@@ -43,171 +43,21 @@
                     "missing": 0
                 },
                 "command": {
-                    "referenced": 16,
+                    "referenced": 9,
                     "current_session": 0,
                     "stale": 0,
-                    "missing": 16
+                    "missing": 9
                 },
                 "state": {
-                    "referenced": 26,
-                    "current_session": 25,
+                    "referenced": 9,
+                    "current_session": 9,
                     "stale": 0,
-                    "missing": 1
+                    "missing": 0
                 }
             }
         }
     },
     "referenced_topics": [
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_app/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_bat/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_bri/cmd_t",
-            "kinds": [
-                "command"
-            ],
-            "primary_kind": "command",
-            "status": "missing",
-            "is_current_session": false,
-            "has_payload": false
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_bri/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_btnL/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_btnM/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_btnR/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_btna/cmd_t",
-            "kinds": [
-                "command"
-            ],
-            "primary_kind": "command",
-            "status": "missing",
-            "is_current_session": false,
-            "has_payload": false
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_btnb/cmd_t",
-            "kinds": [
-                "command"
-            ],
-            "primary_kind": "command",
-            "status": "missing",
-            "is_current_session": false,
-            "has_payload": false
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_btnc/cmd_t",
-            "kinds": [
-                "command"
-            ],
-            "primary_kind": "command",
-            "status": "missing",
-            "is_current_session": false,
-            "has_payload": false
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_doupd/cmd_t",
-            "kinds": [
-                "command"
-            ],
-            "primary_kind": "command",
-            "status": "missing",
-            "is_current_session": false,
-            "has_payload": false
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_eff/cmd_t",
-            "kinds": [
-                "command"
-            ],
-            "primary_kind": "command",
-            "status": "missing",
-            "is_current_session": false,
-            "has_payload": false
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_eff/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "missing",
-            "is_current_session": false,
-            "has_payload": false
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_hum/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_id/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
         {
             "topic": "awtrix_test/aabbcc000001/000001_ind1/cmd_t",
             "kinds": [
@@ -329,26 +179,6 @@
             "has_payload": true
         },
         {
-            "topic": "awtrix_test/aabbcc000001/000001_ip_address/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_lux/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
             "topic": "awtrix_test/aabbcc000001/000001_mat/bri_cmd_t",
             "kinds": [
                 "command"
@@ -409,76 +239,6 @@
             "has_payload": true
         },
         {
-            "topic": "awtrix_test/aabbcc000001/000001_ram/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_sig/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_temp/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_tra/cmd_t",
-            "kinds": [
-                "command"
-            ],
-            "primary_kind": "command",
-            "status": "missing",
-            "is_current_session": false,
-            "has_payload": false
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_tra/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_up/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_ver/stat_t",
-            "kinds": [
-                "state"
-            ],
-            "primary_kind": "state",
-            "status": "current",
-            "is_current_session": true,
-            "has_payload": true
-        },
-        {
             "topic": "awtrix_test/aabbcc000001/avty_t",
             "kinds": [
                 "availability"
@@ -491,76 +251,6 @@
     ],
     "extra_cached_topics": [],
     "discovery_configs": [
-        {
-            "topic": "homeassistant/binary_sensor/aabbcc000001/000001_btnL/config",
-            "payload": "{\"name\":\"Button left\",\"uniq_id\":\"000001_btnL\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_btnL/stat_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/binary_sensor/aabbcc000001/000001_btnM/config",
-            "payload": "{\"name\":\"Button select\",\"uniq_id\":\"000001_btnM\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_btnM/stat_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/binary_sensor/aabbcc000001/000001_btnR/config",
-            "payload": "{\"name\":\"Button right\",\"uniq_id\":\"000001_btnR\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_btnR/stat_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/button/aabbcc000001/000001_btna/config",
-            "payload": "{\"name\":\"Dismiss notification\",\"uniq_id\":\"000001_btna\",\"ic\":\"mdi:bell-off\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"cmd_t\":\"awtrix_test/aabbcc000001/000001_btna/cmd_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/button/aabbcc000001/000001_btnb/config",
-            "payload": "{\"name\":\"Next app\",\"uniq_id\":\"000001_btnb\",\"ic\":\"mdi:arrow-right-bold\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"cmd_t\":\"awtrix_test/aabbcc000001/000001_btnb/cmd_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/button/aabbcc000001/000001_btnc/config",
-            "payload": "{\"name\":\"Previous app\",\"uniq_id\":\"000001_btnc\",\"ic\":\"mdi:arrow-left-bold\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"cmd_t\":\"awtrix_test/aabbcc000001/000001_btnc/cmd_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/button/aabbcc000001/000001_doupd/config",
-            "payload": "{\"name\":\"Start Update\",\"uniq_id\":\"000001_doupd\",\"ic\":\"mdi:update\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"cmd_t\":\"awtrix_test/aabbcc000001/000001_doupd/cmd_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
         {
             "topic": "homeassistant/light/aabbcc000001/000001_ind1/config",
             "payload": "{\"name\":\"Indicator 1\",\"uniq_id\":\"000001_ind1\",\"ic\":\"mdi:arrow-top-right-thick\",\"rgb_cmd_t\":\"awtrix_test/aabbcc000001/000001_ind1/rgb_cmd_t\",\"rgb_stat_t\":\"awtrix_test/aabbcc000001/000001_ind1/rgb_stat_t\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_ind1/stat_t\",\"cmd_t\":\"awtrix_test/aabbcc000001/000001_ind1/cmd_t\"}",
@@ -600,229 +290,9 @@
             "qos": 0,
             "direction": "rx",
             "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/select/aabbcc000001/000001_bri/config",
-            "payload": "{\"name\":\"Brightness mode\",\"uniq_id\":\"000001_bri\",\"ic\":\"mdi:brightness-auto\",\"options\":[\"Manual\",\"Auto\"],\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_bri/stat_t\",\"cmd_t\":\"awtrix_test/aabbcc000001/000001_bri/cmd_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/select/aabbcc000001/000001_eff/config",
-            "payload": "{\"name\":\"Transition effect\",\"uniq_id\":\"000001_eff\",\"ic\":\"mdi:auto-fix\",\"options\":[\"Random\",\"Slide\",\"Dim\",\"Zoom\",\"Rotate\",\"Pixelate\",\"Curtain\",\"Ripple\",\"Blink\",\"Reload\",\"Fade\"],\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_eff/stat_t\",\"cmd_t\":\"awtrix_test/aabbcc000001/000001_eff/cmd_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_app/config",
-            "payload": "{\"name\":\"Current app\",\"uniq_id\":\"000001_app\",\"ic\":\"mdi:apps\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_app/stat_t\"}",
-            "received_at": 1778678485,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_bat/config",
-            "payload": "{\"name\":\"Battery\",\"uniq_id\":\"000001_bat\",\"dev_cla\":\"battery\",\"ic\":\"mdi:battery-90\",\"unit_of_meas\":\"%\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_bat/stat_t\"}",
-            "received_at": 1778678485,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_hum/config",
-            "payload": "{\"name\":\"Humidity\",\"uniq_id\":\"000001_hum\",\"dev_cla\":\"humidity\",\"ic\":\"mdi:water-percent\",\"unit_of_meas\":\"%\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_hum/stat_t\"}",
-            "received_at": 1778678485,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_id/config",
-            "payload": "{\"name\":\"Device topic\",\"uniq_id\":\"000001_id\",\"ic\":\"mdi:id-card\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_id/stat_t\"}",
-            "received_at": 1778678485,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_ip_address/config",
-            "payload": "{\"name\":\"IP Address\",\"uniq_id\":\"000001_ip_address\",\"ic\":\"mdi:wifi\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_ip_address/stat_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_lux/config",
-            "payload": "{\"name\":\"Illuminance\",\"uniq_id\":\"000001_lux\",\"dev_cla\":\"illuminance\",\"ic\":\"mdi:sun-wireless\",\"unit_of_meas\":\"lx\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_lux/stat_t\"}",
-            "received_at": 1778678485,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_ram/config",
-            "payload": "{\"name\":\"Free ram\",\"uniq_id\":\"000001_ram\",\"dev_cla\":\"data_size\",\"ic\":\"mdi:memory\",\"unit_of_meas\":\"B\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_ram/stat_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_sig/config",
-            "payload": "{\"name\":\"WiFi strength\",\"uniq_id\":\"000001_sig\",\"dev_cla\":\"signal_strength\",\"unit_of_meas\":\"dB\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_sig/stat_t\"}",
-            "received_at": 1778678485,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_temp/config",
-            "payload": "{\"name\":\"Temperature\",\"uniq_id\":\"000001_temp\",\"dev_cla\":\"temperature\",\"ic\":\"mdi:thermometer\",\"unit_of_meas\":\"°C\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_temp/stat_t\"}",
-            "received_at": 1778678485,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_up/config",
-            "payload": "{\"name\":\"Uptime\",\"uniq_id\":\"000001_up\",\"dev_cla\":\"duration\",\"unit_of_meas\":\"s\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_up/stat_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/sensor/aabbcc000001/000001_ver/config",
-            "payload": "{\"name\":\"Version\",\"uniq_id\":\"000001_ver\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_ver/stat_t\"}",
-            "received_at": 1778678485,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "homeassistant/switch/aabbcc000001/000001_tra/config",
-            "payload": "{\"name\":\"Transition\",\"uniq_id\":\"000001_tra\",\"ic\":\"mdi:swap-horizontal\",\"dev\":{\"ids\":\"aabbcc000001\",\"name\":\"awtrix_000001\",\"sw\":\"0.98\",\"mf\":\"Blueforcer\",\"mdl\":\"AWTRIX 3\",\"cu\":\"http://192.0.2.10\"},\"avty_t\":\"awtrix_test/aabbcc000001/avty_t\",\"stat_t\":\"awtrix_test/aabbcc000001/000001_tra/stat_t\",\"cmd_t\":\"awtrix_test/aabbcc000001/000001_tra/cmd_t\"}",
-            "received_at": 1778678486,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
         }
     ],
     "topic_payloads": [
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_app/stat_t",
-            "payload": "bezug",
-            "received_at": 1778678726,
-            "session_id": "10001-4-1778678479",
-            "retained": false,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_bat/stat_t",
-            "payload": "91",
-            "received_at": 1778678623,
-            "session_id": "10001-4-1778678479",
-            "retained": false,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_bri/stat_t",
-            "payload": "Auto",
-            "received_at": 1778678480,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_btnL/stat_t",
-            "payload": "OFF",
-            "received_at": 1778678480,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_btnM/stat_t",
-            "payload": "OFF",
-            "received_at": 1778678480,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_btnR/stat_t",
-            "payload": "OFF",
-            "received_at": 1778678480,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_hum/stat_t",
-            "payload": "26",
-            "received_at": 1778678663,
-            "session_id": "10001-4-1778678479",
-            "retained": false,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_id/stat_t",
-            "payload": "awtrix_test",
-            "received_at": 1778678480,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
         {
             "topic": "awtrix_test/aabbcc000001/000001_ind1/rgb_stat_t",
             "payload": "255,255,204",
@@ -884,26 +354,6 @@
             "is_current_session": true
         },
         {
-            "topic": "awtrix_test/aabbcc000001/000001_ip_address/stat_t",
-            "payload": "192.0.2.10",
-            "received_at": 1778678487,
-            "session_id": "10001-4-1778678479",
-            "retained": false,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_lux/stat_t",
-            "payload": "22",
-            "received_at": 1778678593,
-            "session_id": "10001-4-1778678479",
-            "retained": false,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
             "topic": "awtrix_test/aabbcc000001/000001_mat/bri_stat_t",
             "payload": "14",
             "received_at": 1778678480,
@@ -934,66 +384,6 @@
             "is_current_session": true
         },
         {
-            "topic": "awtrix_test/aabbcc000001/000001_ram/stat_t",
-            "payload": "112392",
-            "received_at": 1778678723,
-            "session_id": "10001-4-1778678479",
-            "retained": false,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_sig/stat_t",
-            "payload": "-71",
-            "received_at": 1778678723,
-            "session_id": "10001-4-1778678479",
-            "retained": false,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_temp/stat_t",
-            "payload": "22",
-            "received_at": 1778678603,
-            "session_id": "10001-4-1778678479",
-            "retained": false,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_tra/stat_t",
-            "payload": "ON",
-            "received_at": 1778678480,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_up/stat_t",
-            "payload": "192809",
-            "received_at": 1778678723,
-            "session_id": "10001-4-1778678479",
-            "retained": false,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
-            "topic": "awtrix_test/aabbcc000001/000001_ver/stat_t",
-            "payload": "0.98",
-            "received_at": 1778678480,
-            "session_id": "10001-4-1778678479",
-            "retained": true,
-            "qos": 0,
-            "direction": "rx",
-            "is_current_session": true
-        },
-        {
             "topic": "awtrix_test/aabbcc000001/avty_t",
             "payload": "online",
             "received_at": 1778678480,
@@ -1005,7 +395,7 @@
         }
     ],
     "stats": {
-        "discovery_config_count": 25,
-        "topic_payload_count": 26
+        "discovery_config_count": 4,
+        "topic_payload_count": 10
     }
 }

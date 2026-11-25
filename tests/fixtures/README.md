@@ -2,10 +2,14 @@
 
 Diese Ablage enthält reale Export-Bundles aus dem `Home Assistant MQTT Discovery Splitter`.
 
-Versioniert sind nur inhaltlich geprüft unbedenkliche Bundles (`ebusd`, die beiden
-`*light*`-Bundles sowie das Mitsubishi-Device-Config-Bundle). Alle übrigen Bundles
-bleiben lokal, da sie private Daten (Broker-IP, MQTT-Benutzername) enthalten —
-neue Fixtures vor dem Einchecken entsprechend prüfen und in `.gitignore` freischalten.
+Versioniert ist nur, was `.gitignore` einzeln freischaltet. Bundles enthalten oft private Daten (Broker-IP,
+MQTT-Benutzer, Raum- und Personennamen, MAC-Adressen), deshalb wird jede neue Fixture vor dem Einchecken geprüft
+und neutralisiert. Ins Repo kommt eine Fixture mit dem Test, der sie braucht, und nur in dem Ausschnitt, den er
+braucht. Dieselben Daten liegen nicht zweimal im Repo: Was eine vorhandene Fixture schon abdeckt, wird dort genutzt.
+Vollständige Bundles bleiben dagegen lokal liegen, auch ohne Test: Aus ihnen entstehen später Fixtures für Fälle,
+die noch niemand gemeldet hat (so der Dimmer im Standard-Schema aus `echarger.json`, build 240).
+Die Einträge `ha_mqtt_discovery_bundle_zigbee2mqtt.json`, `…_current_session_v2.json` und `…_full_v2.json`
+unten beschreiben Bundles, die nur lokal liegen.
 
 ## Vorhandene Fixtures
 
@@ -57,14 +61,6 @@ neue Fixtures vor dem Einchecken entsprechend prüfen und in `.gitignore` freisc
   - Enthält: `88` `light`-Discovery-Configs plus referenzierte Runtime-Topics für den dedizierten Light-Checker
   - Beobachtung: eignet sich als kompakte Referenz, um `schema=json`, `supported_color_modes`, `effect_list` und Light-Command-Payloads reproduzierbar zu prüfen
 
-- `ha_mqtt_discovery_bundle_zigbee2mqtt_light_stale_v2.json`
-  - Version: `2`
-  - Quelle: `zigbee2mqtt`
-  - Exportdatum: `2026-05-12T08:16:06+02:00`
-  - Producer-Version: leer im Bundle
-  - Zweck: fixture-nahe Light-Prüfung mit stale/current-Mix für Cache- und Diagnosefälle
-  - Enthält: denselben Light-Fokus mit abweichendem Session-Stand für Freshness-Checks
-  - Beobachtung: eignet sich, um den Light-Pfad auch gegen stale Referenzen reproduzierbar zu prüfen
 
 ## Verwendung
 
@@ -278,8 +274,9 @@ Befehls-Topic, dazu die Payloads von `ems-esp/boiler_data`, `…/thermostat_data
 ## Licht im Standard-Schema (`discovery_awtrix_20260513.json`)
 
 Aus einem **Anwender-Bundle** (Export „aktuelle Session“, 13.05.2026, lokal als `echarger.json`), **neutralisiert**:
-nur die AWTRIX 3 „Küche“ (Firmware 0.98) mit allen 25 Ankündigungen und 26 Meldungen; die übrigen Geräte des
-Bundles (LinkTap, go-e, Deye, Wasserzähler, Wordclock, Zigbee-Koordinator) sind entfernt. MAC (`aabbcc000001`,
+nur die vier Lichter der AWTRIX 3 „Küche“ (Firmware 0.98) mit den zehn Meldungen ihrer Topics; die übrigen
+Entitäten der AWTRIX und die anderen Geräte des Bundles (LinkTap, go-e, Deye, Wasserzähler, Wordclock,
+Zigbee-Koordinator) sind entfernt. MAC (`aabbcc000001`,
 Kurzform `000001`), Raumname im Basis-Topic (`awtrix_test`), IP (`192.0.2.10`, auch in `cu` und der IP-Meldung)
 und Instanz-IDs (Splitter 10000, MQTT Client 10001) ersetzt. Das Licht „Matrix“ kündigt die Helligkeit im
 Standard-Schema über `bri_stat_t`/`bri_cmd_t` an, ohne `payload_on`/`payload_off` und `brightness_scale`.
@@ -288,11 +285,11 @@ Grundlage von `check-discovery-light-basic.php`. Die Namen tragen bewusst kein �
 ## Dimmer aus Z-Wave JS UI (`discovery_zwavejs_20261125.json`)
 
 Aus einem **Anwender-Bundle** (herbertf, PN im Forum, 25.11.2026, Gesamt-Cache), **neutralisiert**: nur das Gerät
-„Raum-Bild“ (Qubino Flush Dimmer Plus ZMNHDD, Node 23) mit allen 27 Ankündigungen und den 30 Meldungen seiner
-Topics, auch der Verfügbarkeit von Gateway und Treiber. Raumname (in Gerätenamen und Topics), Home-ID des Z-Wave-Netzes
+„Raum-Bild“ (Qubino Flush Dimmer Plus ZMNHDD, Node 23), davon nur Dimmer, Schalter, ein abgewählter
+`config_switch` und der Leistungssensor mit den sieben Meldungen ihrer Topics, auch der Verfügbarkeit von Gateway
+und Treiber. Raumname (in Gerätenamen und Topics), Home-ID des Z-Wave-Netzes
 (`0x00000001`) und Instanz-IDs (Splitter 10000, MQTT Client 10001) ersetzt. Der Dimmer kündigt sich im
-Standard-Schema mit `state_value_template`, Skala 99 und `on_command_type: brightness` an, dazu abgewählte
-`config_switch`. Grundlage von `check-discovery-light-basic.php` (Teile 6 bis 8).
+Standard-Schema mit `state_value_template`, Skala 99 und `on_command_type: brightness` an. Grundlage von `check-discovery-light-basic.php` (Teile 6 bis 8).
 
 - `discovery_cover_set_position_20260514.json`
   - Quelle: Zigbee2MQTT 2.10.1-dev (Zemismart ZM-AM02), ein Discovery-Record aus dem nuc-Bundle vom 14.05.2026
