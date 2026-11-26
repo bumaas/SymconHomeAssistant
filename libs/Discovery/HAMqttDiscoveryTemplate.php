@@ -129,9 +129,11 @@ final class HAMqttDiscoveryTemplate
      *   {{ value_json.room_temperature if (…) }}   → Feld room_temperature, ohne Rückfallwert
      *   {% if … %}{{ value_json.temperature }}{% elif … %}16.00{% endif %} → Feld temperature
      *   {{ "OFF" if value_json.value == 0 else "ON" }} → fester Text, Rückfallwert „ON“
+     *   {{'true' if value_json.value else 'false'}} → Bedingung ohne Vergleich (Z-Wave JS UI, availability)
      * Die Bedingung des Ausdrucks wertet resolveJsonPathValue aus; verstanden werden mit `and`
-     * verknüpfte Prüfungen `is defined`, `|length` und Vergleiche mit einem Text oder einer Zahl
-     * (optional über |int oder |float). Alles andere (or, not, Funktionen, else mit Ausdruck) ist nicht
+     * verknüpfte Prüfungen `is defined`, `|length`, Vergleiche mit einem Text oder einer Zahl
+     * (optional über |int oder |float) und das bloße Feld (gilt wie in Jinja, wenn es da ist und nicht
+     * false, null, 0, leerer Text oder leere Liste). Alles andere (or, not, Funktionen, else mit Ausdruck) ist nicht
      * unterstützt: Ein Wert ohne Bedingung wäre falsch (Licht aus, Helligkeit 120). Beim Block bleiben die
      * Bedingungen und Begrenzungen wie 16.00 außen vor: gilt der Wert, steht er im Feld.
      */
@@ -244,6 +246,11 @@ final class HAMqttDiscoveryTemplate
                 'literal' => self::parseLiteral($matches[4])
             ];
         }
+        // Das bloße Feld als Bedingung (build 247, herbertf PN t/145051): Bis build 246 galt das Template als
+        // nicht unterstützt, die availability von Z-Wave JS UI wurde am rohen JSON geprüft und war nie erfüllt.
+        if (preg_match('/^value_json' . self::JSON_ACCESSOR . '$/', $term, $matches) === 1) {
+            return ['test' => 'truthy', 'path' => self::parseJsonAccessorPath($matches[1])];
+        }
         return null;
     }
 
@@ -256,6 +263,10 @@ final class HAMqttDiscoveryTemplate
 
         if ($guard['test'] === 'defined') {
             return true;
+        }
+        if ($guard['test'] === 'truthy') {
+            // Wahrheitswert wie in Python, nicht wie in PHP: der Text "0" gilt als wahr.
+            return !in_array($value, [false, null, 0, 0.0, '', []], true);
         }
         if ($guard['test'] === 'length') {
             // Jinja: length einer Zahl ist ein Fehler, HA schreibt dann nichts.

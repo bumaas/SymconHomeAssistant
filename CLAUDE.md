@@ -398,6 +398,16 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   versorgt wird: `reachable` nur bei `hasAvailabilityEntities()` (build 205, Code-Review) — kündigt sich
   ein Gerät ohne availability-Topic neu an, wird sie veraltet statt mit dem letzten Wert stehen zu bleiben.
 - Test: `tests/check-discovery-reachability.php` (Fixture `discovery_availability_20261003.json`).
+- **Z-Wave JS UI** (build 247, herbertf PN t/145051): je Entität drei availability-Topics (Knoten, MQTT-Client des
+  Gateways, Treiber), Modus `latest`. Knoten und Gateway tragen ein Template mit dem bloßen Feld als Bedingung
+  (`{{true if value_json.value else false}}`). Bis build 246 kannte `HAMqttDiscoveryTemplate::parseGuard` das
+  nicht, `evaluateAvailabilityEntry` verglich dann den rohen JSON-Text mit „true“: Alle Geräte standen auf „Nicht
+  erreichbar“. Jetzt gibt es die Prüfung `truthy` mit dem Wahrheitswert von Python (der Text „0“ ist wahr, anders
+  als in PHP); sie gilt für jedes bedingte Template, nicht nur für availability. `or` und `not` bleiben nicht
+  unterstützt. Ein schlafender Knoten meldet `value` true und gilt als erreichbar. Das geparste Template steht in
+  der gespeicherten Definition; neu geparst wird beim nächsten `ApplyChanges` mit Antwort des Splitters. Test:
+  `tests/check-discovery-zwavejs-availability.php` (Fixture `discovery_zwavejs_20261125.json`; ein Mitschnitt
+  eines ausgefallenen Knotens fehlt, dafür dient die echte Meldung mit `value` false).
 - **Nicht angekündigt heißt nicht erreichbar** (build 198, Blindtest 04.10.2026: Gerät auf 202, aber
   „Erreichbar" = true): `evaluateReachability($entities, $announced)` setzt bei `false` still auf nicht
   erreichbar (die 202-Warnung meldet es schon); deshalb wird der Status vor der Erreichbarkeit bestimmt.
