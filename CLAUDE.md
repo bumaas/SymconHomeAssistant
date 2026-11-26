@@ -543,6 +543,27 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Test: `tests/check-discovery-splitter-backlog.php` (Fixture `discovery_zwavejs_20261125.json`). Der Test-Rahmen
   zählt dafür Zugriffe auf String-Attribute (`FensterRahmenTrait::$attributZugriffe`).
 
+## MQTT Discovery: Sensortyp bleibt stabil (1.10 build 248)
+
+- Anlass: herbertf (PN t/145051, 26.11.2026). Nach „Änderungen übernehmen“ hatten Batterie und Helligkeit eines
+  Bewegungsmelders neue Variablen-IDs, aus Float war Integer geworden.
+- `determineSensorVariableType()` nahm bis build 247 zuerst den Wert aus dem Zwischenspeicher des Splitters (ganze
+  Zahl → Integer, Kommazahl → Float) und nur ohne Wert Einheit, `state_class` und `device_class` (→ Float, Integer
+  oder Text). Der Typ hing damit vom Augenblick des Übernehmens ab, und ein anderer Typ heißt Variable neu anlegen
+  (`recreateVariableIfTypeChanged`), mit neuer ID und ohne Archiv.
+- Jetzt zählt die bestehende Variable mit (`getExistingVariableType`): Eine Float-Variable bleibt bei einer ganzen
+  Zahl Float. Liegt kein Wert vor, behält eine Zahlenvariable ihren Typ, auch wenn sonst Text geraten würde (in
+  herbertfs Bundle sechs Sensoren ohne Einheit, z. B. `notification_access_control_door_state`). Umgestellt wird
+  nur noch, wenn die Variable den Wert nicht halten kann: Kommazahl an Integer, Text an einer Zahlenvariable.
+- Die Regel beim ersten Anlegen ist unverändert. Bestehende Variablen wechseln durch den Fix nicht den Typ.
+- Offen: Ein Sensor, der mit einer ganzen Zahl angelegt wird (Temperatur gerade 18), ist Integer und rundet
+  Kommawerte im heißen Pfad, bis ein Übernehmen mit Kommazahl ihn einmal auf Float umstellt. Abhilfe wäre Float
+  für jeden Sensor mit Einheit schon beim Anlegen; dafür fehlt dem Discovery-Pfad die Stellenlogik der Bridge
+  (Float zeigt fest zwei Nachkommastellen, „60,00 %“). `number` hat dieselbe Wertabhängigkeit über
+  `inferNumberVariableType` (Kommazahl → Float, sonst Integer), dafür gibt es keinen Mitschnitt.
+- Test: `tests/check-discovery-sensor-type-stable.php` (Fixture `discovery_zwavejs_20261125.json`; der Fall ohne
+  Einheit nimmt den Leistungssensor ohne die drei Angaben, die Fixture hat keinen solchen Sensor).
+
 ## Schieberegler ohne Bereich (1.9 build 236)
 
 - HA erlaubt bei `number` min = max (EMS-ESP „Maximale Brennerleistung“ 100/100). Der Kernel verwirft dann

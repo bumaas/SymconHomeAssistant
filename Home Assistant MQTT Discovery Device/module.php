@@ -1805,33 +1805,60 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         return $this->inferNumberVariableType($metadata, $this->extractCachedEntityValue($entity, $cachedTopics));
     }
 
+    // Der Typ darf nicht davon abhängen, was beim Übernehmen gerade im Zwischenspeicher liegt: Ein anderer Typ
+    // heißt Variable neu anlegen, mit neuer ID und ohne Archiv (build 248, herbertf PN t/145051; bis build 247
+    // wechselten Batterie und Helligkeit zwischen Float und Integer, je nachdem ob ein Wert vorlag).
+    // - Ganze Zahl im Zwischenspeicher: Integer, eine bestehende Float-Variable bleibt aber Float.
+    // - Kommazahl: Float, auch an einer Integer-Variable (sie könnte den Wert sonst nicht halten).
+    // - Kein Zahlenwert: geraten aus Einheit, state_class und device_class; eine bestehende Zahlenvariable
+    //   behält ihren Typ. Auf Text stellt nur ein Text im Zwischenspeicher um.
     private function determineSensorVariableType(array $entity, array $cachedTopics): int
     {
+        $existingType = $this->getExistingVariableType((string)$entity['ident']);
+
         $value = $this->extractCachedEntityValue($entity, $cachedTopics);
+        $typeFromValue = null;
         if (is_int($value)) {
-            return VARIABLETYPE_INTEGER;
-        }
-        if (is_float($value)) {
-            return VARIABLETYPE_FLOAT;
-        }
-        if (is_string($value)) {
+            $typeFromValue = VARIABLETYPE_INTEGER;
+        } elseif (is_float($value)) {
+            $typeFromValue = VARIABLETYPE_FLOAT;
+        } elseif (is_string($value)) {
             $trimmed = trim($value);
             if ($trimmed !== '' && is_numeric($trimmed)) {
-                return str_contains($trimmed, '.') ? VARIABLETYPE_FLOAT : VARIABLETYPE_INTEGER;
+                $typeFromValue = str_contains($trimmed, '.') ? VARIABLETYPE_FLOAT : VARIABLETYPE_INTEGER;
             }
+        }
+        if ($typeFromValue !== null) {
+            return $typeFromValue === VARIABLETYPE_INTEGER && $existingType === VARIABLETYPE_FLOAT ? VARIABLETYPE_FLOAT : $typeFromValue;
         }
 
         $unit = $entity['metadata']['unit'] ?? null;
         $stateClass = $entity['metadata']['state_class'] ?? null;
         $deviceClass = $entity['metadata']['device_class'] ?? null;
+        $guessedType = VARIABLETYPE_STRING;
         if ($unit !== null || $stateClass !== null) {
-            return VARIABLETYPE_FLOAT;
-        }
-        if (is_string($deviceClass) && in_array($deviceClass, self::NUMERIC_SENSOR_DEVICE_CLASSES, true)) {
-            return VARIABLETYPE_INTEGER;
+            $guessedType = VARIABLETYPE_FLOAT;
+        } elseif (is_string($deviceClass) && in_array($deviceClass, self::NUMERIC_SENSOR_DEVICE_CLASSES, true)) {
+            $guessedType = VARIABLETYPE_INTEGER;
         }
 
-        return VARIABLETYPE_STRING;
+        // Text nur, wenn wirklich einer im Zwischenspeicher liegt. Liegt nichts vor, ist „Text“ bloß die Vorgabe.
+        $numericTypes = [VARIABLETYPE_INTEGER, VARIABLETYPE_FLOAT];
+        if (in_array($existingType, $numericTypes, true) && ($value === null || in_array($guessedType, $numericTypes, true))) {
+            return $existingType;
+        }
+
+        return $guessedType;
+    }
+
+    private function getExistingVariableType(string $ident): ?int
+    {
+        $variableId = @$this->GetIDForIdent($ident);
+        if ($variableId === false) {
+            return null;
+        }
+
+        return (int)IPS_GetVariable($variableId)['VariableType'];
     }
 
     private function extractCachedEntityValue(array $entity, array $cachedTopics): mixed
