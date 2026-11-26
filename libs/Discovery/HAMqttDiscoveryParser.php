@@ -152,6 +152,30 @@ final class HAMqttDiscoveryParser
         return $result;
     }
 
+    /**
+     * Geräte-ID einer einzelnen Ankündigung, so wie HAMqttDiscoveryGrouping sie als Gruppenschlüssel nimmt
+     * (erster Eintrag der identifiers des Geräts). Leer, wenn die Ankündigung kein Gerät nennt; null, wenn der
+     * Payload kein JSON-Objekt ist. Damit kann der Splitter die Ankündigungen eines Geräts heraussuchen, ohne
+     * alle auszuwerten (build 251).
+     */
+    public function resolveRecordDeviceId(string $payload): ?string
+    {
+        try {
+            $config = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+        if (!is_array($config)) {
+            return null;
+        }
+
+        // Nur das Gerät wird gebraucht. normalizeConfigAliases() löste dafür alle Kurzformen der Ankündigung auf;
+        // für das Gerät gibt es genau eine (dev), und wie dort hat die Langform Vorrang.
+        $device = array_key_exists('device', $config) ? $config['device'] : ($config['dev'] ?? null);
+
+        return $this->parseDevice($device)['discovery_device_id'];
+    }
+
     public function analyzeConfigMessages(array $records): array
     {
         $entities = [];

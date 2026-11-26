@@ -1,0 +1,116 @@
+# Konzept: Der Discovery-Splitter verteilt nur noch
+
+Stand 26.11.2026. Entschieden am 26.11.2026 (siehe unten), Etappe 1 ist mit 1.10 build 251 gebaut.
+
+## Anlass
+
+Ein Anwender mit Z-Wave JS UI (72 Geräte, 2384 Ankündigungen, Symcon auf einem Raspberry Pi) bekam Meldungen
+um Stunden verspätet. Die Beta 1.10 build 250 mildert das mit einem Umbau im Splitter (Meldungen vormerken,
+gebündelt schreiben, zwei Sperren). Das ist ein Workaround: Er lässt die Ursache stehen und bringt
+Nebenläufigkeit ins Modul: Das erste Review verlangte einen Folge-Fix (build 249), das Nachreview führt dazu
+noch sechs offene Punkte. Dieses Konzept beschreibt den Weg, auf dem er wieder entfällt.
+
+## Befund: Was heute wo liegt
+
+Ein Splitter soll in Symcon Daten zwischen Schnittstelle und Geräten verteilen. Unserer führt daneben den
+ganzen Bestand, und alle anderen bedienen sich bei ihm.
+
+| Wer | Was passiert heute | Kosten mit 2384 Ankündigungen |
+|---|---|---|
+| Splitter, jede Meldung | hält alle Ankündigungen und zu jedem Topic den letzten Wert in je einem JSON-Attribut | bis build 245 je Meldung alles lesen und schreiben: im Test 37 bis 209 ms. Seit build 246 gebündelt. |
+| Gerät, jedes Übernehmen | holt **alle** Ankündigungen vom Splitter und wertet alle aus, um die eigenen zu finden (`resolveRuntimeDeviceDefinition`) | bis build 250 im Test 440 ms je Gerät (Splitter 47 ms für die Antwort von 3,1 MB, Gerät 393 ms). Seit build 251 68 ms. |
+| Gerät, jedes Übernehmen | holt die letzten Werte seiner Topics vom Splitter und spielt sie ein (`applyCachedTopicPayloads`) | klein, aber Quelle zweier Fehler (Zeitstempel in build 206, Typwechsel in build 248) |
+| Gerät, jede Meldung | schreibt ein Attribut (`LastMQTTMessage`) und baut unter der Rust-Edition seine Entitäten neu auf | nicht gemessen |
+| Konfigurator | setzt keinen Empfangsfilter; hängt aber am selben Datenfluss wie die Geräte | bekommt vermutlich jede Meldung zugestellt, ohne etwas damit zu tun. Nicht gemessen. |
+
+Alle Zahlen stammen aus dem Test-Harness auf einem PC, nur PHP, ohne Kernel. Auf einem Raspberry Pi ist mit
+einem Vielfachen zu rechnen.
+
+Das Übernehmen läuft in allen Geräten zugleich, sobald der Splitter seinen Status wechselt: beim Kernel-Start,
+bei jedem Modul-Update und bei jedem Neuverbinden mit dem Broker. Zwischen den beiden Bundles des Anwenders
+(25.11. 10:35 bis 26.11. 10:04) hat der Splitter zehnmal neu verbunden, also zehn Runden mit je 72 Geräten und
+3,3 MB.
+
+Welcher Posten bei ihm den Rückstau gemacht hat, ist **nicht belegt**. Am Tag des Rückstaus selbst lief nur
+eine Sitzung, eine Übernahme-Runde gab es also höchstens zu deren Beginn. Das spricht eher für das Schreiben je
+Meldung: Ist sein Raspberry Pi um den Faktor 30 bis 50 langsamer als der Test-PC, erklären 37 bis 209 ms je
+Meldung die beobachteten Sekunden. Das Abholen aller Ankündigungen ist dann der zweite große Posten, der bei
+jedem Neustart und Neuverbinden dazukommt. Seine Messung soll das klären.
+
+## Zielbild
+
+Jeder hält, was er selbst braucht.
+
+| Wer | hält | bekommt es von |
+|---|---|---|
+| Gerät | seine eigene Definition (heute schon gespeichert) und seine Werte (die Variablen) | Splitter liefert auf Anfrage **nur die Ankündigungen dieses Geräts** |
+| Konfigurator | nichts dauerhaft; die Liste der angekündigten Geräte beim Öffnen | Register des Splitters |
+| Splitter | ein Register der Ankündigungen, sonst nichts. Eine Wert-Meldung reicht er nur weiter. | MQTT |
+
+Das Register bleibt beim Splitter, weil nur er alle Ankündigungen vorbeikommen sieht und der Konfigurator sie
+nicht selbst beim Broker abholen kann. Es ist aber kein Bestand mehr, den Geräte im laufenden Betrieb lesen:
+Ankündigungen kommen selten, fast immer unverändert und in Schüben beim Start des Senders. Das Register darf
+deshalb einige Sekunden hinterherhinken und wird nach einem Schub einmal geschrieben. Die strenge Regel des
+Workarounds („wer liest, sieht jede Meldung“) und damit Bündeln vor dem Lesen und die Sperre um die
+Zwischenspeicher entfallen.
+
+## Was sich für Anwender ändert
+
+1. **Anfangswerte neuer Geräte.** Heute hat ein frisch angelegtes Gerät sofort Werte aus dem Zwischenspeicher.
+   Künftig kommen sie mit der nächsten Meldung des Geräts. Ein Batteriesensor, der einmal am Tag meldet, bleibt
+   so lange leer. Home Assistant verhält sich bei Meldungen ohne Retain genauso.
+2. **Bundle-Export.** Er liefert heute Ankündigungen und letzte Werte aus dem Bestand. Künftig: Ankündigungen
+   wie bisher, Werte als Aufzeichnung auf Knopfdruck über einige Minuten. Für den Support ist der Export
+   unverzichtbar, er muss mindestens so brauchbar bleiben wie heute.
+3. **Diagnose im Splitter.** Die Zeilen zu fehlenden und veralteten Wert-Topics entfallen oder beziehen sich
+   auf die Aufzeichnung.
+4. **Sonst nichts.** Variablen, Idents, Typen und Darstellungen bleiben.
+
+## Bestehende Anlagen
+
+- Jedes Gerät hat seine Definition gespeichert und läuft ohne Zutun weiter.
+- Die beiden großen Attribute des Splitters werden nach dem Update einmal geleert bzw. auf das Register
+  verkleinert. Die `settings.json` wird dadurch kleiner (bei dem Anwender um mehrere MB).
+- Keine Property ändert sich, keine Variable wird neu angelegt.
+
+## Etappen
+
+Jede Etappe ist für sich veröffentlichbar und wird an echten Daten gemessen.
+
+| Etappe | Inhalt | Verhalten für Anwender | Risiko |
+|---|---|---|---|
+| 0 | Messung des Anwenders abwarten (Performance-Timing in Splitter und einem Gerät) | keines | keines |
+| 1 | Gerät fragt nur seine eigenen Ankündigungen ab. Konfigurator bekommt einen Empfangsfilter. Gerät schreibt `LastMQTTMessage` gedrosselt. | keines | klein, kein Umbau der Rollen |
+| 2 | Splitter speichert keine Werte mehr. Export bekommt die Aufzeichnung. Gerät legt Typen ohne Zwischenspeicher an. | Punkte 1 bis 3 oben | mittel |
+| 3 | Register der Ankündigungen einfach führen, Workaround aus build 246 und 249 entfernen | keines | mittel |
+
+Etappe 1 greift die Rollen nicht an und lohnt sich unabhängig davon, was die Messung des Anwenders zeigt.
+
+### Stand Etappe 1 (1.10 build 251)
+
+Gemessen im Test-Harness mit den 2384 Ankündigungen des Anwenders, je Gerät und Übernehmen:
+
+| | bis build 250 | seit build 251 |
+|---|---|---|
+| Splitter beantwortet die Anfrage | 47 ms, 3,1 MB | 56 ms, 0,04 MB |
+| Gerät wertet die Antwort aus | 393 ms | 12 ms |
+| zusammen | 440 ms | 68 ms |
+
+Der Splitter liest für jede Anfrage weiter sein ganzes Register; das ist der Rest, den Etappe 3 angeht. Die
+Definition jedes Geräts ist dieselbe wie vorher, geprüft an 18 echten Bundles mit zusammen 528 Geräten.
+Das Gerät schreibt `LastMQTTMessage` höchstens alle 5 s, der Konfigurator hat einen Empfangsfilter.
+
+## Entscheidungen (26.11.2026)
+
+1. Neu angelegte Geräte bekommen ihre Werte mit der nächsten Meldung, ohne Ersatz für den Zwischenspeicher.
+2. Der Bundle-Export liefert Werte künftig als Aufzeichnung auf Knopfdruck.
+3. Etappe 1 beginnt sofort, ohne die Messung des Anwenders abzuwarten.
+
+## Nicht geprüft
+
+- Ob der Kernel dem Konfigurator ohne Filter wirklich jede Meldung zustellt und was das kostet.
+- Ob das Gerät den Variablentyp ohne zwischengespeicherten Wert überall sinnvoll festlegen kann. Heute hängt er
+  bei Sensoren, `number` und `cover` am Wert.
+- Wie ein Modul nach Symcons Vorstellung einige MB veränderlichen Zustand halten soll. Vor Etappe 3 beim
+  Hersteller nachfragen.
+- Alle Kosten am echten Kernel und auf langsamer Hardware.

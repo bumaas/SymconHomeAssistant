@@ -25,6 +25,14 @@ class HomeAssistantMQTTDiscoveryConfigurator extends IPSModuleStrict
         $this->RegisterPropertyBoolean('EnableExpertDebug', false);
     }
 
+    // Der Konfigurator hängt am Datenfluss der Geräte, wertet aber keine Meldungen aus; er fragt den Splitter nur
+    // beim Öffnen des Formulars. Ohne Filter bekäme er jede MQTT-Meldung zugestellt (build 251).
+    public function ApplyChanges(): void
+    {
+        parent::ApplyChanges();
+        $this->SetReceiveDataFilter('^$');
+    }
+
     public function GetCompatibleParents(): string
     {
         $parents = [

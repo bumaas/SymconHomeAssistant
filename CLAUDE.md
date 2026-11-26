@@ -561,6 +561,33 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `tests/check-discovery-splitter-locks.php`: „ein anderer Thread hält die Sperre“ heißt dort, der Name steht in
   der Semaphorenliste des Stubs; die Wartezeiten zeigt die Naht `enterSemaphore` (`$sperrAnfragen`).
 
+## MQTT Discovery: jeder bekommt nur, was er braucht (1.10 build 251)
+
+- Zielbild in `docs/KONZEPT_DISCOVERY_SPLITTER.md` (Entscheidung 26.11.2026): Der Splitter verteilt und führt nur
+  noch ein Register der Ankündigungen, die Werte halten die Geräte. Das Vormerken und die Sperren aus build 246
+  und 249 gelten als Workaround und entfallen mit Etappe 3. Build 251 ist Etappe 1 und ändert die Rollen nicht.
+- **Gerät fragt mit seiner Geräte-ID** (`GetDiscoveryConfigs` mit `DeviceID`), der Splitter liefert nur dessen
+  Ankündigungen (`filterDiscoveryRecordsByDevice`). Bis build 250 bekam jedes Gerät bei jedem Übernehmen alle
+  und wertete alle aus, um die eigenen zu finden: mit 2384 Ankündigungen im Harness 440 ms je Gerät (Splitter 47,
+  Gerät 393), jetzt 68 ms (56 und 12). Das Übernehmen läuft in allen Geräten, sobald der Splitter seinen Status
+  wechselt (Kernel-Start, Update, Neuverbinden). Der Konfigurator fragt weiter ohne Geräte-ID.
+- Die Zuordnung trifft `HAMqttDiscoveryParser::resolveRecordDeviceId()`: erster Eintrag der `identifiers` des
+  Geräts, wie der Gruppenschlüssel in `HAMqttDiscoveryGrouping`. **Wer den Gruppenschlüssel ändert, ändert beide
+  Stellen**; `check-discovery-device-own-configs.php` Teil 1 vergleicht sie. Die Funktion löst bewusst nur `dev`
+  auf und nicht alle Kurzformen (`normalizeConfigAliases` kostete je Ankündigung rund 0,1 ms, zusammen 270 ms je
+  Anfrage). Für eine ID „entity:…“ (Entität ohne Gerät) gehen alle Ankündigungen ohne Gerät hinaus; dafür gibt es
+  in keinem der 18 lokalen Bundles einen Fall.
+- Gleichheit: Die Definition jedes Geräts aus den gefilterten Ankündigungen gleicht der aus allen, geprüft an 18
+  echten Bundles mit zusammen 528 Geräten (lokal, die meisten Bundles sind nicht versioniert).
+- **Gerät schreibt `LastMQTTMessage` gedrosselt** (`touchLastMqttMessage`, höchstens alle 5 s, Zeitpunkt im
+  Buffer `LastMqttTouchEpoch`); bis build 250 ein Attribut-Schreiben je Meldung.
+- **Konfigurator setzt den Empfangsfilter `^$`** in `ApplyChanges`. Er hängt am Datenfluss der Geräte, wertet
+  aber keine Meldung aus. Dass der Kernel ihm vorher jede Meldung zustellte, ist aus dem Code geschlossen, nicht
+  gemessen.
+- Test: `tests/check-discovery-device-own-configs.php` (Fixtures `discovery_ems_esp_20261116.json` mit drei
+  Geräten und `discovery_zwavejs_20261125.json`). Der Geräte-Rahmen schneidet dafür die Anfragen an den Splitter
+  mit (`DiscoveryDeviceHarness::$anfragen`).
+
 ## MQTT Discovery: Sensortyp bleibt stabil (1.10 build 248)
 
 - Anlass: herbertf (PN t/145051, 26.11.2026). Nach „Änderungen übernehmen“ hatten Batterie und Helligkeit eines

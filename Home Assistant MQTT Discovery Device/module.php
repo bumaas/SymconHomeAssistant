@@ -44,6 +44,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     private const string REACHABLE_IDENT = 'reachable';
 
     private const string ATTR_LAST_MQTT_MESSAGE = 'LastMQTTMessage';
+    private const string BUFFER_LAST_MQTT_TOUCH = 'LastMqttTouchEpoch';
+    private const int LAST_MQTT_THROTTLE_SEC = 5;
     private const string ATTR_AVAILABILITY_STATE = 'AvailabilityState';
     private const string ATTR_RESOLVED_DEVICE_DEFINITION = 'ResolvedDeviceDefinition';
     private const string ATTR_STATE_WARNINGS = 'StateWarnings';
@@ -349,7 +351,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $messageStartedAt = microtime(true);
 
         $stepStartedAt = microtime(true);
-        $this->WriteAttributeString(self::ATTR_LAST_MQTT_MESSAGE, date('Y-m-d H:i:s'));
+        $this->touchLastMqttMessage();
         $this->logPerformanceSample('ReceiveData.writeLastMQTTMessage', $stepStartedAt);
 
         $stepStartedAt = microtime(true);
@@ -377,6 +379,19 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
 
         $this->logPerformanceSample('ReceiveData.total', $messageStartedAt, ['topic' => $topic]);
         return '';
+    }
+
+    // LastMQTTMessage ist reine Diagnose im Formular. Bis build 250 schrieb jede Meldung das Attribut; jetzt
+    // höchstens alle LAST_MQTT_THROTTLE_SEC Sekunden (wie der Splitter). Der Zeitpunkt des letzten Schreibens
+    // liegt im Buffer, weil jede Meldung in einer eigenen PHP-Ausführung laufen kann.
+    private function touchLastMqttMessage(): void
+    {
+        $now = time();
+        if ($now - (int)$this->GetBuffer(self::BUFFER_LAST_MQTT_TOUCH) < self::LAST_MQTT_THROTTLE_SEC) {
+            return;
+        }
+        $this->SetBuffer(self::BUFFER_LAST_MQTT_TOUCH, (string)$now);
+        $this->WriteAttributeString(self::ATTR_LAST_MQTT_MESSAGE, date('Y-m-d H:i:s', $now));
     }
 
     public function RequestAction($Ident, $Value): void
@@ -806,7 +821,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return $this->markAnnouncementUnknown($fallback);
         }
 
-        $response = $this->sendDiscoveryRequestToParent('GetDiscoveryConfigs');
+        // Nur die eigenen Ankündigungen (build 251): Der Splitter filtert nach der Geräte-ID.
+        $response = $this->sendDiscoveryRequestToParent('GetDiscoveryConfigs', ['DeviceID' => $deviceId]);
         if ($response === null) {
             $this->logPerformanceSample(__FUNCTION__, $startedAt, [
                 'Result' => 'fallback_no_response',

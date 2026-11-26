@@ -1010,7 +1010,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         return match ($action) {
             'GetDiscoveryConfigs' => $this->encodeDiscoveryRequestResponse(
-                $this->buildDiscoveryResponse(),
+                $this->buildDiscoveryResponse(is_string($data['DeviceID'] ?? null) ? $data['DeviceID'] : null),
                 'GetDiscoveryConfigs'
             ),
             'GetTopicPayloads' => $this->encodeDiscoveryRequestResponse(
@@ -1841,9 +1841,15 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         }
     }
 
-    private function buildDiscoveryResponse(): array
+    // Mit $deviceId nur die Ankündigungen dieses Geräts (build 251): Bis build 250 bekam jedes Gerät bei jedem
+    // Übernehmen alle Ankündigungen und wertete alle aus, um die eigenen zu finden. Bei 2384 Ankündigungen waren
+    // das 3,3 MB und im Test 404 ms je Gerät statt 10 ms. Der Konfigurator fragt weiter ohne Geräte-ID.
+    private function buildDiscoveryResponse(?string $deviceId = null): array
     {
         $discoveryRecords = $this->getDiscoveryConfigRecords();
+        if ($deviceId !== null) {
+            $discoveryRecords = $this->filterDiscoveryRecordsByDevice($discoveryRecords, $deviceId);
+        }
         $normalizedRecords = array_values($discoveryRecords);
         $records = $this->annotateCacheRecords($normalizedRecords);
         $records = $this->sortRecordsByTopic($records);
@@ -1866,6 +1872,23 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             'DiscoveryPrefix' => $this->getDiscoveryPrefix(),
             'SessionStartedAt' => (!$this->isBundleMode() && ($session['active'] ?? false)) ? max(0, (int)($session['started_at'] ?? 0)) : 0
         ];
+    }
+
+    // Die Geräte-ID kommt aus dem Parser, damit Splitter und Gerät dieselbe Zuordnung treffen. Eine Entität ohne
+    // Gerät gruppiert das Gerät unter „entity:<unique_id>“; für eine solche ID gehen alle Ankündigungen ohne
+    // Gerät hinaus, die Auswahl trifft dann wie bisher die Gruppierung im Gerät.
+    private function filterDiscoveryRecordsByDevice(array $records, string $deviceId): array
+    {
+        $wanted = str_starts_with($deviceId, 'entity:') ? '' : $deviceId;
+        $parser = new HAMqttDiscoveryParser($this->getDiscoveryPrefix());
+        $result = [];
+        foreach ($records as $topic => $record) {
+            if (is_array($record) && $parser->resolveRecordDeviceId((string)($record['payload'] ?? '')) === $wanted) {
+                $result[$topic] = $record;
+            }
+        }
+
+        return $result;
     }
 
     private function buildTopicPayloadResponse(mixed $topics): array
