@@ -400,7 +400,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Test: `tests/check-discovery-reachability.php` (Fixture `discovery_availability_20261003.json`).
 - **Z-Wave JS UI** (build 247, herbertf PN t/145051): je Entität drei availability-Topics (Knoten, MQTT-Client des
   Gateways, Treiber), Modus `latest`. Knoten und Gateway tragen ein Template mit dem bloßen Feld als Bedingung
-  (`{{true if value_json.value else false}}`). Bis build 246 kannte `HAMqttDiscoveryTemplate::parseGuard` das
+  (`{{'true' if value_json.value else 'false'}}`, beim Knoten mit `'online'`/`'offline'`). Bis build 246 kannte `HAMqttDiscoveryTemplate::parseGuard` das
   nicht, `evaluateAvailabilityEntry` verglich dann den rohen JSON-Text mit „true“: Alle Geräte standen auf „Nicht
   erreichbar“. Jetzt gibt es die Prüfung `truthy` mit dem Wahrheitswert von Python (der Text „0“ ist wahr, anders
   als in PHP); sie gilt für jedes bedingte Template, nicht nur für availability. `or` und `not` bleiben nicht
@@ -534,14 +534,31 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   bündelt zuerst und baut die Diagnose nur, wenn das Formular sie angefordert hat oder vor höchstens 600 s geöffnet
   wurde (`BUFFER_FORM_OPENED_AT`). Der Abstand ist 5 s, auf langsamer Hardware das Zwanzigfache der letzten Dauer,
   höchstens 60 s.
-- Zwei Semaphoren: eine kurze um Anhängen und Entnehmen der Zeilen (ReceiveData und Timer laufen in getrennten
-  Threads), eine um das Bündeln selbst. Bekommt ein Leser die zweite nicht, liest er den Stand ohne die gerade
-  entnommenen Zeilen.
+- Zwei Semaphoren (seit build 249 nach dem Review vom 26.11.2026, Befunde 1 bis 3):
+  - **Vormerk-Sperre** `HAMD_PendingCacheUpdates_<id>` nur um Anhängen und Entnehmen der Zeilen (ReceiveData und
+    Timer laufen in getrennten Threads). Wartezeit `PENDING_LOCK_WAIT_MS` 10 s; bekommt `ReceiveData` sie nicht,
+    fehlt die Meldung im Zwischenspeicher und es gibt eine Warnung im Meldungsfenster (bis build 248 nach 1 s nur
+    eine Debug-Zeile). Die Geräte bekommen die Meldung trotzdem.
+  - **Sperre der Zwischenspeicher** `HAMD_CacheFlush_<id>` um das Bündeln **und um jedes Lesen-Ändern-Schreiben**
+    über `runWithCacheLock()`: `pruneCaches` (ApplyChanges, Verbindung auf und ab), „Veraltete entfernen“,
+    Leeren und Laden eines Bundles. Bis build 248 schrieben diese einen Stand zurück, den sie ohne die Sperre
+    gelesen hatten, und konnten so das Ergebnis eines gleichzeitigen Bündelns überschreiben. Innerhalb der Sperre
+    läuft verschachtelte Arbeit direkt (`cacheLockDepth`), weil eine Semaphore im Stub nicht wiedereintrittsfähig
+    ist. Wird sie nicht frei: `pruneCaches` entfällt bis zum nächsten Mal, „Veraltete entfernen“ bittet den
+    Anwender, es gleich noch einmal zu versuchen, Leeren und Bundle schreiben trotzdem (sie ersetzen den Bestand
+    ganz). Ein reiner Leser liest nach 5 s ohne Sperre den Stand ohne die gerade gebündelten Zeilen; zurückschreiben
+    darf er ihn nicht.
+  - Bei vollem Vormerk-Puffer bündelt `ReceiveData` nur, wenn die Sperre **sofort** frei ist
+    (`flushPendingCacheUpdates(0)`); bis build 248 wartete jede weitere Meldung bis zu 5 s auf ein laufendes
+    Bündeln.
+  - Neue Schreiber der Zwischenspeicher gehören in `runWithCacheLock()`.
 - Grenzen: Was vorgemerkt ist, geht bei einem Kernel-Absturz verloren (höchstens ein Timer-Abstand; die Variablen
   der Geräte sind davon nicht betroffen, sie bekommen jede Meldung sofort). Das Bündeln selbst liest und schreibt
   weiter die ganzen Attribute; wer das verkleinern will, muss die Zwischenspeicher aufteilen.
 - Test: `tests/check-discovery-splitter-backlog.php` (Fixture `discovery_zwavejs_20261125.json`). Der Test-Rahmen
-  zählt dafür Zugriffe auf String-Attribute (`FensterRahmenTrait::$attributZugriffe`).
+  zählt dafür Zugriffe auf String-Attribute (`FensterRahmenTrait::$attributZugriffe`). Die Sperren prüft
+  `tests/check-discovery-splitter-locks.php`: „ein anderer Thread hält die Sperre“ heißt dort, der Name steht in
+  der Semaphorenliste des Stubs; die Wartezeiten zeigt die Naht `enterSemaphore` (`$sperrAnfragen`).
 
 ## MQTT Discovery: Sensortyp bleibt stabil (1.10 build 248)
 

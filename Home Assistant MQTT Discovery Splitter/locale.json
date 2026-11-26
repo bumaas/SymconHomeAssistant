@@ -120,7 +120,9 @@
       "Check the parent connection and the subscription.": "Parent-Verbindung und Subscription prüfen.",
       "Summary: everything looks good.": "Fazit: alles in Ordnung.",
       "Summary: %d error(s), %d warning(s).": "Fazit: %d Fehler, %d Warnung(en).",
-      "More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).": "Weitere Hilfe: README Abschnitt 7 (Fehlersuche) und MQTT Explorer (https://mqtt-explorer.com/)."
+      "More help: README section 7 (Troubleshooting) and MQTT Explorer (https://mqtt-explorer.com/).": "Weitere Hilfe: README Abschnitt 7 (Fehlersuche) und MQTT Explorer (https://mqtt-explorer.com/).",
+      "Message on %s was not cached because the pending buffer stayed locked.": "Meldung auf %s nicht zwischengespeichert, der Vormerk-Puffer blieb gesperrt.",
+      "The discovery caches are busy right now. Please try again in a moment.": "Die Zwischenspeicher sind gerade belegt. Bitte gleich noch einmal versuchen."
     }
   }
 }

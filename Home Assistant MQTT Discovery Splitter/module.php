@@ -59,6 +59,11 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const string BUFFER_PENDING_CHUNK = 'PendingCacheUpdates';
     private const int PENDING_CHUNK_BYTES = 32768;
     private const int PENDING_MAX_CHUNKS = 16;
+    // Die Vormerk-Sperre deckt nur Anhängen und Entnehmen (Millisekunden). Wer sie so lange nicht bekommt, verliert
+    // die Meldung für den Zwischenspeicher und meldet das (Review 26.11.2026 Befund 3; bis build 248 nach 1 s still).
+    private const int PENDING_LOCK_WAIT_MS = 10000;
+    // Sperre der Zwischenspeicher (Bündeln und jedes Lesen-Ändern-Schreiben), Wartezeit für Leser und Schreiber.
+    private const int CACHE_LOCK_WAIT_MS = 5000;
     // Abstand des Bündelns: mindestens CACHE_FLUSH_MIN_MS, sonst das Zwanzigfache der letzten Dauer (langsame
     // Hardware soll höchstens rund 5 % ihrer Zeit damit verbringen), höchstens CACHE_FLUSH_MAX_MS.
     private const string BUFFER_CACHE_FLUSH_INTERVAL = 'CacheFlushIntervalMs';
@@ -413,15 +418,27 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
-        $sessionState = $this->readMqttSessionState();
+        // Lesen, Filtern und Zurückschreiben unter der Sperre der Zwischenspeicher (Review 26.11.2026 Befund 1).
         $kept = [];
         $removed = [];
-        foreach ($this->getDiscoveryConfigRecords() as $topic => $record) {
-            if (is_array($record) && $this->isRecordCurrentSession($record, $sessionState)) {
-                $kept[(string)$topic] = $record;
-                continue;
+        $locked = $this->runWithCacheLock(function () use (&$kept, &$removed): void {
+            $sessionState = $this->readMqttSessionState();
+            foreach ($this->getDiscoveryConfigRecords() as $topic => $record) {
+                if (is_array($record) && $this->isRecordCurrentSession($record, $sessionState)) {
+                    $kept[(string)$topic] = $record;
+                    continue;
+                }
+                $removed[] = (string)$topic;
             }
-            $removed[] = (string)$topic;
+            if ($removed !== []) {
+                $this->writeDiscoveryCache($kept);
+                $this->syncReferencedRuntimeTopicState($kept);
+            }
+        });
+        if (!$locked) {
+            $this->debugExpert(__FUNCTION__, 'Zwischenspeicher gerade belegt, nichts entfernt.', [], true);
+            echo $this->Translate('The discovery caches are busy right now. Please try again in a moment.');
+            return;
         }
 
         if ($removed === []) {
@@ -432,8 +449,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
 
-        $this->writeDiscoveryCache($kept);
-        $this->syncReferencedRuntimeTopicState($kept);
         $this->updateDiagnosticsLabels();
 
         $this->debugExpert(__FUNCTION__, 'Veraltete Discovery-Configs entfernt.', [
@@ -1093,9 +1108,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
 
         // ReceiveData und der Timer laufen in getrennten Threads; ohne Sperre ginge eine Zeile verloren, die
-        // zwischen Lesen und Leeren des Abschnitts angehängt wird.
-        if (!IPS_SemaphoreEnter($this->pendingLockName(), 1000)) {
-            $this->debugExpert(__FUNCTION__, 'Vormerk-Puffer belegt, Meldung nicht zwischengespeichert.', ['Topic' => $topic], true);
+        // zwischen Lesen und Leeren des Abschnitts angehängt wird. Die Geräte bekommen die Meldung auch dann, wenn
+        // sie hier verloren geht, nur der Zwischenspeicher nicht; deshalb eine Warnung statt Stille.
+        if (!$this->enterSemaphore($this->pendingLockName(), self::PENDING_LOCK_WAIT_MS)) {
+            $this->LogMessage(sprintf($this->Translate('Message on %s was not cached because the pending buffer stayed locked.'), $topic), KL_WARNING);
             return;
         }
         try {
@@ -1111,15 +1127,18 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             IPS_SemaphoreLeave($this->pendingLockName());
         }
 
+        // Voller Vormerk-Puffer: selbst bündeln, aber nur, wenn die Sperre sofort frei ist. Läuft schon ein
+        // Bündeln, nimmt das nächste die Abschnitte mit (der Timer ist gestellt). Auf die Sperre zu warten, hielt
+        // bis build 248 jede weitere Meldung bis zu 5 s auf (Review 26.11.2026 Befund 2).
         if ($index >= self::PENDING_MAX_CHUNKS) {
-            $this->flushPendingCacheUpdates();
+            $this->flushPendingCacheUpdates(0);
         }
     }
 
     /** @return list<array{0: string, 1: string, 2: int, 3: string, 4: ?bool, 5: ?int, 6: string}> */
     private function takePendingCacheUpdates(): array
     {
-        if (!IPS_SemaphoreEnter($this->pendingLockName(), 2000)) {
+        if (!$this->enterSemaphore($this->pendingLockName(), self::PENDING_LOCK_WAIT_MS)) {
             return [];
         }
         try {
@@ -1161,14 +1180,53 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     }
 
     private bool $flushingCacheUpdates = false;
+    private int $cacheLockDepth = 0;
+
+    private function cacheLockName(): string
+    {
+        return 'HAMD_CacheFlush_' . $this->InstanceID;
+    }
+
+    // Naht für die Tests (sie sehen so, wie lange das Modul auf eine Sperre warten würde).
+    protected function enterSemaphore(string $Name, int $Milliseconds): bool
+    {
+        return IPS_SemaphoreEnter($Name, $Milliseconds);
+    }
+
+    /**
+     * Führt $work unter der Sperre der Zwischenspeicher aus. Wer sie liest, ändert und zurückschreibt, muss das
+     * hier tun: Sonst schreibt er einen Stand zurück, dem die Meldungen eines gleichzeitig laufenden Bündelns
+     * fehlen (Review 26.11.2026 Befund 1). Innerhalb der Sperre läuft $work direkt. false heißt: Die Sperre wurde
+     * nicht frei, $work ist nicht gelaufen.
+     */
+    private function runWithCacheLock(Closure $work, int $waitMs = self::CACHE_LOCK_WAIT_MS): bool
+    {
+        if ($this->cacheLockDepth > 0) {
+            $work();
+            return true;
+        }
+        if (!$this->enterSemaphore($this->cacheLockName(), $waitMs)) {
+            return false;
+        }
+        $this->cacheLockDepth++;
+        try {
+            $work();
+        } finally {
+            $this->cacheLockDepth--;
+            IPS_SemaphoreLeave($this->cacheLockName());
+        }
+        return true;
+    }
 
     /**
      * Schreibt die vorgemerkten Meldungen in die Zwischenspeicher. Läuft vor jedem Lesen (readDiscoveryCache,
-     * readTopicPayloadCache, readReferencedTopicLookup), per Timer und bei vollem Vormerk-Puffer.
+     * readTopicPayloadCache, readReferencedTopicLookup), per Timer und bei vollem Vormerk-Puffer. Bekommt ein
+     * Leser die Sperre nicht, liest er den Stand ohne die Meldungen, die gerade gebündelt werden; zurückschreiben
+     * darf er ihn dann nicht (runWithCacheLock).
      *
      * @return int Zahl der verarbeiteten Meldungen
      */
-    private function flushPendingCacheUpdates(): int
+    private function flushPendingCacheUpdates(int $waitMs = self::CACHE_LOCK_WAIT_MS): int
     {
         if ($this->flushingCacheUpdates) {
             return 0;
@@ -1183,24 +1241,23 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return 0;
         }
 
-        $flushLock = 'HAMD_CacheFlush_' . $this->InstanceID;
-        if (!IPS_SemaphoreEnter($flushLock, 5000)) {
-            return 0;
-        }
-        $this->flushingCacheUpdates = true;
-        try {
-            $entries = $this->takePendingCacheUpdates();
-            if ($entries === []) {
-                return 0;
+        $count = 0;
+        $this->runWithCacheLock(function () use (&$count): void {
+            $this->flushingCacheUpdates = true;
+            try {
+                $entries = $this->takePendingCacheUpdates();
+                if ($entries === []) {
+                    return;
+                }
+                $startedAt = microtime(true);
+                $this->applyPendingCacheUpdates($entries);
+                $this->logPerformanceSample('flushPendingCacheUpdates', $startedAt, ['Count' => count($entries)]);
+                $count = count($entries);
+            } finally {
+                $this->flushingCacheUpdates = false;
             }
-            $startedAt = microtime(true);
-            $this->applyPendingCacheUpdates($entries);
-            $this->logPerformanceSample(__FUNCTION__, $startedAt, ['Count' => count($entries)]);
-            return count($entries);
-        } finally {
-            $this->flushingCacheUpdates = false;
-            IPS_SemaphoreLeave($flushLock);
-        }
+        }, $waitMs);
+        return $count;
     }
 
     // Verarbeitet die Meldungen in Empfangsreihenfolge mit demselben Ergebnis wie bis build 245 je Meldung, liest
@@ -1671,9 +1728,16 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
         $writeStartedAt = microtime(true);
         $this->writeBundleState($state);
-        $this->writeDiscoveryCache($discoveryCache);
-        $this->writeReferencedTopicLookup($lookup);
-        $this->writeTopicPayloadCache($runtimeCache);
+        // Unter der Sperre, damit ein Bündeln aus dem MQTT-Betrieb den Bundle-Stand nicht überschreibt. Wird sie
+        // nicht frei, gilt das Bundle trotzdem: Es ersetzt die Zwischenspeicher ganz.
+        $writeCaches = function () use ($discoveryCache, $lookup, $runtimeCache): void {
+            $this->writeDiscoveryCache($discoveryCache);
+            $this->writeReferencedTopicLookup($lookup);
+            $this->writeTopicPayloadCache($runtimeCache);
+        };
+        if (!$this->runWithCacheLock($writeCaches)) {
+            $writeCaches();
+        }
         $this->writeMqttSessionState($bundleSessionState);
         $this->logPerformanceSample(__FUNCTION__ . '.writeAttributes', $writeStartedAt, [
             'DiscoveryCount' => count($discoveryCache),
@@ -1765,10 +1829,16 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function clearDiscoveryRuntimeCaches(): void
     {
-        $this->discardPendingCacheUpdates();
-        $this->writeDiscoveryCache([]);
-        $this->writeTopicPayloadCache([]);
-        $this->writeReferencedTopicLookup([]);
+        // Unter der Sperre, damit ein laufendes Bündeln danach nichts zurückschreibt; leer wird es auch ohne sie.
+        $clear = function (): void {
+            $this->discardPendingCacheUpdates();
+            $this->writeDiscoveryCache([]);
+            $this->writeTopicPayloadCache([]);
+            $this->writeReferencedTopicLookup([]);
+        };
+        if (!$this->runWithCacheLock($clear)) {
+            $clear();
+        }
     }
 
     private function buildDiscoveryResponse(): array
@@ -1951,21 +2021,31 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         return $records;
     }
 
+    // Läuft nur unter der Sperre der Zwischenspeicher (Review 26.11.2026 Befund 1). Bündelt gerade ein anderer
+    // Thread, entfällt das Aufräumen bis zum nächsten ApplyChanges; es entfernt nur, was ohnehin nicht gebraucht wird.
     private function pruneCaches(): void
     {
         $startedAt = microtime(true);
         $this->logPerformanceMarker(__FUNCTION__, 'start');
-        $discoveryCache = $this->getDiscoveryConfigRecords();
-        $this->writeDiscoveryCache($discoveryCache);
-        $this->logPerformanceMarker(__FUNCTION__, 'before_syncReferencedRuntimeTopicState', [
-            'DiscoveryCount' => count($discoveryCache)
-        ]);
-        $this->syncReferencedRuntimeTopicState($discoveryCache);
-        $this->logPerformanceMarker(__FUNCTION__, 'after_syncReferencedRuntimeTopicState', [
-            'DiscoveryCount' => count($discoveryCache)
-        ]);
+        $discoveryCount = 0;
+        $locked = $this->runWithCacheLock(function () use (&$discoveryCount): void {
+            $discoveryCache = $this->getDiscoveryConfigRecords();
+            $discoveryCount = count($discoveryCache);
+            $this->writeDiscoveryCache($discoveryCache);
+            $this->logPerformanceMarker('pruneCaches', 'before_syncReferencedRuntimeTopicState', [
+                'DiscoveryCount' => $discoveryCount
+            ]);
+            $this->syncReferencedRuntimeTopicState($discoveryCache);
+            $this->logPerformanceMarker('pruneCaches', 'after_syncReferencedRuntimeTopicState', [
+                'DiscoveryCount' => $discoveryCount
+            ]);
+        });
+        if (!$locked) {
+            $this->debugExpert(__FUNCTION__, 'Zwischenspeicher gerade belegt, Aufräumen übersprungen.', [], true);
+            return;
+        }
         $this->logPerformanceSample(__FUNCTION__, $startedAt, [
-            'DiscoveryCount' => count($discoveryCache)
+            'DiscoveryCount' => $discoveryCount
         ]);
     }
 

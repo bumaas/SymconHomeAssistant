@@ -603,6 +603,24 @@ final class DiscoverySplitterHarness extends HomeAssistantMQTTDiscoverySplitter
         return parent::UpdateFormField($Field, $Parameter, $Value);
     }
 
+    /** @var list<array{0: string, 1: int}> Sperranfragen des Moduls über seine Naht enterSemaphore (Name, Wartezeit in ms) */
+    public static array $sperrAnfragen = [];
+
+    protected function enterSemaphore(string $Name, int $Milliseconds): bool
+    {
+        self::$sperrAnfragen[] = [$Name, $Milliseconds];
+        return parent::enterSemaphore($Name, $Milliseconds);
+    }
+
+    /** @var list<array{0: string, 1: int}> Meldungen des Moduls ins Meldungsfenster (Text, Typ) */
+    public static array $meldungen = [];
+
+    protected function LogMessage(string $Message, int $Type): bool
+    {
+        self::$meldungen[] = [$Message, $Type];
+        return parent::LogMessage($Message, $Type);
+    }
+
     protected function readSourceModeProperty(): string|false
     {
         return $this->attributeRegistriert ? parent::readSourceModeProperty() : false;
