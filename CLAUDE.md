@@ -501,6 +501,38 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Test: `tests/check-discovery-light-basic.php` (Fixtures `discovery_awtrix_20260513.json`,
   `discovery_zwavejs_20261125.json`).
 
+## MQTT Discovery: Splitter merkt Meldungen vor (1.10 build 246)
+
+- Anlass: herbertf (PN t/145051, 26.11.2026), Z-Wave JS UI mit 2384 Ankündigungen (jeder Geräteparameter ist eine
+  Entität). Sein Bundle zeigt den Rückstau: Status-Meldungen mit Sendezeit 10:28 kamen beim Splitter zwischen 12:02
+  und 17:12 an, in Sendereihenfolge, am Abend lag der Verzug bei 435 Minuten. Schon am Vortag trafen 918
+  Ankündigungen über 107 Minuten verteilt ein.
+- Ursache im Modul: Die Zwischenspeicher für Ankündigungen und Werte sind je ein Attribut mit dem ganzen Bestand als
+  JSON. Bis build 245 las und schrieb `ReceiveData` sie bei jeder Meldung komplett, eine Ankündigung baute dazu die
+  Referenzliste aus allen Ankündigungen neu. Bei laufendem Verkehr lief außerdem jede Sekunde
+  `buildDiagnosticsState()`, auch ohne offenes Formular. Im Harness (nur PHP, ohne Kernel) kosteten die 2384
+  Ankündigungen 187 s und 2473 Wert-Meldungen 60 s, danach 1,2 s und 0,5 s. Dass der Splitter an herbertfs Anlage
+  der Engpass war, ist damit wahrscheinlich, aber dort nicht gemessen.
+- Jetzt merkt `ReceiveData` die Meldung nur vor (`queueCacheUpdate`): eine Zeile mit Topic, Payload (hex),
+  Empfangszeit und Sitzung in Buffern `PendingCacheUpdates<n>` zu je höchstens 32 KB. `flushPendingCacheUpdates()`
+  schreibt sie gebündelt in die Attribute, mit demselben Ergebnis wie vorher je Meldung (an herbertfs 4857
+  Meldungen gegen den alten Code verglichen). Es läuft per Timer, ab 16 vollen Abschnitten sofort und **vor jedem
+  Lesen**: `readDiscoveryCache()`, `readTopicPayloadCache()` und `readReferencedTopicLookup()` rufen es zuerst.
+  Wer die Zwischenspeicher über diese drei liest, sieht also jede empfangene Meldung. **Die Attribute nie direkt
+  lesen.**
+- Der Timer ist der vorhandene `DiagnosticsRefresh` (kein neuer, Reload-Fenster): `RefreshDiscoveryDiagnostics()`
+  bündelt zuerst und baut die Diagnose nur, wenn das Formular sie angefordert hat oder vor höchstens 600 s geöffnet
+  wurde (`BUFFER_FORM_OPENED_AT`). Der Abstand ist 5 s, auf langsamer Hardware das Zwanzigfache der letzten Dauer,
+  höchstens 60 s.
+- Zwei Semaphoren: eine kurze um Anhängen und Entnehmen der Zeilen (ReceiveData und Timer laufen in getrennten
+  Threads), eine um das Bündeln selbst. Bekommt ein Leser die zweite nicht, liest er den Stand ohne die gerade
+  entnommenen Zeilen.
+- Grenzen: Was vorgemerkt ist, geht bei einem Kernel-Absturz verloren (höchstens ein Timer-Abstand; die Variablen
+  der Geräte sind davon nicht betroffen, sie bekommen jede Meldung sofort). Das Bündeln selbst liest und schreibt
+  weiter die ganzen Attribute; wer das verkleinern will, muss die Zwischenspeicher aufteilen.
+- Test: `tests/check-discovery-splitter-backlog.php` (Fixture `discovery_zwavejs_20261125.json`). Der Test-Rahmen
+  zählt dafür Zugriffe auf String-Attribute (`FensterRahmenTrait::$attributZugriffe`).
+
 ## Schieberegler ohne Bereich (1.9 build 236)
 
 - HA erlaubt bei `number` min = max (EMS-ESP „Maximale Brennerleistung“ 100/100). Der Kernel verwirft dann

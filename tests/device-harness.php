@@ -505,8 +505,12 @@ trait FensterRahmenTrait
         return $this->imFenster('Property ' . $Name) ? 0 : parent::ReadPropertyInteger($Name);
     }
 
+    /** @var array<string, int> Zugriffe des Moduls auf String-Attribute je Rahmenklasse, Schlüssel „r:Name“ bzw. „w:Name“ */
+    public static array $attributZugriffe = [];
+
     protected function ReadAttributeString(string $Name): string
     {
+        self::$attributZugriffe['r:' . $Name] = (self::$attributZugriffe['r:' . $Name] ?? 0) + 1;
         return $this->imFenster('Attribute ' . $Name) ? '' : parent::ReadAttributeString($Name);
     }
 
@@ -517,6 +521,7 @@ trait FensterRahmenTrait
 
     protected function WriteAttributeString(string $Name, string $Value): bool
     {
+        self::$attributZugriffe['w:' . $Name] = (self::$attributZugriffe['w:' . $Name] ?? 0) + 1;
         return $this->imFenster('Attribute ' . $Name) ? false : parent::WriteAttributeString($Name, $Value);
     }
 

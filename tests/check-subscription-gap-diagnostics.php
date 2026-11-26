@@ -316,6 +316,17 @@ function IPS_GetConfiguration(int $InstanceID): string
     ], JSON_THROW_ON_ERROR);
 }
 
+// Der Splitter sperrt seinen Vormerk-Puffer über Semaphoren (build 246); der Test läuft in einem Thread.
+function IPS_SemaphoreEnter(string $Name, int $Milliseconds): bool
+{
+    return true;
+}
+
+function IPS_SemaphoreLeave(string $Name): bool
+{
+    return true;
+}
+
 // ---------------------------------------------------------------------------
 // Echtes Modul laden
 // ---------------------------------------------------------------------------
@@ -389,8 +400,10 @@ check(str_contains($selfTest, 'not covered by any MQTT client subscription'), 'S
 check(str_contains($selfTest, 'garage/#'), 'Selbsttest: Vorschlag garage/# genannt', $selfTest);
 check(str_contains($selfTest, 'homeassistant/#'), 'Selbsttest: aktuelle Abonnements genannt', $selfTest);
 
-// 2. Formular-Diagnose: Caption + Alert
+// 2. Formular-Diagnose: Caption + Alert. Die Diagnose wird nur für ein geöffnetes Formular gebaut (build 246),
+// das Öffnen fordert sie an und der Timerlauf liefert sie nach.
 IPSModuleStrict::$formFieldUpdates = [];
+$splitter->GetConfigurationForm();
 $splitter->RefreshDiscoveryDiagnostics();
 $gapCaption = (string)(IPSModuleStrict::$formFieldUpdates['DiagSubscriptionGap']['caption'] ?? '');
 check(str_contains($gapCaption, (string)$referencedCount) && str_contains($gapCaption, 'garage/#'), 'Diagnose-Label nennt Anzahl und Vorschlag', $gapCaption);

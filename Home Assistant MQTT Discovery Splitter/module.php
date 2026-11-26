@@ -48,6 +48,27 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const string BUFFER_LAST_MQTT_TOUCH    = 'LastMqttTouchEpoch';
     private const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
 
+    // Vorgemerkte Cache-Änderungen (build 246, herbertf PN t/145051): Die Zwischenspeicher für Ankündigungen und
+    // Werte sind je ein Attribut mit dem ganzen Bestand als JSON, bei 2384 Ankündigungen mehrere MB. Bis build 245
+    // las und schrieb jede Meldung sie komplett, die Meldungen stauten sich über Stunden. Jetzt merkt ReceiveData
+    // die Meldung nur als Zeile in einem kleinen Buffer vor (BUFFER_PENDING_CHUNK . <n>, je höchstens
+    // PENDING_CHUNK_BYTES, damit auch das Anhängen nicht mit der Menge wächst). In die Attribute kommen die Zeilen
+    // gebündelt: per Timer, bei PENDING_MAX_CHUNKS vollen Abschnitten und vor jedem Lesen der Zwischenspeicher.
+    // Buffer brauchen keine Registrierung in Create(), das Reload-Fenster betrifft sie nicht.
+    private const string BUFFER_PENDING_INDEX = 'PendingCacheUpdatesIndex';
+    private const string BUFFER_PENDING_CHUNK = 'PendingCacheUpdates';
+    private const int PENDING_CHUNK_BYTES = 32768;
+    private const int PENDING_MAX_CHUNKS = 16;
+    // Abstand des Bündelns: mindestens CACHE_FLUSH_MIN_MS, sonst das Zwanzigfache der letzten Dauer (langsame
+    // Hardware soll höchstens rund 5 % ihrer Zeit damit verbringen), höchstens CACHE_FLUSH_MAX_MS.
+    private const string BUFFER_CACHE_FLUSH_INTERVAL = 'CacheFlushIntervalMs';
+    private const int CACHE_FLUSH_MIN_MS = 5000;
+    private const int CACHE_FLUSH_MAX_MS = 60000;
+    // Die Diagnose im Formular baut alle Ankündigungen und Werte neu auf. Meldungen lösen das nur aus, solange
+    // das Formular vor höchstens DIAGNOSTICS_LIVE_WINDOW_SEC geöffnet wurde (bis build 245 jede Sekunde).
+    private const string BUFFER_FORM_OPENED_AT = 'DiagnosticsFormOpenedAt';
+    private const int DIAGNOSTICS_LIVE_WINDOW_SEC = 600;
+
     // Selbsttest: ab welchem Alter (Sekunden) der letzte MQTT-Empfang als "veraltet" gilt.
     private const int SELFTEST_MQTT_RECENCY_SEC = 300;
 
@@ -271,6 +292,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         // werden per Timer (scheduleDiagnosticsRefresh) unmittelbar nach dem Öffnen ins offene Formular
         // nachgeladen (updateDiagnosticsLabels via updateFormFieldSafe).
         $this->applyStaticFormState($form);
+        $this->SetBuffer(self::BUFFER_FORM_OPENED_AT, (string)time());
         $this->scheduleDiagnosticsRefresh();
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
@@ -303,14 +325,25 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             return;
         }
         $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, 0);
-        // Auch im Bundle-Modus: Bis build 218 kehrte der Refresh hier zurück, das Formular zeigte dann
-        // dauerhaft die Platzhalter der form.json („Quelle: MQTT“, „Bundle: nicht aktiv“).
-        if (!$this->ReadAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY)) {
-            return;
+
+        // Der Timer hat zwei Aufgaben: vorgemerkte Meldungen in die Zwischenspeicher schreiben und die Diagnose
+        // eines offenen Formulars nachladen. Ein eigener Timer wäre erst nach Create() da (Reload-Fenster).
+        $startedAt = microtime(true);
+        $applied = $this->flushPendingCacheUpdates();
+        if ($applied > 0) {
+            $durationMs = (int)((microtime(true) - $startedAt) * 1000);
+            $this->SetBuffer(self::BUFFER_CACHE_FLUSH_INTERVAL, (string)max(self::CACHE_FLUSH_MIN_MS, min(self::CACHE_FLUSH_MAX_MS, $durationMs * 20)));
         }
 
-        $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
-        $this->updateDiagnosticsLabels();
+        // Auch im Bundle-Modus: Bis build 218 kehrte der Refresh hier zurück, das Formular zeigte dann
+        // dauerhaft die Platzhalter der form.json („Quelle: MQTT“, „Bundle: nicht aktiv“).
+        $dirty = $this->ReadAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY);
+        if ($dirty) {
+            $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, false);
+        }
+        if ($dirty || ($applied > 0 && $this->isDiagnosticsFormWatched())) {
+            $this->updateDiagnosticsLabels();
+        }
     }
 
     public function ReconnectMqttParent(): void
@@ -924,22 +957,18 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $this->touchLastMqttMessage();
             $this->logPerformanceSample('ReceiveData.writeLastMQTTMessage', $stepStartedAt);
 
-            $payload = $this->decodePayload((string)($data['Payload'] ?? ''));
             $metadata = [
                 'retained' => array_key_exists('Retain', $data) ? (bool)$data['Retain'] : null,
                 'qos' => array_key_exists('QualityOfService', $data) ? (int)$data['QualityOfService'] : null,
                 'direction' => $dataId === HAIds::DATA_MQTT_TX ? 'tx' : 'rx'
             ];
 
+            // Nur vormerken: Die Zwischenspeicher fasst der heiße Pfad nicht an (siehe BUFFER_PENDING_CHUNK).
             $stepStartedAt = microtime(true);
-            $this->updateTopicPayloadCacheFromMessage($topic, $payload, $metadata);
-            $this->logPerformanceSample('ReceiveData.updateTopicPayloadCache', $stepStartedAt, ['topic' => $topic]);
+            $this->queueCacheUpdate($topic, (string)($data['Payload'] ?? ''), $metadata);
+            $this->logPerformanceSample('ReceiveData.queueCacheUpdate', $stepStartedAt, ['topic' => $topic]);
 
-            $stepStartedAt = microtime(true);
-            $this->updateDiscoveryCacheFromMessage($topic, $payload, $metadata);
-            $this->logPerformanceSample('ReceiveData.updateDiscoveryCache', $stepStartedAt, ['topic' => $topic]);
-
-            $this->scheduleDiagnosticsRefresh();
+            $this->scheduleCacheFlush();
 
             $data['DataID'] = HAIds::DATA_MQTT_DISCOVERY_SPLITTER_TO_DEVICE;
             $stepStartedAt = microtime(true);
@@ -1018,9 +1047,243 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private function scheduleDiagnosticsRefresh(): void
     {
         $this->WriteAttributeBoolean(self::ATTRIBUTE_DIAGNOSTICS_DIRTY, true);
-        if ($this->GetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH) <= 0) {
-            $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, self::DIAGNOSTICS_REFRESH_INTERVAL_MS);
+        // Immer neu stellen: Läuft der Timer schon für das Bündeln (bis zu CACHE_FLUSH_MAX_MS), wartete das
+        // gerade geöffnete Formular sonst so lange auf seine Diagnose.
+        $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, self::DIAGNOSTICS_REFRESH_INTERVAL_MS);
+    }
+
+    private function isDiagnosticsFormWatched(): bool
+    {
+        $openedAt = (int)$this->GetBuffer(self::BUFFER_FORM_OPENED_AT);
+        return $openedAt > 0 && time() - $openedAt <= self::DIAGNOSTICS_LIVE_WINDOW_SEC;
+    }
+
+    private function scheduleCacheFlush(): void
+    {
+        if ($this->GetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH) > 0) {
+            return;
         }
+        $interval = (int)$this->GetBuffer(self::BUFFER_CACHE_FLUSH_INTERVAL);
+        $this->SetTimerInterval(self::TIMER_DIAGNOSTICS_REFRESH, max(self::CACHE_FLUSH_MIN_MS, min(self::CACHE_FLUSH_MAX_MS, $interval)));
+    }
+
+    private function pendingLockName(): string
+    {
+        return 'HAMD_PendingCacheUpdates_' . $this->InstanceID;
+    }
+
+    // Heißer Pfad: hängt die Meldung als Zeile an den laufenden Abschnitt. Empfangszeit und Sitzung werden jetzt
+    // festgehalten, damit der spätere Eintrag sie trägt und nicht die Zeit des Bündelns. Der Payload bleibt hex,
+    // wie er vom MQTT Client kommt (binäre Payloads überstehen so das JSON).
+    private function queueCacheUpdate(string $topic, string $payloadHex, array $metadata): void
+    {
+        $topic = trim($topic, '/');
+        if ($topic === '') {
+            return;
+        }
+
+        $line = json_encode([
+            $topic,
+            $payloadHex,
+            time(),
+            $this->readMqttSessionState()['id'],
+            $metadata['retained'] ?? null,
+            $metadata['qos'] ?? null,
+            $metadata['direction'] ?? ''
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+
+        // ReceiveData und der Timer laufen in getrennten Threads; ohne Sperre ginge eine Zeile verloren, die
+        // zwischen Lesen und Leeren des Abschnitts angehängt wird.
+        if (!IPS_SemaphoreEnter($this->pendingLockName(), 1000)) {
+            $this->debugExpert(__FUNCTION__, 'Vormerk-Puffer belegt, Meldung nicht zwischengespeichert.', ['Topic' => $topic], true);
+            return;
+        }
+        try {
+            $index = max(0, (int)$this->GetBuffer(self::BUFFER_PENDING_INDEX));
+            $chunk = $this->GetBuffer(self::BUFFER_PENDING_CHUNK . $index);
+            if ($chunk !== '' && strlen($chunk) + strlen($line) > self::PENDING_CHUNK_BYTES) {
+                $index++;
+                $chunk = '';
+                $this->SetBuffer(self::BUFFER_PENDING_INDEX, (string)$index);
+            }
+            $this->SetBuffer(self::BUFFER_PENDING_CHUNK . $index, $chunk . $line);
+        } finally {
+            IPS_SemaphoreLeave($this->pendingLockName());
+        }
+
+        if ($index >= self::PENDING_MAX_CHUNKS) {
+            $this->flushPendingCacheUpdates();
+        }
+    }
+
+    /** @return list<array{0: string, 1: string, 2: int, 3: string, 4: ?bool, 5: ?int, 6: string}> */
+    private function takePendingCacheUpdates(): array
+    {
+        if (!IPS_SemaphoreEnter($this->pendingLockName(), 2000)) {
+            return [];
+        }
+        try {
+            $index = max(0, (int)$this->GetBuffer(self::BUFFER_PENDING_INDEX));
+            $raw = '';
+            for ($i = 0; $i <= $index; $i++) {
+                $chunk = $this->GetBuffer(self::BUFFER_PENDING_CHUNK . $i);
+                if ($chunk !== '') {
+                    $raw .= $chunk;
+                    $this->SetBuffer(self::BUFFER_PENDING_CHUNK . $i, '');
+                }
+            }
+            if ($index > 0) {
+                $this->SetBuffer(self::BUFFER_PENDING_INDEX, '');
+            }
+        } finally {
+            IPS_SemaphoreLeave($this->pendingLockName());
+        }
+
+        // Eine abgeschnittene oder fremde Zeile (Buffer werden beim Sichern gekürzt) fällt einzeln weg.
+        $entries = [];
+        foreach (explode("\n", $raw) as $line) {
+            if ($line === '') {
+                continue;
+            }
+            $entry = json_decode($line, true);
+            if (!is_array($entry) || count($entry) < 7 || !is_string($entry[0]) || !is_string($entry[1])) {
+                continue;
+            }
+            $entries[] = $entry;
+        }
+
+        return $entries;
+    }
+
+    private function discardPendingCacheUpdates(): void
+    {
+        $this->takePendingCacheUpdates();
+    }
+
+    private bool $flushingCacheUpdates = false;
+
+    /**
+     * Schreibt die vorgemerkten Meldungen in die Zwischenspeicher. Läuft vor jedem Lesen (readDiscoveryCache,
+     * readTopicPayloadCache, readReferencedTopicLookup), per Timer und bei vollem Vormerk-Puffer.
+     *
+     * @return int Zahl der verarbeiteten Meldungen
+     */
+    private function flushPendingCacheUpdates(): int
+    {
+        if ($this->flushingCacheUpdates) {
+            return 0;
+        }
+        // Der häufigste Fall kostet nur zwei Buffer-Lesungen.
+        if ($this->GetBuffer(self::BUFFER_PENDING_INDEX) === '' && $this->GetBuffer(self::BUFFER_PENDING_CHUNK . '0') === '') {
+            return 0;
+        }
+        // Im Bundle-Modus stammen die Zwischenspeicher aus der Datei; Reste aus dem MQTT-Betrieb gehören nicht hinein.
+        if ($this->isBundleMode()) {
+            $this->discardPendingCacheUpdates();
+            return 0;
+        }
+
+        $flushLock = 'HAMD_CacheFlush_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($flushLock, 5000)) {
+            return 0;
+        }
+        $this->flushingCacheUpdates = true;
+        try {
+            $entries = $this->takePendingCacheUpdates();
+            if ($entries === []) {
+                return 0;
+            }
+            $startedAt = microtime(true);
+            $this->applyPendingCacheUpdates($entries);
+            $this->logPerformanceSample(__FUNCTION__, $startedAt, ['Count' => count($entries)]);
+            return count($entries);
+        } finally {
+            $this->flushingCacheUpdates = false;
+            IPS_SemaphoreLeave($flushLock);
+        }
+    }
+
+    // Verarbeitet die Meldungen in Empfangsreihenfolge mit demselben Ergebnis wie bis build 245 je Meldung, liest
+    // und schreibt jedes Attribut aber höchstens einmal. Ein Wert zählt nur, wenn sein Topic zu diesem Zeitpunkt
+    // von einer Ankündigung referenziert ist; eine Ankündigung aus demselben Bündel erweitert die Referenzen sofort.
+    private function applyPendingCacheUpdates(array $entries): void
+    {
+        $prefix = $this->getDiscoveryPrefix();
+        $lookup = $this->readReferencedTopicLookup();
+        $discovery = null;
+        $payloads = null;
+        $discoveryChanged = false;
+        $payloadsChanged = false;
+
+        foreach ($entries as [$topic, $payloadHex, $receivedAt, $sessionId, $retained, $qos, $direction]) {
+            $payload = $this->decodePayload($payloadHex);
+            $metadata = ['retained' => $retained, 'qos' => $qos, 'direction' => $direction];
+
+            if (!$this->isDiscoveryConfigTopic($topic, $prefix)) {
+                // Nicht referenzierte Topics stehen nie im Zwischenspeicher (jede Änderung der Referenzen filtert
+                // ihn), dafür muss er also nicht geladen werden.
+                if (!isset($lookup[$topic])) {
+                    continue;
+                }
+                $payloads ??= $this->readTopicPayloadCache();
+                if (trim($payload) === '') {
+                    if (isset($payloads[$topic])) {
+                        unset($payloads[$topic]);
+                        $payloadsChanged = true;
+                    }
+                    continue;
+                }
+                $record = $this->createCacheRecord($topic, $payload, $metadata, true, (int)$receivedAt, (string)$sessionId);
+                if ($record !== null && !$this->isEquivalentCacheRecord($payloads[$topic] ?? null, $record)) {
+                    $payloads[$topic] = $record;
+                    $payloadsChanged = true;
+                }
+                continue;
+            }
+
+            $discovery ??= $this->readDiscoveryCache();
+            $record = trim($payload) === '' ? null : $this->createCacheRecord($topic, $payload, $metadata, false, (int)$receivedAt, (string)$sessionId);
+            if ($record === null) {
+                if (isset($discovery[$topic])) {
+                    unset($discovery[$topic]);
+                    $discoveryChanged = true;
+                }
+                if (trim($payload) !== '') {
+                    $this->debugExpert(__FUNCTION__, 'Discovery-Payload nicht cachefähig', [
+                        'Topic' => $topic,
+                        'PayloadBytes' => strlen($payload)
+                    ], true);
+                }
+                continue;
+            }
+            if (!$this->isEquivalentCacheRecord($discovery[$topic] ?? null, $record)) {
+                $discovery[$topic] = $record;
+                $discoveryChanged = true;
+                foreach ($this->collectReferencedTopicsFromDiscoveryConfigs([$record]) as $referenced) {
+                    $referenced = trim($referenced, '/');
+                    if ($referenced !== '') {
+                        $lookup[$referenced] = true;
+                    }
+                }
+            }
+        }
+
+        if ($discoveryChanged) {
+            // Entfernte oder ersetzte Ankündigungen können Referenzen wegnehmen: einmal neu aufbauen und filtern.
+            $this->writeJsonAttribute(self::ATTRIBUTE_DISCOVERY_CACHE, $discovery);
+            $lookup = $this->buildReferencedTopicLookup($discovery);
+            $this->writeReferencedTopicLookup($lookup);
+            $payloads ??= $this->readTopicPayloadCache();
+            $this->writeJsonAttribute(self::ATTRIBUTE_TOPIC_PAYLOAD_CACHE, $this->filterRuntimeCacheToReferencedTopics($payloads, $lookup));
+        } elseif ($payloadsChanged) {
+            $this->writeJsonAttribute(self::ATTRIBUTE_TOPIC_PAYLOAD_CACHE, $payloads);
+        }
+    }
+
+    // Ohne den Vergleich mit dem alten Stand (writeJsonAttributeIfChanged läse das Attribut dafür noch einmal).
+    private function writeJsonAttribute(string $attribute, array $value): void
+    {
+        $this->WriteAttributeString($attribute, json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
     private function getInstanceStatusName(int $status): string
@@ -1502,57 +1765,10 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function clearDiscoveryRuntimeCaches(): void
     {
+        $this->discardPendingCacheUpdates();
         $this->writeDiscoveryCache([]);
         $this->writeTopicPayloadCache([]);
         $this->writeReferencedTopicLookup([]);
-    }
-
-    private function updateDiscoveryCacheFromMessage(string $topic, string $payload, array $metadata = []): void
-    {
-        $topic = trim($topic, '/');
-        if (!$this->isDiscoveryConfigTopic($topic)) {
-            return;
-        }
-
-        $cache = $this->readDiscoveryCache();
-        $cacheChanged = false;
-        if (trim($payload) === '') {
-            if (isset($cache[$topic])) {
-                unset($cache[$topic]);
-                $cacheChanged = true;
-                $this->debugExpert(__FUNCTION__, 'Removed discovery config from cache', [
-                    'Topic' => $topic,
-                    'CacheCount' => count($cache)
-                ]);
-            }
-        } else {
-            $record = $this->createCacheRecord($topic, $payload, $metadata);
-            if ($record === null) {
-                if (isset($cache[$topic])) {
-                    unset($cache[$topic]);
-                    $cacheChanged = true;
-                }
-                $this->debugExpert(__FUNCTION__, 'Discovery-Payload nicht cachefähig', [
-                    'Topic' => $topic,
-                    'PayloadBytes' => strlen($payload),
-                    'CacheCount' => count($cache)
-                ], true);
-            } elseif (!$this->isEquivalentCacheRecord($cache[$topic] ?? null, $record)) {
-                $cache[$topic] = $record;
-                $cacheChanged = true;
-                $this->debugExpert(__FUNCTION__, 'Cached discovery config', [
-                    'Topic' => $topic,
-                    'CacheCount' => count($cache)
-                ]);
-            }
-        }
-
-        if (!$cacheChanged) {
-            return;
-        }
-
-        $this->writeDiscoveryCache($cache);
-        $this->syncReferencedRuntimeTopicState($cache);
     }
 
     private function buildDiscoveryResponse(): array
@@ -1753,41 +1969,6 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         ]);
     }
 
-    private function updateTopicPayloadCacheFromMessage(string $topic, string $payload, array $metadata = []): void
-    {
-        $topic = trim($topic, '/');
-        if ($topic === '') {
-            return;
-        }
-
-        $cache = $this->readTopicPayloadCache();
-        $cacheChanged = false;
-        if ($this->isDiscoveryConfigTopic($topic) || trim($payload) === '') {
-            if (isset($cache[$topic])) {
-                unset($cache[$topic]);
-                $cacheChanged = true;
-            }
-        } else {
-            $referencedTopics = $this->readReferencedTopicLookup();
-            if (!isset($referencedTopics[$topic])) {
-                if (isset($cache[$topic])) {
-                    unset($cache[$topic]);
-                    $cacheChanged = true;
-                }
-            } else {
-                $record = $this->createCacheRecord($topic, $payload, $metadata, true);
-                if ($record !== null && !$this->isEquivalentCacheRecord($cache[$topic] ?? null, $record)) {
-                    $cache[$topic] = $record;
-                    $cacheChanged = true;
-                }
-            }
-        }
-
-        if ($cacheChanged) {
-            $this->writeTopicPayloadCache($cache);
-        }
-    }
-
     private function isDiscoveryConfigTopic(string $topic, ?string $prefix = null): bool
     {
         $topic = trim($topic, '/');
@@ -1805,6 +1986,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function readDiscoveryCache(): array
     {
+        $this->flushPendingCacheUpdates();
         $decoded = $this->readJsonAttributeArraySafe(self::ATTRIBUTE_DISCOVERY_CACHE);
 
         return $this->normalizeCacheRecords($decoded, true);
@@ -1812,6 +1994,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function readTopicPayloadCache(): array
     {
+        $this->flushPendingCacheUpdates();
         $decoded = $this->readJsonAttributeArraySafe(self::ATTRIBUTE_TOPIC_PAYLOAD_CACHE);
 
         return $this->normalizeCacheRecords($decoded, false);
@@ -1829,6 +2012,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
 
     private function readReferencedTopicLookup(): array
     {
+        $this->flushPendingCacheUpdates();
         $decoded = $this->readJsonAttributeArraySafe(self::ATTRIBUTE_REFERENCED_TOPIC_LOOKUP);
 
         $result = [];
@@ -2471,7 +2655,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         return $normalized;
     }
 
-    private function createCacheRecord(string $topic, string $payload, array $metadata = [], bool $allowBinarySummary = false): ?array
+    private function createCacheRecord(string $topic, string $payload, array $metadata, bool $allowBinarySummary, int $receivedAt, string $sessionId): ?array
     {
         $storedPayload = $this->normalizePayloadForCache($payload, $allowBinarySummary);
         if ($storedPayload === null) {
@@ -2481,7 +2665,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
         $record = [
             'topic' => $topic,
             'payload' => $storedPayload['payload'],
-            'received_at' => time()
+            'received_at' => $receivedAt
         ];
 
         if (!empty($storedPayload['payload_is_binary'])) {
@@ -2490,8 +2674,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
             $record['payload_base64'] = (string)$storedPayload['payload_base64'];
         }
 
-        $session = $this->readMqttSessionState();
-        $sessionId = trim((string)($session['id'] ?? ''));
+        $sessionId = trim($sessionId);
         if ($sessionId !== '') {
             $record['session_id'] = $sessionId;
         }
