@@ -494,8 +494,8 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     // ging nur die Helligkeit hinaus (eine ausgeschaltete AWTRIX-Matrix blieb dunkel) und 0 wurde zu 1.
     private function handleBasicSchemaBrightnessRequest(string $Ident, array $entity, mixed $Value): void
     {
-        // Keine Zahl ist für den Aufrufer ein Fehler wie bei rejectInvalidActionValue. Außerhalb von 0…255 begrenzt
-        // HA (VALID_BRIGHTNESS, vol.Clamp): unter 0 schaltet aus, über 255 kappt sendBasicSchemaBrightness.
+        // Keine Zahl ist für den Aufrufer ein Fehler wie bei rejectInvalidActionValue. Sonst schneidet HA ab und
+        // begrenzt (VALID_BRIGHTNESS: vol.Coerce(int), vol.Clamp(0, 255)): 0.4 wird 0 und schaltet aus, 300 wird 255.
         if (!is_numeric($Value)) {
             $this->debugExpert('RequestAction', 'Helligkeit ist keine Zahl', ['Ident' => $Ident, 'Value' => $Value], true);
             $variableId = @$this->GetIDForIdent($Ident);
@@ -508,8 +508,16 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             return;
         }
 
-        if ((float)$Value <= 0.0) {
+        $brightness = $this->coerceBasicSchemaBrightness($Value);
+        if ($brightness === 0) {
             $this->handleEntityCommandRequest($entity['ident'], $entity, false);
+            return;
+        }
+
+        // Ein Template, das das Modul nicht umsetzen kann, verhindert die ganze Aktion: kein payload_on ohne
+        // Helligkeit und kein optimistisches „an“ ohne Sendung (Nachreview 25.11.2026 Befund 3).
+        $payload = $this->buildBasicSchemaBrightnessPayload($Ident, $entity, $brightness);
+        if ($payload === null) {
             return;
         }
 
@@ -517,7 +525,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         if ($onCommandType === 'first') {
             $this->sendBasicSchemaOn($entity);
         }
-        $this->sendBasicSchemaBrightness($Ident, $entity, $Value);
+        $this->sendBasicSchemaBrightness($Ident, $entity, $brightness, $payload);
         if ($onCommandType === 'last') {
             $this->sendBasicSchemaOn($entity);
         }
@@ -536,21 +544,34 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->sendMqttMessage($entity['command_topic'], $entity['light']['payload_on'], (int)$entity['qos'], (bool)$entity['retain']);
     }
 
-    // Wie HA (schema_basic.py, async_turn_on): Wert 1…255 auf brightness_scale, mindestens 1, an
-    // brightness_command_topic. Ohne brightness_state_topic zeigt HA den gesendeten Wert (optimistisch).
-    private function sendBasicSchemaBrightness(string $Ident, array $entity, int|float|string $Value): void
+    // HA VALID_BRIGHTNESS: vol.Coerce(int) schneidet ab, vol.Clamp begrenzt auf 0…255. Begrenzt wird vor dem
+    // Abschneiden, damit sehr große Werte aus Skripten nicht über den Ganzzahlbereich laufen.
+    private function coerceBasicSchemaBrightness(int|float|string $Value): int
+    {
+        return (int)max(0.0, min(255.0, (float)$Value));
+    }
+
+    // Wie HA (schema_basic.py, async_turn_on): Helligkeit 1…255 auf brightness_scale, mindestens 1, dazu das
+    // brightness_command_template. null, wenn das Modul das Template nicht umsetzen kann.
+    private function buildBasicSchemaBrightnessPayload(string $Ident, array $entity, int $brightness): ?string
     {
         $light = $entity['light'];
         $scale = $light['brightness_scale'];
-        $deviceValue = (string)max(1, (int)min(round((float)$Value / 255 * $scale, 0, PHP_ROUND_HALF_EVEN), $scale));
+        $deviceValue = (string)max(1, (int)min(round($brightness / 255 * $scale, 0, PHP_ROUND_HALF_EVEN), $scale));
         $payload = $light['brightness_command_template'] === null
             ? $deviceValue
             : $this->renderCommandTemplate($light['brightness_command_template'], $deviceValue);
         if ($payload === null) {
-            $this->debugExpert('RequestAction', 'Helligkeits-Template nicht unterstützt', ['Ident' => $Ident, 'Value' => $Value], true);
-            return;
+            $this->debugExpert('RequestAction', 'Helligkeits-Template nicht unterstützt', ['Ident' => $Ident, 'Value' => $brightness], true);
         }
+        return $payload;
+    }
 
+    // Sendet an brightness_command_topic. Ohne brightness_state_topic zeigt HA den gesendeten Wert (optimistisch),
+    // und zwar den begrenzten (bis build 244 stand bei 300 der Rohwert in der Variable).
+    private function sendBasicSchemaBrightness(string $Ident, array $entity, int $brightness, string $payload): void
+    {
+        $light = $entity['light'];
         $this->debugExpert('RequestAction', 'Sende Helligkeit', [
             'Ident' => $Ident,
             'EntityKey' => $entity['entity_key'],
@@ -560,7 +581,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->sendMqttMessage($light['brightness_command_topic'], $payload, (int)$entity['qos'], (bool)$entity['retain']);
 
         if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || $light['brightness_state_topic'] === '') {
-            $this->emulateOptimisticStatus($Ident, $Value);
+            $this->emulateOptimisticStatus($Ident, $brightness);
         }
     }
 
@@ -624,8 +645,13 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             && $this->coerceBooleanActionValue($Value) === true) {
             $brightnessIdent = $this->buildLightAttributeIdent((string)($entity['ident_prefix'] ?? $entity['ident']), 'brightness');
             $brightnessId = @$this->GetIDForIdent($brightnessIdent);
-            $brightness = $brightnessId !== false ? (int)GetValue($brightnessId) : 0;
-            $this->sendBasicSchemaBrightness($brightnessIdent, $entity, $brightness > 0 ? $brightness : 255);
+            $brightness = $brightnessId !== false ? $this->coerceBasicSchemaBrightness(GetValue($brightnessId)) : 0;
+            $brightness = $brightness > 0 ? $brightness : 255;
+            $payload = $this->buildBasicSchemaBrightnessPayload($brightnessIdent, $entity, $brightness);
+            if ($payload === null) {
+                return;
+            }
+            $this->sendBasicSchemaBrightness($brightnessIdent, $entity, $brightness, $payload);
             if ($this->ReadPropertyBoolean(self::PROP_EMULATE_STATUS) || $entity['optimistic'] || $entity['state_topic'] === '') {
                 $this->applyOptimisticValue($entity, $Value);
             }

@@ -483,6 +483,13 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   build 242 ging nur die Helligkeit hinaus (eine ausgeschaltete AWTRIX-Matrix blieb dunkel), und 0 wurde zu 1.
   Eine Helligkeit, die keine Zahl ist, meldet `E_USER_WARNING`; Werte außerhalb von 0…255 begrenzt das Modul wie
   HA (`vol.Clamp`), statt sie abzulehnen (build 244, Befund 5).
+- **Wert wie HA vorbereiten** (build 245, Nachreview 25.11.2026 Befunde 1 bis 3): `coerceBasicSchemaBrightness()`
+  begrenzt auf 0…255 und schneidet ab wie `vol.Coerce(int)`, bevor irgendetwas gesendet oder geschrieben wird. 0.4
+  schaltet also aus, 254.7 geht als 254 hinaus, und „Status emulieren“ schreibt bei 300 den gesendeten Wert 255 (bis
+  build 244 kappte nur das Senden, die Variable bekam 300). Den Payload baut `buildBasicSchemaBrightnessPayload()`
+  vor jeder Sendung; kann das Modul das `brightness_command_template` nicht umsetzen, geht gar nichts hinaus, auch
+  kein `payload_on`, und nichts wird optimistisch gesetzt. Bis build 244 schaltete die Hauptvariable bei
+  `on_command_type` `brightness` dann trotzdem auf an.
 - Im Standard-Schema liest das Modul kein `brightness` aus dem JSON des State- oder Attribut-Topics
   (`extractLightAttributesFromPayload` liefert leer, build 244, Befund 3); bis build 243 schrieb die Auswertung des
   JSON-Schemas den Wert ungeskaliert in dieselbe Variable. Dafür gibt es keinen Mitschnitt, der Test nimmt es an.

@@ -299,4 +299,70 @@ pruefe($s === [], 'Helligkeit „hell“ wird nicht gesendet', json_encode($s));
 pruefe($warnung !== null && str_contains($warnung, 'hell') && $helligkeitId !== null && str_contains($warnung, IPS_GetName($helligkeitId)),
     'Helligkeit „hell“: Warnung mit Wert und Variablenname', (string)$warnung);
 
+// --- Teil 13: Wie HA (VALID_BRIGHTNESS = vol.All(vol.Coerce(int), vol.Clamp(0, 255))) wird die Helligkeit erst
+// ganzzahlig abgeschnitten und begrenzt, dann gesendet und optimistisch geschrieben. Bis build 244 ging 300 als
+// 255 hinaus, „Status emulieren“ schrieb aber 300 in die Variable (Nachreview 25.11.2026 Befund 1).
+$s = schalte($emuliert, $helligkeitIdent, 300);
+pruefe($s === [['Topic' => MATRIX . 'bri_cmd_t', 'Payload' => '255'], ['Topic' => MATRIX . 'cmd_t', 'Payload' => 'ON']],
+    'Helligkeit 300 geht als 255 hinaus', json_encode($s));
+pruefe($wert($eHelligkeit) === 255, 'Emuliert: Helligkeit 300 steht als 255 in der Variable', var_export($wert($eHelligkeit), true));
+
+// --- Teil 14: vol.Coerce(int) schneidet ab: 0.4 wird 0 und schaltet aus, 254.7 wird 254. Bis build 244 schaltete
+// 0.4 mit Helligkeit 1 ein, 254.7 ging als 255 hinaus (Nachreview 25.11.2026 Befund 2).
+$s = schalte($awtrix, $helligkeitIdent, 0.4);
+pruefe($s === [['Topic' => MATRIX . 'cmd_t', 'Payload' => 'OFF']], 'Helligkeit 0.4 schaltet aus wie in HA', json_encode($s));
+$s = schalte($awtrix, $helligkeitIdent, 254.7);
+pruefe($s === [['Topic' => MATRIX . 'bri_cmd_t', 'Payload' => '254'], ['Topic' => MATRIX . 'cmd_t', 'Payload' => 'ON']],
+    'Helligkeit 254.7 geht als 254 hinaus', json_encode($s));
+
+// --- Teil 15 (angenommen, kein Mitschnitt): Ein brightness_command_template, das das Modul nicht umsetzen kann,
+// verhindert jede Sendung. Dann darf auch nichts optimistisch geschrieben werden. Bis build 244 ging bei
+// on_command_type brightness nichts hinaus, „Status emulieren“ setzte die Hauptvariable trotzdem auf an
+// (Nachreview 25.11.2026 Befund 3). Bei „last“ ging zudem payload_on ohne Helligkeit hinaus.
+$zwaveTemplate = $zwave;
+foreach ($zwaveTemplate['discovery_configs'] as &$eintrag) {
+    if (str_ends_with($eintrag['topic'], '/light/Raum-Bild/dimmer/config')) {
+        $eintrag['payload'] = json_encode(
+            ['brightness_command_template' => '{{ (value | int) * 1 }}'] + json_decode($eintrag['payload'], true, 512, JSON_THROW_ON_ERROR),
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+        );
+    }
+}
+unset($eintrag);
+DiscoveryDeviceHarness::$splitterAntwort = [
+    'Items'            => $zwaveTemplate['discovery_configs'],
+    'Count'            => count($zwaveTemplate['discovery_configs']),
+    'DiscoveryPrefix'  => 'homeassistant',
+    'SessionStartedAt' => time() - 3600,
+];
+DiscoveryDeviceHarness::$topicPayloadAntwort = ['Items' => $zwaveTemplate['topic_payloads']];
+$splitter3 = neueFensterInstanz(DiscoverySplitterHarness::class);
+$tBild = neueFensterInstanz(DiscoveryDeviceHarness::class);
+IPS_ConnectInstance($tBild->id(), $splitter3->id());
+$tBild->SetProperty('DeviceID', 'zwavejs2mqtt_0x00000001_node23');
+$tBild->SetProperty('EmulateStatus', true);
+neueAusfuehrung($tBild)->ApplyChanges();
+$tVars = variablenNachIdent($tBild->id());
+$tDimmer = $tVars[$dimmerIdent] ?? null;
+melde($tBild, DIMMER . 'currentValue', dimmerMeldung($zwave, 0));
+pruefe($wert($tDimmer) === false, 'Template: Dimmer zu Beginn aus', var_export($wert($tDimmer), true));
+$s = schalte($tBild, $dimmerHelligkeitIdent, 128);
+pruefe($s === [], 'Template: Helligkeit 128 sendet nichts', json_encode($s));
+pruefe($wert($tDimmer) === false, 'Template: Helligkeit ohne Sendung schaltet die Hauptvariable nicht ein', var_export($wert($tDimmer), true));
+$s = schalte($tBild, $dimmerIdent, true);
+pruefe($s === [], 'Template: Einschalten sendet nichts', json_encode($s));
+pruefe($wert($tDimmer) === false, 'Template: Einschalten ohne Sendung bleibt aus', var_export($wert($tDimmer), true));
+
+$bundleLastTemplate = $bundle;
+foreach ($bundleLastTemplate['discovery_configs'] as &$eintrag) {
+    if (str_ends_with($eintrag['topic'], '/000001_mat/config')) {
+        $eintrag['payload'] = json_encode(['bri_cmd_tpl' => '{{ (value | int) * 1 }}'] + json_decode($eintrag['payload'], true, 512, JSON_THROW_ON_ERROR),
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    }
+}
+unset($eintrag);
+$lastTemplate = awtrixInstanz($bundleLastTemplate, false);
+$s = schalte($lastTemplate, $helligkeitIdent, 128);
+pruefe($s === [], 'Template, last: Helligkeit sendet auch kein ON', json_encode($s));
+
 ergebnis();
