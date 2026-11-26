@@ -3,11 +3,12 @@
 declare(strict_types=1);
 
 // Prüft den geteilten Cluster-Kern (HADomainCatalog::clusterByCommonPrefix / longestCommonStringPrefix)
-// und die zwei Anwendungsformen:
-//  - Legacy (HADeviceCore): Gruppierung nach <base>/<domain>, Kollaps der Objekt-IDs, Kodierung "\\?\/".
-//  - Discovery (MQTT Discovery Device): generelles Präfix-Clustering über volle Topics, Kodierung "(?:\\/|/)".
+// in der Anwendung der klassischen Bridge (HADeviceCore): Gruppierung nach <base>/<domain>, Kollaps der
+// Objekt-IDs, Kodierung "\\?\/".
 // Verifiziert Kollaps, Trennung mehrerer Namensfamilien, Matching inkl. escaped Slashes, Reject fremder
 // Geräte und den Fallback bei heterogenen Namen.
+// Das MQTT Discovery Device fasst seit build 252 nichts mehr über den gemeinsamen Anfang zusammen; seinen Filter
+// prüft check-discovery-receive-filter.php am echten Modul.
 
 require_once __DIR__ . '/harness.php';
 require_once dirname(__DIR__) . '/libs/HADomainCatalog.php';
@@ -54,32 +55,6 @@ function legacyParts(array $topics): array
     return $parts;
 }
 
-// --- Discovery-Pfad: generelles Clustering über volle Topics, Kodierung "(?:\\/|/)" ---
-function encodeDiscovery(string $topic): string
-{
-    return str_replace('\/', '(?:\\\\/|/)', preg_quote($topic, '/'));
-}
-
-function discoveryParts(array $topics): array
-{
-    $names = array_values(array_unique(array_filter($topics, static fn(string $t): bool => $t !== '')));
-    sort($names, SORT_STRING);
-
-    $parts = [];
-    foreach (HADomainCatalog::clusterByCommonPrefix($names, MIN_PREFIX) as $cluster) {
-        $members = $cluster['members'];
-        $prefix = $cluster['prefix'];
-        if (count($members) >= 2 && strlen($prefix) >= MIN_PREFIX) {
-            $parts[] = encodeDiscovery($prefix) . '[^"]*';
-            continue;
-        }
-        foreach ($members as $name) {
-            $parts[] = encodeDiscovery($name);
-        }
-    }
-    return $parts;
-}
-
 function rxMatch(array $parts, string $glue, string $topic): bool
 {
     $filter = '.*"Topic":"(' . $glue . implode('|', $parts) . ')".*';
@@ -115,30 +90,8 @@ $check(rxMatch($lp, '', 'homeassistant\/event\/gast_gast_licht_fernbedienung_tas
 $check(!rxMatch($lp, '', 'homeassistant/sensor/evcc_home_power/state'), 'Legacy reject fremdes Gerät');
 $check(!rxMatch($lp, '', 'homeassistant/switch/other_relay/state'), 'Legacy reject fremde Domain');
 
-// ===== Discovery: volle Leaf-Topics eines Producers (carconnectivity) =====
-$discoveryTopics = [
-    'carconnectivity/0/garage/WVG/charging/state',
-    'carconnectivity/0/garage/WVG/charging/commands/start-stop',
-    'carconnectivity/0/garage/WVG/climatization/state',
-    'carconnectivity/0/garage/WVG/drive/state',
-    'homeassistant/sensor/foo/state',
-];
-$dp = discoveryParts($discoveryTopics);
-echo "\nDiscovery parts: " . count($dp) . ' (von ' . count($discoveryTopics) . " Topics)\n";
-foreach ($dp as $p) {
-    echo '  | ' . $p . "\n";
-}
-// 4 carconnectivity-Topics teilen langen Präfix => 1 Cluster; homeassistant/foo => 1 Single => 2
-$check(count($dp) === 2, 'Discovery: 2 Parts (carconnectivity-Cluster + foo-Single)');
-$check(rxMatch($dp, '?:', 'carconnectivity/0/garage/WVG/charging/state'), 'Discovery match state');
-$check(rxMatch($dp, '?:', 'carconnectivity/0/garage/WVG/climatization/state'), 'Discovery match climatization');
-$check(rxMatch($dp, '?:', 'carconnectivity\/0\/garage\/WVG\/drive\/state'), 'Discovery match escaped slashes');
-$check(rxMatch($dp, '?:', 'homeassistant/sensor/foo/state'), 'Discovery match Single');
-$check(!rxMatch($dp, '?:', 'carconnectivity/1/other/XYZ/state'), 'Discovery reject anderes Fahrzeug');
-
 // ===== Heterogen (kein gemeinsamer Präfix) -> Fallback Einzelauflistung =====
 $het = ['homeassistant/sensor/foo', 'homeassistant/sensor/bar'];
 $check(count(legacyParts($het)) === 2, 'Heterogen Legacy: 2 Einzel-Parts');
-$check(count(discoveryParts(['a/foo', 'a/bar'])) === 2, 'Heterogen Discovery: 2 Einzel-Parts');
 
 ergebnis();

@@ -271,9 +271,11 @@ Umgesetzt:
   benötigte Zeile, statt die ganze Liste zu dekodieren; die Signaturprüfung gegen die ResolvedConfig
   bleibt unverändert. Anlass: Auf einem Raspberry Pi kostete die Volldekodierung bei ~300 Entitäten
   42 ms je Message (Messung beim Anwender, 28.09.2026).
-- **Empfangsfilter-Kollaps:** Beide Geräte-Pfade fassen verwandte Topics über ihren gemeinsamen Präfix zu
-  wenigen Regex-Mustern zusammen (geteilter Kern `HADomainCatalog::clusterByCommonPrefix`), statt jedes
-  Topic einzeln zu listen → weniger Filter-Auswertung pro Nachricht je Kind-Instanz.
+- **Empfangsfilter:** Die klassische Bridge fasst die Objekt-IDs einer Domäne über ihren gemeinsamen Präfix zu
+  wenigen Regex-Mustern zusammen (`HADomainCatalog::clusterByCommonPrefix`). Das MQTT Discovery Device tat das
+  bis 1.10 build 251 über ganze Topics; liegen alle Topics eines Senders unter einer Wurzel, bekam damit jedes
+  Gerät jede Meldung. Seit build 252 trifft sein Filter genau die eigenen Topics
+  (`HAMqttTopicFilter::exactTopicsFilterPattern`, Baum über die Topic-Ebenen).
 - **Bookkeeping-Verwurf nur einmal:** Die Filterung erfolgt zentral im Splitter vor dem Broadcast; die
   früher zusätzlich im Device vorhandene (dann redundante) Prüfung wurde entfernt.
 - **Diagnose:** Performance-Instrumentierung in beiden Splittern und beiden Geräten (per Property gated).

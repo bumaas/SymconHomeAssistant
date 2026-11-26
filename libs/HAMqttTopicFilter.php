@@ -227,4 +227,64 @@ class HAMqttTopicFilter
         }
         return '.*"Topic":"' . preg_quote($firstSegment) . '.*';
     }
+
+    /**
+     * Empfangsfilter eines Kindes, das eine feste Liste von Topics auswertet: Er trifft genau diese Topics,
+     * keinen Anfang und keine Verlängerung davon. '^$' (nichts), wenn die Liste leer ist.
+     *
+     * Die Topics stehen als Baum über ihre Ebenen im Muster, ein gemeinsamer Anfang also nur einmal:
+     * a/b/x und a/b/y werden zu a\/b\/(?:x|y). Bis build 251 fasste das MQTT Discovery Device Topics mit
+     * mindestens drei gemeinsamen Zeichen zu „Anfang und irgendetwas“ zusammen. Liegen alle Topics eines Senders
+     * unter einer Wurzel (Z-Wave JS UI, EMS-ESP, Zigbee2MQTT), genügte dafür das availability-Topic der Bridge:
+     * Jedes Gerät bekam jede Meldung des Senders.
+     *
+     * Der Schrägstrich steht als „\/“ im Muster (der Kernel wendet es mit eigenem Begrenzer an) und darf in der
+     * Meldung maskiert sein. Zeichen außerhalb von ASCII ersetzt ein Platzhalter für die Ebene, damit das Muster
+     * auch passt, falls sie in der Meldung als \uXXXX stehen (nicht gemessen, Vorsicht).
+     *
+     * @param string[] $topics
+     */
+    public static function exactTopicsFilterPattern(array $topics): string
+    {
+        $tree = [];
+        foreach ($topics as $topic) {
+            if (!is_string($topic) || $topic === '') {
+                continue;
+            }
+            $node = &$tree;
+            foreach (explode('/', $topic) as $level) {
+                $node['children'][$level] ??= [];
+                $node = &$node['children'][$level];
+            }
+            $node['end'] = true;
+            unset($node);
+        }
+        if ($tree === []) {
+            return '^$';
+        }
+
+        return '.*"Topic":"' . self::renderTopicTree($tree) . '".*';
+    }
+
+    private static function renderTopicTree(array $node): string
+    {
+        $alternatives = [];
+        foreach ($node['children'] as $level => $child) {
+            $pattern = self::quoteTopicLevel((string)$level);
+            if (isset($child['children'])) {
+                $rest = '\\\\?\\/' . self::renderTopicTree($child);
+                $pattern .= isset($child['end']) ? '(?:' . $rest . ')?' : $rest;
+            }
+            $alternatives[] = $pattern;
+        }
+
+        return count($alternatives) === 1 ? $alternatives[0] : '(?:' . implode('|', $alternatives) . ')';
+    }
+
+    private static function quoteTopicLevel(string $level): string
+    {
+        $asciiParts = preg_split('/[^\x00-\x7F]+/', $level);
+
+        return implode('[^"\\/]+', array_map(static fn(string $part): string => preg_quote($part, '/'), $asciiParts === false ? [$level] : $asciiParts));
+    }
 }

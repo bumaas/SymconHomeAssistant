@@ -588,6 +588,45 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Geräten und `discovery_zwavejs_20261125.json`). Der Geräte-Rahmen schneidet dafür die Anfragen an den Splitter
   mit (`DiscoveryDeviceHarness::$anfragen`).
 
+## MQTT Discovery: Empfangsfilter trifft genau die eigenen Topics (1.10 build 252)
+
+- Anlass: Performance-Mitschnitt von herbertf (PN t/145051 #5, 26.11.2026, Z-Wave JS UI, 72 Geräte, Raspberry Pi).
+  Der Splitter brauchte je Meldung im Median 1277 ms, davon 1189 ms für `SendDataToChildren`; in 332 s verarbeitete
+  er 259 Meldungen und war die ganze Zeit beschäftigt. Die beiden mitgeschnittenen Geräte bekamen jede Meldung,
+  auch die fremder Geräte, und brauchten je 8 bzw. 14 ms dafür (`getRuntimeProcessingContext`, nie aus dem Memo).
+  **Das war der Rückstau**, nicht die Zwischenspeicher: build 246 nahm je Meldung 86 ms weg
+  (`updateTopicPayloadCache`), nach dem Update auf build 250 lag der Median noch bei 1092 ms.
+- Ursache: `buildReceiveFilterRegexParts()` fasste seit 27.06.2026 (`3dbebc8`) Topics mit mindestens drei
+  gemeinsamen Anfangszeichen zu „Anfang und irgendetwas“ zusammen. Liegt alles eines Senders unter einer Wurzel,
+  reicht dafür das availability-Topic der Bridge neben den Topics des Geräts: Der Filter jedes Geräts lautete
+  `Z-Wave-JS/…`. Dasselbe bei EMS-ESP (`ems-esp/…`) und Zigbee2MQTT (`zigbee2mqtt/…`, Fixture mit 88 Lampen:
+  jede Meldung an alle 88).
+- Jetzt baut `HAMqttTopicFilter::exactTopicsFilterPattern()` den Filter als Baum über die Topic-Ebenen: genau die
+  Topics aus `collectRelevantTopics()`, kein Anfang und keine Verlängerung. Mit herbertfs Bundle und den 400
+  Meldungen seines Mitschnitts im Harness: vorher 28.800 Zustellungen (jede an 72 Geräte), jetzt 55 (345 Meldungen
+  an kein Gerät, 55 an je eines). Der Filter eines Geräts ist dort im Median 367 Zeichen lang.
+- Bauformen des Musters: Schrägstrich als `\\?\/` wie im Filter der klassischen Bridge, Gruppen `(?:…)` und
+  `(?:…)?`. Zeichen außerhalb von ASCII ersetzt `[^"\/]+` für die Ebene, damit das Muster auch passt, falls sie in
+  der Meldung als `\uXXXX` stehen; ob der Kernel das je tut, ist nicht gemessen (der Splitter sendet mit
+  `JSON_UNESCAPED_UNICODE`).
+- **Topics abgewählter Entitäten kommen nicht mehr an.** Der Topic-Index führt ihr Zustands-Topic unter `topics`
+  und `warnings`, der Filter nimmt wie vor dem 27.06. nur `collectRelevantTopics()` (angewählte Entitäten). Die
+  Warnung in der Entitätenliste gleicht das Formular beim Öffnen aus dem Zwischenspeicher des Splitters ab. Wer
+  eine neue Art Topic auswertet, trägt sie in `collectRelevantTopics()` **und** `buildTopicProcessingIndex()` ein;
+  der Test vergleicht beide.
+- Nicht live belegt: Am nuc hängen nur zwei Geräte an einem Splitter mit MQTT-Quelle, beide ohne laufende
+  Meldungen. Übernommen haben alle zehn Geräte den neuen Filter ohne Fehler; dass der Kernel damit zustellt, ist
+  aus den Bauformen geschlossen (alle im Filter der klassischen Bridge täglich in Gebrauch, außer der Klasse für
+  Nicht-ASCII-Zeichen).
+- Offen: `getRuntimeProcessingContext()` baut den Kontext unter Rust bei jeder Meldung neu (8 bis 14 ms am
+  Raspberry Pi); mit dem genauen Filter trifft das nur noch das Gerät, das die Meldung braucht. Der Filter der
+  klassischen Bridge (`HADeviceCore::buildReceiveFilterRegexParts`) fasst weiter Objekt-IDs einer Domäne über den
+  gemeinsamen Anfang zusammen; ob das dort Fremdverkehr durchlässt, ist nicht gemessen.
+- Test: `tests/check-discovery-receive-filter.php` (Fixtures `discovery_ems_esp_20261116.json`,
+  `ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json`, `discovery_zwavejs_20261125.json`; die fremden
+  Meldungen in Teil 2 aus dem Mitschnitt, Namen ersetzt; der Fall mit Umlaut ist eine Variante der Fixture).
+  `check-receive-filter-collapse.php` prüft nur noch die klassische Bridge.
+
 ## MQTT Discovery: Sensortyp bleibt stabil (1.10 build 248)
 
 - Anlass: herbertf (PN t/145051, 26.11.2026). Nach „Änderungen übernehmen“ hatten Batterie und Helligkeit eines

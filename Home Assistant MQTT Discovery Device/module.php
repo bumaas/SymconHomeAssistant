@@ -3440,54 +3440,12 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->topicIndexMemo = null; // gelesen wird ab jetzt der neue Stand
     }
 
+    // Genau die Topics, die das Gerät auswertet (build 252). Bis build 251 fasste der Filter Topics über ihren
+    // gemeinsamen Anfang zusammen; bei Sendern mit einer Wurzel für alles bekam jedes Gerät jede Meldung, und
+    // der Splitter wartete je Meldung auf alle (Anwender mit 72 Geräten: 1,1 bis 1,3 s je Meldung).
     private function updateReceiveFilter(array $topics): void
     {
-        if ($topics === []) {
-            $this->SetReceiveDataFilter('^$');
-            return;
-        }
-
-        $pattern = '.*"Topic":"(?:' . implode('|', $this->buildReceiveFilterRegexParts($topics)) . ')".*';
-        $this->SetReceiveDataFilter($pattern);
-    }
-
-    /**
-     * Fasst verwandte Topics über ihren gemeinsamen Präfix zusammen (geteilter Cluster-Kern in
-     * HADomainCatalog), statt jedes Topic einzeln aufzulisten. Reduziert die Zahl der Regex-Alternativen,
-     * die der Kernel pro Nachricht je Kind-Instanz auswertet. Kollabierte Muster sind geringfügig breiter;
-     * unkritisch, da ReceiveData nicht zugeordnete Topics über den Topic-Index ohnehin verwirft.
-     *
-     * @param string[] $topics
-     * @return string[]
-     */
-    private function buildReceiveFilterRegexParts(array $topics): array
-    {
-        $names = array_values(array_unique(array_filter($topics, static fn(string $t): bool => $t !== '')));
-        sort($names, SORT_STRING);
-
-        $minPrefix = 3;
-        $parts = [];
-        foreach (HADomainCatalog::clusterByCommonPrefix($names, $minPrefix) as $cluster) {
-            $members = $cluster['members'];
-            $prefix = $cluster['prefix'];
-
-            if (count($members) >= 2 && strlen($prefix) >= $minPrefix) {
-                $parts[] = $this->buildReceiveFilterTopicPattern($prefix) . '[^"]*';
-                continue;
-            }
-
-            foreach ($members as $name) {
-                $parts[] = $this->buildReceiveFilterTopicPattern($name);
-            }
-        }
-
-        return $parts;
-    }
-
-    private function buildReceiveFilterTopicPattern(string $topic): string
-    {
-        $quoted = preg_quote($topic, '/');
-        return str_replace('\/', '(?:\\\\/|/)', $quoted);
+        $this->SetReceiveDataFilter(HAMqttTopicFilter::exactTopicsFilterPattern($topics));
     }
 
     private function loadCachedTopicPayloads(array $entities): array

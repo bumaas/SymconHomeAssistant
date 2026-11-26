@@ -114,3 +114,33 @@ Das Gerät schreibt `LastMQTTMessage` höchstens alle 5 s, der Konfigurator hat 
 - Wie ein Modul nach Symcons Vorstellung einige MB veränderlichen Zustand halten soll. Vor Etappe 3 beim
   Hersteller nachfragen.
 - Alle Kosten am echten Kernel und auf langsamer Hardware.
+
+## Messung beim Anwender (26.11.2026) und was daraus folgt
+
+Der Performance-Mitschnitt des Anwenders (Splitter und zwei Geräte, je rund fünf Minuten vor und drei Minuten nach
+dem Update von build 244 auf build 250) zeigt eine Ursache, die in der Tabelle oben fehlt:
+
+| Messpunkt im Splitter, je Meldung (Median) | build 244 | build 250 |
+|---|---|---|
+| Verteilen an die Geräte (`SendDataToChildren`) | 1189 ms | 1091 ms |
+| Zwischenspeicher (`updateTopicPayloadCache` bzw. Vormerken) | 86 ms | 0,1 ms |
+| zusammen | 1277 ms | 1092 ms |
+
+Vor dem Update verarbeitete der Splitter 259 Meldungen in 332 s und war die ganze Zeit beschäftigt. Beide Geräte
+bekamen jede Meldung, auch die fremder Geräte, und brauchten dafür je 8 bzw. 14 ms. Der Empfangsfilter der Geräte
+fasste Topics über ihren gemeinsamen Anfang zusammen und ließ bei diesem Sender alles durch; 72 Geräte mal
+8 bis 14 ms sind die gemessene Sekunde.
+
+Mit 1.10 build 252 trifft der Filter genau die Topics des Geräts. Mit dem Bundle des Anwenders und den 400
+Meldungen seines Mitschnitts im Test: vorher 28.800 Zustellungen, jetzt 55.
+
+Für das Zielbild heißt das:
+
+- Der Rückstau kam aus dem Verteilen, nicht aus den Zwischenspeichern. Das Vormerken aus build 246 hat beim
+  Anwender 7 % der Zeit je Meldung gespart. Es bleibt ein Workaround, den Etappe 3 ersetzt, ist aber nicht mehr
+  dringend.
+- Etappe 1 bestätigt sich am Gerät des Anwenders: `resolveRuntimeDeviceDefinition` kostete dort mit build 250 je
+  Gerät 1430 und 1462 ms (im Test am PC 440 ms).
+- Neu auf der Liste: Der Verarbeitungskontext eines Geräts wird unter Rust bei jeder Meldung neu aufgebaut
+  (8 bis 14 ms). Mit dem genauen Filter trifft das nur noch das Gerät, das die Meldung braucht.
+- Ob build 252 den Rückstau beim Anwender beseitigt, zeigt erst ein neuer Mitschnitt von dort.
