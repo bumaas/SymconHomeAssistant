@@ -400,7 +400,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Test: `tests/check-discovery-reachability.php` (Fixture `discovery_availability_20261003.json`).
 - **Z-Wave JS UI** (build 247, herbertf PN t/145051): je Entität drei availability-Topics (Knoten, MQTT-Client des
   Gateways, Treiber), Modus `latest`. Knoten und Gateway tragen ein Template mit dem bloßen Feld als Bedingung
-  (`{{'true' if value_json.value else 'false'}}`, beim Knoten mit `'online'`/`'offline'`). Bis build 246 kannte `HAMqttDiscoveryTemplate::parseGuard` das
+  (`{{'true' if value_json.value else 'false'}}`, beim Gateway mit `'online'`/`'offline'`). Bis build 246 kannte `HAMqttDiscoveryTemplate::parseGuard` das
   nicht, `evaluateAvailabilityEntry` verglich dann den rohen JSON-Text mit „true“: Alle Geräte standen auf „Nicht
   erreichbar“. Jetzt gibt es die Prüfung `truthy` mit dem Wahrheitswert von Python (der Text „0“ ist wahr, anders
   als in PHP); sie gilt für jedes bedingte Template, nicht nur für availability. `or` und `not` bleiben nicht
@@ -543,8 +543,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
     über `runWithCacheLock()`: `pruneCaches` (ApplyChanges, Verbindung auf und ab), „Veraltete entfernen“,
     Leeren und Laden eines Bundles. Bis build 248 schrieben diese einen Stand zurück, den sie ohne die Sperre
     gelesen hatten, und konnten so das Ergebnis eines gleichzeitigen Bündelns überschreiben. Innerhalb der Sperre
-    läuft verschachtelte Arbeit direkt (`cacheLockDepth`), weil eine Semaphore im Stub nicht wiedereintrittsfähig
-    ist. Wird sie nicht frei: `pruneCaches` entfällt bis zum nächsten Mal, „Veraltete entfernen“ bittet den
+    läuft verschachtelte Arbeit direkt (`cacheLockDepth`), weil eine Semaphore nicht wiedereintrittsfähig
+    ist (im Stub wie an drei Anlagen mit 9.1 Rust und 9.0 C++, 26.11.2026; dort auch belegt: Wartezeit 0 kehrt sofort
+    zurück, und der Kernel gibt eine Semaphore frei, wenn ihr Skript-Thread ohne Leave endet). Wird sie nicht frei: `pruneCaches` entfällt bis zum nächsten Mal, „Veraltete entfernen“ bittet den
     Anwender, es gleich noch einmal zu versuchen, Leeren und Bundle schreiben trotzdem (sie ersetzen den Bestand
     ganz). Ein reiner Leser liest nach 5 s ohne Sperre den Stand ohne die gerade gebündelten Zeilen; zurückschreiben
     darf er ihn nicht.
