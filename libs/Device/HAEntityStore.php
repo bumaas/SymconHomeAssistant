@@ -144,6 +144,32 @@ trait HAEntityStoreTrait
         if ($raw === '') {
             $raw = $this->ReadAttributeString('EntityStateCache');
         }
+        return $this->rememberEntityStateCache($raw);
+    }
+
+    // Stand des Caches unmittelbar vor einer Änderung. Der Kernel lässt mehrere Aufrufe gleichzeitig in dieselbe
+    // Instanz (nuc 27.11.2026: fünf Aufrufe in je 8 bis 19 ms, während ein Übernehmen 3,6 s lief). Eine
+    // Ausführung, die den beim ersten Lesen gemerkten Stand zurückschreibt, löscht deshalb, was eine Meldung
+    // inzwischen eingetragen hat: beim Übernehmen (eine REST-Abfrage je Entität) und beim Schalten mit „Status
+    // emulieren“ (bis build 259). Darum vor jeder Änderung den Buffer neu lesen und nur den eigenen Eintrag
+    // hineinsetzen. Das kostet einen Buffer-Lesezugriff je Änderung; dekodiert wird nur, wenn eine andere
+    // Ausführung geschrieben hat. Zwischen diesem Lesen und dem Schreiben bleibt eine Lücke ohne Sperre, sie ist
+    // aber so kurz wie die beiden Kernel-Aufrufe und nicht mehr so lang wie die ganze Ausführung.
+    private function readEntityStateCacheForUpdate(): array
+    {
+        if (!is_array($this->entityStateCacheMemory)) {
+            return $this->readEntityStateCache();
+        }
+
+        $raw = $this->GetBuffer(self::BUFFER_ENTITY_STATE_CACHE);
+        if ($raw === '' || $raw === $this->entityStateCacheEncoded) {
+            return $this->entityStateCacheMemory;
+        }
+        return $this->rememberEntityStateCache($raw);
+    }
+
+    private function rememberEntityStateCache(string $raw): array
+    {
         $this->entityStateCacheEncoded = $raw;
         if ($raw === '') {
             return $this->entityStateCacheMemory = [];
@@ -402,7 +428,7 @@ trait HAEntityStoreTrait
 
     private function updateEntityCache(string $entityId, mixed $state, ?array $attributes): void
     {
-        $cache = $this->readEntityStateCache();
+        $cache = $this->readEntityStateCacheForUpdate();
         $entry = $this->getEntityStateCacheEntry($entityId, $cache);
         if ($state !== null) {
             $entry[self::KEY_STATE] = $state;
@@ -419,7 +445,7 @@ trait HAEntityStoreTrait
 
     private function updateEntityRawStateCache(string $entityId, mixed $rawState): void
     {
-        $cache = $this->readEntityStateCache();
+        $cache = $this->readEntityStateCacheForUpdate();
         $entry = $this->getEntityStateCacheEntry($entityId, $cache);
         if (is_string($rawState) && trim($rawState) !== '') {
             $entry['raw_state'] = $rawState;

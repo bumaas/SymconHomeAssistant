@@ -1258,7 +1258,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             }
         }
 
-        $cache = $this->readEntityStateCache();
+        $cache = $this->readEntityStateCacheForUpdate();
         $changed = false;
         foreach ($entityIds as $entityId) {
             if (!isset($cache[$entityId])) {

@@ -83,6 +83,20 @@ final class HaSendungen
     /** @var array<string, int>|null Antwort des Splitters auf die Anzeigegenauigkeit; null = echter Weg (ohne Parent: keine Antwort). */
     public static ?array $anzeigeGenauigkeit = null;
 
+    /**
+     * Läuft, während eine Anfrage an Home Assistant unterwegs ist (REST-Service, GET /api/states oder ein
+     * set-Topic, das der Splitter per REST ausführt), also mitten in der Ausführung, die sie gestellt hat. Der
+     * Kernel lässt in dieser Zeit weitere Aufrufe in dieselbe Instanz (nuc 27.11.2026); ein Test legt hier
+     * Meldungen einer zweiten Ausführung hinein. Parameter: Art ('rest', 'zustand' oder 'mqtt') und Entität
+     * bzw. Topic.
+     *
+     * @var (Closure(string, string): void)|null
+     */
+    public static ?Closure $unterwegs = null;
+
+    /** Antwort auf HasActiveParent(); null = echter Weg (im Bundle-Modus ohne Parent: false). */
+    public static ?bool $parentAktiv = null;
+
     /** @return list<array> Sendungen seit dem letzten Aufruf */
     public static function abholen(): array
     {
@@ -233,7 +247,24 @@ trait ModulRahmenTrait
     protected function sendServiceRequestToParent(string $domain, string $service, array $data): bool
     {
         HaSendungen::$liste[] = ['rest', $domain, $service, $data];
+        if (HaSendungen::$unterwegs !== null) {
+            (HaSendungen::$unterwegs)('rest', (string)($data['entity_id'] ?? ''));
+        }
         return HaSendungen::$restAntwort ?? parent::sendServiceRequestToParent($domain, $service, $data);
+    }
+
+    protected function HasActiveParent(): bool
+    {
+        return HaSendungen::$parentAktiv ?? parent::HasActiveParent();
+    }
+
+    /** @var array<string, int> Lesezugriffe je Buffer */
+    public static array $pufferLesungen = [];
+
+    protected function GetBuffer(string $Name): string
+    {
+        self::$pufferLesungen[$Name] = (self::$pufferLesungen[$Name] ?? 0) + 1;
+        return parent::GetBuffer($Name);
     }
 
     protected function requestDisplayPrecisions(array $entityIds): ?array
@@ -247,12 +278,18 @@ trait ModulRahmenTrait
     protected function requestHaState(string $entityId): ?array
     {
         HaSendungen::$zustandsAbfragen[] = $entityId;
+        if (HaSendungen::$unterwegs !== null) {
+            (HaSendungen::$unterwegs)('zustand', $entityId);
+        }
         return HaSendungen::$zustaende[$entityId] ?? parent::requestHaState($entityId);
     }
 
     protected function sendMqttMessage(string $topic, string $payload): void
     {
         HaSendungen::$liste[] = ['mqtt', $topic, $payload];
+        if (HaSendungen::$unterwegs !== null) {
+            (HaSendungen::$unterwegs)('mqtt', $topic);
+        }
         parent::sendMqttMessage($topic, $payload);
     }
 

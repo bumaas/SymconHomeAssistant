@@ -17,7 +17,7 @@ gemeinsamem Code.
 | Performance-Messung im Splitter | Klassisch: dieselben Debug-Zeilen, dazu Statistik per Timer und eine Meldung bei langsamen Schritten | klassisch → Discovery | offen (Etappe 6) |
 | Attribut je Meldung im Splitter | Keine von beiden: klassisch liest `PendingRestAcks`, Discovery den Sitzungszustand. Besser ist ein Buffer bzw. der Statuswechsel des Parents. | beide | offen (Etappe 6) |
 | Anfangswerte neuer Geräte | Beide liefern sie sofort: klassisch per REST aus Home Assistant, Discovery aus dem Zwischenspeicher des Splitters | bleibt | Etappe 2 gestrichen |
-| Zustand gebündelt schreiben | Offen. Das klassische Gerät schreibt seinen Zustands-Cache ohne Sperre (Buffer je Meldung, Attribut per Timer), der Discovery-Splitter merkt vor und bündelt mit zwei Sperren. | hängt an der Antwort des Herstellers | offen (Etappe 3) |
+| Zustand gebündelt schreiben | Offen. Das klassische Gerät schreibt seinen Zustands-Cache ohne Sperre (Buffer je Meldung, Attribut per Timer), der Discovery-Splitter merkt vor und bündelt mit zwei Sperren. | Sperren bleiben (parallele Aufrufe belegt, 27.11.2026). Das klassische Gerät liest seinen Cache seit build 260 vor jeder Änderung neu | Etappe 3 erledigt |
 
 Ein Unterschied bleibt: Bei der klassischen Bridge hält Home Assistant den Bestand, und alle fragen ihn über den
 Splitter per REST ab. Einen Broker kann man nicht abfragen. Der Discovery-Splitter steht deshalb für Home Assistant
@@ -116,7 +116,7 @@ Jede Etappe ist für sich veröffentlichbar und wird an echten Daten gemessen.
 | 1 | Gerät fragt nur seine eigenen Ankündigungen ab. Konfigurator bekommt einen Empfangsfilter. Gerät schreibt `LastMQTTMessage` gedrosselt. | keines | gebaut mit build 251 |
 | 1a | Empfangsfilter des Geräts trifft nur noch die eigenen Topics. Kam erst durch die Messung auf die Liste. | Topics abgewählter Entitäten kommen nicht mehr an | gebaut mit build 252, beim Anwender gemessen (Abschnitt „Zweite Messung“) |
 | 2 | Splitter speichert keine Werte mehr. Export bekommt die Aufzeichnung. Gerät legt Typen ohne Zwischenspeicher an. | Punkte 1 bis 3 oben | **gestrichen** (27.11.2026) |
-| 3 | Vormerken und Sperren aus build 246 und 249 so weit vereinfachen, wie es ohne Sperre sicher ist | keines | offen, wartet auf die Antwort des Herstellers |
+| 3 | Vormerken und Sperren aus build 246 und 249 so weit vereinfachen, wie es ohne Sperre sicher ist | keines | Sperren bleiben (27.11.2026, Abschnitt „Parallele Aufrufe in einer Instanz“). Das klassische Gerät liest seinen Zustands-Cache seit build 260 vor jeder Änderung neu |
 | 4 | Gerät baut seinen Verarbeitungskontext nicht mehr bei jeder Meldung neu auf. Kam durch die Messung auf die Liste. | keines | gebaut mit build 258 |
 | 5 | Klassisches Gerät bekommt den genauen Empfangsfilter (`HAMqttTopicFilter`) | keines | gebaut mit build 259 |
 | 6 | Gemeinsamer Code für beide Splitter (Topic-Statistik, Performance-Messung, Teile des Selbsttests), Buffer statt Attribut je Meldung | Discovery-Splitter bekommt die Performance-Statistik des klassischen | offen |
@@ -132,10 +132,62 @@ Bridge. Die Entscheidungen 1 und 2 unten sind damit hinfällig.
 Für Etappe 3 heißt das: Das Vormerken bleibt, sonst läse und schriebe der Splitter wieder bei jeder Meldung den
 ganzen Bestand (beim Anwender 86 ms). Im Aufbau gleicht es dem Zustands-Cache des klassischen Geräts (Buffer im
 heißen Pfad, Timer schreibt das Attribut). Anders sind die zwei Sperren und die Regel „vor jedem Lesen bündeln“.
-Ob sie entfallen können, hängt an zwei Fragen an den Hersteller: Laufen `ReceiveData`-Aufrufe einer Instanz
-nacheinander oder nebeneinander, und wie soll ein Modul einige MB veränderlichen Zustand halten? Laufen sie
-nebeneinander, fehlt umgekehrt dem klassischen Gerät ein Schutz, denn es liest und schreibt seinen Zustands-Cache
-je Meldung ohne Sperre.
+Die Sperren bleiben: Der Kernel lässt mehrere Aufrufe gleichzeitig in dieselbe Instanz (nächster Abschnitt). Offen
+ist nur noch die Frage an den Hersteller, wie ein Modul einige MB veränderlichen Zustand halten soll.
+
+### Parallele Aufrufe in einer Instanz (27.11.2026)
+
+Die Meldungen einer Instanz kommen nacheinander. Der MQTT Client wartet auf den Splitter und der Splitter auf
+seine Geräte, weil `SendDataToChildren` erst zurückkehrt, wenn alle Kinder fertig sind. Im ersten Mitschnitt des
+Anwenders liefen 259 Meldungen in 332 s bei 1,28 s je Meldung, also ohne Überlappung.
+
+Alles andere läuft daneben, in eigenen Threads: Timer, `RequestAction` (Schalten, Knöpfe im Formular),
+`ApplyChanges`, Anfragen der Kinder. Zwei Belege:
+
+- Zweiter Mitschnitt des Anwenders, Discovery-Splitter: Ein Bündeln von 122,5 ms endet mitten in einem
+  `ReceiveData`, das insgesamt 5,3 ms dauert. Das war 1 von 100 Bündel-Läufen bei einem Splitter, der 1,3 % der
+  Zeit beschäftigt ist.
+- Versuch an der eigenen Anlage (Rust-Edition), klassisches Gerät mit 110 Entitäten: Während ein Übernehmen
+  3,6 s lief (`RequestAction` mit `DeferredApply`), kehrten fünf Aufrufe von `StateCacheFlush` derselben Instanz
+  in je 8 bis 19 ms zurück. Der Splitter meldete in dieser Zeit keinen Ausreißer über 100 ms, obwohl das Gerät gut
+  zwei Meldungen je Sekunde bekommt. Seine `ReceiveData` warteten also nicht auf das Übernehmen.
+
+Für den Discovery-Splitter heißt das: Vormerk-Sperre und Sperre der Zwischenspeicher sind nötig.
+
+Für das klassische Gerät (und die Entity) ergab das Lesen des Codes (im Testrahmen nachgestellt, an der Anlage
+nicht):
+
+- **Timer gegen Meldung ist durch die Reihenfolge sicher.** Der Timer schreibt den Buffer nicht, er kopiert ihn
+  ins Attribut. Die Meldung schreibt erst den Cache, setzt dann den Merker und stellt zuletzt den Timer; der
+  Timer stellt sich zuerst ab und löscht den Merker vor dem Auswerten. Ausnahme: Mit der Variable „Nicht
+  verfügbare Entitäten (JSON)“ liest der Timer den Cache schon für diese Variable und wertet die Erreichbarkeit danach
+  mit demselben Stand aus. Eine Meldung, die dazwischen ankommt, wird dann nicht ausgewertet, ihr Merker aber
+  gelöscht.
+- **Übernehmen und Schalten überschrieben den Cache mit einem alten Stand** (bis build 259). Jede Ausführung las
+  den ganzen Cache einmal (`entityStateCacheMemory`) und schrieb bei jeder Änderung den ganzen Stand zurück. Wo
+  eine Ausführung zwischen Lesen und Schreiben auf Home Assistant wartet:
+  - Übernehmen und `SyncStates`, eine REST-Abfrage je Entität, zusammen Sekunden.
+  - Entity-Instanz: Schalten der Hauptvariable mit „Status emulieren“ (das `set`-Topic führt der Splitter per
+    REST aus).
+  - Gerät: Schalten von `number`, `input_text`, `datetime` und `input_datetime` mit „Status emulieren“, dazu der
+    Klima-Modus. Die Hauptvariable anderer Domänen schreibt im Gerät nach dem Senden nichts in den Cache, auch
+    mit „Status emulieren“ nicht (anders als in der Entity-Instanz).
+  - Der Timer, der die Quelle eines Mediaplayers per REST nachfragt.
+- Die Variablen stimmen zunächst, sie bekommen ihren Wert aus der Meldung. Falsch wurde, was später aus dem Cache
+  abgeleitet wird. Im Testrahmen nachgestellt: Kam eine Entität während des Übernehmens von „unavailable“ zurück,
+  führte der Cache sie weiter als ausgefallen, und standen die anderen auch so da, galt das Gerät nach zehn
+  Minuten als nicht erreichbar. In der Entity-Instanz sprang die gerade gemeldete Helligkeit eines Lichts beim
+  nächsten Attribut-Topic auf 0.
+
+**Seit build 260** liest jede Änderung den Buffer vorher neu (`readEntityStateCacheForUpdate`) und setzt nur den
+eigenen Eintrag hinein. Das kostet einen Buffer-Lesezugriff je Änderung, im Testrahmen zwei statt einem je
+Meldung. Was bleibt:
+
+- Zwischen dem Lesen und dem Schreiben liegt weiter keine Sperre. Die Lücke ist so kurz wie die zwei
+  Kernel-Aufrufe.
+- Die Ausnahme beim Timer mit „Nicht verfügbare Entitäten (JSON)“ oben.
+- Eine Meldung, die jünger ist als die REST-Antwort zur selben Entität und vor ihr verarbeitet wird, wird von der
+  älteren Antwort überschrieben.
 
 ### Stand Etappe 4 (1.10 build 258)
 
@@ -203,7 +255,11 @@ Nach dem zweiten Mitschnitt (27.11.2026):
   hat er einen Filter, gemessen wurde es davor nicht.
 - Erledigt: Ob der Kernel mit dem genauen Filter aus build 252 an einer laufenden Anlage richtig zustellt. Der
   zweite Mitschnitt des Anwenders zeigt es, auch für ein Topic mit Umlauten.
-- Ob `ReceiveData`-Aufrufe einer Instanz nacheinander oder nebeneinander laufen (Etappe 3).
+- Erledigt: Ob `ReceiveData`-Aufrufe einer Instanz nacheinander oder nebeneinander laufen. Untereinander
+  nacheinander, gegenüber Timer, `RequestAction` und `ApplyChanges` nebeneinander (Abschnitt „Parallele Aufrufe
+  in einer Instanz“).
+- Ob der Zustands-Cache des klassischen Geräts an einer laufenden Anlage wirklich Meldungen verlor. Nachgestellt
+  ist es nur im Testrahmen (`check-state-cache-parallel.php`); der Cache ist von außen nicht lesbar.
 - Ob das Gerät den Variablentyp ohne zwischengespeicherten Wert überall sinnvoll festlegen kann. Heute hängt er
   bei Sensoren, `number` und `cover` am Wert.
 - Wie ein Modul nach Symcons Vorstellung einige MB veränderlichen Zustand halten soll. Vor Etappe 3 beim

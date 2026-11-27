@@ -560,6 +560,11 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
     (`flushPendingCacheUpdates(0)`); bis build 248 wartete jede weitere Meldung bis zu 5 s auf ein laufendes
     Bündeln.
   - Neue Schreiber der Zwischenspeicher gehören in `runWithCacheLock()`.
+  - **Die Sperren sind nötig, belegt am 27.11.2026:** Meldungen einer Instanz kommen nacheinander, aber Timer,
+    `RequestAction` und `ApplyChanges` laufen daneben. Im Mitschnitt eines Anwenders endet ein Bündeln von 122 ms
+    mitten in einem `ReceiveData` von 5 ms; am nuc kehrten fünf `StateCacheFlush` eines klassischen Geräts in je 8
+    bis 19 ms zurück, während sein Übernehmen 3,6 s lief. Für das klassische Gerät siehe den Abschnitt
+    „Zustands-Cache bei parallelen Aufrufen“.
 - Grenzen: Was vorgemerkt ist, geht bei einem Kernel-Absturz verloren (höchstens ein Timer-Abstand; die Variablen
   der Geräte sind davon nicht betroffen, sie bekommen jede Meldung sofort). Das Bündeln selbst liest und schreibt
   weiter die ganzen Attribute; wer das verkleinern will, muss die Zwischenspeicher aufteilen.
@@ -693,6 +698,39 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `discovery_ems_esp_20261116.json`): Lesezugriffe je Meldung, Gleichheit für jedes Topic der vier Geräte,
   gleiche Werte mit und ohne Cache, geänderte Ankündigung, Blob mit fremder Signatur, beschädigte Zeile,
   Erreichbarkeit, Reload-Fenster. Das klassische Gerät prüft weiter `check-configured-entities-cache.php`.
+
+## Zustands-Cache bei parallelen Aufrufen (Device/Entity, 1.10 build 260)
+
+- **Der Kernel lässt mehrere Aufrufe gleichzeitig in dieselbe Instanz.** Meldungen untereinander kommen
+  nacheinander (der Parent wartet auf `SendDataToChildren`), aber Timer, `RequestAction` und `ApplyChanges`
+  laufen daneben. Am nuc gemessen (27.11.2026, Rust-Edition, Gerät mit 110 Entitäten): Während ein Übernehmen
+  3,6 s lief, kehrten fünf `StateCacheFlush` derselben Instanz in je 8 bis 19 ms zurück, und der Splitter meldete
+  keine verzögerte Meldung des Geräts.
+- Bis build 259 las jede Ausführung den ganzen Zustands-Cache einmal (`entityStateCacheMemory`) und schrieb bei
+  jeder Änderung den ganzen gemerkten Stand zurück. Wartete sie dazwischen auf Home Assistant, löschte sie, was
+  eine Meldung inzwischen eingetragen hatte: beim Übernehmen und `SyncStates` (eine REST-Abfrage je Entität), in
+  der Entity-Instanz beim Schalten mit „Status emulieren“, im Gerät bei `number`, `input_text`, `datetime` und
+  `input_datetime` mit „Status emulieren“ und beim Klima-Modus, dazu beim Timer für die Quelle des Mediaplayers.
+- Folgen, im Testrahmen nachgestellt (an der Anlage nicht, der Cache ist von außen nicht lesbar): Kam eine
+  Entität während des Übernehmens von „unavailable“ zurück, führte der Cache sie weiter als ausgefallen; standen
+  die anderen auch so da, galt das Gerät nach zehn Minuten als nicht erreichbar. In der Entity-Instanz sprang
+  die gerade gemeldete Helligkeit beim nächsten Attribut-Topic auf 0.
+- Jetzt liest jede Änderung den Buffer vorher neu (`readEntityStateCacheForUpdate`, `HAEntityStore`) und setzt
+  nur den eigenen Eintrag hinein; dekodiert wird nur, wenn eine andere Ausführung geschrieben hat. **Wer den
+  Cache ändert, liest ihn über diese Funktion, nicht über `readEntityStateCache()`.** Kosten: ein
+  Buffer-Lesezugriff je Änderung, im Testrahmen zwei statt einem je Meldung. Am nuc nicht messbar: `sendToChildren`
+  des Splitters im ersten Fenster danach 3,9 ms je Meldung, in den vier Fenstern davor 4,4 bis 6,0 ms.
+- Was bleibt: Zwischen Lesen und Schreiben liegt keine Sperre (so kurz wie die zwei Kernel-Aufrufe). Mit der
+  Variable „Nicht verfügbare Entitäten (JSON)“ liest der Flush-Timer den Cache schon für diese Variable und
+  wertet die Erreichbarkeit mit demselben Stand aus; eine Meldung dazwischen bleibt unausgewertet. Eine Meldung,
+  die jünger ist als die REST-Antwort zur selben Entität und vor ihr verarbeitet wird, überschreibt die Antwort.
+- Der Schaltpfad der Hauptvariable im Gerät (`executeMainEntityAction`) schreibt nach dem `set`-Topic nichts
+  optimistisch, auch mit „Status emulieren“ nicht; der Pfad der Entity (`handleMainEntityRequestAction`) tut es.
+  Ob das gewollt ist, ist offen.
+- Test: `tests/check-state-cache-parallel.php` (Fixtures `ha_states_test_entities.json`, `hue_aurelle_*`). Die
+  zweite Ausführung läuft über die Naht `HaSendungen::$unterwegs` mitten in der ersten, während deren Anfrage an
+  Home Assistant unterwegs ist. Welche Meldungen in diese Zeit fallen, ist angenommen. Für `SyncStates` ohne
+  Parent stellt der Test `HaSendungen::$parentAktiv`, die Lesezugriffe zählt `DeviceHarness::$pufferLesungen`.
 
 ## MQTT Discovery: Sensortyp bleibt stabil (1.10 build 248)
 
