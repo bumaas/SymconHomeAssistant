@@ -228,7 +228,14 @@ Klassisches Gerät und Entity setzen ihren Filter über `HAMqttTopicFilter::subt
 Entität `<base>/<domain>/<object_id>` und alles darunter, kein Topic, das nur gleich anfängt. Gegen den Bestand der
 eigenen Anlage (31 Geräte, 1380 HA-Entitäten): vorher 9 fremde Treffer bei zwei Geräten, jetzt 0, und kein eigenes
 Topic fehlt. Der Filter wird länger (Median 433 statt 263 Zeichen, der längste 3877 statt 623; er gehört zum Gerät
-mit 110 Entitäten, das vorher mit 279 Zeichen auskam).
+mit 110 Entitäten, das vorher mit 279 Zeichen auskam). Die Verlängerung für Attribut-Topics steht je Ebene einmal,
+nicht je Entität.
+
+Das Verteilen im Splitter (`sendToChildren`) lag in den beiden 15-Minuten-Fenstern nach dem Neuladen bei 6,6 und
+5,9 ms je Meldung, in den drei Fenstern davor bei 6,1 bis 6,4 ms und über den Tag bei 4,9 bis 6,4 ms. An dieser
+Anlage bringt der neue Filter also keinen messbaren Gewinn und kostet nichts; er ist Vorsorge für Anlagen mit
+anderer Namensgebung. Im Mitschnitt lief mit dem alten Filter nichts Unnötiges (1224 Zustellungen). Die Entity ist
+mit einem Test-Schalter belegt (hin und zurück, der Wert kam über statestream zurück).
 
 ## Entscheidungen (26.11.2026)
 
