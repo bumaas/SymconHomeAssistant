@@ -135,7 +135,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `check-deferred-apply.php`, prüft auch alle form.json.
 - **Regel für neue Module/Registrierungen:** Das Merkmal bleibt die letzte Registrierung in
   `Create()`; ein neuer Einstiegspunkt (öffentliche Funktion, Timer-Ziel, `MessageSink`-Zweig)
-  prüft zuerst `isInstanceCreated()`.
+  prüft zuerst `isInstanceCreated()`. Ausgenommen ist das `ApplyChanges()` der beiden Konfiguratoren
+  (build 251 und 256): Es setzt nur den Empfangsfilter `^$` und liest nichts; kommt dort ein Lesezugriff
+  hinzu, gehört die Prüfung davor (Code-Review 27.11.2026, Befund 6).
 - **Entladephase** (seit build 180): Beim Reload geht unser Splitter auf **105 (`IS_NOTCREATED`)**,
   bevor seine Kinder entladen werden (Mitschnitt nuc 01.10.2026 18:06:27). Bis build 179 plante
   jedes Kind daraufhin ein `DeferredApply` und fuhr `ApplyChanges` (Status 201), wen das
