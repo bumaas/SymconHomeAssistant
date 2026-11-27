@@ -29,7 +29,7 @@ $check(HAMqttTopicFilter::matchesFilter('a/b', '+/+'), 'Nur-Wildcard-Filter');
 $check(!HAMqttTopicFilter::matchesFilter('a/b/c', 'a/#/c'), '# mitten im Filter ist ungültig');
 $check(HAMqttTopicFilter::matchesFilter('/a/b/', 'a/b'), 'Führende/abschließende Slashes werden normalisiert');
 
-// coveredByAny / uncoveredTopics: Fall bgersmann (Configs unter homeassistant/…,
+// coveredByAny / uncoveredTopics: Supportfall 08/2026 (Configs unter homeassistant/…,
 // States unter Garage/gecos/…, abonniert war nur homeassistant/#)
 $filters = ['homeassistant/#'];
 $topics = [

@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Prüft am ECHTEN Splitter über den Kernel-Stub, dass der Selbsttest nur Meldungen von `mqtt_statestream`
  * als „MQTT-Daten empfangen“ zählt.
  *
- * Anlass: alsk1 (t/142973 #381/#382, 14.11.2026). In HA stand `base_topic: homeassistant_stream`, im Splitter
+ * Anlass: ein Anwender (t/142973 #381/#382, 14.11.2026). In HA stand `base_topic: homeassistant_stream`, im Splitter
  * `homeassistant`, abonniert war `homeassistant/#`. Vom statestream kam also nichts an. Der Selbsttest meldete
  * trotzdem „MQTT-Daten empfangen (vor 3s)“ und „Empfangene Domänen: sensor, status, switch“, Fazit „alles in
  * Ordnung“. Gezählt hatte er die Discovery-Konfigurationen anderer MQTT-Geräte (`homeassistant/<domain>/…/config`)
@@ -39,7 +39,7 @@ $empfange = static function (array $meldung) use ($splitter): void {
     ], JSON_THROW_ON_ERROR));
 };
 
-// ---- Teil 1: nur fremde Meldungen unter dem Base-Topic (die Lage von alsk1) ----
+// ---- Teil 1: nur fremde Meldungen unter dem Base-Topic (die Lage des Anwenders) ----
 foreach ($fixture['fremde_meldungen'] as $meldung) {
     $empfange($meldung);
 }

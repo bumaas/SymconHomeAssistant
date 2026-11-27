@@ -1,4 +1,4 @@
-# Mitschnitt 19.10.2026 am nuc (Modul 1.6 build 207, Rust 9.1), gemeldet von doctee (t/142973 #373)
+# Mitschnitt 19.10.2026 am nuc (Modul 1.6 build 207, Rust 9.1), gemeldet im Forum (t/142973 #373)
 # Entität light.hue_aurelle (Philips Hue 3216331P6, Device #31022 „Küche.Deckenpanel“), mqtt_statestream, Basis "homeassistant/light/hue_aurelle/"
 # Format: Uhrzeit.ms (Uhr des Mitschneiders, UTC) Attribut-Topic [retain] = Payload. Die ersten 15 Zeilen sind die retained Topics beim Abonnieren.
 # Geschaltet per HA-REST: 20:46:24 UTC light.turn_on (brightness_pct 50, color_temp_kelvin 3000), 20:46:32 UTC light.turn_off.

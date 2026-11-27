@@ -573,7 +573,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
                 sprintf($this->Translate('Parent subscription does not seem to cover "%s/#"'), $prefix),
                 sprintf(
                     // Ortsangabe bewusst mit im Text: Anwender suchen die Einstellung regelmäßig im
-                    // Modul selbst (Supportfälle bgersmann 08/2026, roesl 08/2026).
+                    // Modul selbst (zwei Supportfälle 08/2026).
                     $this->Translate('The subscription is not set here but in the MQTT Client instance this splitter is connected to — open it via "Configure interface" and enter at least %s/# in its "Subscriptions" list.'),
                     $prefix
                 )

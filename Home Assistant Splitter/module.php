@@ -395,7 +395,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
             $this->touchLastMqttMessage();
             // Empfang und Domänen im Selbsttest zählen nur statestream. Unter dem Standard-Base-Topic
             // `homeassistant` liegen auch Discovery-Konfigurationen anderer Geräte und die Startmeldung von HA;
-            // die meldeten „Daten empfangen“, obwohl vom statestream nichts ankam (alsk1, t/142973 #381,
+            // die meldeten „Daten empfangen“, obwohl vom statestream nichts ankam (t/142973 #381,
             // 14.11.2026). „Letzte MQTT-Nachricht“ und die Zugangsdaten-Prüfung sehen weiter jede Meldung.
             $statestreamDomain = $this->getStatestreamDomain($topic);
             if ($statestreamDomain !== '') {
@@ -1664,7 +1664,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
         $lastEpoch = $this->readStatestreamState()['epoch'];
         // Kommt außerhalb des statestream gerade etwas an, steht die Verbindung. Dann liegt es am statestream
         // selbst (abgeschaltet, anderes base_topic) und der Selbsttest sagt das, statt eine unterbrochene
-        // Verbindung zu vermuten (alsk1: „Letzte MQTT-Nachricht“ frisch, vom statestream nichts).
+        // Verbindung zu vermuten (Fall eines Anwenders: „Letzte MQTT-Nachricht“ frisch, vom statestream nichts).
         $lastAny = (int)strtotime($this->ReadAttributeString('LastMQTTMessage'));
         $anyAge = time() - $lastAny;
         $othersArrive = $lastAny > 0 && $anyAge >= 0 && $anyAge <= self::SELFTEST_MQTT_RECENCY_SEC;
@@ -1728,7 +1728,7 @@ class HomeAssistantSplitter extends IPSModuleStrict
                 sprintf($this->Translate('Parent subscription does not seem to cover "%s"'), $baseTopic),
                 sprintf(
                     // Ortsangabe bewusst mit im Text: Anwender suchen die Einstellung regelmäßig im
-                    // HA-Modul selbst (Supportfälle bgersmann 08/2026, roesl 08/2026).
+                    // HA-Modul selbst (zwei Supportfälle 08/2026).
                     $this->Translate('The subscription is not set here but in the MQTT Client instance this splitter is connected to — open it via "Configure interface" and enter %s/# in its "Subscriptions" list.'),
                     $baseTopic
                 )

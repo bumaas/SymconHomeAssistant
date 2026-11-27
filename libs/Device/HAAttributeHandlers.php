@@ -666,7 +666,7 @@ trait HAAttributeHandlersTrait
     // Aktuelle Attribute einer Entität: Konfiguration, überlagert vom State-Cache. $this->entities allein ist
     // unter der Rust-Edition in jeder Ausführung der Stand des letzten ApplyChanges; bis build 207 schrieb so
     // jedes wiederholte Fähigkeits-Topic eines Lichts (supported_color_modes, supported_features) die
-    // Helligkeit und Farben von damals zurück (doctee, t/142973 #373).
+    // Helligkeit und Farben von damals zurück (t/142973 #373).
     private function getStoredAttributeTopicAttributes(string $entityId): array
     {
         $attributes = $this->entities[$entityId][self::KEY_ATTRIBUTES] ?? [];

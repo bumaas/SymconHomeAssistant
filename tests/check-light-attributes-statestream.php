@@ -10,7 +10,7 @@ declare(strict_types=1);
  * Fähigkeiten supported_color_modes und supported_features. Jedes dieser Topics glich bis build 207 die
  * Lichtvariablen mit den Attributen aus `$this->entities` ab — unter der Rust-Edition in jeder Ausführung
  * die Konfiguration des letzten ApplyChanges. War das Licht dabei aus, stehen dort nur null-Werte: Die
- * gerade empfangene Helligkeit sprang auf 0, die Farbe wurde leer (doctee, t/142973 #373; am nuc
+ * gerade empfangene Helligkeit sprang auf 0, die Farbe wurde leer (t/142973 #373; am nuc
  * 19.10.2026 nachgestellt: Licht an mit 255 / 2702 K, Symcon zeigte 0 / 0 K).
  *
  * Jede Meldung läuft als MQTT-Nachricht durch ReceiveData(), jede in einer neuen Ausführung.

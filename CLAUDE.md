@@ -208,7 +208,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   (03.10.2026, Gast-Rollladen) stand dort 100: Jedes „state = open" setzte die Hauptvariable auf
   100, erst das folgende `current_position` korrigierte sie. Ohne Position in der Konfiguration
   wäre es über `normalizeCoverStateToLevel('open')` ebenfalls 100 geworden.
-- **Licht** (build 208, doctee t/142973 #373): statestream schickt bei jeder Änderung auch
+- **Licht** (build 208, t/142973 #373): statestream schickt bei jeder Änderung auch
   `supported_color_modes` und `supported_features`; jedes dieser Topics gleicht alle Lichtvariablen ab
   (`handleLightAttributeTopic` → `updateLightAttributeValues`). Bis build 207 lieferte
   `getStoredAttributeTopicAttributes()` dafür nur `$this->entities`: War das Licht beim letzten
@@ -671,7 +671,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - „MQTT-Daten empfangen“ und „Empfangene Domänen“ im Selbsttest des Splitters zählen nur
   statestream-Topics (`getStatestreamDomain`: genau `<base>/<domain>/<object_id>/<attribut>`, nicht `…/config`).
   Bis build 227 zählte jedes Topic unter dem Base-Topic. Mit dem Standard `homeassistant` liegen dort auch
-  Discovery-Konfigurationen anderer Geräte und die Startmeldung `homeassistant/status`: alsk1 (t/142973 #381,
+  Discovery-Konfigurationen anderer Geräte und die Startmeldung `homeassistant/status`: Ein Anwender (t/142973 #381,
   14.11.2026) hatte `base_topic: homeassistant_stream` in HA, der Selbsttest meldete „Empfangene Domänen:
   sensor, status, switch“ und „alles in Ordnung“, es kam aber kein einziger Wert an.
 - Die Form allein reicht nicht (build 230, Code-Review 14.11.2026): Ein LinkTap-Gateway legt eigene Topics als
@@ -690,7 +690,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Werte, der Selbsttest sah aber nichts.
 - Kommt außerhalb des statestream gerade etwas an (`LastMQTTMessage` jünger als 300 s), sagt der Selbsttest
   „MQTT-Meldungen kommen an, aber keine von mqtt_statestream“ bzw. „andere MQTT-Meldungen kommen weiter an“ statt
-  „Verbindung evtl. unterbrochen“. Das ist der Fall alsk1 beim Namen genannt.
+  „Verbindung evtl. unterbrochen“. Das ist der Fall des Anwenders beim Namen genannt.
 - Gemessen wird über den Buffer (alle 5 s) und das Attribut `LastStatestreamMessage`
   (alle 60 s, mit `@` gelesen und geschrieben). Bis build 229 nur der Buffer: Nach einem Modul-Update bleibt der
   MQTT Client verbunden, es gibt keinen retained Replay, und der Selbsttest einer laufenden Anlage warnte bis zur

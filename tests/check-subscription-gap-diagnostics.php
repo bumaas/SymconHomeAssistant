@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Integrationscheck für die Abonnement-Diagnose des MQTT-Discovery-Splitters.
  *
- * Hintergrund (Supportfall bgersmann, Forum 142973, 08/2026): Discovery-Configs kamen unter
+ * Hintergrund (Supportfall, Forum 142973, 08/2026): Discovery-Configs kamen unter
  * homeassistant/… an, die referenzierten State-Topics lagen aber unter Garage/gecos/… — und
  * der MQTT Client hatte nur homeassistant/# abonniert. Kein einziger State erreichte den
  * Splitter, die Diagnose nannte die Ursache nicht.
@@ -363,7 +363,7 @@ function exportBundle(HomeAssistantMQTTDiscoverySplitter $splitter): array
 
 // ---------------------------------------------------------------------------
 // Szenario: Configs unter homeassistant/…, Runtime-Topics unter garage/gecos/…
-// (synthetisch dem Fall bgersmann nachgebildet, keine echten Gerätedaten)
+// (synthetisch diesem Supportfall nachgebildet, keine echten Gerätedaten)
 // ---------------------------------------------------------------------------
 $splitter = new HomeAssistantMQTTDiscoverySplitter(CHECK_SPLITTER_ID);
 $splitter->Create();
