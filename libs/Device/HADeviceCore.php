@@ -436,17 +436,10 @@ trait HADeviceCoreTrait
             return null;
         }
 
-        $row = null;
-        // Letztes Vorkommen, damit bei doppelter entity_id dieselbe Zeile gewinnt wie im Index.
-        $start = strrpos($blob, "\n" . $this->encodeConfiguredEntityKey($entityId) . "\t");
-        if ($start !== false) {
-            $start = strpos($blob, "\t", $start) + 1;
-            $end = strpos($blob, "\n", $start);
-            $decoded = json_decode($end === false ? substr($blob, $start) : substr($blob, $start, $end - $start), true);
-            if (!is_array($decoded)) {
-                return null;
-            }
-            $row = $decoded;
+        // Bei doppelter entity_id gewinnt das letzte Vorkommen, wie im Index.
+        $row = HAKeyedBlob::row($blob, $entityId);
+        if ($row === false) {
+            return null;
         }
 
         $this->restoreConfiguredEntitiesBaseNameCounts($header['baseNameCounts']);
@@ -454,35 +447,23 @@ trait HADeviceCoreTrait
         return ['row' => $row];
     }
 
-    // Blob-Format (zeilenweise, damit der Zeilenzugriff ohne Volldekodierung auskommt):
-    //   Zeile 1:  {"sig":…,"baseNameCounts":{…}}
-    //   je Entität: "<entity_id als JSON-String>" TAB <Zeile als JSON>
-    // JSON kodiert Zeilenumbrüche und Tabs immer als Escape, beide Trenner sind also eindeutig.
+    // Blob-Format siehe HAKeyedBlob (zeilenweise, damit der Zeilenzugriff ohne Volldekodierung auskommt):
+    //   Kopf:       {"sig":…,"baseNameCounts":{…}}
+    //   je Entität: Schlüssel entity_id, Wert die Konfigurationszeile
     private function encodeConfiguredEntitiesBlob(array $entities, string $signature, array $counts): string
     {
-        $lines = [json_encode(['sig' => $signature, 'baseNameCounts' => $counts], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+        $rows = [];
         foreach ($entities as $row) {
-            $entityId = is_array($row) ? (string)($row['entity_id'] ?? '') : '';
-            $lines[] = $this->encodeConfiguredEntityKey($entityId) . "\t"
-                . json_encode($row, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $rows[] = [is_array($row) ? (string)($row['entity_id'] ?? '') : '', $row];
         }
-        return implode("\n", $lines);
-    }
-
-    private function encodeConfiguredEntityKey(string $entityId): string
-    {
-        return json_encode($entityId, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return HAKeyedBlob::encode(['sig' => $signature, 'baseNameCounts' => $counts], $rows);
     }
 
     /** @return array{baseNameCounts: array}|null */
     private function decodeConfiguredEntitiesBlobHeader(string $blob, string $signature): ?array
     {
-        if ($blob === '') {
-            return null;
-        }
-        $end = strpos($blob, "\n");
-        $header = json_decode($end === false ? $blob : substr($blob, 0, $end), true);
-        if (!is_array($header)
+        $header = HAKeyedBlob::header($blob);
+        if ($header === null
             || ($header['sig'] ?? null) !== $signature
             || !is_array($header['baseNameCounts'] ?? null)) {
             return null;
@@ -498,19 +479,9 @@ trait HADeviceCoreTrait
             return null;
         }
 
-        $entities = [];
-        $lines = explode("\n", $blob);
-        array_shift($lines);
-        foreach ($lines as $line) {
-            $tab = strpos($line, "\t");
-            if ($tab === false) {
-                return null;
-            }
-            $row = json_decode(substr($line, $tab + 1), true);
-            if ($row === null && substr($line, $tab + 1) !== 'null') {
-                return null;
-            }
-            $entities[] = $row;
+        $entities = HAKeyedBlob::rows($blob);
+        if ($entities === null) {
+            return null;
         }
         return ['entities' => $entities, 'baseNameCounts' => $header['baseNameCounts']];
     }

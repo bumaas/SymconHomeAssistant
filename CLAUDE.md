@@ -636,6 +636,16 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Meldungen in Teil 2 aus dem Mitschnitt, Namen ersetzt; der Fall mit Umlaut ist eine Variante der Fixture).
   `check-receive-filter-collapse.php` prüft nur noch die klassische Bridge.
 
+## Cache-Format im Buffer: gemeinsame Klasse (1.10 build 257)
+
+- Das klassische Gerät hält seine Konfiguration seit build 147 und 165 in einem Buffer mit Signatur und liest je
+  Meldung nur die eigene Zeile (`getConfiguredEntityById`). Das Format dafür steht jetzt in `libs/HAKeyedBlob.php`:
+  Kopfzeile als JSON, je Eintrag `"<Schlüssel>"` TAB `<Wert als JSON>`, Zeilenzugriff ohne Volldekodierung. Die
+  Klasse kennt weder Signatur noch Inhalt; ob ein Blob gilt, entscheidet der Aufrufer am Kopf.
+- Reiner Umbau als Vorbereitung für das Discovery-Gerät (Etappe 4 im Konzept): Das klassische Gerät schreibt Byte
+  für Byte denselben Blob, an 18 Entitätslisten aus den Fixtures und 349 Zeilenzugriffen gegen den alten Code
+  verglichen. Es prüft weiter `tests/check-configured-entities-cache.php`.
+
 ## MQTT Discovery: Sensortyp bleibt stabil (1.10 build 248)
 
 - Anlass: ein Anwender (26.11.2026). Nach „Änderungen übernehmen“ hatten Batterie und Helligkeit eines
