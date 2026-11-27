@@ -6,11 +6,11 @@ declare(strict_types=1);
  * Prüft am ECHTEN Modul (Home Assistant MQTT Discovery Device) über den Kernel-Stub, dass Entitäten der
  * Komponente `text` als Textvariable ankommen und schaltbar sind.
  *
- * Anlass: Boui, Forum t/142973 #386 und PN 144956 (16.11.2026). EMS-ESP v3.9.1 (Buderus-Kessel + RC35)
+ * Anlass: ein Anwender, Forum t/142973 #386 (16.11.2026). EMS-ESP v3.9.1 (Buderus-Kessel + RC35)
  * kündigt Schaltzeiten, Urlaubs- und Feiertage, Wartungsdatum und Uhrzeit des Reglers als `text` an. Der
  * Parser kannte die Komponente nicht, die Discovery-Diagnose führte alle zehn als „nicht unterstützt“.
  *
- * Fixture: tests/fixtures/discovery_ems_esp_20261116.json (Bouis Bundle, von ihm auf EMS-ESP gefiltert,
+ * Fixture: tests/fixtures/discovery_ems_esp_20261116.json (Bundle eines Anwenders, von ihm auf EMS-ESP gefiltert,
  * ems-esp/info entfernt).
  * Erwartetes Verhalten nach HA Core (mqtt/text.py): Zustand aus state_topic/value_template als Text,
  * Schreiben sendet den Text (über command_template, falls angegeben) an command_topic. min ist 0 per
@@ -137,7 +137,7 @@ pruefe($s === [['Topic' => 'ems-esp/boiler/maintenancedate', 'Payload' => '01.06
 
 // --- Teil 6: Mit „Status emulieren“ steht der gesendete Text sofort in der Variable, wie bei number oder
 // select (Code-Review 16.11.2026, Befund 1: applyOptimisticValue kannte text nicht, die Variable behielt
-// den alten Text). Die Einstellung ist angenommen, Boui nutzt sie nicht; Topics und Werte aus dem Bundle.
+// den alten Text). Die Einstellung ist angenommen, der Anwender nutzt sie nicht; Topics und Werte aus dem Bundle.
 $kessel->SetProperty('EmulateStatus', true);
 neueAusfuehrung($kessel)->ApplyChanges();
 $s = schalteText($kessel, 'Wartungsdatum', '01.06.2027');

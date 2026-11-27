@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Prüft am ECHTEN Modul (Home Assistant MQTT Discovery Device) über den Kernel-Stub, dass keine Variable einen
  * Schieberegler ohne Bereich (MIN >= MAX) bekommt.
  *
- * Anlass: Boui, Forum t/142973 #386 und PN 144956 (16.11.2026). EMS-ESP kündigt „Maximale Brennerleistung“
+ * Anlass: ein Anwender, Forum t/142973 #386 (16.11.2026). EMS-ESP kündigt „Maximale Brennerleistung“
  * als number mit min = max = 100 an (HA lässt das zu). Am nuc nachgestellt (16.11.2026, Bundle-Splitter
  * #54459, Device #35496): Der Kernel verwirft die Darstellung mit „Maximum Value must be higher than Minimum
  * Value“ (HASharedPresentationTrait.php:30), die Variable steht mit Aktion, aber ohne Darstellung da. Jedes

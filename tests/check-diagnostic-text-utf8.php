@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 // Prüft die Aufbereitung von REST-Antworten für Diagnose-Attribute (libs/HADiagnosticText.php).
 //
-// Hintergrund (Forum 144258 #390, Boui, 16.09.2026): Unter der Rust-Edition meldete der Splitter
+// Hintergrund (Forum 144258 #390, 16.09.2026): Unter der Rust-Edition meldete der Splitter
 // alle ein bis zwei Minuten „Cannot auto-convert value for parameter Value (Value is not encoded
 // as valid UTF-8!)“ beim Schreiben von LastRestResponse. Die Antwort wurde nach Bytes auf 1000
 // gekürzt und trennte dabei Mehrbyte-Zeichen (Umlaute, °, …) — der Kernel lehnt das halbe

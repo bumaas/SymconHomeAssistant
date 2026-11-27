@@ -1618,7 +1618,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     {
         $hasStateTopic = trim((string)($entity['state_topic'] ?? '')) !== '';
         // Die Spalte zeigt, was die Entität kann, nicht ob sie gerade angehakt ist. isEntityWritable verneint jede
-        // abgewählte (dann gibt es keine Variable); bis build 240 stand dort deshalb „Nur lesen“ (herbertf #397).
+        // abgewählte (dann gibt es keine Variable); bis build 240 stand dort deshalb „Nur lesen“ (t/142973 #397).
         $isControllable = $this->isEntityControllable(['create_var' => true] + $entity);
 
         if ($isControllable && !$hasStateTopic) {
@@ -1822,7 +1822,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     }
 
     // Der Typ darf nicht davon abhängen, was beim Übernehmen gerade im Zwischenspeicher liegt: Ein anderer Typ
-    // heißt Variable neu anlegen, mit neuer ID und ohne Archiv (build 248, herbertf PN t/145051; bis build 247
+    // heißt Variable neu anlegen, mit neuer ID und ohne Archiv (build 248, Meldung eines Anwenders; bis build 247
     // wechselten Batterie und Helligkeit zwischen Float und Integer, je nachdem ob ein Wert vorlag).
     // - Ganze Zahl im Zwischenspeicher: Integer, eine bestehende Float-Variable bleibt aber Float.
     // - Kommazahl: Float, auch an einer Integer-Variable (sie könnte den Wert sonst nicht halten).

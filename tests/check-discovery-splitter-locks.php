@@ -20,7 +20,7 @@ declare(strict_types=1);
  * Semaphorenliste des Stubs, IPS_SemaphoreEnter liefert dann sofort false. Wie lange das Modul warten würde,
  * zeigt die Naht enterSemaphore (DiscoverySplitterHarness::$sperrAnfragen).
  *
- * Fixture: tests/fixtures/discovery_zwavejs_20261125.json (herbertfs Bundle, neutralisiert, Gerät „Raum-Bild“).
+ * Fixture: tests/fixtures/discovery_zwavejs_20261125.json (Bundle eines Anwenders, neutralisiert, Gerät „Raum-Bild“).
  */
 
 require_once __DIR__ . '/device-harness.php';

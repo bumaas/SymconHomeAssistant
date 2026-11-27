@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Prüft am ECHTEN Modul (Home Assistant MQTT Discovery Splitter) über den Kernel-Stub, dass eine MQTT-Meldung
  * im heißen Pfad die großen Zwischenspeicher nicht anfasst.
  *
- * Anlass: herbertf, PN t/145051 (26.11.2026). Z-Wave JS UI kündigt bei ihm 2384 Einträge an. Der Splitter las
+ * Anlass: ein Anwender (26.11.2026). Z-Wave JS UI kündigt bei ihm 2384 Einträge an. Der Splitter las
  * und schrieb bei jeder Meldung die kompletten Attribute MqttDiscoveryConfigCache und MqttTopicPayloadCache
  * (mehrere MB JSON) und baute bei laufendem Verkehr jede Sekunde die Diagnose neu, auch ohne offenes Formular.
  * Sein Bundle zeigt den Rückstau: Status-Meldungen mit Sendezeit 10:28 kamen zwischen 12:02 und 17:12 an, am
@@ -16,7 +16,7 @@ declare(strict_types=1);
  * vollem Vormerk-Puffer oder sobald jemand die Zwischenspeicher liest. Wer liest, sieht dabei jede schon
  * empfangene Meldung.
  *
- * Fixture: tests/fixtures/discovery_zwavejs_20261125.json (herbertfs Bundle, neutralisiert, Gerät „Raum-Bild“).
+ * Fixture: tests/fixtures/discovery_zwavejs_20261125.json (Bundle eines Anwenders, neutralisiert, Gerät „Raum-Bild“).
  */
 
 require_once __DIR__ . '/device-harness.php';

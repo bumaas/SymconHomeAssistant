@@ -192,8 +192,8 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - **`…/set` im Splitter** (build 207): Auswahl und Text (`select`, `input_select`, `input_text`,
   `TEXT_PAYLOAD_DOMAINS`) gehen unverändert an HA. Bis build 206 lief jeder Befehl durch
   `normalizePayload()`: Die Option „on" wurde `"1"` (HA: 400 „Option 1 is not valid"), „off" und
-  „null" wurden leer — beide Male fiel der Befehl auf MQTT zurück, wo ihn niemand liest (Friemler,
-  PN t/144231 #26; am nuc betroffen: Hue-Wiedereinschaltverhalten, evcc „Mit min. laden",
+  „null" wurden leer — beide Male fiel der Befehl auf MQTT zurück, wo ihn niemand liest (Anwender mit
+  Samsung-Wärmepumpe, 15.10.2026; am nuc betroffen: Hue-Wiedereinschaltverhalten, evcc „Mit min. laden",
   „Fahrzeug"). Ein sichtbares `set`-Topic heißt immer: der REST-Weg ist gescheitert.
   Test: `tests/check-rest-set-payload.php` (Fixture `rest_set_select_20261015.json`); der
   `SplitterHarness` fängt dafür `performCurl` (seitdem protected) und `SendDataToParent` ab.
@@ -398,7 +398,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   versorgt wird: `reachable` nur bei `hasAvailabilityEntities()` (build 205, Code-Review) — kündigt sich
   ein Gerät ohne availability-Topic neu an, wird sie veraltet statt mit dem letzten Wert stehen zu bleiben.
 - Test: `tests/check-discovery-reachability.php` (Fixture `discovery_availability_20261003.json`).
-- **Z-Wave JS UI** (build 247, herbertf PN t/145051): je Entität drei availability-Topics (Knoten, MQTT-Client des
+- **Z-Wave JS UI** (build 247, Anwender mit Z-Wave JS UI): je Entität drei availability-Topics (Knoten, MQTT-Client des
   Gateways, Treiber), Modus `latest`. Knoten und Gateway tragen ein Template mit dem bloßen Feld als Bedingung
   (`{{'true' if value_json.value else 'false'}}`, beim Gateway mit `'online'`/`'offline'`). Bis build 246 kannte `HAMqttDiscoveryTemplate::parseGuard` das
   nicht, `evaluateAvailabilityEntry` verglich dann den rohen JSON-Text mit „true“: Alle Geräte standen auf „Nicht
@@ -415,7 +415,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 ## MQTT Discovery: Klimageräte, Kurzformen, Templates (1.7 build 211)
 
-- Anlass: MarekG (t/142973 #376, PN 144746, 22.10.2026), Mitsubishi mit mitsubishi2mqtt. Hauptvariable
+- Anlass: ein Anwender (t/142973 #376, 22.10.2026), Mitsubishi mit mitsubishi2mqtt. Hauptvariable
   „0 C“, nie aktualisiert, ohne Aktion; Modus und Lüfter fehlten. Fixture `discovery_mitsubishi2mqtt_20261022.json`.
 - **Kurzformen** stehen vollständig in `libs/Discovery/HAMqttDiscoveryAbbreviations.php`, erzeugt aus HA Core
   `mqtt/abbreviations.py` (nicht von Hand pflegen, bei Bedarf neu erzeugen). Vorher kannte der Parser nur die
@@ -454,7 +454,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 ## MQTT Discovery: Komponente `text` (1.9 build 235)
 
-- Anlass: Boui (t/142973 #386, PN 144956, 16.11.2026), EMS-ESP 3.9.1 kündigt Schaltzeiten, Urlaubs- und
+- Anlass: ein Anwender (t/142973 #386, 16.11.2026), EMS-ESP 3.9.1 kündigt Schaltzeiten, Urlaubs- und
   Feiertage, Wartungsdatum und Reglerzeit als `text` an. Parser und Device kannten die Komponente nicht.
 - `HATextDefinitions` (nur DOMAIN und Variablentyp String) steht in den `SUPPORTED_COMPONENTS` von Parser und
   Device. Lesen läuft über den allgemeinen Pfad (`castSensorValue` auf String), Schreiben über
@@ -468,7 +468,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 ## MQTT Discovery: Licht im Standard-Schema (1.10 build 240)
 
-- Anlass: herbertf (t/142973 #397, 25.11.2026), Dimmer aus Z-Wave JS UI kam nur als Ein/Aus an. Z-Wave JS kündigt
+- Anlass: ein Anwender (t/142973 #397, 25.11.2026), Dimmer aus Z-Wave JS UI kam nur als Ein/Aus an. Z-Wave JS kündigt
   Dimmer im Standard-Schema von HA an (`schema` fehlt): Helligkeit über `brightness_state_topic`/
   `brightness_command_topic`. Der Discovery-Pfad kannte nur das JSON-Schema (`brightness: true`, alles im JSON des
   State-Topics) und schickte auch Ein/Aus als `{"state":"ON"}`, was ein Gerät im Standard-Schema nicht versteht.
@@ -479,7 +479,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   (0 und leer ignoriert), Befehl Wert / 255 * Skala, mindestens 1, beides mit `PHP_ROUND_HALF_EVEN` wie Python.
   Ohne `brightness_state_topic` zeigt die Variable den gesendeten Wert. Andere Lichtattribute legt das Device im
   Standard-Schema nicht an (`basic_schema` im Attributkontext), sie würden nie versorgt.
-- **Z-Wave JS UI** (build 241, herbertfs Bundle, PN 145043): Zustand und Helligkeit kommen auf demselben Topic
+- **Z-Wave JS UI** (build 241, Bundle des Anwenders): Zustand und Helligkeit kommen auf demselben Topic
   (`…/currentValue`, JSON mit `value` 0…99). Der Zustand läuft über `state_value_template` (Parser nimmt es für
   Lichter im Standard-Schema vor `value_template`) in der Form `{{ "OFF" if value_json.value == 0 else "ON" }}`;
   `HAMqttDiscoveryTemplate` versteht dafür festen Text je Bedingung (`then`/`default`, gleiche Bedingungen wie beim
@@ -503,17 +503,17 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Im Standard-Schema liest das Modul kein `brightness` aus dem JSON des State- oder Attribut-Topics
   (`extractLightAttributesFromPayload` liefert leer, build 244, Befund 3); bis build 243 schrieb die Auswertung des
   JSON-Schemas den Wert ungeskaliert in dieselbe Variable. Dafür gibt es keinen Mitschnitt, der Test nimmt es an.
-- Offen: Farben und Farbtemperatur über eigene Topics (`rgb_stat_t` usw., AWTRIX und die Smart Switch 7 in
-  herbertfs Bundle haben sie).
+- Offen: Farben und Farbtemperatur über eigene Topics (`rgb_stat_t` usw., AWTRIX und die Smart Switch 7 im
+  Bundle des Anwenders haben sie).
 - Spalte „Modus“ der Entitätenliste (build 241): `buildEntityAccessModeLabel` prüft mit `create_var = true`. Vorher
-  zeigte jede abgewählte Entität „Nur lesen“, weil `isEntityWritable` sie für die Laufzeit verneint (herbertf #397,
+  zeigte jede abgewählte Entität „Nur lesen“, weil `isEntityWritable` sie für die Laufzeit verneint (t/142973 #397,
   `config_switch` sind in Z-Wave JS von Haus aus abgewählt).
 - Test: `tests/check-discovery-light-basic.php` (Fixtures `discovery_awtrix_20260513.json`,
   `discovery_zwavejs_20261125.json`).
 
 ## MQTT Discovery: Splitter merkt Meldungen vor (1.10 build 246)
 
-- Anlass: herbertf (PN t/145051, 26.11.2026), Z-Wave JS UI mit 2384 Ankündigungen (jeder Geräteparameter ist eine
+- Anlass: ein Anwender (26.11.2026), Z-Wave JS UI mit 2384 Ankündigungen (jeder Geräteparameter ist eine
   Entität). Sein Bundle zeigt den Rückstau: Status-Meldungen mit Sendezeit 10:28 kamen beim Splitter zwischen 12:02
   und 17:12 an, in Sendereihenfolge, am Abend lag der Verzug bei 435 Minuten. Schon am Vortag trafen 918
   Ankündigungen über 107 Minuten verteilt ein.
@@ -521,11 +521,11 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   JSON. Bis build 245 las und schrieb `ReceiveData` sie bei jeder Meldung komplett, eine Ankündigung baute dazu die
   Referenzliste aus allen Ankündigungen neu. Bei laufendem Verkehr lief außerdem jede Sekunde
   `buildDiagnosticsState()`, auch ohne offenes Formular. Im Harness (nur PHP, ohne Kernel) kosteten die 2384
-  Ankündigungen 187 s und 2473 Wert-Meldungen 60 s, danach 1,2 s und 0,5 s. Dass der Splitter an herbertfs Anlage
+  Ankündigungen 187 s und 2473 Wert-Meldungen 60 s, danach 1,2 s und 0,5 s. Dass der Splitter an der Anlage des Anwenders
   der Engpass war, ist damit wahrscheinlich, aber dort nicht gemessen.
 - Jetzt merkt `ReceiveData` die Meldung nur vor (`queueCacheUpdate`): eine Zeile mit Topic, Payload (hex),
   Empfangszeit und Sitzung in Buffern `PendingCacheUpdates<n>` zu je höchstens 32 KB. `flushPendingCacheUpdates()`
-  schreibt sie gebündelt in die Attribute, mit demselben Ergebnis wie vorher je Meldung (an herbertfs 4857
+  schreibt sie gebündelt in die Attribute, mit demselben Ergebnis wie vorher je Meldung (an den 4857
   Meldungen gegen den alten Code verglichen). Es läuft per Timer, ab 16 vollen Abschnitten sofort und **vor jedem
   Lesen**: `readDiscoveryCache()`, `readTopicPayloadCache()` und `readReferencedTopicLookup()` rufen es zuerst.
   Wer die Zwischenspeicher über diese drei liest, sieht also jede empfangene Meldung. **Die Attribute nie direkt
@@ -592,7 +592,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 ## MQTT Discovery: Empfangsfilter trifft genau die eigenen Topics (1.10 build 252)
 
-- Anlass: Performance-Mitschnitt von herbertf (PN t/145051 #5, 26.11.2026, Z-Wave JS UI, 72 Geräte, Raspberry Pi).
+- Anlass: Performance-Mitschnitt eines Anwenders (26.11.2026, Z-Wave JS UI, 72 Geräte, Raspberry Pi).
   Der Splitter brauchte je Meldung im Median 1277 ms, davon 1189 ms für `SendDataToChildren`; in 332 s verarbeitete
   er 259 Meldungen und war die ganze Zeit beschäftigt. Die beiden mitgeschnittenen Geräte bekamen jede Meldung,
   auch die fremder Geräte, und brauchten je 8 bzw. 14 ms dafür (`getRuntimeProcessingContext`, nie aus dem Memo).
@@ -604,7 +604,7 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   `Z-Wave-JS/…`. Dasselbe bei EMS-ESP (`ems-esp/…`) und Zigbee2MQTT (`zigbee2mqtt/…`, Fixture mit 88 Lampen:
   jede Meldung an alle 88).
 - Jetzt baut `HAMqttTopicFilter::exactTopicsFilterPattern()` den Filter als Baum über die Topic-Ebenen: genau die
-  Topics aus `collectRelevantTopics()`, kein Anfang und keine Verlängerung. Mit herbertfs Bundle und den 400
+  Topics aus `collectRelevantTopics()`, kein Anfang und keine Verlängerung. Mit dem Bundle des Anwenders und den 400
   Meldungen seines Mitschnitts im Harness: vorher 28.800 Zustellungen (jede an 72 Geräte), jetzt 55 (345 Meldungen
   an kein Gerät, 55 an je eines). Der Filter eines Geräts ist dort im Median 367 Zeichen lang.
 - Bauformen des Musters: Schrägstrich als `\\?\/` wie im Filter der klassischen Bridge, Gruppen `(?:…)` und
@@ -631,15 +631,15 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 ## MQTT Discovery: Sensortyp bleibt stabil (1.10 build 248)
 
-- Anlass: herbertf (PN t/145051, 26.11.2026). Nach „Änderungen übernehmen“ hatten Batterie und Helligkeit eines
+- Anlass: ein Anwender (26.11.2026). Nach „Änderungen übernehmen“ hatten Batterie und Helligkeit eines
   Bewegungsmelders neue Variablen-IDs, aus Float war Integer geworden.
 - `determineSensorVariableType()` nahm bis build 247 zuerst den Wert aus dem Zwischenspeicher des Splitters (ganze
   Zahl → Integer, Kommazahl → Float) und nur ohne Wert Einheit, `state_class` und `device_class` (→ Float, Integer
   oder Text). Der Typ hing damit vom Augenblick des Übernehmens ab, und ein anderer Typ heißt Variable neu anlegen
   (`recreateVariableIfTypeChanged`), mit neuer ID und ohne Archiv.
 - Jetzt zählt die bestehende Variable mit (`getExistingVariableType`): Eine Float-Variable bleibt bei einer ganzen
-  Zahl Float. Liegt kein Wert vor, behält eine Zahlenvariable ihren Typ, auch wenn sonst Text geraten würde (in
-  herbertfs Bundle sechs Sensoren ohne Einheit, z. B. `notification_access_control_door_state`). Umgestellt wird
+  Zahl Float. Liegt kein Wert vor, behält eine Zahlenvariable ihren Typ, auch wenn sonst Text geraten würde (im
+  Bundle des Anwenders sechs Sensoren ohne Einheit, z. B. `notification_access_control_door_state`). Umgestellt wird
   nur noch, wenn die Variable den Wert nicht halten kann: Kommazahl an Integer, Text an einer Zahlenvariable.
 - Die Regel beim ersten Anlegen ist unverändert. Bestehende Variablen wechseln durch den Fix nicht den Typ.
 - Offen: Ein Sensor, der mit einer ganzen Zahl angelegt wird (Temperatur gerade 18), ist Integer und rundet
@@ -654,9 +654,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 - HA erlaubt bei `number` min = max (EMS-ESP „Maximale Brennerleistung“ 100/100). Der Kernel verwirft dann
   den Schieberegler („Maximum Value must be higher than Minimum Value“), die Variable steht mit Aktion, aber
-  ohne Darstellung da. Am nuc nachgestellt (16.11.2026, Bundle-Splitter #54459 mit Bouis Bundle): Jedes
+  ohne Darstellung da. Am nuc nachgestellt (16.11.2026, Bundle-Splitter #54459 mit dem Bundle des Anwenders): Jedes
   „Änderungen übernehmen“ endete mit „Fehler beim Übernehmen der Änderungen … (Code: -32603)“, danach scheiterte
-  der Testbereich der Konsole mit „Uncaught Unexpected presentation when trying to determine minimum“. Boui
+  der Testbereich der Konsole mit „Uncaught Unexpected presentation when trying to determine minimum“. Der Anwender
   meldete -32603 mit anderem Text („Parameter type of Value does not match“); dass es dieselbe Ursache ist,
   ist wahrscheinlich, aber nicht belegt.
 - `fitPresentationToVariableType()` (`HASharedPresentationTrait`, also beide Familien) macht aus einem
@@ -773,6 +773,9 @@ Definitionsklasse je HA-Domäne), `Device/` (Laufzeitlogik der Device-Module), `
   Store-Lokalisierung verlinkt `README.en.md`. Die Modul-READMEs gibt es nur deutsch (Entscheidung Burkhard
   02.11.2026, Store-Review Punkte 2/14: eine Übersicht statt neun Übersetzungen). Was die Übersicht
   berührt (Einrichtung, Verhalten für Anwender, Fehlersuche), in beiden Fassungen nachziehen.
+- Anwender, deren Meldung, Bundle oder Mitschnitt Anlass einer Änderung war, heißen in allen versionierten Dateien
+  (diese Datei, Kommentare, Tests, Fixtures) nur „ein Anwender“, mit Datum und dem öffentlichen Forenbeitrag, falls
+  es einen gibt. Forennamen und PN-Nummern stehen in der `CLAUDE.local.md` (seit 1.10 build 254).
 
 ## Tests
 

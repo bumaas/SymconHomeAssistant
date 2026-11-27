@@ -7,7 +7,7 @@ declare(strict_types=1);
  * Standard-Schema von HA (`schema` fehlt oder `basic`): Ein/Aus als payload_on/payload_off an das
  * Command-Topic, Helligkeit über eigene Topics (brightness_state_topic, brightness_command_topic).
  *
- * Anlass: herbertf, Forum t/142973 #397 (25.11.2026). Ein Dimmer aus Z-Wave JS UI kam nur als Ein/Aus an.
+ * Anlass: ein Anwender, Forum t/142973 #397 (25.11.2026). Ein Dimmer aus Z-Wave JS UI kam nur als Ein/Aus an.
  * Z-Wave JS kündigt Dimmer im Standard-Schema mit getrennten Helligkeits-Topics an; der Discovery-Pfad
  * kannte nur das JSON-Schema (`brightness: true`, Helligkeit im JSON des State-Topics) und schickte auch
  * Ein/Aus als {"state":"ON"}.
@@ -130,7 +130,7 @@ pruefe($helligkeitId !== null && GetValue($helligkeitId) === 200, 'Leere Meldung
 melde($awtrix, MATRIX . 'stat_t', 'ON');
 pruefe($matrixId !== null && GetValue($matrixId) === true, 'stat_t ON schaltet die Hauptvariable', var_export($matrixId !== null ? GetValue($matrixId) : null, true));
 
-// === Z-Wave JS UI (herbertf, PN 145043, 25.11.2026): Qubino Flush Dimmer Plus. Fixture
+// === Z-Wave JS UI (Bundle eines Anwenders, 25.11.2026): Qubino Flush Dimmer Plus. Fixture
 // tests/fixtures/discovery_zwavejs_20261125.json. Der Dimmer meldet Zustand und Helligkeit auf demselben Topic
 // (…/switch_multilevel/endpoint_0/currentValue, JSON mit value 0…99): state_value_template
 // {{ "OFF" if value_json.value == 0 else "ON" }}, brightness_value_template {{ value_json.value }},

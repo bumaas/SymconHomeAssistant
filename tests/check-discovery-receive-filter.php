@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Prüft am ECHTEN MQTT Discovery Device über den Kernel-Stub den Empfangsfilter: Eine Meldung erreicht nur die
  * Geräte, die ihr Topic auswerten.
  *
- * Anlass: Ein Anwender mit Z-Wave JS UI (72 Geräte, PN t/145051 #5, 26.11.2026). Sein Performance-Mitschnitt zeigt
+ * Anlass: Ein Anwender mit Z-Wave JS UI (72 Geräte, 26.11.2026). Sein Performance-Mitschnitt zeigt
  * im Splitter je Meldung 1,1 bis 1,3 s allein für SendDataToChildren, und zwei mitgeschnittene Geräte bekamen jede
  * Meldung, auch die fremder Geräte. Der Filter fasste Topics über ihren gemeinsamen Anfang zusammen (mindestens
  * drei Zeichen). Bei Z-Wave JS UI beginnen die Topics eines Geräts und die availability-Topics des Gateways alle

@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Prüft am ECHTEN Modul (Home Assistant MQTT Discovery Device) über den Kernel-Stub, dass die Variable eines
  * Sensors ihren Typ behält, auch wenn beim Übernehmen mal ein Wert im Zwischenspeicher liegt und mal nicht.
  *
- * Anlass: herbertf, PN t/145051 (26.11.2026). Nach „Änderungen übernehmen“ hatten Batterie und Helligkeit seines
+ * Anlass: ein Anwender (26.11.2026). Nach „Änderungen übernehmen“ hatten Batterie und Helligkeit seines
  * Bewegungsmelders neue Variablen-IDs, aus Float war Integer geworden. Der Typ
  * richtete sich zuerst nach dem gerade zwischengespeicherten Wert (ganze Zahl → Integer, Kommazahl → Float) und
  * nur ohne Wert nach Einheit und state_class (→ Float). Beim ersten Übernehmen lag noch kein Wert vor, beim
@@ -16,7 +16,7 @@ declare(strict_types=1);
  * Wert, behält eine bestehende Zahlenvariable ihren Typ. Nur eine Kommazahl an einer Integer-Variable stellt
  * noch um, weil die Variable sie sonst nicht halten kann.
  *
- * Fixture: tests/fixtures/discovery_zwavejs_20261125.json (herbertfs Bundle, neutralisiert): Leistungssensor
+ * Fixture: tests/fixtures/discovery_zwavejs_20261125.json (Bundle eines Anwenders, neutralisiert): Leistungssensor
  * „electric_w_value“ mit Einheit W, echter Wert 0.
  */
 
@@ -80,7 +80,7 @@ function sensor(DiscoveryDeviceHarness $g): array
     return [0, 'fehlt', null];
 }
 
-// --- Teil 1: herbertfs Fall. Erst ohne Wert angelegt (Float), dann liegt eine ganze Zahl im Zwischenspeicher.
+// --- Teil 1: der Fall des Anwenders. Erst ohne Wert angelegt (Float), dann liegt eine ganze Zahl im Zwischenspeicher.
 $g = neuesGeraetMit($splitter, $ohneWert);
 [$id, $typ] = sensor($g);
 pruefe($typ === 'Float', 'Ohne Wert angelegt: Float (Einheit W)', $typ);
@@ -121,7 +121,7 @@ foreach ([$mitWert, $ohneWert, $mitMesswert(7), $ohneWert, $mitWert] as $zwische
 }
 pruefe(array_unique($ids) === [$id], 'Fünfmal übernehmen im Wechsel: immer dieselbe Variable', $id . ' → ' . implode(', ', $ids));
 
-// --- Teil 5: Sensor ohne Einheit, state_class und device_class. Herbertfs Bundle vom 26.11.2026 hat sechs davon
+// --- Teil 5: Sensor ohne Einheit, state_class und device_class. Das Bundle des Anwenders vom 26.11.2026 hat sechs davon
 // mit Zahlenwert (notification_access_control_door_state = 23 u. a.). Die Fixture enthält keinen; hier dient
 // der Leistungssensor ohne die drei Angaben, sonst unverändert. Ohne Wert fiel er bisher auf Text zurück.
 $ohneAngaben = array_map(static function (array $c): array {

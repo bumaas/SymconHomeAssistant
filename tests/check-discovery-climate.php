@@ -7,7 +7,7 @@ declare(strict_types=1);
  * aus der MQTT Discovery schalt- und lesbar ist: Solltemperatur, Modus, Lüfter, Lamellen, Aktion und
  * Raumtemperatur.
  *
- * Anlass: MarekG, Forum t/142973 #376 und PN 144746 (22.10.2026). Mitsubishi-Klimaanlage mit
+ * Anlass: ein Anwender, Forum t/142973 #376 (22.10.2026). Mitsubishi-Klimaanlage mit
  * mitsubishi2mqtt 2025.10.30. Das Gerät wurde erkannt, die Hauptvariable stand aber auf 0 C, wurde „Nie“
  * aktualisiert und hatte keine Aktion; Modus und Lüfter fehlten ganz. Ursachen:
  * - mitsubishi2mqtt schreibt die Kurzformen der Discovery (temp_cmd_t, mode_stat_tpl, …), der Parser
@@ -16,7 +16,7 @@ declare(strict_types=1);
  *   {% if %}-Block mit Begrenzung auf 16 bis 31.
  * - Ein nicht verstandenes Template schrieb das ganze JSON in die Variable („Up Time“).
  *
- * Fixture: tests/fixtures/discovery_mitsubishi2mqtt_20261022.json (MarekGs Bundle, MAC/BSSID/IP neutralisiert).
+ * Fixture: tests/fixtures/discovery_mitsubishi2mqtt_20261022.json (Bundle des Anwenders, MAC/BSSID/IP neutralisiert).
  * Erwartetes Schreibverhalten nach HA Core (mqtt/climate.py): async_set_hvac_mode sendet nur an
  * mode_command_topic, power_command_topic gehört zu turn_on/turn_off.
  */
@@ -86,7 +86,7 @@ function schaltbar(string $ident): bool
 // --- Teil 1: Solltemperatur (Hauptvariable) aus temp_stat_t + {% if %}-Template, schaltbar über temp_cmd_t.
 pruefe(wert($hauptIdent) == 22, 'Solltemperatur aus dem Zustands-JSON (22)', var_export(wert($hauptIdent), true));
 pruefe(schaltbar($hauptIdent), 'Solltemperatur ist schaltbar (temp_cmd_t)');
-// temperature_unit „C“ heißt in HA Grad Celsius; MarekGs Hauptvariable zeigte „0 C“.
+// temperature_unit „C“ heißt in HA Grad Celsius; beim Anwender zeigte die Hauptvariable „0 C“.
 $haupt = IPS_GetVariable($vars[$hauptIdent] ?? 0)['VariablePresentation'] ?? [];
 pruefe(($haupt['SUFFIX'] ?? '') === ' °C', 'Solltemperatur mit Einheit °C', json_encode($haupt, JSON_UNESCAPED_UNICODE));
 
@@ -183,7 +183,7 @@ $upWert = $upTime !== null ? (string)GetValue($vars[$upTime]) : '';
 pruefe(!str_starts_with(ltrim($upWert), '{'), 'Up Time enthält kein Roh-JSON', $upWert);
 
 // --- Teil 6: Die Bundle-Diagnose des Splitters führt die Befehls-Topics (…_cmd_t) als command, nicht als
-// state. Sonst zählen sie als „fehlende Zustandsmeldung“ (MarekGs Bundle: 6 von 8 state „missing“).
+// state. Sonst zählen sie als „fehlende Zustandsmeldung“ (Bundle des Anwenders: 6 von 8 state „missing“).
 $sammle = new ReflectionMethod(HomeAssistantMQTTDiscoverySplitter::class, 'collectReferencedTopicDescriptorsFromDiscoveryConfigs');
 $arten = array_column($sammle->invoke(neueAusfuehrung($splitter), $bundle['discovery_configs']), 'kinds', 'topic');
 foreach (['mode/set', 'temp/set', 'power/set', 'fan/set', 'vane/set', 'wide-vane/set', 'system/set'] as $befehl) {
@@ -206,7 +206,7 @@ foreach ($vars as $ident => $id) {
 }
 
 // --- Teil 8 (Code-Review build 211): „medium“ gehört zu den Standard-fan_modes von HA und steht in
-// MarekGs fan_modes. Ohne Eintrag zeigte die Aufzählung „medium“ unübersetzt. Der Testrahmen übersetzt
+// den fan_modes des Anwenders. Ohne Eintrag zeigte die Aufzählung „medium“ unübersetzt. Der Testrahmen übersetzt
 // nicht, erwartet ist der englische Schlüssel; die deutsche Fassung steht in beiden locale.json.
 $luefter = isset($vars[ident('fan_mode')]) ? IPS_GetVariable($vars[ident('fan_mode')])['VariablePresentation'] : [];
 $optionen = array_column(json_decode((string)($luefter['OPTIONS'] ?? '[]'), true) ?? [], 'Caption', 'Value');
@@ -217,9 +217,9 @@ foreach (['Home Assistant Device', 'Home Assistant MQTT Discovery Device'] as $m
 }
 
 // --- Teil 9 (Code-Review build 211): Ein nur lesbarer Kanal mit nicht verstandenem Template bekäme nie
-// einen Wert und stünde dauerhaft auf 0 °C, MarekGs Symptom an einer Untervariable. Er bekommt keine
+// einen Wert und stünde dauerhaft auf 0 °C, das Symptom des Anwenders an einer Untervariable. Er bekommt keine
 // Variable. Ein schaltbarer Kanal behält sie und zeigt nach dem Schalten den gesendeten Wert.
-// Grundlage: MarekGs Konfiguration, nur die beiden Templates ersetzt.
+// Grundlage: die Konfiguration des Anwenders, nur die beiden Templates ersetzt.
 $konfigs = $bundle['discovery_configs'];
 foreach ($konfigs as &$record) {
     if (str_starts_with($record['topic'], 'homeassistant/climate/')) {
@@ -245,8 +245,8 @@ pruefe(wert(ident('fan_mode')) === 'high', 'Lüfter mit title: zeigt den gesende
 
 // --- Teil 10 (Code-Review build 211): Device-Discovery (homeassistant/device/…/config) erlaubt die
 // Klima-Optionen auf oberster Ebene als gemeinsame Angaben. Die Positivliste kannte nur Modus, Aktion und
-// Raumtemperatur; Lüfter, Lamellen, Preset und Raumfeuchte fielen still weg. Grundlage: MarekGs
-// Klima-Konfiguration, umgeformt in die Device-Form; die Kanäle müssen gleich herauskommen.
+// Raumtemperatur; Lüfter, Lamellen, Preset und Raumfeuchte fielen still weg. Grundlage: die
+// Klima-Konfiguration des Anwenders, umgeformt in die Device-Form; die Kanäle müssen gleich herauskommen.
 $klima = json_decode(array_find($bundle['discovery_configs'], static fn(array $r): bool => str_starts_with($r['topic'], 'homeassistant/climate/'))['payload'], true);
 $parser = new HAMqttDiscoveryParser('homeassistant');
 $einzeln = $parser->parseConfigMessage('homeassistant/climate/klimaanlage-buero/config', json_encode($klima, JSON_UNESCAPED_SLASHES));

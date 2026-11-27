@@ -112,8 +112,8 @@ class HomeAssistantSplitter extends IPSModuleStrict
 
     // Domänen, deren Befehl ein Text ist (Option bzw. Eingabe): Er geht unverändert an HA. Die übrige
     // Umwandlung in normalizePayload() machte aus der Option „on" true und daraus „1", aus „off" und
-    // „null" einen leeren Wert — HA lehnte ab, der Befehl landete als set-Topic auf MQTT (Friemler,
-    // PN t/144231 #26, 15.10.2026).
+    // „null" einen leeren Wert — HA lehnte ab, der Befehl landete als set-Topic auf MQTT (Meldung eines
+    // Anwenders, 15.10.2026).
     private const array TEXT_PAYLOAD_DOMAINS = [
         HASelectDefinitions::DOMAIN,
         'input_select',

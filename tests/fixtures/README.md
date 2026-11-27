@@ -255,7 +255,7 @@ Ein Vorname im Gerätenamen ist durch „Links“ ersetzt; sonst nur Raumname un
 
 ## Klimagerät mit mitsubishi2mqtt (`discovery_mitsubishi2mqtt_20261022.json`)
 
-Aus einem **Anwender-Bundle** (MarekG, PN im Forum, 22.10.2026, Export „aktuelle Session“), **neutralisiert**:
+Aus einem **Anwender-Bundle** (22.10.2026, Export „aktuelle Session“), **neutralisiert**:
 MAC (`AABBCC000001`), BSSID (`00:00:5E:00:53:01`) und die IP der Weboberfläche (`192.0.2.10`) ersetzt,
 Instanz-IDs auf Platzhalter. Zehn Ankündigungen einer Mitsubishi-Klimaanlage (mitsubishi2mqtt 2025.10.30)
 fast nur in Kurzformen (`temp_cmd_t`, `mode_stat_tpl`, …) mit bedingten Templates, dazu die Payloads von
@@ -264,7 +264,7 @@ Fällen in `check-mqtt-discovery-template-parser.php`.
 
 ## Heizung mit EMS-ESP (`discovery_ems_esp_20261116.json`)
 
-Aus einem **Anwender-Bundle** (Boui, PN im Forum, 16.11.2026), vom Anwender auf EMS-ESP gefiltert und
+Aus einem **Anwender-Bundle** (16.11.2026), vom Anwender auf EMS-ESP gefiltert und
 `ems-esp/info` maskiert; beim Anlegen `ems-esp/info` ganz entfernt und die Instanz-IDs durch Platzhalter
 ersetzt (Splitter 10000, MQTT Client 10001). 149 Ankündigungen von EMS-ESP v3.9.1 (Buderus-Kessel Logano und
 Regler RC35) in Kurzformen mit `~`-Basis-Topic, darunter zehn `text`, Selects und eine Zahl nur mit
@@ -284,7 +284,7 @@ Grundlage von `check-discovery-light-basic.php`. Die Namen tragen bewusst kein �
 
 ## Dimmer aus Z-Wave JS UI (`discovery_zwavejs_20261125.json`)
 
-Aus einem **Anwender-Bundle** (herbertf, PN im Forum, 25.11.2026, Gesamt-Cache), **neutralisiert**: nur das Gerät
+Aus einem **Anwender-Bundle** (25.11.2026, Gesamt-Cache), **neutralisiert**: nur das Gerät
 „Raum-Bild“ (Qubino Flush Dimmer Plus ZMNHDD, Node 23), davon nur Dimmer, Schalter, ein abgewählter
 `config_switch` und der Leistungssensor mit den sieben Meldungen ihrer Topics, auch der Verfügbarkeit von Gateway
 und Treiber. Raumname (in Gerätenamen und Topics), Home-ID des Z-Wave-Netzes

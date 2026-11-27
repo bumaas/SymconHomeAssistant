@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Prüft an den ECHTEN Modulen (MQTT Discovery Splitter, Device, Konfigurator) über den Kernel-Stub die erste
  * Etappe aus docs/KONZEPT_DISCOVERY_SPLITTER.md: Jeder bekommt nur, was er braucht.
  *
- * Anlass: Ein Anwender mit Z-Wave JS UI (72 Geräte, 2384 Ankündigungen, PN t/145051, 26.11.2026). Jedes Gerät
+ * Anlass: Ein Anwender mit Z-Wave JS UI (72 Geräte, 2384 Ankündigungen, 26.11.2026). Jedes Gerät
  * holte beim Übernehmen alle Ankündigungen vom Splitter und wertete alle aus, um die eigenen zu finden. Mit
  * seinem Bundle kostete das im Test 404 ms je Gerät, mit nur den 28 eigenen 10 ms. Dazu:
  * - Das Gerät schrieb bei jeder Meldung das Attribut LastMQTTMessage.

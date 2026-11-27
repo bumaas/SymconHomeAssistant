@@ -26,7 +26,7 @@
     "source": {
         "producer_hint": "",
         "producer_version": "",
-        "notes": "Bundle von Boui (Forum t/142973 #386, PN 144956, 16.11.2026), EMS-ESP v3.9.1, Buderus Logano + RC35. Von ihm auf EMS-ESP gefiltert; ems-esp/info (Netzwerkdaten) beim Anlegen der Fixture entfernt. Instanz-IDs durch Platzhalter ersetzt (Splitter 10000, MQTT Client 10001)."
+        "notes": "Bundle eines Anwenders (Forum t/142973 #386, 16.11.2026), EMS-ESP v3.9.1, Buderus Logano + RC35. Von ihm auf EMS-ESP gefiltert; ems-esp/info (Netzwerkdaten) beim Anlegen der Fixture entfernt. Instanz-IDs durch Platzhalter ersetzt (Splitter 10000, MQTT Client 10001)."
     },
     "diagnostics": {
         "discovery_configs": {

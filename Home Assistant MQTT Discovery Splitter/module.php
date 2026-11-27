@@ -48,7 +48,7 @@ class HomeAssistantMQTTDiscoverySplitter extends IPSModuleStrict
     private const string BUFFER_LAST_MQTT_TOUCH    = 'LastMqttTouchEpoch';
     private const int LAST_MQTT_LABEL_THROTTLE_SEC = 5;
 
-    // Vorgemerkte Cache-Änderungen (build 246, herbertf PN t/145051): Die Zwischenspeicher für Ankündigungen und
+    // Vorgemerkte Cache-Änderungen (build 246, Meldung eines Anwenders): Die Zwischenspeicher für Ankündigungen und
     // Werte sind je ein Attribut mit dem ganzen Bestand als JSON, bei 2384 Ankündigungen mehrere MB. Bis build 245
     // las und schrieb jede Meldung sie komplett, die Meldungen stauten sich über Stunden. Jetzt merkt ReceiveData
     // die Meldung nur als Zeile in einem kleinen Buffer vor (BUFFER_PENDING_CHUNK . <n>, je höchstens

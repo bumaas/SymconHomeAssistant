@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Prüft am ECHTEN Splitter über den Kernel-Stub, dass ein `…/set`-Befehl für eine Auswahl die Option
  * unverändert an HA gibt.
  *
- * Anlass: Friemler (PN t/144231 #24/#26, 14./15.10.2026) schaltete die Auswahl `power` seiner
+ * Anlass: Ein Anwender (14./15.10.2026) schaltete die Auswahl `power` seiner
  * Samsung-Wärmepumpe aus Symcon, HA übernahm nichts, im MQTT Explorer stand nur das `set`-Topic. Der
  * Splitter wandelte jeden Befehl vorab in einen Wert um (`normalizePayload`): „on"/„off" wurden
  * true/false, „null" wurde null, Zahlen wurden float. Für `select_option` wurde aus true „1" — HA

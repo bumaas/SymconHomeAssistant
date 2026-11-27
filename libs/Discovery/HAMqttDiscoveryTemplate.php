@@ -246,7 +246,7 @@ final class HAMqttDiscoveryTemplate
                 'literal' => self::parseLiteral($matches[4])
             ];
         }
-        // Das bloße Feld als Bedingung (build 247, herbertf PN t/145051): Bis build 246 galt das Template als
+        // Das bloße Feld als Bedingung (build 247, Meldung eines Anwenders): Bis build 246 galt das Template als
         // nicht unterstützt, die availability von Z-Wave JS UI wurde am rohen JSON geprüft und war nie erfüllt.
         if (preg_match('/^value_json' . self::JSON_ACCESSOR . '$/', $term, $matches) === 1) {
             return ['test' => 'truthy', 'path' => self::parseJsonAccessorPath($matches[1])];

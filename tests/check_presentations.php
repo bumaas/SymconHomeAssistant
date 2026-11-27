@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Prüft, dass jede Darstellung im Quelltext nur Parameter setzt, die es in dieser Darstellung
  * auch gibt. Symcon validiert das ab 9.1 selbst und wirft sonst Fehler (Hinweis Niels,
- * Forum-PN t/144401 vom 16.09.2026).
+ * per PN vom 16.09.2026).
  *
  * Gesucht werden Array-Literale mit dem Schlüssel 'PRESENTATION'. Dessen Wert wird aufgelöst
  * (VARIABLE_PRESENTATION_*-Konstante, GUID-String, Klassenkonstante `X::PRESENTATION` aus dem

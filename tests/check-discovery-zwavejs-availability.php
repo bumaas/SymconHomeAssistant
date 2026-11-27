@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Prüft am ECHTEN Modul (Home Assistant MQTT Discovery Device) über den Kernel-Stub die Erreichbarkeit von
  * Geräten aus Z-Wave JS UI.
  *
- * Anlass: herbertf, PN t/145051 (26.11.2026): Alle Geräte standen auf „Nicht erreichbar“, obwohl sie liefen.
+ * Anlass: ein Anwender (26.11.2026): Alle Geräte standen auf „Nicht erreichbar“, obwohl sie liefen.
  * Z-Wave JS UI kündigt je Entität drei availability-Topics an (Knoten, MQTT-Client des Gateways, Treiber). Zwei
  * davon tragen ein Template, das nur prüft, ob ein Feld gesetzt ist:
  *   {{'true' if value_json.value else 'false'}}
@@ -17,7 +17,7 @@ declare(strict_types=1);
  * Erwartet wie in Jinja: Die Bedingung gilt, wenn das Feld da ist und nicht false, null, 0, leerer Text oder
  * leere Liste ist.
  *
- * Fixture: tests/fixtures/discovery_zwavejs_20261125.json (herbertfs Bundle, neutralisiert, Gerät „Raum-Bild“)
+ * Fixture: tests/fixtures/discovery_zwavejs_20261125.json (Bundle eines Anwenders, neutralisiert, Gerät „Raum-Bild“)
  * mit den echten Status-Meldungen. Einen Mitschnitt eines ausgefallenen Knotens gibt es nicht; für diese
  * Richtung dient die echte Meldung mit `value` false.
  */
