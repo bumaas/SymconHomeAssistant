@@ -297,6 +297,13 @@ Standard-Schema mit `state_value_template`, Skala 99 und `on_command_type: brigh
   - Zweck: Der Konfigurator der klassischen Bridge bekommt keine davon zugestellt
     (`check-configurator-receive-filter.php`)
 
+- `receive_filter_statestream_20261127.json`
+  - Quelle: eigene Anlage (27.11.2026), alle Entitäten aus Home Assistant, deren Objekt-ID mit „evcc“ oder „bad“
+    beginnt, mit ihrer Zuordnung zum HA-Gerät (168 Entitäten, 19 Geräte). Geräte-IDs durch laufende Namen ersetzt,
+    Entitäts-IDs unverändert
+  - Zweck: Der Empfangsfilter des klassischen Geräts trifft nur die eigenen Entitäten
+    (`check-device-receive-filter.php`); mit dem Zusammenfassen bis build 258 kamen hier neun fremde an
+
 - `discovery_cover_set_position_20260514.json`
   - Quelle: Zigbee2MQTT 2.10.1-dev (Zemismart ZM-AM02), ein Discovery-Record aus dem nuc-Bundle vom 14.05.2026
   - Geräteadressen durch `0x00000000000000a1`/`…b1` ersetzt

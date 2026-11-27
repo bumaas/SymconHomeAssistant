@@ -13,7 +13,7 @@ gemeinsamem Code.
 | Thema | Bessere Lösung | Richtung | Stand |
 |---|---|---|---|
 | Konfiguration im heißen Pfad | Klassisch: Cache im Instanz-Buffer mit Signatur, nur die benötigten Zeilen werden dekodiert | klassisch → Discovery | gebaut mit build 258 (Etappe 4), gemeinsames Format `libs/HAKeyedBlob.php` seit build 257 |
-| Empfangsfilter des Geräts | Discovery: genau die eigenen Topics. Der klassische fasst Objekt-IDs über den gemeinsamen Anfang zusammen (an der eigenen Anlage 9 fremde Treffer bei 1380 Entitäten, im Mitschnitt keine unnötige Zustellung) | Discovery → klassisch | offen (Etappe 5) |
+| Empfangsfilter des Geräts | Discovery: genau die eigenen Topics. Der klassische fasste Objekt-IDs über den gemeinsamen Anfang zusammen (an der eigenen Anlage 9 fremde Treffer bei 1380 Entitäten, im Mitschnitt keine unnötige Zustellung) | Discovery → klassisch | gebaut mit build 259 (Etappe 5) |
 | Performance-Messung im Splitter | Klassisch: dieselben Debug-Zeilen, dazu Statistik per Timer und eine Meldung bei langsamen Schritten | klassisch → Discovery | offen (Etappe 6) |
 | Attribut je Meldung im Splitter | Keine von beiden: klassisch liest `PendingRestAcks`, Discovery den Sitzungszustand. Besser ist ein Buffer bzw. der Statuswechsel des Parents. | beide | offen (Etappe 6) |
 | Anfangswerte neuer Geräte | Beide liefern sie sofort: klassisch per REST aus Home Assistant, Discovery aus dem Zwischenspeicher des Splitters | bleibt | Etappe 2 gestrichen |
@@ -118,7 +118,7 @@ Jede Etappe ist für sich veröffentlichbar und wird an echten Daten gemessen.
 | 2 | Splitter speichert keine Werte mehr. Export bekommt die Aufzeichnung. Gerät legt Typen ohne Zwischenspeicher an. | Punkte 1 bis 3 oben | **gestrichen** (27.11.2026) |
 | 3 | Vormerken und Sperren aus build 246 und 249 so weit vereinfachen, wie es ohne Sperre sicher ist | keines | offen, wartet auf die Antwort des Herstellers |
 | 4 | Gerät baut seinen Verarbeitungskontext nicht mehr bei jeder Meldung neu auf. Kam durch die Messung auf die Liste. | keines | gebaut mit build 258 |
-| 5 | Klassisches Gerät bekommt den genauen Empfangsfilter (`HAMqttTopicFilter`) | keines | offen |
+| 5 | Klassisches Gerät bekommt den genauen Empfangsfilter (`HAMqttTopicFilter`) | keines | gebaut mit build 259 |
 | 6 | Gemeinsamer Code für beide Splitter (Topic-Statistik, Performance-Messung, Teile des Selbsttests), Buffer statt Attribut je Meldung | Discovery-Splitter bekommt die Performance-Statistik des klassischen | offen |
 
 Etappe 1 greift die Rollen nicht an und lohnt sich unabhängig davon, was die Messung des Anwenders zeigt.
@@ -169,6 +169,14 @@ Gemessen im Test-Harness mit den 2384 Ankündigungen des Anwenders, je Gerät un
 Der Splitter liest für jede Anfrage weiter sein ganzes Register; das ist der Rest, den Etappe 3 angeht. Die
 Definition jedes Geräts ist dieselbe wie vorher, geprüft an 18 echten Bundles mit zusammen 528 Geräten.
 Das Gerät schreibt `LastMQTTMessage` höchstens alle 5 s, der Konfigurator hat einen Empfangsfilter.
+
+### Stand Etappe 5 (1.10 build 259)
+
+Klassisches Gerät und Entity setzen ihren Filter über `HAMqttTopicFilter::subtreeTopicsFilterPattern()`: je
+Entität `<base>/<domain>/<object_id>` und alles darunter, kein Topic, das nur gleich anfängt. Gegen den Bestand der
+eigenen Anlage (31 Geräte, 1380 HA-Entitäten): vorher 9 fremde Treffer bei zwei Geräten, jetzt 0, und kein eigenes
+Topic fehlt. Der Filter wird länger (Median 433 statt 263 Zeichen, der längste 3877 statt 623; er gehört zum Gerät
+mit 110 Entitäten, das vorher mit 279 Zeichen auskam).
 
 ## Entscheidungen (26.11.2026)
 

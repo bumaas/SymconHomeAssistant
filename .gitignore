@@ -46,6 +46,7 @@ tests/fixtures/*
 !tests/fixtures/discovery_awtrix_20260513.json
 !tests/fixtures/discovery_zwavejs_20261125.json
 !tests/fixtures/configurator_statestream_20261127.txt
+!tests/fixtures/receive_filter_statestream_20261127.json
 
 # Claude Code (persönliche Dateien)
 CLAUDE.local.md

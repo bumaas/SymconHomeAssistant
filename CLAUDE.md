@@ -613,6 +613,9 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   reicht dafür das availability-Topic der Bridge neben den Topics des Geräts: Der Filter jedes Geräts lautete
   `Z-Wave-JS/…`. Dasselbe bei EMS-ESP (`ems-esp/…`) und Zigbee2MQTT (`zigbee2mqtt/…`, Fixture mit 88 Lampen:
   jede Meldung an alle 88).
+- Test für das klassische Gerät: `tests/check-device-receive-filter.php` (Fixture
+  `receive_filter_statestream_20261127.json`, 168 Entitäten der eigenen Anlage mit Gerätezuordnung). Die
+  Entity-Instanz kommt ohne Splitter nicht bis zum Filter, der Test ruft dort `updateReceiveFilter()` direkt.
 - Jetzt baut `HAMqttTopicFilter::exactTopicsFilterPattern()` den Filter als Baum über die Topic-Ebenen: genau die
   Topics aus `collectRelevantTopics()`, kein Anfang und keine Verlängerung. Mit dem Bundle des Anwenders und den 400
   Meldungen seines Mitschnitts im Harness: vorher 28.800 Zustellungen (jede an 72 Geräte), jetzt 55 (345 Meldungen
@@ -632,15 +635,26 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   zusätzlich lief, steht in keiner Ankündigung. Ein Topic mit Umlauten kommt an, die Klasse für Nicht-ASCII-Zeichen
   trägt also am echten Kernel. Am nuc hängen nur zwei Geräte an einem Splitter mit MQTT-Quelle, beide ohne
   laufende Meldungen.
-- Der Filter der klassischen Bridge (`HADeviceCore::buildReceiveFilterRegexParts`) fasst weiter Objekt-IDs einer
-  Domäne über den gemeinsamen Anfang zusammen. Am nuc gemessen (27.11.2026, 31 Geräte): im Mitschnitt keine
-  unnötige Zustellung (1224 Zustellungen), statisch gegen alle 1380 HA-Entitäten 9 fremde Treffer bei zwei
-  Geräten. An einer Anlage mit anderer Namensgebung ist es nicht gemessen; der genaue Filter für das klassische
-  Gerät ist Etappe 5 im Konzept.
+- **Klassisches Gerät und Entity nutzen denselben Baustein seit build 259** (Etappe 5 im Konzept):
+  `HAMqttTopicFilter::subtreeTopicsFilterPattern()` trifft je Entität `<base>/<domain>/<object_id>` und alles
+  darunter (die Attribut-Topics), aber kein Topic, das nur gleich anfängt (`bad_2` bei `bad`). Bis build 258 fasste
+  `HADeviceCore::buildReceiveFilterRegexParts` die Objekt-IDs einer Domäne über ihren gemeinsamen Anfang zusammen
+  („evcc_[^"]*“). Am nuc (27.11.2026, 31 Geräte) lief im Mitschnitt damit nichts Unnötiges (1224 Zustellungen),
+  statisch gegen alle 1380 HA-Entitäten trafen aber zwei Geräte neun fremde; bei einer Anlage, deren Entitäten nach
+  Räumen heißen, kann das jede Meldung eines Raums sein. Mit dem neuen Baustein: 0 fremde, 0 fehlende Treffer.
+  Die Verlängerung für Attribut-Topics steht je Ebene einmal, nicht je Entität. Der Filter ist am nuc im Median
+  433 Zeichen lang (vorher 263), der längste 3877 (evcc mit 110 Entitäten, vorher 279). Das Verteilen im Splitter
+  (`sendToChildren`) lag in den beiden 15-Minuten-Fenstern nach dem Neuladen bei 6,6 und 5,9 ms je Meldung, in
+  den drei Fenstern davor bei 6,1 bis 6,4 ms und über den Tag bei 4,9 bis 6,4 ms. An dieser Anlage bringt der neue
+  Filter also keinen messbaren Gewinn und kostet nichts; er ist Vorsorge für Anlagen mit anderer Namensgebung.
+  Die Entity ist am nuc mit einem Test-Schalter belegt (hin und zurück, der Wert kam über statestream zurück).
+  Ohne Entitäten setzt das
+  Gerät `^$` wie der Konfigurator (vorher `.*ThisShouldNotMatchAnything.*`). Das Muster des Discovery-Geräts
+  (`exactTopicsFilterPattern`) ist unverändert, an 229 Topic-Listen aus den lokalen Bundles verglichen.
 - Test: `tests/check-discovery-receive-filter.php` (Fixtures `discovery_ems_esp_20261116.json`,
   `ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json`, `discovery_zwavejs_20261125.json`; die fremden
   Meldungen in Teil 2 aus dem Mitschnitt, Namen ersetzt; der Fall mit Umlaut ist eine Variante der Fixture).
-  `check-receive-filter-collapse.php` prüft nur noch die klassische Bridge.
+  `check-receive-filter-collapse.php` ist mit build 259 entfallen (es prüfte eine Kopie des Zusammenfassens).
 
 ## Verarbeitungskontext im Buffer: gemeinsames Format, Discovery-Gerät je Meldung (1.10 build 257 und 258)
 

@@ -246,10 +246,39 @@ class HAMqttTopicFilter
      */
     public static function exactTopicsFilterPattern(array $topics): string
     {
+        return self::topicTreeFilterPattern($topics, false);
+    }
+
+    /**
+     * Empfangsfilter eines Kindes, das zu jedem Topic auch alles darunter auswertet: das klassische Gerät mit
+     * <base>/<domain>/<object_id> je Entität und den Attribut-Topics eine Ebene tiefer. Er trifft das Topic selbst
+     * und jede Verlängerung um weitere Ebenen, aber kein Topic, das nur gleich anfängt (bad_2 bei bad).
+     * '^$' (nichts), wenn die Liste leer ist. Bauformen wie exactTopicsFilterPattern().
+     *
+     * Bis build 258 fasste das klassische Gerät die Objekt-IDs einer Domäne über ihren gemeinsamen Anfang zusammen
+     * (ab drei Zeichen), damit das Muster kurz bleibt. Damit traf es auch Entitäten anderer Geräte, die gleich
+     * anfangen: an der eigenen Anlage neun bei zwei Geräten (27.11.2026).
+     *
+     * @param string[] $topics
+     */
+    public static function subtreeTopicsFilterPattern(array $topics): string
+    {
+        return self::topicTreeFilterPattern($topics, true);
+    }
+
+    /** @param string[] $topics */
+    private static function topicTreeFilterPattern(array $topics, bool $withSubtopics): string
+    {
         $tree = [];
         foreach ($topics as $topic) {
             if (!is_string($topic) || $topic === '') {
                 continue;
+            }
+            if ($withSubtopics) {
+                $topic = trim($topic, '/');
+                if ($topic === '') {
+                    continue;
+                }
             }
             $node = &$tree;
             foreach (explode('/', $topic) as $level) {
@@ -263,19 +292,30 @@ class HAMqttTopicFilter
             return '^$';
         }
 
-        return '.*"Topic":"' . self::renderTopicTree($tree) . '".*';
+        return '.*"Topic":"' . self::renderTopicTree($tree, $withSubtopics) . '".*';
     }
 
-    private static function renderTopicTree(array $node): string
+    private static function renderTopicTree(array $node, bool $withSubtopics): string
     {
         $alternatives = [];
+        $ends = [];
         foreach ($node['children'] as $level => $child) {
             $pattern = self::quoteTopicLevel((string)$level);
+            if ($withSubtopics && isset($child['end'])) {
+                // Alles unter diesem Topic gehört dazu; ein längeres Topic der Liste darunter ist damit abgedeckt.
+                $ends[] = $pattern;
+                continue;
+            }
             if (isset($child['children'])) {
-                $rest = '\\\\?\\/' . self::renderTopicTree($child);
+                $rest = '\\\\?\\/' . self::renderTopicTree($child, $withSubtopics);
                 $pattern .= isset($child['end']) ? '(?:' . $rest . ')?' : $rest;
             }
             $alternatives[] = $pattern;
+        }
+        if ($ends !== []) {
+            // Die Verlängerung steht für alle Enden dieser Ebene einmal, nicht je Topic: Bei 110 Entitäten eines
+            // Geräts wäre das Muster sonst um ein Drittel länger.
+            $alternatives[] = (count($ends) === 1 ? $ends[0] : '(?:' . implode('|', $ends) . ')') . '(?:\\\\?\\/[^"]*)?';
         }
 
         return count($alternatives) === 1 ? $alternatives[0] : '(?:' . implode('|', $alternatives) . ')';
