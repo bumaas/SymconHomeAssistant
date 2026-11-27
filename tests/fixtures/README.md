@@ -291,6 +291,12 @@ und Treiber. Raumname (in Gerätenamen und Topics), Home-ID des Z-Wave-Netzes
 (`0x00000001`) und Instanz-IDs (Splitter 10000, MQTT Client 10001) ersetzt. Der Dimmer kündigt sich im
 Standard-Schema mit `state_value_template`, Skala 99 und `on_command_type: brightness` an. Grundlage von `check-discovery-light-basic.php` (Teile 6 bis 8).
 
+- `configurator_statestream_20261127.txt`
+  - Quelle: Debug-Datei des MQTT Client am nuc (27.11.2026), 40 Zeilen „MQTT:RX:PUBLISH“ des statestream zu einer
+    Steckdose, unverändert
+  - Zweck: Der Konfigurator der klassischen Bridge bekommt keine davon zugestellt
+    (`check-configurator-receive-filter.php`)
+
 - `discovery_cover_set_position_20260514.json`
   - Quelle: Zigbee2MQTT 2.10.1-dev (Zemismart ZM-AM02), ein Discovery-Record aus dem nuc-Bundle vom 14.05.2026
   - Geräteadressen durch `0x00000000000000a1`/`…b1` ersetzt

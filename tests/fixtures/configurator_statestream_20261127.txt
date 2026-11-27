@@ -1,0 +1,40 @@
+27.11.2026 08:51:44 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state, Payload: 36.0
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_updated, Payload: 2026-11-27T07:51:42.651487+00:00
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_changed, Payload: 2026-11-27T07:51:42.651487+00:00
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state_class, Payload: "measurement"
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/unit_of_measurement, Payload: "W"
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/device_class, Payload: "power"
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/friendly_name, Payload: "PlugS Gen3 #9 Leistung"
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state, Payload: 39.2
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_updated, Payload: 2026-11-27T07:51:43.690827+00:00
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_changed, Payload: 2026-11-27T07:51:43.690827+00:00
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state_class, Payload: "measurement"
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/unit_of_measurement, Payload: "W"
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/device_class, Payload: "power"
+27.11.2026 08:51:45 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/friendly_name, Payload: "PlugS Gen3 #9 Leistung"
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state, Payload: 45.9
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_updated, Payload: 2026-11-27T07:51:44.719072+00:00
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_changed, Payload: 2026-11-27T07:51:44.719072+00:00
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state_class, Payload: "measurement"
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/unit_of_measurement, Payload: "W"
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/device_class, Payload: "power"
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/friendly_name, Payload: "PlugS Gen3 #9 Leistung"
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state, Payload: 57.9
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_updated, Payload: 2026-11-27T07:51:45.747970+00:00
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_changed, Payload: 2026-11-27T07:51:45.747970+00:00
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state_class, Payload: "measurement"
+27.11.2026 08:51:46 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/unit_of_measurement, Payload: "W"
+27.11.2026 08:51:47 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/device_class, Payload: "power"
+27.11.2026 08:51:47 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/friendly_name, Payload: "PlugS Gen3 #9 Leistung"
+27.11.2026 08:51:47 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state, Payload: 48.1
+27.11.2026 08:51:47 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_updated, Payload: 2026-11-27T07:51:46.779189+00:00
+27.11.2026 08:51:47 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_changed, Payload: 2026-11-27T07:51:46.779189+00:00
+27.11.2026 08:51:47 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state_class, Payload: "measurement"
+27.11.2026 08:51:47 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/unit_of_measurement, Payload: "W"
+27.11.2026 08:51:47 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/device_class, Payload: "power"
+27.11.2026 08:51:47 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/friendly_name, Payload: "PlugS Gen3 #9 Leistung"
+27.11.2026 08:51:48 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state, Payload: 33.7
+27.11.2026 08:51:48 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_updated, Payload: 2026-11-27T07:51:47.807610+00:00
+27.11.2026 08:51:48 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/last_changed, Payload: 2026-11-27T07:51:47.807610+00:00
+27.11.2026 08:51:48 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/state_class, Payload: "measurement"
+27.11.2026 08:51:48 | TXT | MQTT:RX:PUBLISH | Topic: homeassistant/sensor/plugs_gen3_9_leistung/unit_of_measurement, Payload: "W"

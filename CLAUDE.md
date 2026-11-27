@@ -22,6 +22,13 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Schreiben: pro Domain über den fachlich vorgesehenen HA-Pfad (i. d. R. REST-Service-Call);
   MQTT nur, wenn ein echter Command-Pfad existiert. `*/set`-Topics behandelt der Splitter
   selbst per REST.
+- **Jedes Kind des Splitters setzt einen Empfangsfilter**, auch eines, das keine Meldungen auswertet. Der
+  Konfigurator trägt dieselbe Datenfluss-ID wie die Geräte und bekam bis build 255 jede Meldung zugestellt, weil
+  er keinen Filter setzte; seit build 256 setzt sein `ApplyChanges()` `^$`. Messung am nuc (27.11.2026, 31 Geräte,
+  6 Entitäten, ein Konfigurator, rund 600 Meldungen je Minute an `SendDataToChildren`): `sendToChildren` im Schnitt 12,1 ms statt 19 bis 26 ms. Ausreißer
+  über 100 ms je zehn Minuten: bei Meldungen, die kein Gerät braucht, 1,8 statt 11,9, bei Meldungen mit Empfänger
+  19,6 statt 27,8 (eine Stunde vorher gegen elf Minuten danach). Die verbleibenden liegen in den Geräten.
+  Test: `tests/check-configurator-receive-filter.php` (Fixture `configurator_statestream_20261127.txt`).
 
 ## Erreichbarkeit (Device/Entity, seit 1.5)
 

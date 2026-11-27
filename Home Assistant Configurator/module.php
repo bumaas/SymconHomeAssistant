@@ -61,6 +61,16 @@ class HomeAssistantConfigurator extends IPSModuleStrict
         $this->SetBuffer(self::BUFFER_REFRESH_ACTIVE, json_encode(false, JSON_THROW_ON_ERROR));
     }
 
+    // Der Konfigurator hängt mit derselben Datenfluss-ID am Splitter wie die Geräte, wertet aber keine Meldungen
+    // aus; er fragt den Splitter per REST. Ohne Filter stellte der Kernel ihm jede Meldung des statestream zu
+    // (build 256, wie der MQTT Discovery Konfigurator seit build 251). Hier wird nichts gelesen, deshalb ohne
+    // Prüfung des Reload-Fensters.
+    public function ApplyChanges(): void
+    {
+        parent::ApplyChanges();
+        $this->SetReceiveDataFilter('^$');
+    }
+
     public function GetConfigurationForm(): string
     {
         $startedAt = microtime(true);
