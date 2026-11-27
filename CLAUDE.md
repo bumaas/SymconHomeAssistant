@@ -572,9 +572,12 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 
 - Zielbild in `docs/KONZEPT_DISCOVERY_SPLITTER.md` (Entscheidung 26.11.2026): Der Splitter verteilt und führt nur
   noch ein Register der Ankündigungen, die Werte halten die Geräte. Das Vormerken und die Sperren aus build 246
-  und 249 gelten als Workaround und entfallen mit Etappe 3. Build 251 ist Etappe 1 und ändert die Rollen nicht.
-  Seit 27.11.2026 ist Etappe 2 (Splitter hält keine Werte mehr) zurückgestellt: Die Messung beim Anwender zeigt
-  dafür keine Last mehr. Solange sie aussteht, kann Etappe 3 das Vormerken für die Werte nicht ersatzlos streichen.
+  und 249 galten als Workaround. Build 251 ist Etappe 1 und ändert die Rollen nicht.
+- **Leitsatz seit 27.11.2026:** Wo klassische Bridge und MQTT Discovery dieselbe Aufgabe verschieden lösen, gilt
+  je Thema die bessere Lösung für beide, möglichst in gemeinsamem Code (Tabelle im Konzept). Etappe 2 (Splitter
+  hält keine Werte mehr) ist deshalb gestrichen: Neue Geräte haben in beiden Familien sofort Werte, klassisch per
+  REST, bei Discovery aus dem Zwischenspeicher des Splitters. Das Vormerken bleibt; ob die Sperren entfallen
+  können, hängt an der Frage an den Hersteller, ob `ReceiveData` einer Instanz nacheinander läuft (Etappe 3).
 - **Gerät fragt mit seiner Geräte-ID** (`GetDiscoveryConfigs` mit `DeviceID`), der Splitter liefert nur dessen
   Ankündigungen (`filterDiscoveryRecordsByDevice`). Bis build 250 bekam jedes Gerät bei jedem Übernehmen alle
   und wertete alle aus, um die eigenen zu finden: mit 2384 Ankündigungen im Harness 440 ms je Gerät (Splitter 47,
@@ -623,28 +626,59 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
   Warnung in der Entitätenliste gleicht das Formular beim Öffnen aus dem Zwischenspeicher des Splitters ab. Wer
   eine neue Art Topic auswertet, trägt sie in `collectRelevantTopics()` **und** `buildTopicProcessingIndex()` ein;
   der Test vergleicht beide.
-- Nicht live belegt: Am nuc hängen nur zwei Geräte an einem Splitter mit MQTT-Quelle, beide ohne laufende
-  Meldungen. Übernommen haben alle zehn Geräte den neuen Filter ohne Fehler; dass der Kernel damit zustellt, ist
-  aus den Bauformen geschlossen (alle im Filter der klassischen Bridge täglich in Gebrauch, außer der Klasse für
-  Nicht-ASCII-Zeichen).
-- Offen: `getRuntimeProcessingContext()` baut den Kontext unter Rust bei jeder Meldung neu (8 bis 14 ms am
-  Raspberry Pi); mit dem genauen Filter trifft das nur noch das Gerät, das die Meldung braucht. Der Filter der
-  klassischen Bridge (`HADeviceCore::buildReceiveFilterRegexParts`) fasst weiter Objekt-IDs einer Domäne über den
-  gemeinsamen Anfang zusammen; ob das dort Fremdverkehr durchlässt, ist nicht gemessen.
+- **Beim Anwender belegt** (Mitschnitt 27.11.2026 mit build 254, Splitter und drei Geräte, 15 Minuten): Der
+  Splitter braucht je Meldung im Median 4,0 ms statt 1092 ms und ist 1,3 % der Zeit beschäftigt (1936 Meldungen in
+  931 s). Die drei Geräte bekamen 15, 46 und 14 Meldungen, alle zu eigenen Topics; was unter ihrer Wurzel
+  zusätzlich lief, steht in keiner Ankündigung. Ein Topic mit Umlauten kommt an, die Klasse für Nicht-ASCII-Zeichen
+  trägt also am echten Kernel. Am nuc hängen nur zwei Geräte an einem Splitter mit MQTT-Quelle, beide ohne
+  laufende Meldungen.
+- Der Filter der klassischen Bridge (`HADeviceCore::buildReceiveFilterRegexParts`) fasst weiter Objekt-IDs einer
+  Domäne über den gemeinsamen Anfang zusammen. Am nuc gemessen (27.11.2026, 31 Geräte): im Mitschnitt keine
+  unnötige Zustellung (1224 Zustellungen), statisch gegen alle 1380 HA-Entitäten 9 fremde Treffer bei zwei
+  Geräten. An einer Anlage mit anderer Namensgebung ist es nicht gemessen; der genaue Filter für das klassische
+  Gerät ist Etappe 5 im Konzept.
 - Test: `tests/check-discovery-receive-filter.php` (Fixtures `discovery_ems_esp_20261116.json`,
   `ha_mqtt_discovery_bundle_zigbee2mqtt_light_current_v2.json`, `discovery_zwavejs_20261125.json`; die fremden
   Meldungen in Teil 2 aus dem Mitschnitt, Namen ersetzt; der Fall mit Umlaut ist eine Variante der Fixture).
   `check-receive-filter-collapse.php` prüft nur noch die klassische Bridge.
 
-## Cache-Format im Buffer: gemeinsame Klasse (1.10 build 257)
+## Verarbeitungskontext im Buffer: gemeinsames Format, Discovery-Gerät je Meldung (1.10 build 257 und 258)
 
-- Das klassische Gerät hält seine Konfiguration seit build 147 und 165 in einem Buffer mit Signatur und liest je
-  Meldung nur die eigene Zeile (`getConfiguredEntityById`). Das Format dafür steht jetzt in `libs/HAKeyedBlob.php`:
-  Kopfzeile als JSON, je Eintrag `"<Schlüssel>"` TAB `<Wert als JSON>`, Zeilenzugriff ohne Volldekodierung. Die
-  Klasse kennt weder Signatur noch Inhalt; ob ein Blob gilt, entscheidet der Aufrufer am Kopf.
-- Reiner Umbau als Vorbereitung für das Discovery-Gerät (Etappe 4 im Konzept): Das klassische Gerät schreibt Byte
-  für Byte denselben Blob, an 18 Entitätslisten aus den Fixtures und 349 Zeilenzugriffen gegen den alten Code
-  verglichen. Es prüft weiter `tests/check-configured-entities-cache.php`.
+- Anlass: zweiter Mitschnitt eines Anwenders (27.11.2026, Z-Wave JS UI, Raspberry Pi). Jede Meldung läuft dort in
+  einer eigenen PHP-Ausführung, das Memo im Objekt hielt nie (`cached: false` bei allen 75 Meldungen). Das
+  Discovery-Gerät las je Meldung seine Definition zweimal, dekodierte und normalisierte alle Entitäten und baute
+  den Topic-Index neu auf: 8 bis 14 ms bei 18 bis 32 Entitäten.
+- Das klassische Gerät löst dasselbe seit build 147 und 165 über einen Buffer mit Signatur und Zeilenzugriff
+  (`getConfiguredEntityById`). **Build 257** nimmt das Format dafür aus `HADeviceCore` heraus in
+  `libs/HAKeyedBlob.php`: Kopfzeile als JSON, je Eintrag `"<Schlüssel>"` TAB `<Wert als JSON>`, Zeilenzugriff ohne
+  Volldekodierung. Reiner Umbau, das klassische Gerät schreibt Byte für Byte denselben Blob (an 18 Entitätslisten
+  aus den Fixtures und 349 Zeilenzugriffen gegen den alten Code verglichen). Die Klasse kennt weder Signatur noch
+  Inhalt; ob ein Blob gilt, entscheidet der Aufrufer am Kopf.
+- **Build 258:** Das Discovery-Gerät hält seinen Kontext zusätzlich im Buffer `RuntimeContextCache`. Kopf mit
+  Signatur und Namenszählern, Zeilen `t:<Topic>` (Index-Einträge des Topics je Art) und `e:<entity_key>` (die
+  normalisierte Entität, jede einmal). `getTopicProcessingSlice()` liefert je Meldung nur, was das Topic braucht,
+  in drei Stufen: Memo der Ausführung, Buffer, voller Aufbau mit neuem Blob. `ReceiveData` holt den vollen Kontext
+  (`getRuntimeProcessingContext`) nur noch, wenn sich Verfügbarkeit oder Warnungen geändert haben.
+- Die Signatur (`buildRuntimeContextSignature`) geht über die Rohtexte der Definition und des Topic-Index, die
+  Properties `EntitySelection` und `DeviceID` und den Marker `RUNTIME_CONTEXT_MARKER`. Die Definition wird dafür
+  je Meldung einmal gelesen, aber nicht dekodiert. `ApplyChanges` leert den Buffer zusätzlich. **Wer den Aufbau
+  der normalisierten Entität oder des Topic-Index ändert, gibt dem Marker einen neuen Wert**, sonst gilt nach
+  einem Update der Blob des alten Codes weiter.
+- Kodiert wird mit `JSON_PRESERVE_ZERO_FRACTION`, damit `min`, `max` und `step` Kommazahlen bleiben. Der Test
+  vergleicht den Ausschnitt aus dem Buffer mit `===` gegen den aus dem vollen Aufbau.
+- Grenze: Symcon kürzt einen Buffer über 512 KB auf die neuesten 512 KB, dem Blob fehlte dann der Kopf. Über
+  `RUNTIME_CONTEXT_MAX_BYTES` (500.000) legt das Gerät deshalb keinen Blob an und baut weiter je Meldung auf. In
+  den 18 lokalen Bundles (528 Geräte) trifft das ein Gerät mit 476 Entitäten; der größte Blob darunter hat 434 KB
+  (121 Entitäten). Das klassische Gerät hat seine Grenze noch bei 1 MB (`CONFIGURED_ENTITIES_CACHE_MAX_BYTES`),
+  ein Blob zwischen 512 KB und 1 MB würde dort bei jeder Meldung neu geschrieben; dafür gibt es keinen Fall.
+- Gemessen im Harness mit dem Bundle des Anwenders (72 Geräte, je 30 Meldungen in frischer Ausführung, nur PHP):
+  im Mittel 6,9 ms je Meldung vorher, 0,24 ms danach. Am Raspberry Pi des Anwenders nicht gemessen. Der Messpunkt
+  `ReceiveData.getRuntimeProcessingContext` heißt weiter so, trägt jetzt `source` (memo, buffer, rebuild), und
+  `entities` zählt die Entitäten des Topics statt aller.
+- Test: `tests/check-discovery-device-context-cache.php` (Fixtures `discovery_zwavejs_20261125.json` und
+  `discovery_ems_esp_20261116.json`): Lesezugriffe je Meldung, Gleichheit für jedes Topic der vier Geräte,
+  gleiche Werte mit und ohne Cache, geänderte Ankündigung, Blob mit fremder Signatur, beschädigte Zeile,
+  Erreichbarkeit, Reload-Fenster. Das klassische Gerät prüft weiter `check-configured-entities-cache.php`.
 
 ## MQTT Discovery: Sensortyp bleibt stabil (1.10 build 248)
 

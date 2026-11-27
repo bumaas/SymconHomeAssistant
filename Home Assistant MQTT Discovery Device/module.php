@@ -23,7 +23,17 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
     // Arbeitsspeicher-Cache der normalisierten Verarbeitungsstrukturen, damit ReceiveData nicht
     // bei jeder MQTT-Message die komplette Gerätedefinition neu dekodiert/normalisiert.
     private ?array $runtimeProcessingContextCache = null;
-    private bool $runtimeProcessingContextCacheHit = false;
+
+    // Derselbe Kontext im Instanz-Buffer (Format HAKeyedBlob), weil das Memo oben eine PHP-Ausführung nicht
+    // überlebt. Der Marker gehört in die Signatur: Ändert sich der Aufbau der Entitäten oder des Index, bekommt
+    // er einen neuen Wert, damit ein Blob des alten Codes nach einem Update nicht weiter gilt.
+    private const string BUFFER_RUNTIME_CONTEXT = 'RuntimeContextCache';
+    private const string RUNTIME_CONTEXT_MARKER = 'b258';
+    private const int RUNTIME_CONTEXT_MAX_BYTES = 500000;
+    private const array TOPIC_INDEX_BUCKETS = ['warnings', 'state', 'attributes', 'availability', 'climate', 'light'];
+    private const array EMPTY_TOPIC_INDEX = [
+        'topics' => [], 'warnings' => [], 'state' => [], 'attributes' => [], 'availability' => [], 'climate' => [], 'light' => []
+    ];
 
     private const string PROP_DEVICE_ID = 'DeviceID';
     private const string PROP_ENTITY_SELECTION = 'EntitySelection';
@@ -221,6 +231,7 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         ]);
         parent::ApplyChanges();
         $this->runtimeProcessingContextCache = null;
+        $this->SetBuffer(self::BUFFER_RUNTIME_CONTEXT, '');
         $this->SetTimerInterval(self::TIMER_DEFERRED_APPLY, 0);
         $this->syncParentStatusMessageRegistration();
         if (!$this->isKernelReady()) {
@@ -354,25 +365,27 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
         $this->touchLastMqttMessage();
         $this->logPerformanceSample('ReceiveData.writeLastMQTTMessage', $stepStartedAt);
 
+        // Nur was dieses Topic braucht (seit build 258): die betroffenen Entitäten und ihre Index-Einträge, im
+        // Regelfall aus dem Instanz-Buffer. „entities“ zählt deshalb die Entitäten des Topics, nicht mehr alle.
         $stepStartedAt = microtime(true);
-        $context = $this->getRuntimeProcessingContext();
+        $slice = $this->getTopicProcessingSlice($topic);
         $this->logPerformanceSample('ReceiveData.getRuntimeProcessingContext', $stepStartedAt, [
-            'cached' => $this->runtimeProcessingContextCacheHit,
-            'entities' => count($context['entities'])
+            'cached' => $slice['cached'],
+            'source' => $slice['source'],
+            'entities' => count($slice['lookup'])
         ]);
 
-        $entities = $context['entities'];
-        $entityLookup = $context['lookup'];
-        $topicIndex = $context['topicIndex'];
-
         $stepStartedAt = microtime(true);
-        $result = $this->applyTopicPayloadToEntities($entityLookup, $topicIndex, $topic, $payload);
+        $result = $this->applyTopicPayloadToEntities($slice['lookup'], $slice['topicIndex'], $topic, $payload);
         $this->logPerformanceSample('ReceiveData.applyTopicPayloadToEntities', $stepStartedAt, ['topic' => $topic]);
 
         if ($result['diagnostics_changed']) {
+            // Erreichbarkeit und Diagnose urteilen über alle Entitäten: dafür der volle Kontext (selten).
             $stepStartedAt = microtime(true);
+            $context = $this->getRuntimeProcessingContext();
+            $entities = $context['entities'];
             $this->evaluateReachability($entities, $this->GetStatus() !== self::STATUS_DISCOVERY_CACHE_MISSING);
-            $this->updateDiagnosticsLabels($entities, $topicIndex['topics']);
+            $this->updateDiagnosticsLabels($entities, $context['topicIndex']['topics']);
             $this->updateInstanceSummary($entities);
             $this->logPerformanceSample('ReceiveData.updateDiagnostics', $stepStartedAt);
         }
@@ -753,27 +766,177 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
      * Das vermeidet das teure Dekodieren/Normalisieren der kompletten Gerätedefinition bei jeder
      * eingehenden MQTT-Message. Der Cache wird zusätzlich in ApplyChanges invalidiert.
      */
-    private function getRuntimeProcessingContext(): array
+    private function getRuntimeProcessingContext(?string $signature = null): array
     {
-        $definitionRaw = $this->ReadAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION);
-        $indexRaw = is_string($this->topicIndexMemo) ? $this->topicIndexMemo : $this->ReadAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX);
-        $signature = strlen($definitionRaw) . ':' . crc32($definitionRaw) . '|' . strlen($indexRaw) . ':' . crc32($indexRaw);
+        $signature ??= $this->buildRuntimeContextSignature();
 
         if (is_array($this->runtimeProcessingContextCache) && ($this->runtimeProcessingContextCache['signature'] ?? null) === $signature) {
-            $this->runtimeProcessingContextCacheHit = true;
             return $this->runtimeProcessingContextCache;
         }
 
         $entities = $this->getConfiguredEntities();
         $this->runtimeProcessingContextCache = [
-            'signature'  => $signature,
-            'entities'   => $entities,
-            'lookup'     => $this->buildEntityLookup($entities),
-            'topicIndex' => $this->readTopicProcessingIndex()
+            'signature'      => $signature,
+            'entities'       => $entities,
+            'lookup'         => $this->buildEntityLookup($entities),
+            'topicIndex'     => $this->readTopicProcessingIndex(),
+            // getConfiguredEntities() hat die Namenszähler gerade aufgebaut; der Buffer-Cache stellt sie wieder her.
+            'baseNameCounts' => $this->sharedEntityBaseNameCounts
         ];
-        $this->runtimeProcessingContextCacheHit = false;
 
         return $this->runtimeProcessingContextCache;
+    }
+
+    // Alles, wovon der Verarbeitungskontext abhängt: die gespeicherte Definition, der Topic-Index, die beiden
+    // Properties, die in die Entitäten einfließen, und der Stand des Codes. Die Definition wird dafür gelesen,
+    // aber nicht dekodiert. Über die Rohtexte statt über „beim Schreiben verwerfen“, damit auch ein Blob, den
+    // eine Meldung mitten in einem ApplyChanges aus halb neuem Stand gebaut hat, bei der nächsten nicht mehr gilt
+    // (Muster des klassischen Geräts, buildConfiguredEntitiesSignature).
+    private function buildRuntimeContextSignature(): string
+    {
+        $definitionRaw = $this->ReadAttributeString(self::ATTR_RESOLVED_DEVICE_DEFINITION);
+        $indexRaw = is_string($this->topicIndexMemo) ? $this->topicIndexMemo : $this->ReadAttributeString(self::ATTR_TOPIC_PROCESSING_INDEX);
+        return self::RUNTIME_CONTEXT_MARKER
+            . '|' . strlen($definitionRaw) . ':' . crc32($definitionRaw)
+            . '|' . strlen($indexRaw) . ':' . crc32($indexRaw)
+            . '|' . crc32($this->ReadPropertyString(self::PROP_ENTITY_SELECTION))
+            . '|' . crc32($this->ReadPropertyString(self::PROP_DEVICE_ID));
+    }
+
+    /**
+     * Was eine Meldung auf $topic braucht: die betroffenen Entitäten und die Index-Einträge dieses Topics.
+     * Drei Stufen wie beim klassischen Gerät (getConfiguredEntityById): Memo dieser Ausführung, Instanz-Buffer
+     * mit Signatur (nur die Zeilen des Topics werden dekodiert), sonst voller Aufbau, der den Buffer neu füllt.
+     *
+     * Anlass: Unter der Rust-Edition läuft jede Meldung in einer eigenen PHP-Ausführung, das Memo allein hielt
+     * nie. Ein Anwender mit Z-Wave JS UI auf einem Raspberry Pi (27.11.2026): 8 bis 14 ms je Meldung für den
+     * Aufbau aller 18 bis 32 Entitäten.
+     *
+     * @return array{lookup: array<string, array>, topicIndex: array<string, array>, cached: bool, source: string}
+     */
+    private function getTopicProcessingSlice(string $topic): array
+    {
+        $signature = $this->buildRuntimeContextSignature();
+        if (is_array($this->runtimeProcessingContextCache) && ($this->runtimeProcessingContextCache['signature'] ?? null) === $signature) {
+            return $this->sliceRuntimeContext($this->runtimeProcessingContextCache, $topic) + ['cached' => true, 'source' => 'memo'];
+        }
+
+        $slice = $this->readTopicSliceFromBuffer($topic, $signature);
+        if ($slice !== null) {
+            return $slice + ['cached' => true, 'source' => 'buffer'];
+        }
+
+        $context = $this->getRuntimeProcessingContext($signature);
+        $this->storeRuntimeContextBuffer($context);
+        return $this->sliceRuntimeContext($context, $topic) + ['cached' => false, 'source' => 'rebuild'];
+    }
+
+    /** @return array{lookup: array<string, array>, topicIndex: array<string, array>} */
+    private function sliceRuntimeContext(array $context, string $topic): array
+    {
+        $lookup = [];
+        $topicIndex = self::EMPTY_TOPIC_INDEX;
+        foreach (self::TOPIC_INDEX_BUCKETS as $bucket) {
+            $keys = $context['topicIndex'][$bucket][$topic] ?? [];
+            if ($keys === []) {
+                continue;
+            }
+            $topicIndex[$bucket][$topic] = $keys;
+            foreach ($keys as $key) {
+                if (isset($context['lookup'][$key])) {
+                    $lookup[$key] = $context['lookup'][$key];
+                }
+            }
+        }
+        return ['lookup' => $lookup, 'topicIndex' => $topicIndex];
+    }
+
+    /**
+     * Zeilenzugriff auf den Buffer. null heißt: kein gültiger Blob (leer, andere Signatur, beschädigte Zeile),
+     * dann gilt der volle Aufbau. Ein Topic, das der gültige Blob nicht führt, wertet das Gerät nicht aus.
+     *
+     * @return array{lookup: array<string, array>, topicIndex: array<string, array>}|null
+     */
+    private function readTopicSliceFromBuffer(string $topic, string $signature): ?array
+    {
+        $blob = $this->GetBuffer(self::BUFFER_RUNTIME_CONTEXT);
+        $header = HAKeyedBlob::header($blob);
+        if ($header === null || ($header['sig'] ?? null) !== $signature || !is_array($header['baseNameCounts'] ?? null)) {
+            return null;
+        }
+
+        $lookup = [];
+        $topicIndex = self::EMPTY_TOPIC_INDEX;
+        try {
+            $buckets = HAKeyedBlob::row($blob, 't:' . $topic);
+            if ($buckets === false) {
+                return null;
+            }
+            foreach (self::TOPIC_INDEX_BUCKETS as $bucket) {
+                $keys = $buckets[$bucket] ?? [];
+                if (!is_array($keys) || $keys === []) {
+                    continue;
+                }
+                $topicIndex[$bucket][$topic] = $keys;
+                foreach ($keys as $key) {
+                    if (isset($lookup[$key])) {
+                        continue;
+                    }
+                    $entity = HAKeyedBlob::row($blob, 'e:' . $key);
+                    if ($entity === false) {
+                        return null;
+                    }
+                    if ($entity !== null) {
+                        $lookup[$key] = $entity;
+                    }
+                }
+            }
+        } catch (JsonException) {
+            // Topic oder Schlüssel ist kein gültiges UTF-8: der volle Aufbau entscheidet.
+            return null;
+        }
+
+        // Die Namenszähler gehören zum Kontext (Benennung neu angelegter Variablen), wie beim klassischen Gerät.
+        $this->sharedEntityBaseNameCounts = $header['baseNameCounts'];
+        return ['lookup' => $lookup, 'topicIndex' => $topicIndex];
+    }
+
+    // Kopf: Signatur und Namenszähler. Zeilen „t:<Topic>“ mit den Index-Einträgen des Topics je Art und
+    // „e:<entity_key>“ mit der normalisierten Entität. Ein Topic, das hundert Entitäten trägt (EMS-ESP), nennt
+    // so nur deren Schlüssel; jede Entität steht einmal im Blob.
+    private function storeRuntimeContextBuffer(array $context): void
+    {
+        $topics = [];
+        foreach (self::TOPIC_INDEX_BUCKETS as $bucket) {
+            foreach ($context['topicIndex'][$bucket] as $topic => $keys) {
+                $topics[(string)$topic][$bucket] = $keys;
+            }
+        }
+        $rows = [];
+        foreach ($topics as $topic => $buckets) {
+            $rows[] = ['t:' . $topic, $buckets];
+        }
+        foreach ($context['lookup'] as $key => $entity) {
+            $rows[] = ['e:' . $key, $entity];
+        }
+
+        try {
+            // Kommazahlen ohne Nachkommaanteil müssen Kommazahlen bleiben (min, max, step), sonst gliche der
+            // Ausschnitt aus dem Buffer nicht dem aus dem vollen Aufbau.
+            $blob = HAKeyedBlob::encode(
+                ['sig' => $context['signature'], 'baseNameCounts' => $context['baseNameCounts']],
+                $rows,
+                JSON_PRESERVE_ZERO_FRACTION
+            );
+        } catch (JsonException) {
+            $blob = '';
+        }
+        // Symcon kürzt einen Buffer über 512 KB auf die neuesten 512 KB; dem Blob fehlte dann der Kopf und jede
+        // Meldung schriebe ihn neu. Darüber bleibt es beim Aufbau je Meldung.
+        if (strlen($blob) > self::RUNTIME_CONTEXT_MAX_BYTES) {
+            $blob = '';
+        }
+        $this->SetBuffer(self::BUFFER_RUNTIME_CONTEXT, $blob);
     }
 
     private function getConfiguredEntities(): array

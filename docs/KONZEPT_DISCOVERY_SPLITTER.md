@@ -1,8 +1,30 @@
 # Konzept: Der Discovery-Splitter verteilt nur noch
 
-Stand 27.11.2026. Entschieden am 26.11.2026, nach der Messung des Anwenders am 27.11.2026 angepasst (beides
-unten). Etappe 1 ist mit 1.10 build 251 gebaut, der Empfangsfilter aus der Messung mit build 252. Etappe 2 ist
-zurückgestellt.
+Stand 27.11.2026, nach dem zweiten Mitschnitt des Anwenders. Entschieden am 26.11.2026, nach beiden Messungen
+angepasst (alles unten). Etappe 1 ist mit 1.10 build 251 gebaut, der Empfangsfilter mit build 252, Etappe 4 mit
+build 258. Etappe 2 ist gestrichen. Der Rückstau beim Anwender ist seit build 254 weg.
+
+## Leitsatz: je Thema die bessere Lösung (27.11.2026)
+
+Die klassische Bridge und MQTT Discovery lösen dieselben Aufgaben an mehreren Stellen verschieden. Maßstab ist
+nicht eine der beiden Familien, sondern je Thema die bessere Lösung, und die gilt dann für beide. Wo es geht, in
+gemeinsamem Code.
+
+| Thema | Bessere Lösung | Richtung | Stand |
+|---|---|---|---|
+| Konfiguration im heißen Pfad | Klassisch: Cache im Instanz-Buffer mit Signatur, nur die benötigten Zeilen werden dekodiert | klassisch → Discovery | gebaut mit build 258 (Etappe 4), gemeinsames Format `libs/HAKeyedBlob.php` seit build 257 |
+| Empfangsfilter des Geräts | Discovery: genau die eigenen Topics. Der klassische fasst Objekt-IDs über den gemeinsamen Anfang zusammen (an der eigenen Anlage 9 fremde Treffer bei 1380 Entitäten, im Mitschnitt keine unnötige Zustellung) | Discovery → klassisch | offen (Etappe 5) |
+| Performance-Messung im Splitter | Klassisch: dieselben Debug-Zeilen, dazu Statistik per Timer und eine Meldung bei langsamen Schritten | klassisch → Discovery | offen (Etappe 6) |
+| Attribut je Meldung im Splitter | Keine von beiden: klassisch liest `PendingRestAcks`, Discovery den Sitzungszustand. Besser ist ein Buffer bzw. der Statuswechsel des Parents. | beide | offen (Etappe 6) |
+| Anfangswerte neuer Geräte | Beide liefern sie sofort: klassisch per REST aus Home Assistant, Discovery aus dem Zwischenspeicher des Splitters | bleibt | Etappe 2 gestrichen |
+| Zustand gebündelt schreiben | Offen. Das klassische Gerät schreibt seinen Zustands-Cache ohne Sperre (Buffer je Meldung, Attribut per Timer), der Discovery-Splitter merkt vor und bündelt mit zwei Sperren. | hängt an der Antwort des Herstellers | offen (Etappe 3) |
+
+Ein Unterschied bleibt: Bei der klassischen Bridge hält Home Assistant den Bestand, und alle fragen ihn über den
+Splitter per REST ab. Einen Broker kann man nicht abfragen. Der Discovery-Splitter steht deshalb für Home Assistant
+und hält die Ankündigungen und zu jedem Topic den letzten Wert.
+
+Schon gleich sind: `LastMQTTMessage` gedrosselt, Empfangsfilter `^$` am Konfigurator, verzögerte Übernahme über
+`RequestAction`, Reload-Fenster.
 
 ## Anlass
 
@@ -45,7 +67,9 @@ Anwender“).
 
 ## Zielbild
 
-Jeder hält, was er selbst braucht.
+Jeder hält, was er selbst braucht. Seit 27.11.2026 gilt das mit einer Ausnahme: Der Splitter hält weiter zu jedem
+Topic den letzten Wert, damit ein neu angelegtes Gerät sofort Werte hat (Abschnitt „Leitsatz“). Die Tabelle zeigt
+das ursprüngliche Zielbild vom 26.11.; ihre Zeile zum Splitter ist insoweit überholt.
 
 | Wer | hält | bekommt es von |
 |---|---|---|
@@ -61,6 +85,9 @@ Workarounds („wer liest, sieht jede Meldung“) und damit Bündeln vor dem Les
 Zwischenspeicher entfallen.
 
 ## Was sich für Anwender ändert
+
+Mit der gestrichenen Etappe 2 entfallen die Punkte 1 bis 3: Für Anwender ändert sich nichts. Sie bleiben hier
+stehen, weil sie zeigen, was die Etappe gekostet hätte.
 
 1. **Anfangswerte neuer Geräte.** Heute hat ein frisch angelegtes Gerät sofort Werte aus dem Zwischenspeicher.
    Künftig kommen sie mit der nächsten Meldung des Geräts. Ein Batteriesensor, der einmal am Tag meldet, bleibt
@@ -87,22 +114,47 @@ Jede Etappe ist für sich veröffentlichbar und wird an echten Daten gemessen.
 |---|---|---|---|
 | 0 | Messung des Anwenders (Performance-Timing in Splitter und zwei Geräten) | keines | erledigt, Ergebnis im Abschnitt „Messung beim Anwender“ |
 | 1 | Gerät fragt nur seine eigenen Ankündigungen ab. Konfigurator bekommt einen Empfangsfilter. Gerät schreibt `LastMQTTMessage` gedrosselt. | keines | gebaut mit build 251 |
-| 1a | Empfangsfilter des Geräts trifft nur noch die eigenen Topics. Kam erst durch die Messung auf die Liste. | Topics abgewählter Entitäten kommen nicht mehr an | gebaut mit build 252, Wirkung beim Anwender noch nicht gemessen |
-| 2 | Splitter speichert keine Werte mehr. Export bekommt die Aufzeichnung. Gerät legt Typen ohne Zwischenspeicher an. | Punkte 1 bis 3 oben | **zurückgestellt** |
-| 3 | Register der Ankündigungen einfach führen, Workaround aus build 246 und 249 entfernen | keines | offen, Entscheidung nach dem nächsten Mitschnitt des Anwenders |
-| 4 | Gerät baut seinen Verarbeitungskontext nicht mehr bei jeder Meldung neu auf. Kam durch die Messung auf die Liste. | keines | offen, Entscheidung nach dem nächsten Mitschnitt des Anwenders |
+| 1a | Empfangsfilter des Geräts trifft nur noch die eigenen Topics. Kam erst durch die Messung auf die Liste. | Topics abgewählter Entitäten kommen nicht mehr an | gebaut mit build 252, beim Anwender gemessen (Abschnitt „Zweite Messung“) |
+| 2 | Splitter speichert keine Werte mehr. Export bekommt die Aufzeichnung. Gerät legt Typen ohne Zwischenspeicher an. | Punkte 1 bis 3 oben | **gestrichen** (27.11.2026) |
+| 3 | Vormerken und Sperren aus build 246 und 249 so weit vereinfachen, wie es ohne Sperre sicher ist | keines | offen, wartet auf die Antwort des Herstellers |
+| 4 | Gerät baut seinen Verarbeitungskontext nicht mehr bei jeder Meldung neu auf. Kam durch die Messung auf die Liste. | keines | gebaut mit build 258 |
+| 5 | Klassisches Gerät bekommt den genauen Empfangsfilter (`HAMqttTopicFilter`) | keines | offen |
+| 6 | Gemeinsamer Code für beide Splitter (Topic-Statistik, Performance-Messung, Teile des Selbsttests), Buffer statt Attribut je Meldung | Discovery-Splitter bekommt die Performance-Statistik des klassischen | offen |
 
 Etappe 1 greift die Rollen nicht an und lohnt sich unabhängig davon, was die Messung des Anwenders zeigt.
 
-Warum Etappe 2 zurücksteht: Sie hatte zwei Gründe, die Last und die Rollen. Die Last ist entfallen, seit build 246
-kostet das Halten der Werte beim Anwender 0,1 ms je Meldung. Übrig bleibt die Rollenfrage, und dafür allein ändert
-sich für Anwender zu viel (Anfangswerte, Export, Diagnose). Die Entscheidungen 1 und 2 unten gelten weiter, sie
-kommen erst mit Etappe 2 zum Tragen.
+Warum Etappe 2 gestrichen ist: Sie hatte zwei Gründe, die Last und die Rollen. Die Last ist entfallen, seit build
+246 kostet das Halten der Werte beim Anwender 0,1 ms je Meldung und das Bündeln rund 1 % der Zeit. Übrig blieb die
+Rollenfrage, und die beantwortet der Leitsatz anders: Neue Geräte haben in beiden Familien sofort Werte, klassisch
+per REST, bei Discovery aus dem Zwischenspeicher. Ohne ihn stünde Discovery schlechter da als die klassische
+Bridge. Die Entscheidungen 1 und 2 unten sind damit hinfällig.
 
-Das hat eine Folge für Etappe 3: Solange der Splitter die Werte hält, kann das Vormerken dafür nicht ersatzlos
-entfallen, sonst liest und schreibt er wieder bei jeder Meldung den ganzen Bestand (beim Anwender 86 ms). Etappe 3
-ohne Etappe 2 kann also nur das Register der Ankündigungen vereinfachen und muss für die Werte einen eigenen Weg
-finden oder das Vormerken dort behalten.
+Für Etappe 3 heißt das: Das Vormerken bleibt, sonst läse und schriebe der Splitter wieder bei jeder Meldung den
+ganzen Bestand (beim Anwender 86 ms). Im Aufbau gleicht es dem Zustands-Cache des klassischen Geräts (Buffer im
+heißen Pfad, Timer schreibt das Attribut). Anders sind die zwei Sperren und die Regel „vor jedem Lesen bündeln“.
+Ob sie entfallen können, hängt an zwei Fragen an den Hersteller: Laufen `ReceiveData`-Aufrufe einer Instanz
+nacheinander oder nebeneinander, und wie soll ein Modul einige MB veränderlichen Zustand halten? Laufen sie
+nebeneinander, fehlt umgekehrt dem klassischen Gerät ein Schutz, denn es liest und schreibt seinen Zustands-Cache
+je Meldung ohne Sperre.
+
+### Stand Etappe 4 (1.10 build 258)
+
+Das Gerät hält seinen Verarbeitungskontext zusätzlich im Instanz-Buffer, im Format des klassischen Geräts
+(`libs/HAKeyedBlob.php`, seit build 257 gemeinsam): eine Kopfzeile mit Signatur, je Topic eine Zeile mit den
+betroffenen Entitäten, je Entität eine Zeile. Eine Meldung liest die Definition einmal für die Signatur und
+dekodiert nur die Zeilen ihres Topics. Bis build 257 las sie die Definition zweimal, dekodierte und normalisierte
+alle Entitäten und baute den Topic-Index neu auf.
+
+Gemessen im Test-Harness mit dem Bundle des Anwenders (72 Geräte, je 30 Meldungen in frischer Ausführung, nur PHP):
+
+| | bis build 257 | seit build 258 |
+|---|---|---|
+| Zeit je Meldung, Mittel | 6,9 ms | 0,24 ms |
+| langsamstes Gerät | 25,7 ms (121 Entitäten) | 0,63 ms (91 Entitäten) |
+
+Der Ausschnitt aus dem Buffer gleicht dem aus dem vollen Aufbau, geprüft an 18 echten Bundles mit 528 Geräten und
+5378 Topics. Ein Gerät davon (476 Entitäten, Kontext über 500 KB) bekommt keinen Cache, weil Symcon Buffer über
+512 KB kürzt; es baut weiter je Meldung auf. Am Raspberry Pi des Anwenders ist die Wirkung nicht gemessen.
 
 ### Stand Etappe 1 (1.10 build 251)
 
@@ -129,12 +181,21 @@ Nach der Messung (27.11.2026):
 4. Etappe 2 wird zurückgestellt. Die Entscheidungen 1 und 2 bleiben für den Fall bestehen, dass sie doch kommt.
 5. Über Etappe 3 und 4 wird mit dem nächsten Mitschnitt des Anwenders entschieden (nach dem Update auf build 252).
 
+Nach dem zweiten Mitschnitt (27.11.2026):
+
+6. Maßstab ist je Thema die bessere Lösung aus beiden Familien (Abschnitt „Leitsatz“), nicht die Last beim Anwender
+   allein. Die ist weg.
+7. Etappe 2 wird gestrichen. Die Entscheidungen 1 und 2 sind hinfällig.
+8. Etappe 4 wird gebaut, mit gemeinsamem Code für beide Geräte. Danach der genaue Filter für das klassische Gerät
+   (Etappe 5) und der gemeinsame Code für beide Splitter (Etappe 6). Etappe 3 wartet auf die Antwort des Herstellers.
+
 ## Nicht geprüft
 
 - Ob der Kernel dem Konfigurator ohne Filter wirklich jede Meldung zustellt und was das kostet. Seit build 251
   hat er einen Filter, gemessen wurde es davor nicht.
-- Ob der Kernel mit dem genauen Filter aus build 252 an einer laufenden Anlage richtig zustellt. Im Test ja, an
-  der eigenen Anlage gibt es kein Discovery-Gerät mit laufenden Meldungen.
+- Erledigt: Ob der Kernel mit dem genauen Filter aus build 252 an einer laufenden Anlage richtig zustellt. Der
+  zweite Mitschnitt des Anwenders zeigt es, auch für ein Topic mit Umlauten.
+- Ob `ReceiveData`-Aufrufe einer Instanz nacheinander oder nebeneinander laufen (Etappe 3).
 - Ob das Gerät den Variablentyp ohne zwischengespeicherten Wert überall sinnvoll festlegen kann. Heute hängt er
   bei Sensoren, `number` und `cover` am Wert.
 - Wie ein Modul nach Symcons Vorstellung einige MB veränderlichen Zustand halten soll. Vor Etappe 3 beim
@@ -170,3 +231,24 @@ Für das Zielbild heißt das:
 - Neu auf der Liste: Der Verarbeitungskontext eines Geräts wird unter Rust bei jeder Meldung neu aufgebaut
   (8 bis 14 ms). Mit dem genauen Filter trifft das nur noch das Gerät, das die Meldung braucht.
 - Ob build 252 den Rückstau beim Anwender beseitigt, zeigt erst ein neuer Mitschnitt von dort.
+
+## Zweite Messung beim Anwender (27.11.2026, build 254)
+
+Splitter und drei Geräte, 15 Minuten. Der Rückstau ist weg.
+
+| Splitter | build 250 | build 254 |
+|---|---|---|
+| je Meldung, Median | 1092 ms | 4,0 ms (99 % unter 25 ms, größter Wert 65 ms) |
+| Durchsatz | 259 Meldungen in 332 s (build 244) | 1936 Meldungen in 931 s |
+| beschäftigt | durchgehend | 1,3 % der Zeit |
+
+- Die drei Geräte bekamen 15, 46 und 14 Meldungen, alle zu eigenen Topics. Was der Splitter unter ihrer Wurzel
+  zusätzlich sah (`lastActive`, `basic/…/currentValue`, `alarmType`, `alarmLevel`), steht in keiner Ankündigung.
+- Ein Topic mit Umlauten kommt beim Gerät an. Die Klasse für Zeichen außerhalb von ASCII im Filter trägt also am
+  echten Kernel.
+- Verteilen (`SendDataToChildren`) je Meldung: ohne Empfänger 1,0 bis 3,5 ms, mit Empfänger 13 ms. Die 13 ms sind
+  das Gerät, das seinen Kontext je Meldung neu aufbaute (8 bis 14 ms, nie aus dem Memo). Das ist Etappe 4.
+- Bündeln im Splitter: 100 Läufe, zusammen 9,6 s, rund 1 % der Zeit. Ein Lauf kostet rund 11 ms, wenn nur Topics
+  ohne Ankündigung vorgemerkt waren, und rund 123 ms, sobald ein Wert in den Zwischenspeicher muss.
+- Gut die Hälfte der Meldungen (1012 von 1936) sind Ereignis-Topics von Z-Wave JS UI (`…/_EVENTS/…`), die kein
+  Gerät braucht.
