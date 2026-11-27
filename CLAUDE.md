@@ -566,6 +566,8 @@ Architektur-Details: `docs/ARCHITEKTUR.md`.
 - Zielbild in `docs/KONZEPT_DISCOVERY_SPLITTER.md` (Entscheidung 26.11.2026): Der Splitter verteilt und führt nur
   noch ein Register der Ankündigungen, die Werte halten die Geräte. Das Vormerken und die Sperren aus build 246
   und 249 gelten als Workaround und entfallen mit Etappe 3. Build 251 ist Etappe 1 und ändert die Rollen nicht.
+  Seit 27.11.2026 ist Etappe 2 (Splitter hält keine Werte mehr) zurückgestellt: Die Messung beim Anwender zeigt
+  dafür keine Last mehr. Solange sie aussteht, kann Etappe 3 das Vormerken für die Werte nicht ersatzlos streichen.
 - **Gerät fragt mit seiner Geräte-ID** (`GetDiscoveryConfigs` mit `DeviceID`), der Splitter liefert nur dessen
   Ankündigungen (`filterDiscoveryRecordsByDevice`). Bis build 250 bekam jedes Gerät bei jedem Übernehmen alle
   und wertete alle aus, um die eigenen zu finden: mit 2384 Ankündigungen im Harness 440 ms je Gerät (Splitter 47,

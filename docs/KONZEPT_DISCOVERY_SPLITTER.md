@@ -1,6 +1,8 @@
 # Konzept: Der Discovery-Splitter verteilt nur noch
 
-Stand 26.11.2026. Entschieden am 26.11.2026 (siehe unten), Etappe 1 ist mit 1.10 build 251 gebaut.
+Stand 27.11.2026. Entschieden am 26.11.2026, nach der Messung des Anwenders am 27.11.2026 angepasst (beides
+unten). Etappe 1 ist mit 1.10 build 251 gebaut, der Empfangsfilter aus der Messung mit build 252. Etappe 2 ist
+zurückgestellt.
 
 ## Anlass
 
@@ -36,6 +38,10 @@ eine Sitzung, eine Übernahme-Runde gab es also höchstens zu deren Beginn. Das 
 Meldung: Ist sein Raspberry Pi um den Faktor 30 bis 50 langsamer als der Test-PC, erklären 37 bis 209 ms je
 Meldung die beobachteten Sekunden. Das Abholen aller Ankündigungen ist dann der zweite große Posten, der bei
 jedem Neustart und Neuverbinden dazukommt. Seine Messung soll das klären.
+
+Nachtrag 27.11.2026: Die Messung hat es geklärt, und die Vermutung in diesem Absatz war falsch. Der Rückstau kam
+aus einem Posten, der in der Tabelle fehlt: Jedes Gerät bekam jede Meldung zugestellt (Abschnitt „Messung beim
+Anwender“).
 
 ## Zielbild
 
@@ -77,14 +83,26 @@ Zwischenspeicher entfallen.
 
 Jede Etappe ist für sich veröffentlichbar und wird an echten Daten gemessen.
 
-| Etappe | Inhalt | Verhalten für Anwender | Risiko |
+| Etappe | Inhalt | Verhalten für Anwender | Stand 27.11.2026 |
 |---|---|---|---|
-| 0 | Messung des Anwenders abwarten (Performance-Timing in Splitter und einem Gerät) | keines | keines |
-| 1 | Gerät fragt nur seine eigenen Ankündigungen ab. Konfigurator bekommt einen Empfangsfilter. Gerät schreibt `LastMQTTMessage` gedrosselt. | keines | klein, kein Umbau der Rollen |
-| 2 | Splitter speichert keine Werte mehr. Export bekommt die Aufzeichnung. Gerät legt Typen ohne Zwischenspeicher an. | Punkte 1 bis 3 oben | mittel |
-| 3 | Register der Ankündigungen einfach führen, Workaround aus build 246 und 249 entfernen | keines | mittel |
+| 0 | Messung des Anwenders (Performance-Timing in Splitter und zwei Geräten) | keines | erledigt, Ergebnis im Abschnitt „Messung beim Anwender“ |
+| 1 | Gerät fragt nur seine eigenen Ankündigungen ab. Konfigurator bekommt einen Empfangsfilter. Gerät schreibt `LastMQTTMessage` gedrosselt. | keines | gebaut mit build 251 |
+| 1a | Empfangsfilter des Geräts trifft nur noch die eigenen Topics. Kam erst durch die Messung auf die Liste. | Topics abgewählter Entitäten kommen nicht mehr an | gebaut mit build 252, Wirkung beim Anwender noch nicht gemessen |
+| 2 | Splitter speichert keine Werte mehr. Export bekommt die Aufzeichnung. Gerät legt Typen ohne Zwischenspeicher an. | Punkte 1 bis 3 oben | **zurückgestellt** |
+| 3 | Register der Ankündigungen einfach führen, Workaround aus build 246 und 249 entfernen | keines | offen, Entscheidung nach dem nächsten Mitschnitt des Anwenders |
+| 4 | Gerät baut seinen Verarbeitungskontext nicht mehr bei jeder Meldung neu auf. Kam durch die Messung auf die Liste. | keines | offen, Entscheidung nach dem nächsten Mitschnitt des Anwenders |
 
 Etappe 1 greift die Rollen nicht an und lohnt sich unabhängig davon, was die Messung des Anwenders zeigt.
+
+Warum Etappe 2 zurücksteht: Sie hatte zwei Gründe, die Last und die Rollen. Die Last ist entfallen, seit build 246
+kostet das Halten der Werte beim Anwender 0,1 ms je Meldung. Übrig bleibt die Rollenfrage, und dafür allein ändert
+sich für Anwender zu viel (Anfangswerte, Export, Diagnose). Die Entscheidungen 1 und 2 unten gelten weiter, sie
+kommen erst mit Etappe 2 zum Tragen.
+
+Das hat eine Folge für Etappe 3: Solange der Splitter die Werte hält, kann das Vormerken dafür nicht ersatzlos
+entfallen, sonst liest und schreibt er wieder bei jeder Meldung den ganzen Bestand (beim Anwender 86 ms). Etappe 3
+ohne Etappe 2 kann also nur das Register der Ankündigungen vereinfachen und muss für die Werte einen eigenen Weg
+finden oder das Vormerken dort behalten.
 
 ### Stand Etappe 1 (1.10 build 251)
 
@@ -106,9 +124,17 @@ Das Gerät schreibt `LastMQTTMessage` höchstens alle 5 s, der Konfigurator hat 
 2. Der Bundle-Export liefert Werte künftig als Aufzeichnung auf Knopfdruck.
 3. Etappe 1 beginnt sofort, ohne die Messung des Anwenders abzuwarten.
 
+Nach der Messung (27.11.2026):
+
+4. Etappe 2 wird zurückgestellt. Die Entscheidungen 1 und 2 bleiben für den Fall bestehen, dass sie doch kommt.
+5. Über Etappe 3 und 4 wird mit dem nächsten Mitschnitt des Anwenders entschieden (nach dem Update auf build 252).
+
 ## Nicht geprüft
 
-- Ob der Kernel dem Konfigurator ohne Filter wirklich jede Meldung zustellt und was das kostet.
+- Ob der Kernel dem Konfigurator ohne Filter wirklich jede Meldung zustellt und was das kostet. Seit build 251
+  hat er einen Filter, gemessen wurde es davor nicht.
+- Ob der Kernel mit dem genauen Filter aus build 252 an einer laufenden Anlage richtig zustellt. Im Test ja, an
+  der eigenen Anlage gibt es kein Discovery-Gerät mit laufenden Meldungen.
 - Ob das Gerät den Variablentyp ohne zwischengespeicherten Wert überall sinnvoll festlegen kann. Heute hängt er
   bei Sensoren, `number` und `cover` am Wert.
 - Wie ein Modul nach Symcons Vorstellung einige MB veränderlichen Zustand halten soll. Vor Etappe 3 beim
