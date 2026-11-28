@@ -654,7 +654,7 @@ trait HADeviceCoreTrait
         }
 
         $payload = $this->decodeIncomingMqttPayload((string)($data['Payload'] ?? ''));
-        $this->debugExpert(__FUNCTION__, 'Eingangsdaten', ['Topic' => $topic, 'Payload' => $payload]);
+        $this->debugIncomingMessage($topic, $payload);
 
         if ($this->tryHandleStateFromTopic($topic, $payload)) {
             return '';

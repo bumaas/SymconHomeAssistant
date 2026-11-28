@@ -66,6 +66,11 @@ Laufzeitmodul für Geräte, die ihre Struktur und Laufzeitdaten über Home Assis
 - Geräte ohne availability-Topic bekommen keine solche Variable.
 - Ein nicht mehr angekündigtes Gerät (Status 202, siehe oben) gilt auch als nicht erreichbar. Dieser Wechsel steht nicht zusätzlich im Meldungsprotokoll — die Warnung „Nicht angekündigt" sagt es schon. Kündigt es sich wieder an, zählt wieder seine eigene Meldung.
 
+## Fehlersuche
+
+- Mit **„Erweiterte Debug-Ausgaben aktivieren“** (Bereich „Experte“) zeigt das Debug-Fenster der Instanz jede eingehende Meldung mit Topic und Inhalt („Eingangsdaten“) und jeden Wert einer Entität, den das Modul daraufhin in ihre Variable schreibt („Wert gesetzt“). Mit „Status emulieren“ gilt das auch für die Werte, die es beim Schalten selbst setzt. Folgt auf die Meldung einer Entität keine Zeile „Wert gesetzt“, hat sie keinen Wert geschrieben, etwa eine Helligkeit 0. Scheitert das Schreiben, heißt die Zeile „Wert nicht gesetzt“. Die Variable „Erreichbar“ und Bilder haben keine solche Zeile, ein Wechsel von „Erreichbar“ steht im Meldungsprotokoll. Binäre Bilddaten stehen nur mit ihrer Länge im Debug.
+- **„Technische Entity-Spalten anzeigen“** (ebenfalls unter „Experte“) blendet in der Entitätenliste unter anderem State-Topic und Command-Topic ein.
+
 ## Hinweis
 
 Das Modul ist bewusst auf den aktuellen MQTT-Discovery-Kernpfad für `sensor`, `binary_sensor`, `number`, `image`, `device_tracker`, `update`, `lock`, `cover`, `climate`, `switch`, `select`, `text`, `button`, `light` und einfache Zigbee2MQTT-Trigger begrenzt. Weitere Discovery-Komponenten können später darauf aufbauen, ohne den klassischen Bridge-Pfad für bestehende Home-Assistant-Installationen zu vermischen.

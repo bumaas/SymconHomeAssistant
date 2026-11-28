@@ -883,6 +883,41 @@ Eingeführt: 1.10 build 240.
 - Test: `tests/check-discovery-light-basic.php` (Fixtures `discovery_awtrix_20260513.json`,
   `discovery_zwavejs_20261125.json`).
 
+### Debug des Geräts
+
+Eingeführt: 1.10 build 263.
+
+- Anlass: ein Anwender (t/139168 #27, 27.11.2026), Dimmer aus Z-Wave JS UI. Beim Umschalten wechselte der Status
+  ein- bis zweimal zwischen Aus und An, die Helligkeit blieb stehen. Status und Helligkeit hängen dort am selben
+  Topic (`currentValue`): 0 heißt aus, die Helligkeit übergeht eine 0. Flackern bei stehender Helligkeit heißt
+  also, dass zwischendurch eine 0 ankommt. Im Debug des Geräts war das nicht zu sehen, es zeigte nur ausgehende
+  Befehle. Das klassische Gerät gibt eingehende Meldungen schon aus („Eingangsdaten“, „Wert empfangen“).
+- „Eingangsdaten“ (Topic und Payload) schreibt `debugIncomingMessage()` im `ModuleDebugTrait`, aufgerufen aus dem
+  `ReceiveData` von Device, Entity und Discovery-Gerät. Device und Entity hatten die Zeile schon, jede für sich;
+  ihre Ausgabe ist unverändert.
+- „Wert gesetzt“ (Ident und Wert) steht in `setReceivedValue()` des Discovery-Geräts. Dort laufen alle Werte von
+  Entitäten durch, auch die optimistischen („Status emulieren“); das Debug trennt so einen selbst gesetzten Wert
+  von einer Meldung des Senders. Die Meldung einer Entität ohne folgende Zeile „Wert gesetzt“ hat keinen Wert
+  geschrieben. `reachable` hat eigene Schreibstellen und steht im Meldungsprotokoll, Bilder gehen in ein
+  Medienobjekt; beide haben keine Zeile. Die klassische Bridge hat keine solche gemeinsame Schreibstelle, ihre
+  Zeilen „Wert empfangen“ und „State empfangen“ bleiben, wie sie sind.
+- Die Zeile entsteht nach `SetValue` und heißt „Wert nicht gesetzt“, wenn es false liefert (Code-Review 28.11.2026:
+  Vor dem Schreiben ausgegeben, sah ein gescheitertes Schreiben im Debug wie ein gesetzter Wert aus). Ein solcher
+  Fall ist an keiner Anlage mitgeschnitten, der Test stellt ihn über `DiscoveryDeviceHarness::$schreibfehler` nach.
+- Beide Zeilen gibt es nur mit erweitertem Debug (`isExpertDebugEnabled()`, je Ausführung einmal gelesen). Das
+  klassische Gerät gibt „Wert empfangen“ immer aus (Kategorie `MQTT`); das wurde nicht übernommen, ohne den Haken
+  kostet eine Meldung so keinen Aufruf von `SendDebug`.
+- Ungültiges UTF-8: `debugExpert` kodiert den Kontext als JSON und warf bis build 262 bei einem Payload, der kein
+  UTF-8 ist, mitten in `ReceiveData` (mit erweitertem Debug im klassischen Gerät bei „Eingangsdaten“ und bei
+  „Non-JSON payload stored as string“). Jetzt ersetzt es solche Bytes (`JSON_INVALID_UTF8_SUBSTITUTE`), für alle
+  Module. „Eingangsdaten“ und „Wert gesetzt“ schreiben statt der Bytes nur die Länge (`debugPrintable()`), sonst
+  stünden Bilddaten eines `image`-Topics als Ersatzzeichen im Debug. Dafür gibt es keinen Mitschnitt, der Test
+  nimmt es an.
+- Offen: die Ursache des Flackerns selbst, die Rückmeldung des Anwenders steht aus. Offen auch: Der Zustands-Cache
+  des klassischen Geräts (`writeEntityStateCache`) wirft bei einem Zustand oder Attribut mit ungültigem UTF-8
+  unabhängig vom Debug; beim Test aufgefallen, kein Anlass aus einer Anlage.
+- Test: `tests/check-discovery-device-debug.php` (Fixture `discovery_zwavejs_20261125.json`).
+
 ## Arbeitsweise
 
 ### libs/

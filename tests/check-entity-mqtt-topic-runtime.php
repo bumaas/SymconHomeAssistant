@@ -121,6 +121,10 @@ final class EntityMqttTopicRuntimeHarness implements HADeviceConstants
     {
     }
 
+    protected function debugIncomingMessage(string $topic, string $payload): void
+    {
+    }
+
     protected function isModuleRuntimeReady(): bool
     {
         return true;

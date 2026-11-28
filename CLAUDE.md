@@ -241,7 +241,7 @@ Zahlen und Zitate gehören in die `ENTWICKLUNG.md`, Anwender und Anlagen in die 
 ### Selbsttest
 
 - „MQTT-Daten empfangen“ und „Empfangene Domänen“ zählen nur statestream (`getStatestreamDomain`,
-  `recordSeenDomain()`): Form `<base>/<domain>/<object_id>/<attribut>`, eine Domäne, die das Modul kennt
+  `recordStatestreamMessage()`): Form `<base>/<domain>/<object_id>/<attribut>`, eine Domäne, die das Modul kennt
   (`HADomainCatalog::isDomainSupported`), nie `…/config` oder `…/set`.
 - Topics zerlegt allein `topicPartsBelowBase()`. Der Stand liegt im Buffer `StatestreamSeen`
   (`recordStatestreamMessage()`), dazu alle 60 s im Attribut `LastStatestreamMessage` (mit `@`). Wechselt
@@ -347,6 +347,12 @@ Zahlen und Zitate gehören in die `ENTWICKLUNG.md`, Anwender und Anlagen in die 
   `basic_schema`). Offen: Farben und Farbtemperatur über eigene Topics.
 - Die Spalte „Modus“ der Entitätenliste prüft mit `create_var = true` (`buildEntityAccessModeLabel`).
 - Test: `check-discovery-light-basic.php`.
+
+### Debug des Geräts
+
+- Mit erweitertem Debug zeigt das Gerät jede Meldung („Eingangsdaten“, `debugIncomingMessage()`, für Device, Entity
+  und Discovery-Gerät gleich) und jeden Wert einer Entität nach dem Schreiben („Wert gesetzt“). **Werte von Entitäten
+  nur über `setReceivedValue()` schreiben**, sonst fehlen sie dort. Test: `check-discovery-device-debug.php`.
 
 ## Arbeitsweise
 

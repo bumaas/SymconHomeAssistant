@@ -359,6 +359,10 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
             $payload = '';
         }
 
+        // Wie beim klassischen Gerät. Zusammen mit „Wert gesetzt“ (setReceivedValue) zeigt das Debug, welche Meldung
+        // welchen Wert geschrieben hat und welche nichts.
+        $this->debugIncomingMessage($topic, $payload);
+
         $messageStartedAt = microtime(true);
 
         $stepStartedAt = microtime(true);
@@ -3690,7 +3694,15 @@ class HomeAssistantMQTTDiscoveryDevice extends IPSModuleStrict
                 }
             }
         }
-        $this->SetValue($ident, $value);
+        $written = $this->SetValue($ident, $value);
+        // Einzige Schreibstelle für empfangene und optimistisch gesetzte Werte, deshalb steht das Debug hier. Nach dem
+        // Schreiben, damit ein gescheitertes Schreiben im Debug nicht wie ein gesetzter Wert aussieht.
+        if ($this->isExpertDebugEnabled()) {
+            $this->debugExpert(__FUNCTION__, $written ? 'Wert gesetzt' : 'Wert nicht gesetzt', [
+                'Ident' => $ident,
+                'Value' => is_string($value) ? $this->debugPrintable($value) : $value
+            ]);
+        }
     }
 
     private function applyTopicPayloadToEntities(array $entityLookup, array $topicIndex, string $topic, string $payload, int $receivedAt = 0): array

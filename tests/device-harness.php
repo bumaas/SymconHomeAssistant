@@ -721,6 +721,14 @@ final class DiscoveryDeviceHarness extends HomeAssistantMQTTDiscoveryDevice
     {
         return self::$parentAktiv || parent::HasActiveParent();
     }
+
+    /** @var list<string> Idents, deren SetValue scheitert (false, wie am Kernel nach einer Warnung). */
+    public static array $schreibfehler = [];
+
+    protected function SetValue(string $Ident, mixed $Value): bool
+    {
+        return !in_array($Ident, self::$schreibfehler, true) && parent::SetValue($Ident, $Value);
+    }
 }
 
 final class DiscoveryConfiguratorHarness extends HomeAssistantMQTTDiscoveryConfigurator

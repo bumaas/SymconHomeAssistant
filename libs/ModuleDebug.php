@@ -34,9 +34,11 @@ trait ModuleDebugTrait
             return;
         }
 
+        // Der Kontext trägt fremden Text (Payloads). Ungültiges UTF-8 darin wird ersetzt, eine Debug-Zeile darf die
+        // Verarbeitung der Meldung nicht abbrechen.
         $suffix = '';
         if (!empty($context)) {
-            $suffix = ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $suffix = ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
         }
 
         $this->SendDebug($category, $message . $suffix, 0);
@@ -45,5 +47,20 @@ trait ModuleDebugTrait
     private function debugRuntimeIssue(string $category, string $message, array $context = []): void
     {
         $this->debugExpert($category, $message, $context, true);
+    }
+
+    // Eine eingehende MQTT-Meldung im erweiterten Debug, für Device, Entity und MQTT Discovery Device gleich.
+    private function debugIncomingMessage(string $topic, string $payload): void
+    {
+        if ($this->isExpertDebugEnabled()) {
+            $this->debugExpert('ReceiveData', 'Eingangsdaten', ['Topic' => $topic, 'Payload' => $this->debugPrintable($payload)]);
+        }
+    }
+
+    // Fremder Text für den Debug-Kontext: gültiges UTF-8 unverändert, alles andere (Bilddaten) nur mit seiner Länge.
+    // debugExpert ersetzte die Bytes sonst durch Ersatzzeichen, die im Debug niemandem helfen.
+    private function debugPrintable(string $text): string
+    {
+        return preg_match('//u', $text) === 1 ? $text : sprintf('(binär, %d Bytes)', strlen($text));
     }
 }

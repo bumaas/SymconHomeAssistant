@@ -314,7 +314,7 @@ class HomeAssistantDevice extends IPSModuleStrict implements HADeviceConstants
             $payload = '';
         }
 
-        $this->debugExpert(__FUNCTION__, 'Eingangsdaten', ['Topic' => $topic, 'Payload' => $payload]);
+        $this->debugIncomingMessage($topic, $payload);
 
         $messageStartedAt = microtime(true);
 
