@@ -725,8 +725,19 @@ final class DiscoveryDeviceHarness extends HomeAssistantMQTTDiscoveryDevice
     /** @var list<string> Idents, deren SetValue scheitert (false, wie am Kernel nach einer Warnung). */
     public static array $schreibfehler = [];
 
+    /**
+     * Wie der Kernel INF und NAN in einer Float-Variable behandelt. Der Stub wirft dort eine Ausnahme (null), die
+     * Anlagen nicht (gemessen am 28.11.2026 mit SetValue auf eine Float-Variable):
+     * 'rust' = true ohne Warnung, gespeichert wird 0.0 (Testbox, 9.1);
+     * 'cpp'  = Warnung „NaN/INF Werte werden nicht unterstützt“ und false, der alte Wert bleibt (Neustadt, 9.0).
+     */
+    public static ?string $nichtEndlich = null;
+
     protected function SetValue(string $Ident, mixed $Value): bool
     {
+        if (self::$nichtEndlich !== null && is_float($Value) && !is_finite($Value)) {
+            return self::$nichtEndlich === 'rust' && parent::SetValue($Ident, 0.0);
+        }
         return !in_array($Ident, self::$schreibfehler, true) && parent::SetValue($Ident, $Value);
     }
 }

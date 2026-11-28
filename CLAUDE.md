@@ -395,7 +395,8 @@ Gemeinsame Traits und Klassen; `libs/HACommonIncludes.php` bindet alles ein und 
   `DiscoveryConfiguratorHarness` und `ConfiguratorHarness`. Test: `check-discovery-configurator-orphans.php`.
 - Der Stub ist kein Kernel: Er prüft MIN < MAX nicht, meldet bei `MaintainVariable` immer „angelegt“, zeigt
   Properties erst nach `ApplyChanges` und lässt keinen unpassenden Splitter verbinden. `IPS_GetObject()` lässt sich
-  nicht mitzählen.
+  nicht mitzählen. INF und NAN in einer Float-Variable lehnt er mit einer Ausnahme ab, die Anlagen
+  verhalten sich je Edition anders (`DiscoveryDeviceHarness::$nichtEndlich`).
 - Hilfsskripte, die keine Tests sind, gehören nach `tools/` (nicht versioniert).
 - Offen: Einige Checks tragen noch eigene Attrappen; Umstellung beim nächsten Anfassen, nicht als Sammelaktion.
 

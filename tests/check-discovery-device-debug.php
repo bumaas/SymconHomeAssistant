@@ -239,4 +239,83 @@ pruefe(gesetzterWert($debug, $helligkeitIdent) === 'fehlt', 'Schreibfehler: kein
 pruefe(($nichtGesetzt[$helligkeitIdent] ?? null) === 129, 'Schreibfehler: „Wert nicht gesetzt“ für die Helligkeit mit 129', $kurz($debug));
 pruefe(gesetzterWert($debug, $dimmerIdent) === true, 'Schreibfehler: „Wert gesetzt“ für den Status bleibt', $kurz($debug));
 
+// --- Teil 8: Ein nicht endlicher Zahlenwert. Aus 1e999 macht PHP INF (json_decode, ebenso der Cast eines Textes),
+// json_encode wirft bei INF, und in build 263 brach die Debug-Zeile zum geschriebenen Wert damit die Meldung ab
+// (Nachreview 28.11.2026, Befund 1). Die Meldung ist die echte Meldung des Leistungssensors aus dem Bundle mit
+// anderem Wert; dass ein Gerät 1e999 sendet, ist angenommen, kein Mitschnitt. Wie der Kernel INF behandelt, ist an
+// den Anlagen gemessen und im Harness nachgebildet (DiscoveryDeviceHarness::$nichtEndlich), der Stub wirft dort.
+const LEISTUNG = 'Z-Wave-JS/Raum/Bild/meter/endpoint_0/value/66049';
+
+/** Die echte Meldung des Leistungssensors aus dem Bundle, der Wert als JSON-Zahl im Wortlaut (etwa „1e999“). */
+function leistungsMeldung(array $zwave, string $zahl): string
+{
+    $roh = array_find($zwave['topic_payloads'], static fn(array $p): bool => $p['topic'] === LEISTUNG)['payload'];
+    $json = json_decode($roh, true, 512, JSON_THROW_ON_ERROR);
+    $json['value'] = '__WERT__';
+    return str_replace('"__WERT__"', $zahl, json_encode($json, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+}
+
+/** @return array{0: list<array{Message: string, Data: string, Format: int}>, 1: ?string} Debug-Zeilen und Text einer Ausnahme */
+function meldeOhneAbbruch(DiscoveryDeviceHarness $g, string $topic, string $payload): array
+{
+    $vorher = count(IPS\DebugServer::getDebugMessages($g->id()));
+    $ausnahme = null;
+    try {
+        neueAusfuehrung($g)->ReceiveData(json_encode(['Topic' => $topic, 'Payload' => bin2hex($payload)], JSON_THROW_ON_ERROR));
+    } catch (Throwable $e) {
+        $ausnahme = get_class($e) . ': ' . $e->getMessage();
+    }
+    return [array_slice(IPS\DebugServer::getDebugMessages($g->id()), $vorher), $ausnahme];
+}
+
+/** Der Wert zu einem Ident aus den Zeilen mit dem Text $text; „fehlt“, wenn es keine solche Zeile gibt. */
+function wertInZeile(array $debug, string $text, string $ident): mixed
+{
+    foreach (zeilen($debug, $text) as $zeile) {
+        if (($zeile['kontext']['Ident'] ?? null) === $ident) {
+            return $zeile['kontext']['Value'] ?? null;
+        }
+    }
+    return 'fehlt';
+}
+
+// Im Bundle steht der Sensor auf 0 und würde Integer. Mit 12.5 im Zwischenspeicher des Splitters wird er Float.
+$mitKommawert = $zwave['topic_payloads'];
+foreach ($mitKommawert as $nr => $eintrag) {
+    if ($eintrag['topic'] === LEISTUNG) {
+        $mitKommawert[$nr]['payload'] = leistungsMeldung($zwave, '12.5');
+    }
+}
+DiscoveryDeviceHarness::$topicPayloadAntwort = ['Items' => $mitKommawert];
+$messer = bildInstanz(true);
+DiscoveryDeviceHarness::$topicPayloadAntwort = ['Items' => $zwave['topic_payloads']];
+$messerVars = variablenNachIdent($messer->id());
+$leistungIdent = array_find(array_keys($messerVars), static fn(string $i): bool => str_contains($i, 'electric_w')) ?? '';
+pruefe($leistungIdent !== '' && IPS_GetVariable($messerVars[$leistungIdent])['VariableType'] === VARIABLETYPE_FLOAT, 'Leistungssensor als Float angelegt',
+    json_encode(array_keys($messerVars)));
+
+// Rust (Testbox 9.1, 28.11.2026): SetValue liefert true ohne Warnung, gespeichert wird 0.0.
+DiscoveryDeviceHarness::$nichtEndlich = 'rust';
+[$debug, $ausnahme] = meldeOhneAbbruch($messer, LEISTUNG, leistungsMeldung($zwave, '1e999'));
+pruefe($ausnahme === null, 'INF, Kernel schreibt (Rust): die Meldung bricht nicht ab', (string)$ausnahme);
+pruefe(wertInZeile($debug, 'Wert gesetzt', $leistungIdent) === 'INF', 'INF, Kernel schreibt (Rust): „Wert gesetzt“ nennt INF', $kurz($debug));
+[$debug, $ausnahme] = meldeOhneAbbruch($messer, LEISTUNG, leistungsMeldung($zwave, '-1e999'));
+pruefe($ausnahme === null, '-INF, Kernel schreibt (Rust): die Meldung bricht nicht ab', (string)$ausnahme);
+pruefe(wertInZeile($debug, 'Wert gesetzt', $leistungIdent) === '-INF', '-INF, Kernel schreibt (Rust): „Wert gesetzt“ nennt -INF', $kurz($debug));
+
+// C++ (Neustadt 9.0, 28.11.2026): SetValue warnt („NaN/INF Werte werden nicht unterstützt“) und liefert false.
+DiscoveryDeviceHarness::$nichtEndlich = null;
+meldeOhneAbbruch($messer, LEISTUNG, leistungsMeldung($zwave, '7.5'));
+DiscoveryDeviceHarness::$nichtEndlich = 'cpp';
+[$debug, $ausnahme] = meldeOhneAbbruch($messer, LEISTUNG, leistungsMeldung($zwave, '1e999'));
+DiscoveryDeviceHarness::$nichtEndlich = null;
+pruefe($ausnahme === null, 'INF, Kernel lehnt ab (C++): die Meldung bricht nicht ab', (string)$ausnahme);
+pruefe(wertInZeile($debug, 'Wert nicht gesetzt', $leistungIdent) === 'INF', 'INF, Kernel lehnt ab (C++): „Wert nicht gesetzt“ nennt INF', $kurz($debug));
+pruefe(GetValue($messerVars[$leistungIdent]) === 7.5, 'INF, Kernel lehnt ab (C++): der alte Wert 7.5 bleibt', var_export(GetValue($messerVars[$leistungIdent]), true));
+
+// Eine endliche Zahl steht weiter als Zahl im Debug, nicht als Text.
+[$debug] = meldeOhneAbbruch($messer, LEISTUNG, leistungsMeldung($zwave, '8.25'));
+pruefe(wertInZeile($debug, 'Wert gesetzt', $leistungIdent) === 8.25, 'Endliche Zahl: „Wert gesetzt“ nennt sie als Zahl',
+    var_export(wertInZeile($debug, 'Wert gesetzt', $leistungIdent), true));
+
 ergebnis();

@@ -913,6 +913,16 @@ Eingeführt: 1.10 build 263.
   Module. „Eingangsdaten“ und „Wert gesetzt“ schreiben statt der Bytes nur die Länge (`debugPrintable()`), sonst
   stünden Bilddaten eines `image`-Topics als Ersatzzeichen im Debug. Dafür gibt es keinen Mitschnitt, der Test
   nimmt es an.
+- Nicht endliche Zahlen (build 264, Nachreview 28.11.2026): Aus einem Payload `1e999` macht PHP INF (`json_decode`,
+  ebenso der Cast in `castSensorValue`), und `json_encode` wirft bei INF und NAN. In build 263 brach die Zeile „Wert
+  gesetzt“ damit die Meldung nach dem Schreiben ab, nur mit erweitertem Debug. `debugExpert` schreibt solche Werte
+  jetzt als Text (`INF`, `-INF`, `NAN`), für alle Module. Das erste Review hatte den Fall verworfen, weil der Stub
+  INF im `SetValue` mit einer Ausnahme ablehnt. Die Anlagen tun das nicht (gemessen am 28.11.2026 mit `SetValue` auf
+  eine temporäre Float-Variable): Rust (Testbox, 9.1) liefert true ohne Warnung und speichert 0.0, C++ (Neustadt,
+  9.0) warnt „NaN/INF Werte werden nicht unterstützt“, liefert false und lässt den alten Wert stehen. Der Test bildet
+  beides über `DiscoveryDeviceHarness::$nichtEndlich` nach. Dass ein Gerät `1e999` sendet, ist angenommen.
+- Offen: Unter Rust steht nach einer solchen Meldung 0.0 in der Variable, das Modul prüft Zahlen nicht auf
+  Endlichkeit.
 - Offen: die Ursache des Flackerns selbst, die Rückmeldung des Anwenders steht aus. Offen auch: Der Zustands-Cache
   des klassischen Geräts (`writeEntityStateCache`) wirft bei einem Zustand oder Attribut mit ungültigem UTF-8
   unabhängig vom Debug; beim Test aufgefallen, kein Anlass aus einer Anlage.

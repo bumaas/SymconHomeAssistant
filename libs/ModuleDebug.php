@@ -34,10 +34,15 @@ trait ModuleDebugTrait
             return;
         }
 
-        // Der Kontext trägt fremden Text (Payloads). Ungültiges UTF-8 darin wird ersetzt, eine Debug-Zeile darf die
-        // Verarbeitung der Meldung nicht abbrechen.
+        // Der Kontext trägt fremde Werte (Payloads). Ungültiges UTF-8 darin wird ersetzt, INF und NAN stehen als Text
+        // da: json_encode wirft bei beidem, und eine Debug-Zeile darf die Verarbeitung der Meldung nicht abbrechen.
         $suffix = '';
         if (!empty($context)) {
+            array_walk_recursive($context, static function (mixed &$value): void {
+                if (is_float($value) && !is_finite($value)) {
+                    $value = is_nan($value) ? 'NAN' : ($value > 0 ? 'INF' : '-INF');
+                }
+            });
             $suffix = ' | ' . json_encode($context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
         }
 
